@@ -1,272 +1,174 @@
-// components/Sidebar.js
+// components/Sidebar.jsx
 'use client'
 
-import { useState, useEffect } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
-  ClipboardList, 
-  BarChart3, 
-  Settings,
-  Heart,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  List,
-  Edit3,
-  Plus,
-  X,
-  LogOut
+import { useState } from 'react'
+import {
+  LayoutDashboard, Phone, Users, UserCog, CalendarCheck, School,
+  Receipt, CreditCard, Award, Bus, Library, FileText, Settings, LogOut,
+  ChevronLeft, ChevronRight, ChevronDown
 } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import clsx from 'clsx'
 
-export default function Sidebar({ isOpen, setIsOpen, isMobile }) {
+export default function Sidebar({ isOpen, setIsOpen }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const [patientsExpanded, setPatientsExpanded] = useState(false)
-  const [invoiceExpanded, setInvoiceExpanded] = useState(false) // ← NEW
+  const [openMenu, setOpenMenu] = useState(null)
 
-  // Auto-hide dropdowns when leaving route
-  useEffect(() => {
-    if (!pathname.startsWith('/patients')) setPatientsExpanded(false)
-    if (!pathname.startsWith('/invoice')) setInvoiceExpanded(false) // ← NEW
-  }, [pathname])
+  const toggleMenu = (key) => {
+    setOpenMenu(openMenu === key ? null : key)
+  }
 
   const menuItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { name: 'Patients', icon: Users, path: '/patients' },
-    { name: 'Doctors', icon: Users, path: '/doctors/list' },
-    { name: 'Appointments', icon: Calendar, path: '/appointments' },
-    { name: 'Treatment Plain', icon: Calendar, path: '/treatment-plain' },
-    { name: 'Invoice', icon: ClipboardList, path: '/invoice' }, // ← Will be dropdown
-    { name: 'Reports', icon: BarChart3, path: '/reports' },
-    { name: 'Settings', icon: Settings, path: '/settings' },
+    { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { title: "Front Desk", icon: Phone, key: "frontdesk", submenus: [
+      { title: "People Directory", href: "/frontdesk/directory" },
+      { title: "Visitor In/Out", href: "/frontdesk/visitors" },
+      { title: "Admission Inquiry", href: "/frontdesk/inquiry" },
+    ]},
+    { title: "Students", icon: Users, key: "students", submenus: [
+      { title: "Active Students", href: "/students/active" },
+      { title: "Admission Register", href: "/students/admission" },
+      { title: "Old Students", href: "/students/old" },
+      { title: "Student Reports", href: "/students/reports" },
+      { title: "Certificates", href: "/students/certificates" },
+      { title: "ID Cards", href: "/students/cards" },
+    ]},
+    { title: "HR / Staff", icon: UserCog, key: "hr", submenus: [
+      { title: "Active Staff", href: "/hr/active" },
+      { title: "Old Staff", href: "/hr/old" },
+      { title: "Certificates", href: "/hr/certificates" },
+      { title: "ID Cards", href: "/hr/cards" },
+      { title: "Recruitment", href: "/hr/recruitment" },
+      { title: "HR Settings", href: "/hr/settings" },
+    ]},
+    { title: "Attendance", icon: CalendarCheck, key: "attendance", submenus: [
+      { title: "Staff Attendance", href: "/attendance/staff" },
+      { title: "Student Attendance", href: "/attendance/students" },
+      { title: "Reports", href: "/attendance/reports" },
+    ]},
+    { title: "Classes", icon: School, key: "classes", submenus: [
+      { title: "Class List", href: "/classes/list" },
+      { title: "Sections", href: "/classes/sections" },
+      { title: "Timetable", href: "/classes/timetable" },
+      { title: "Date Sheet", href: "/classes/datesheet" },
+    ]},
+    { title: "Fee", icon: Receipt, key: "fee", submenus: [
+      { title: "Collect Fee", href: "/fee/collect" },
+      { title: "View Challan", href: "/fee/challans" },
+      { title: "Create Challan", href: "/fee/create" },
+    ]},
+    { title: "Payroll", icon: CreditCard, key: "payroll", submenus: [
+      { title: "Pay Salary", href: "/payroll/pay" },
+      { title: "Salary Slips", href: "/payroll/slips" },
+      { title: "Expenses", href: "/payroll/expenses" },
+    ]},
+    { title: "Examination", icon: Award, key: "exam", submenus: [
+      { title: "Update Marks", href: "/exam/marks" },
+      { title: "Reports", href: "/exam/reports" },
+    ]},
+    { title: "Transport", icon: Bus, key: "transport", submenus: [
+      { title: "Passengers", href: "/transport/passengers" },
+      { title: "Vehicles", href: "/transport/vehicles" },
+    ]},
+    { title: "Library", icon: Library, href: "/library" },
+    { title: "Reports", icon: FileText, href: "/reports" },
+    { title: "Settings", icon: Settings, href: "/settings" },
   ]
 
-  const handleNavigation = (path) => {
-    router.push(path)
-    if (isMobile) setIsOpen(false)
-  }
-
-  const handleLogout = () => {
-    localStorage.clear()
-    router.push('/login')
-  }
-
   return (
-    <aside 
-      className={`fixed top-0 left-0 h-screen bg-white shadow-xl transition-all duration-300 z-40 ${
-        isMobile 
-          ? (isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64')
-          : (isOpen ? 'w-64' : 'w-20')
-      }`}
-    >
-      {/* Logo */}
-      <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-            <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-white" fill="white" />
+    <aside className={clsx(
+      // ← THIS IS THE KEY: fixed + full height + overflow auto
+      "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-indigo-900 to-indigo-950 text-white transition-all duration-300 flex flex-col overflow-hidden",
+      isOpen ? "w-80" : "w-20"
+    )}>
+      {/* Logo & Toggle Button */}
+      <div className="flex items-center justify-between p-5 border-b border-indigo-800 shrink-0">
+        <div className={clsx("flex items-center gap-3", !isOpen && "justify-center w-full")}>
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <School className="w-8 h-8 text-white" />
           </div>
-          {(isOpen || isMobile) && (
-            <div className="animate-fade-in">
-              <h1 className="text-base sm:text-lg font-bold text-gray-800">Gynecology</h1>
-              <p className="text-xs text-gray-500">Admin Portal</p>
+          {isOpen && (
+            <div>
+              <h1 className="text-xl font-bold">SmartSchool Pro</h1>
+              <p className="text-xs text-indigo-300">Management System</p>
             </div>
           )}
         </div>
-        {isMobile && isOpen && (
-          <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
-        )}
-      </div>
-
-      {/* Desktop Toggle */}
-      {!isMobile && (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 hover:bg-gray-50 shadow-md"
+          className="p-2 hover:bg-indigo-800 rounded-lg transition lg:block hidden"
         >
-          {isOpen ? <ChevronLeft className="w-4 h-4 text-gray-600" /> : <ChevronRight className="w-4 h-4 text-gray-600" />}
+          {isOpen ? <ChevronLeft className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
         </button>
-      )}
+      </div>
 
-      {/* Menu */}
-      <nav className="p-3 sm:p-4 space-y-1 sm:space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-        {menuItems.map((item, index) => {
-          const isActive = pathname === item.path || 
-            (item.name === 'Doctors' && pathname.startsWith('/doctors')) ||
-            (item.name === 'Invoice' && pathname.startsWith('/invoice')) // ← NEW
-
+      {/* Scrollable Menu */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 scrollbar-thin scrollbar-thumb-indigo-700">
+        {menuItems.map((item) => {
           const Icon = item.icon
+          const isActive = item.href ? pathname === item.href : pathname.startsWith(`/${item.key || ''}`)
+          const isOpenMenu = openMenu === item.key
 
-          // Patients Dropdown
-          if (item.name === 'Patients') {
+          if (item.submenus) {
             return (
-              <div key={item.path} style={{ animationDelay: `${index * 50}ms` }}>
+              <div key={item.key}>
                 <button
-                  onClick={() => {
-                    if (isOpen || isMobile) {
-                      setPatientsExpanded(!patientsExpanded)
-                    } else {
-                      setIsOpen(true)
-                      setPatientsExpanded(true)
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    pathname.startsWith('/patients')
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
-                      : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${pathname.startsWith('/patients') ? 'text-white' : 'text-gray-600'}`} />
-                  {(isOpen || isMobile) && (
-                    <>
-                      <span className="flex-1 text-left font-medium text-sm sm:text-base">{item.name}</span>
-                      <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-300 ${
-                          patientsExpanded ? 'rotate-180' : ''
-                        } ${pathname.startsWith('/patients') ? 'text-white' : 'text-gray-600'}`}
-                      />
-                    </>
+                  onClick={() => toggleMenu(item.key)}
+                  className={clsx(
+                    "w-full flex items-center justify-between px-4 py-3 rounded-xl hover:bg-indigo-800 transition",
+                    isActive && "bg-indigo-700 shadow-lg"
                   )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5" />
+                    {isOpen && <span className="font-medium">{item.title}</span>}
+                  </div>
+                  {isOpen && <ChevronDown className={`w-5 h-5 transition-transform ${isOpenMenu ? "rotate-180" : ""}`} />}
                 </button>
 
-                {(isOpen || isMobile) && patientsExpanded && (
-                  <div className="mt-1 space-y-1">
-                    <button
-                      onClick={() => handleNavigation('/patients/list')}
-                      className={`w-full flex items-center gap-2 px-3 py-2 ml-5 rounded-lg text-sm transition-all ${
-                        pathname === '/patients/list'
-                          ? 'bg-purple-50 text-purple-700 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <List className="w-4 h-4" />
-                      <span>Patient List</span>
-                    </button>
-                    <button
-                      onClick={() => handleNavigation('/patients/form-designer')}
-                      className={`w-full flex items-center gap-2 px-3 py-2 ml-5 rounded-lg text-sm transition-all ${
-                        pathname === '/patients/form-designer'
-                          ? 'bg-purple-50 text-purple-700 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      <span>Form Designer</span>
-                    </button>
+                {isOpen && isOpenMenu && (
+                  <div className="ml-8 mt-2 space-y-1">
+                    {item.submenus.map((sub) => (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        className={clsx(
+                          "block px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition",
+                          pathname === sub.href && "bg-indigo-600 font-medium"
+                        )}
+                      >
+                        {sub.title}
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
             )
           }
 
-          // Invoice Dropdown ← NEW
-          if (item.name === 'Invoice') {
-            return (
-              <div key={item.path} style={{ animationDelay: `${index * 50}ms` }}>
-                <button
-                  onClick={() => {
-                    if (isOpen || isMobile) {
-                      setInvoiceExpanded(!invoiceExpanded)
-                    } else {
-                      setIsOpen(true)
-                      setInvoiceExpanded(true)
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    pathname.startsWith('/invoice')
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
-                      : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${pathname.startsWith('/invoice') ? 'text-white' : 'text-gray-600'}`} />
-                  {(isOpen || isMobile) && (
-                    <>
-                      <span className="flex-1 text-left font-medium text-sm sm:text-base">{item.name}</span>
-                      <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-300 ${
-                          invoiceExpanded ? 'rotate-180' : ''
-                        } ${pathname.startsWith('/invoice') ? 'text-white' : 'text-gray-600'}`}
-                      />
-                    </>
-                  )}
-                </button>
-
-                {(isOpen || isMobile) && invoiceExpanded && (
-                  <div className="mt-1 space-y-1">
-                    <button
-                      onClick={() => handleNavigation('/invoice')}
-                      className={`w-full flex items-center gap-2 px-3 py-2 ml-5 rounded-lg text-sm transition-all ${
-                        pathname === '/invoice'
-                          ? 'bg-purple-50 text-purple-700 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <List className="w-4 h-4" />
-                      <span>Invoice List</span>
-                    </button>
-                    <button
-                      onClick={() => handleNavigation('/invoice/create')}
-                      className={`w-full flex items-center gap-2 px-3 py-2 ml-5 rounded-lg text-sm transition-all ${
-                        pathname === '/invoice/create'
-                          ? 'bg-purple-50 text-purple-700 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Add Invoice</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          }
-
-          // Other Menu Items
           return (
-            <button
-              key={item.path}
-              onClick={() => handleNavigation(item.path)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                isActive
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
-                  : 'hover:bg-gray-50 text-gray-700'
-              }`}
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-600'}`} />
-              {(isOpen || isMobile) && (
-                <span className="font-medium text-sm sm:text-base">{item.name}</span>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(
+                "flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-indigo-800 transition",
+                isActive && "bg-indigo-700 shadow-lg"
               )}
-            </button>
+            >
+              <Icon className="w-5 h-5" />
+              {isOpen && <span className="font-medium">{item.title}</span>}
+            </Link>
           )
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-gray-50">
-        {(isOpen || isMobile) ? (
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-medium text-red-600 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 transition-all duration-200"
-          >
-            <div className="p-1.5 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors">
-              <LogOut className="w-4 h-4 text-red-600" />
-            </div>
-            <span className="font-semibold">Logout</span>
-          </button>
-        ) : (
-          <button
-            onClick={handleLogout}
-            className="w-full p-3 flex justify-center text-red-600 hover:bg-red-50 transition-colors"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-        )}
+      {/* Logout – Always Visible */}
+      <div className="p-4 border-t border-indigo-800 shrink-0">
+        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-900 transition">
+          <LogOut className="w-5 h-5" />
+          {isOpen && <span className="font-medium">Logout</span>}
+        </button>
       </div>
     </aside>
   )

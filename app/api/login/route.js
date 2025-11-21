@@ -1,39 +1,26 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+// app/api/login/route.js   ← Make sure the file name is .js
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+const users = [
+  { id: 1, email: 'admin@smartschool.edu', password: 'admin123', role: 'admin', name: 'Admin User' },
+  { id: 2, email: 'teacher@smartschool.edu', password: 'teacher123', role: 'teacher', name: 'John Teacher' },
+  { id: 3, email: 'staff@smartschool.edu', password: 'staff123', role: 'staff', name: 'Sarah Staff' },
+]
 
-export async function POST(req) {
-  try {
-    const { email, password } = await req.json()
+export async function POST(request) {
+  const { email, password } = await request.json()
 
-    // Simple credential check
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .eq('password', password)
-      .single()
+  const user = users.find(u => u.email === email && u.password === password)
 
-    if (error || !user) {
-      return NextResponse.json({ message: 'Invalid email or password' }, { status: 401 })
-    }
-
-    // Success
-    return NextResponse.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
-      }
+  if (user) {
+    const { password: _, ...safeUser } = user
+    return new Response(JSON.stringify({ user: safeUser }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     })
-  } catch (err) {
-    console.error('Login error:', err)
-    return NextResponse.json({ message: 'Server error' }, { status: 500 })
+  } else {
+    return new Response(JSON.stringify({ message: 'Invalid email or password' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 }

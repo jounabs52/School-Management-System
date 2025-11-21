@@ -2,8 +2,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Gynecology Clinic - Admin Portal',
-  description: 'Professional Gynecology Clinic Management System',
+  title: 'School Management System',
+  description: 'Professional School Management System',
 }
 
 export default function RootLayout({ children }) {
