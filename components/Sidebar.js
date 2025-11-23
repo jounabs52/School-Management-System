@@ -90,7 +90,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </div>
           {isOpen && (
             <div>
-              <h1 className="text-xl font-bold">SmartSchool Pro</h1>
+              <h1 className="text-xl font-bold">Smart School Pro</h1>
               <p className="text-xs text-indigo-300">Management System</p>
             </div>
           )}

@@ -1,4 +1,4 @@
-// app/dashboard/layout.js
+// app/(dashboard)/layout.js
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -10,16 +10,16 @@ export default function DashboardLayout({ children }) {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [loading, setLoading] = useState(true)   // ← ADD THIS LINE
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
     if (!userData) {
-      router.push('/login')
+      router.push('/')
     } else {
       setUser(JSON.parse(userData))
     }
-    setLoading(false)   // ← ADD THIS LINE
+    setLoading(false)
 
     const handleResize = () => {
       setSidebarOpen(window.innerWidth >= 1024)
@@ -29,7 +29,6 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [router])
 
-  // Show a nice loader while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -39,7 +38,7 @@ export default function DashboardLayout({ children }) {
   }
 
   if (!user) {
-    return null  // this will trigger redirect anyway
+    return null
   }
 
   return (

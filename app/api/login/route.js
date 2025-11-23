@@ -1,9 +1,7 @@
 // app/api/login/route.js   ← Make sure the file name is .js
 
 const users = [
-  { id: 1, email: 'admin@smartschool.edu', password: 'admin123', role: 'admin', name: 'Admin User' },
-  { id: 2, email: 'teacher@smartschool.edu', password: 'teacher123', role: 'teacher', name: 'John Teacher' },
-  { id: 3, email: 'staff@smartschool.edu', password: 'staff123', role: 'staff', name: 'Sarah Staff' },
+  { id: 1, email: 'admin@gmail.com', password: 'admin123', role: 'admin', name: 'Admin User' }
 ]
 
 export async function POST(request) {

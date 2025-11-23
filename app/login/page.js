@@ -1,12 +1,9 @@
-// app/login/page.js
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { BookOpen, Lock, Mail, Eye, EyeOff, School, Users, LogIn } from 'lucide-react'
+import { Lock, Mail, Eye, EyeOff, School, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -15,8 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     setLoading(true)
     setError('')
 
@@ -30,8 +26,9 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (response.ok) {
-        localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/dashboard')
+        if (typeof window !== 'undefined') {
+          window.location.href = '/dashboard'
+        }
       } else {
         setError(data.message || 'Invalid email or password')
       }
@@ -42,83 +39,87 @@ export default function LoginPage() {
     }
   }
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSubmit()
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       {/* Animated Background Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-10 left-10 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse"></div>
-        <div className="absolute top-32 right-8 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse animation-delay-2000"></div>
-        <div className="absolute bottom-10 left-1/3 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse animation-delay-4000"></div>
+        <div className="absolute top-32 right-8 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse"></div>
+        <div className="absolute bottom-10 left-1/3 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md">
         {/* Logo & Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-2xl mb-6">
-            <School className="w-14 h-14 text-white" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-2xl mb-4">
+            <School className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-gray-800 mb-2">
+          <h1 className="text-3xl font-extrabold text-gray-800 mb-1">
             SmartSchool Pro
           </h1>
-          <p className="text-xl text-gray-600 font-medium">School Management System</p>
-          <p className="text-sm text-gray-500 mt-2">Admin • Teacher • Staff Portal</p>
+          <p className="text-lg text-gray-600 font-medium">School Management System</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-gray-100">
-          <div className="mb-8 text-center">
-            <h2 className="text-3xl font-bold text-gray-800">Welcome Back! 👋</h2>
-            <p className="text-gray-600 mt-2">Log in to manage your school efficiently</p>
+        <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-6 border border-gray-100">
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-bold text-gray-800">Welcome Back! 👋</h2>
+            <p className="text-gray-600 text-sm mt-1">Log in to manage your school efficiently</p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center gap-2">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center gap-2">
               <span>⚠️</span> {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
             {/* Email Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-indigo-500" />
                 </div>
                 <input
                   type="email"
-                  required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500 transition-all outline-none text-gray-800 placeholder-gray-400"
-                  placeholder="admin@smartschool.edu"
+                  onKeyPress={handleKeyPress}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500 transition-all outline-none text-gray-800 placeholder-gray-400"
+                  placeholder="admin@gmail.com"
                 />
               </div>
             </div>
 
             {/* Password Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-indigo-500" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500 transition-all outline-none text-gray-800 placeholder-gray-400"
+                  onKeyPress={handleKeyPress}
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500 transition-all outline-none text-gray-800 placeholder-gray-400"
                   placeholder="••••••••••••"
                 />
                 <button
-                  type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-indigo-600 transition"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-indigo-600 transition"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -138,9 +139,9 @@ export default function LoginPage() {
 
             {/* Submit Button */}
             <button
-              type="submit"
+              onClick={handleSubmit}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-4 rounded-xl hover:from-blue-700 hover:to-indigo-800 transform hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-3.5 rounded-xl hover:from-blue-700 hover:to-indigo-800 transform hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
               {loading ? (
                 <>
@@ -154,19 +155,19 @@ export default function LoginPage() {
                 </>
               )}
             </button>
-          </form>
+          </div>
 
-          {/* Demo Credentials (Optional - remove in production) */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600">
-            <p className="font-semibold text-gray-800 mb-2">🔑 Demo Credentials</p>
-            <p>Admin: <span className="font-mono">admin@smartschool.edu</span> / pass: admin123</p>
-            <p>Teacher: <span className="font-mono">teacher@smartschool.edu</span> / pass: teacher123</p>
+          {/* Demo Credentials */}
+          <div className="mt-5 p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600">
+            <p className="font-semibold text-gray-800 mb-1.5">🔑 Demo Credentials</p>
+            <p>Admin: <span className="font-mono">admin@gmail.com</span></p>
+            <p>Password: <span className="font-mono">admin123</span></p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-8 text-sm text-gray-600">
-          <p>© {new Date().getFullYear()} SmartSchool Pro • All Rights Reserved • Powered by Education</p>
+        <div className="text-center mt-4 text-xs text-gray-600">
+          <p>© {new Date().getFullYear()} SmartSchool Pro • All Rights Reserved</p>
         </div>
       </div>
     </div>

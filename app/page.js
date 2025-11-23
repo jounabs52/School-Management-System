@@ -1,6 +1,5 @@
 // app/dashboard/page.js
 import { cookies } from 'next/headers';
-import { verify } from 'jsonwebtoken';
 import { redirect } from 'next/navigation';
 
 const JWT_SECRET = process.env.JWT_SECRET;
