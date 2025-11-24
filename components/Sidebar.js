@@ -78,33 +78,32 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   return (
     <aside className={clsx(
-      // ← THIS IS THE KEY: fixed + full height + overflow auto
-      "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-indigo-900 to-indigo-950 text-white transition-all duration-300 flex flex-col overflow-hidden",
+      "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-blue-900 via-blue-900 to-blue-950 text-white transition-all duration-300 flex flex-col overflow-hidden shadow-2xl",
       isOpen ? "w-80" : "w-20"
     )}>
       {/* Logo & Toggle Button */}
-      <div className="flex items-center justify-between p-5 border-b border-indigo-800 shrink-0">
+      <div className="flex items-center justify-between p-5 border-b border-blue-800/50 shrink-0 bg-blue-900/50">
         <div className={clsx("flex items-center gap-3", !isOpen && "justify-center w-full")}>
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-            <School className="w-8 h-8 text-white" />
+          <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+            <School className="w-7 h-7 text-white" />
           </div>
           {isOpen && (
             <div>
-              <h1 className="text-xl font-bold">Smart School Pro</h1>
-              <p className="text-xs text-indigo-300">Management System</p>
+              <h1 className="text-xl font-bold tracking-tight">Smart School Pro</h1>
+              <p className="text-xs text-blue-300">Management System</p>
             </div>
           )}
         </div>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="p-2 hover:bg-indigo-800 rounded-lg transition lg:block hidden"
+          className="p-2 hover:bg-blue-800 rounded-lg transition lg:block hidden"
         >
-          {isOpen ? <ChevronLeft className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
+          {isOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
         </button>
       </div>
 
       {/* Scrollable Menu */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 scrollbar-thin scrollbar-thumb-indigo-700">
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 scrollbar-thin scrollbar-thumb-blue-700 scrollbar-track-transparent">
         {menuItems.map((item) => {
           const Icon = item.icon
           const isActive = item.href ? pathname === item.href : pathname.startsWith(`/${item.key || ''}`)
@@ -116,26 +115,26 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 <button
                   onClick={() => toggleMenu(item.key)}
                   className={clsx(
-                    "w-full flex items-center justify-between px-4 py-3 rounded-xl hover:bg-indigo-800 transition",
-                    isActive && "bg-indigo-700 shadow-lg"
+                    "w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-200",
+                    isActive && "bg-white/15 shadow-md"
                   )}
                 >
                   <div className="flex items-center gap-3">
                     <Icon className="w-5 h-5" />
-                    {isOpen && <span className="font-medium">{item.title}</span>}
+                    {isOpen && <span className="font-medium text-sm">{item.title}</span>}
                   </div>
-                  {isOpen && <ChevronDown className={`w-5 h-5 transition-transform ${isOpenMenu ? "rotate-180" : ""}`} />}
+                  {isOpen && <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpenMenu ? "rotate-180" : ""}`} />}
                 </button>
 
                 {isOpen && isOpenMenu && (
-                  <div className="ml-8 mt-2 space-y-1">
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-blue-700/50 pl-4">
                     {item.submenus.map((sub) => (
                       <Link
                         key={sub.href}
                         href={sub.href}
                         className={clsx(
-                          "block px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition",
-                          pathname === sub.href && "bg-indigo-600 font-medium"
+                          "block px-3 py-2 rounded-lg text-sm hover:bg-white/10 transition-all duration-200 text-blue-100",
+                          pathname === sub.href && "bg-red-600 text-white font-medium shadow-md"
                         )}
                       >
                         {sub.title}
@@ -152,22 +151,22 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               key={item.href}
               href={item.href}
               className={clsx(
-                "flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-indigo-800 transition",
-                isActive && "bg-indigo-700 shadow-lg"
+                "flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-200",
+                isActive && "bg-white/15 shadow-md"
               )}
             >
               <Icon className="w-5 h-5" />
-              {isOpen && <span className="font-medium">{item.title}</span>}
+              {isOpen && <span className="font-medium text-sm">{item.title}</span>}
             </Link>
           )
         })}
       </nav>
 
       {/* Logout – Always Visible */}
-      <div className="p-4 border-t border-indigo-800 shrink-0">
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-900 transition">
+      <div className="p-4 border-t border-blue-800/50 shrink-0 bg-blue-950/50">
+        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-600/20 hover:bg-red-600 transition-all duration-200 text-red-200 hover:text-white">
           <LogOut className="w-5 h-5" />
-          {isOpen && <span className="font-medium">Logout</span>}
+          {isOpen && <span className="font-medium text-sm">Logout</span>}
         </button>
       </div>
     </aside>
