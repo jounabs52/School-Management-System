@@ -50,9 +50,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { title: "Classes", icon: School, key: "classes", submenus: [
       { title: "Class List", href: "/classes/list" },
       { title: "Sections", href: "/classes/sections" },
-      { title: "Timetable", href: "/classes/timetable" },
-      { title: "Date Sheet", href: "/classes/datesheet" },
     ]},
+    { title: "Timetable", icon: CalendarCheck, href: "/timetable" },
+    { title: "Date Sheet", icon: FileText, href: "/datesheet" },
     { title: "Fee", icon: Receipt, key: "fee", submenus: [
       { title: "Collect Fee", href: "/fee/collect" },
       { title: "View Challan", href: "/fee/challans" },
