@@ -26,9 +26,9 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (response.ok) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/dashboard'
-        }
+        // Save user data to localStorage for session persistence
+        localStorage.setItem('user', JSON.stringify(data.user))
+        window.location.href = '/dashboard'
       } else {
         setError(data.message || 'Invalid email or password')
       }
@@ -157,11 +157,10 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Demo Credentials */}
+          {/* Login Info */}
           <div className="mt-5 p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600">
-            <p className="font-semibold text-gray-800 mb-1.5">🔑 Demo Credentials</p>
-            <p>Admin: <span className="font-mono">admin@gmail.com</span></p>
-            <p>Password: <span className="font-mono">admin123</span></p>
+            <p className="font-semibold text-gray-800 mb-1.5">Login with your school credentials</p>
+            <p className="text-gray-500">Contact your administrator if you forgot your password</p>
           </div>
         </div>
 

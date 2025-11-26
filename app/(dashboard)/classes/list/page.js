@@ -8,11 +8,22 @@ export default function ClassListPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showFeeIncrementModal, setShowFeeIncrementModal] = useState(false)
+  const [showStudentEditModal, setShowStudentEditModal] = useState(false)
+  const [showStudentDeleteModal, setShowStudentDeleteModal] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState(null)
   const [viewMode, setViewMode] = useState(false)
   const [activeTab, setActiveTab] = useState('students')
   const [selectedClass, setSelectedClass] = useState(null)
   const [classToDelete, setClassToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [studentFormData, setStudentFormData] = useState({
+    name: '',
+    father: '',
+    section: '',
+    rollNo: '',
+    fee: '',
+    discount: ''
+  })
   const [feeIncrementData, setFeeIncrementData] = useState({
     mode: '',
     type: '',
@@ -120,6 +131,37 @@ export default function ClassListPage() {
     setSelectedClass(null)
   }
 
+  const handleStudentEdit = (student) => {
+    setSelectedStudent(student)
+    setStudentFormData({
+      name: student.name,
+      father: student.father,
+      section: student.section,
+      rollNo: student.rollNo,
+      fee: student.fee,
+      discount: student.discount
+    })
+    setShowStudentEditModal(true)
+  }
+
+  const handleStudentUpdate = () => {
+    console.log('Updated Student Data:', studentFormData)
+    setShowStudentEditModal(false)
+    setSelectedStudent(null)
+    setStudentFormData({ name: '', father: '', section: '', rollNo: '', fee: '', discount: '' })
+  }
+
+  const handleStudentDelete = (student) => {
+    setSelectedStudent(student)
+    setShowStudentDeleteModal(true)
+  }
+
+  const confirmStudentDelete = () => {
+    console.log('Delete Student:', selectedStudent)
+    setShowStudentDeleteModal(false)
+    setSelectedStudent(null)
+  }
+
   // If in view mode, show the class details page
   if (viewMode && selectedClass) {
     return (
@@ -141,7 +183,7 @@ export default function ClassListPage() {
             onClick={() => setActiveTab('feePolicy')}
             className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition ${
               activeTab === 'feePolicy'
-                ? 'bg-gray-700 text-white shadow-lg'
+                ? 'bg-red-600 text-white shadow-lg'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
@@ -152,7 +194,7 @@ export default function ClassListPage() {
             onClick={() => setActiveTab('feeIncrement')}
             className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition ${
               activeTab === 'feeIncrement'
-                ? 'bg-orange-500 text-white shadow-lg'
+                ? 'bg-red-600 text-white shadow-lg'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
@@ -163,7 +205,7 @@ export default function ClassListPage() {
             onClick={() => setActiveTab('recurring')}
             className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition ${
               activeTab === 'recurring'
-                ? 'bg-green-500 text-white shadow-lg'
+                ? 'bg-red-600 text-white shadow-lg'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
@@ -172,7 +214,7 @@ export default function ClassListPage() {
           </button>
           <button
             onClick={handleGoBack}
-            className="px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 bg-teal-500 text-white hover:bg-teal-600 transition"
+            className="px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 bg-red-600 text-white hover:bg-red-700 transition"
           >
             <ArrowLeft size={16} />
             Go Back
@@ -202,13 +244,9 @@ export default function ClassListPage() {
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
-                <button className="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center gap-2">
+                <button className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
                   <Search size={18} />
                   Search
-                </button>
-                <button className="bg-teal-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-600 transition flex items-center gap-2">
-                  <Filter size={18} />
-                  Advance Search
                 </button>
               </div>
             </div>
@@ -259,9 +297,20 @@ export default function ClassListPage() {
                         <td className="px-4 py-3 border border-gray-200 text-blue-600">{student.fee}</td>
                         <td className="px-4 py-3 border border-gray-200">{student.discount}</td>
                         <td className="px-4 py-3 border border-gray-200">
-                          <button className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition">
-                            <Edit2 size={18} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleStudentEdit(student)}
+                              className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleStudentDelete(student)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -307,7 +356,7 @@ export default function ClassListPage() {
                   />
                 </div>
                 <div className="flex items-end">
-                  <button className="w-full bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center justify-center gap-2">
+                  <button className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2">
                     Save
                     <Plus size={18} />
                   </button>
@@ -362,7 +411,7 @@ export default function ClassListPage() {
             <p className="text-gray-600 mb-6">Click the button below to apply fee increment to all students in this class.</p>
             <button
               onClick={handleFeeIncrement}
-              className="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center gap-2"
+              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
             >
               <TrendingUp size={18} />
               Apply Fee Increment
@@ -405,7 +454,7 @@ export default function ClassListPage() {
                   />
                 </div>
                 <div className="flex items-end">
-                  <button className="w-full bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center justify-center gap-2">
+                  <button className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2">
                     Save
                     <Plus size={18} />
                   </button>
@@ -448,6 +497,234 @@ export default function ClassListPage() {
             </div>
           </div>
         )}
+
+        {/* Fee Increment Modal - in view mode */}
+        {showFeeIncrementModal && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+              onClick={() => setShowFeeIncrementModal(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-bold">Fee Increment</h3>
+                    <button
+                      onClick={() => setShowFeeIncrementModal(false)}
+                      className="text-white hover:bg-white/10 p-1 rounded-full transition"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Mode</label>
+                    <select
+                      value={feeIncrementData.mode}
+                      onChange={(e) => setFeeIncrementData({ ...feeIncrementData, mode: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="">Select Mode</option>
+                      <option value="percentage">Percentage</option>
+                      <option value="fixed">Fixed Amount</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Type</label>
+                    <select
+                      value={feeIncrementData.type}
+                      onChange={(e) => setFeeIncrementData({ ...feeIncrementData, type: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="">Select Type</option>
+                      <option value="increase">Increase</option>
+                      <option value="decrease">Decrease</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Enter Increment Amount</label>
+                    <input
+                      type="text"
+                      placeholder="Enter amount..."
+                      value={feeIncrementData.amount}
+                      onChange={(e) => setFeeIncrementData({ ...feeIncrementData, amount: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowFeeIncrementModal(false)}
+                      className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={applyFeeIncrement}
+                      className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Student Edit Sidebar */}
+        {showStudentEditModal && selectedStudent && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+              onClick={() => setShowStudentEditModal(false)}
+            />
+            <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-bold">Edit Student</h3>
+                    <p className="text-blue-200 text-sm mt-1">Update student details</p>
+                  </div>
+                  <button
+                    onClick={() => setShowStudentEditModal(false)}
+                    className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  >
+                    <X size={22} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <div className="space-y-6">
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                      Student Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={studentFormData.name}
+                      onChange={(e) => setStudentFormData({ ...studentFormData, name: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    />
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                      Father Name
+                    </label>
+                    <input
+                      type="text"
+                      value={studentFormData.father}
+                      onChange={(e) => setStudentFormData({ ...studentFormData, father: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    />
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                      Section
+                    </label>
+                    <select
+                      value={studentFormData.section}
+                      onChange={(e) => setStudentFormData({ ...studentFormData, section: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    >
+                      <option value="">Select Section</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                    </select>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                      Roll No
+                    </label>
+                    <input
+                      type="text"
+                      value={studentFormData.rollNo}
+                      onChange={(e) => setStudentFormData({ ...studentFormData, rollNo: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    />
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                      Fee
+                    </label>
+                    <input
+                      type="text"
+                      value={studentFormData.fee}
+                      onChange={(e) => setStudentFormData({ ...studentFormData, fee: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    />
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                      Discount
+                    </label>
+                    <input
+                      type="text"
+                      value={studentFormData.discount}
+                      onChange={(e) => setStudentFormData({ ...studentFormData, discount: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-gray-200 px-6 py-5 bg-white">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowStudentEditModal(false)}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleStudentUpdate}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <Edit2 size={18} />
+                    Update Student
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Student Delete Confirmation Modal */}
+        {showStudentDeleteModal && selectedStudent && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+              onClick={() => setShowStudentDeleteModal(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                  <h3 className="text-lg font-bold">Confirm Delete</h3>
+                </div>
+                <div className="p-6">
+                  <p className="text-gray-700 mb-6">
+                    Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowStudentDeleteModal(false)}
+                      className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmStudentDelete}
+                      className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={18} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     )
   }
@@ -481,7 +758,7 @@ export default function ClassListPage() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
-          <button className="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center gap-2">
+          <button className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
             <Search size={20} />
             Search
           </button>
@@ -771,7 +1048,7 @@ export default function ClassListPage() {
             onClick={() => setShowDeleteModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
@@ -809,7 +1086,7 @@ export default function ClassListPage() {
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Fee Increment</h3>
                   <button
@@ -826,7 +1103,7 @@ export default function ClassListPage() {
                   <select
                     value={feeIncrementData.mode}
                     onChange={(e) => setFeeIncrementData({ ...feeIncrementData, mode: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   >
                     <option value="">Select Mode</option>
                     <option value="percentage">Percentage</option>
@@ -838,7 +1115,7 @@ export default function ClassListPage() {
                   <select
                     value={feeIncrementData.type}
                     onChange={(e) => setFeeIncrementData({ ...feeIncrementData, type: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   >
                     <option value="">Select Type</option>
                     <option value="increase">Increase</option>
@@ -852,7 +1129,7 @@ export default function ClassListPage() {
                     placeholder="Enter amount..."
                     value={feeIncrementData.amount}
                     onChange={(e) => setFeeIncrementData({ ...feeIncrementData, amount: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
@@ -864,7 +1141,7 @@ export default function ClassListPage() {
                   </button>
                   <button
                     onClick={applyFeeIncrement}
-                    className="flex-1 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition"
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
                   >
                     Apply
                   </button>

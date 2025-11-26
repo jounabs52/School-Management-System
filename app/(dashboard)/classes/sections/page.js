@@ -5,9 +5,17 @@ import { Plus, Search, Edit2, Trash2, X } from 'lucide-react'
 
 export default function SectionsPage() {
   const [showSidebar, setShowSidebar] = useState(false)
+  const [showEditSidebar, setShowEditSidebar] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedSection, setSelectedSection] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
   const [formData, setFormData] = useState({
+    class: '',
+    section: '',
+    incharge: ''
+  })
+  const [editFormData, setEditFormData] = useState({
     class: '',
     section: '',
     incharge: ''
@@ -42,13 +50,41 @@ export default function SectionsPage() {
     setFormData({ class: '', section: '', incharge: '' })
   }
 
+  const handleEdit = (section) => {
+    setSelectedSection(section)
+    setEditFormData({
+      class: section.className,
+      section: section.sectionName,
+      incharge: section.incharge
+    })
+    setShowEditSidebar(true)
+  }
+
+  const handleUpdate = () => {
+    console.log('Update Section:', selectedSection?.id, editFormData)
+    setShowEditSidebar(false)
+    setSelectedSection(null)
+    setEditFormData({ class: '', section: '', incharge: '' })
+  }
+
+  const handleDelete = (section) => {
+    setSelectedSection(section)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = () => {
+    console.log('Delete Section:', selectedSection?.id)
+    setShowDeleteModal(false)
+    setSelectedSection(null)
+  }
+
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
       {/* Top Button */}
       <div className="mb-6">
         <button
           onClick={() => setShowSidebar(true)}
-          className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-lg"
+          className="bg-[#DC2626] text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-lg"
         >
           <Plus size={20} />
           Assign Section
@@ -91,7 +127,7 @@ export default function SectionsPage() {
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
-              <button className="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center gap-2">
+              <button className="bg-[#DC2626] text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
                 <Search size={20} />
                 Search
               </button>
@@ -129,10 +165,16 @@ export default function SectionsPage() {
                   <td className="px-4 py-3 border border-gray-200">{section.incharge}</td>
                   <td className="px-4 py-3 border border-gray-200">
                     <div className="flex items-center gap-2">
-                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                      <button
+                        onClick={() => handleEdit(section)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                      >
                         <Edit2 size={18} />
                       </button>
-                      <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition">
+                      <button
+                        onClick={() => handleDelete(section)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      >
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -252,6 +294,150 @@ export default function SectionsPage() {
                   <Plus size={18} />
                   Save Section
                 </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Edit Section Sidebar */}
+      {showEditSidebar && (
+        <>
+          {/* Backdrop with blur */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowEditSidebar(false)}
+          />
+
+          {/* Sidebar */}
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+            {/* Sidebar Header */}
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold">Edit Section</h3>
+                  <p className="text-blue-200 text-sm mt-1">Update section details</p>
+                </div>
+                <button
+                  onClick={() => setShowEditSidebar(false)}
+                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+            </div>
+
+            {/* Sidebar Body */}
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div className="space-y-6">
+                {/* Class */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Class
+                  </label>
+                  <select
+                    value={editFormData.class}
+                    onChange={(e) => setEditFormData({ ...editFormData, class: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="">All Classes</option>
+                    <option value="Playgroup">Playgroup</option>
+                    <option value="Nursery">Nursery</option>
+                    <option value="K.G A">K.G A</option>
+                    <option value="Five">Five</option>
+                    <option value="10th">10th</option>
+                  </select>
+                </div>
+
+                {/* Section */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Section <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.section}
+                    onChange={(e) => setEditFormData({ ...editFormData, section: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    placeholder="Enter section name"
+                  />
+                </div>
+
+                {/* Section Incharge */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Section Incharge
+                  </label>
+                  <select
+                    value={editFormData.incharge}
+                    onChange={(e) => setEditFormData({ ...editFormData, incharge: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="">Select incharge</option>
+                    <option value="Ahsan">Ahsan</option>
+                    <option value="SAIMA">SAIMA</option>
+                    <option value="SAMINA">SAMINA</option>
+                    <option value="Ali">Ali</option>
+                    <option value="Abdullah">Abdullah</option>
+                    <option value="Shabana">Shabana</option>
+                    <option value="Ali Ahmad">Ali Ahmad</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar Footer */}
+            <div className="border-t border-gray-200 px-6 py-5 bg-white">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEditSidebar(false)}
+                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  Update Section
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedSection && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowDeleteModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete section <span className="font-bold text-red-600">{selectedSection.sectionName}</span> from <span className="font-bold">{selectedSection.className || 'Unknown Class'}</span>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={18} />
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
