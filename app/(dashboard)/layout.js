@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     const userData = localStorage.getItem('user')
     if (!userData) {
-      router.push('/')
+      router.push('/login')
     } else {
       setUser(JSON.parse(userData))
     }

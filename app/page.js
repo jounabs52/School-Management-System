@@ -1,35 +1,24 @@
-// app/dashboard/page.js
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+'use client'
 
-const JWT_SECRET = process.env.JWT_SECRET;
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-export default function DashboardPage() {
-  const token = cookies().get('accessToken')?.value;
+export default function HomePage() {
+  const router = useRouter()
 
-  if (!token) {
-    redirect('/login');
-  }
-
-  try {
-    verify(token, JWT_SECRET);
-  } catch (err) {
-    redirect('/login');
-  }
+  useEffect(() => {
+    // Check if user is logged in
+    const user = localStorage.getItem('user')
+    if (user) {
+      router.push('/dashboard')
+    } else {
+      router.push('/login')
+    }
+  }, [router])
 
   return (
-    <main className="p-8">
-      <h1 className="text-3xl font-bold mb-4">Welcome to Dashboard</h1>
-      <p className="text-gray-600">You are logged in securely.</p>
-      <button
-        onClick={async () => {
-          await fetch('/api/logout', { method: 'POST' });
-          window.location.href = '/login';
-        }}
-        className="mt-6 px-4 py-2 bg-red-600 text-white rounded-lg"
-      >
-        Logout
-      </button>
-    </main>
-  );
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-2xl font-bold text-gray-600">Redirecting...</div>
+    </div>
+  )
 }

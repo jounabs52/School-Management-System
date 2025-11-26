@@ -19,6 +19,15 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     setOpenMenu(openMenu === key ? null : key)
   }
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' })
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
+
   const menuItems = [
     { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { title: "Front Desk", icon: Phone, key: "frontdesk", submenus: [
@@ -164,7 +173,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
       {/* Logout – Always Visible */}
       <div className="p-4 border-t border-blue-800/50 shrink-0 bg-blue-950/50">
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-600/20 hover:bg-red-600 transition-all duration-200 text-red-200 hover:text-white">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-600/20 hover:bg-red-600 transition-all duration-200 text-red-200 hover:text-white"
+        >
           <LogOut className="w-5 h-5" />
           {isOpen && <span className="font-medium text-sm">Logout</span>}
         </button>

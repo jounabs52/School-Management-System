@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Lock, Mail, Eye, EyeOff, School, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -11,6 +13,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Check if already logged in
+  useEffect(() => {
+    const user = localStorage.getItem('user')
+    if (user) {
+      router.push('/dashboard')
+    }
+  }, [router])
 
   const handleSubmit = async () => {
     setLoading(true)
@@ -28,7 +38,9 @@ export default function LoginPage() {
       if (response.ok) {
         // Save user data to localStorage for session persistence
         localStorage.setItem('user', JSON.stringify(data.user))
-        window.location.href = '/dashboard'
+        // Use router.push and then force reload to ensure localStorage is read
+        router.push('/dashboard')
+        router.refresh()
       } else {
         setError(data.message || 'Invalid email or password')
       }
@@ -41,8 +53,14 @@ export default function LoginPage() {
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault()
       handleSubmit()
     }
+  }
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault()
+    handleSubmit()
   }
 
   return (
@@ -79,7 +97,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="space-y-4">
+          <form onSubmit={handleFormSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -139,7 +157,7 @@ export default function LoginPage() {
 
             {/* Submit Button */}
             <button
-              onClick={handleSubmit}
+              type="submit"
               disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-3.5 rounded-xl hover:from-blue-700 hover:to-indigo-800 transform hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
@@ -155,7 +173,7 @@ export default function LoginPage() {
                 </>
               )}
             </button>
-          </div>
+          </form>
 
           {/* Login Info */}
           <div className="mt-5 p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600">
