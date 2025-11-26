@@ -38,9 +38,8 @@ export default function LoginPage() {
       if (response.ok) {
         // Save user data to localStorage for session persistence
         localStorage.setItem('user', JSON.stringify(data.user))
-        // Use router.push and then force reload to ensure localStorage is read
-        router.push('/dashboard')
-        router.refresh()
+        // Use hard redirect to ensure localStorage is read on dashboard
+        window.location.href = '/dashboard'
       } else {
         setError(data.message || 'Invalid email or password')
       }

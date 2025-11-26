@@ -3,7 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Create client with explicit schema
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: { schema: 'public' }
+})
 
 export async function POST(request) {
   try {
@@ -31,10 +35,19 @@ export async function POST(request) {
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id)
 
-    return new Response(JSON.stringify({ user }), {
+    // Create response with cookie
+    const response = new Response(JSON.stringify({ user }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
+
+    // Set auth-token cookie for middleware authentication
+    response.headers.set(
+      'Set-Cookie',
+      `auth-token=${JSON.stringify(user)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`
+    )
+
+    return response
   } catch (err) {
     console.error('Login error:', err)
     return new Response(JSON.stringify({ message: 'Server error. Please try again.' }), {
