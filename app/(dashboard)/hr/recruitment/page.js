@@ -14,9 +14,12 @@ export default function RecruitmentPage() {
   const [subjects, setSubjects] = useState([])
   const [showSubjectModal, setShowSubjectModal] = useState(false)
   const [subjectName, setSubjectName] = useState('')
+  const [editingSubject, setEditingSubject] = useState(null)
 
   // Departments State
   const [departments, setDepartments] = useState([])
+  const [showCustomDepartment, setShowCustomDepartment] = useState(false)
+  const [customDepartmentName, setCustomDepartmentName] = useState('')
 
   // Jobs State
   const [jobs, setJobs] = useState([])
@@ -28,6 +31,7 @@ export default function RecruitmentPage() {
     deadline: '',
     description: ''
   })
+  const [editingJob, setEditingJob] = useState(null)
 
   // Applications State
   const [applications, setApplications] = useState([])
@@ -42,13 +46,26 @@ export default function RecruitmentPage() {
     subjects: '',
     experienceLevel: ''
   })
+  const [editingApplication, setEditingApplication] = useState(null)
 
   // Interviews State
   const [interviews, setInterviews] = useState([])
+  const [showInterviewModal, setShowInterviewModal] = useState(false)
+  const [interviewForm, setInterviewForm] = useState({
+    applicationId: '',
+    interviewDate: '',
+    interviewTime: '',
+    interviewType: '',
+    location: '',
+    notes: ''
+  })
+  const [editingInterview, setEditingInterview] = useState(null)
 
   // Search States
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState('')
   const [jobSearchQuery, setJobSearchQuery] = useState('')
   const [appSearchQuery, setAppSearchQuery] = useState('')
+  const [interviewSearchQuery, setInterviewSearchQuery] = useState('')
 
   // Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState({
@@ -237,7 +254,7 @@ export default function RecruitmentPage() {
     }
   }
 
-  // Add Subject
+  // Add/Edit Subject
   const handleAddSubject = async () => {
     if (!subjectName.trim()) {
       showToast('Please enter subject name', 'warning')
@@ -245,49 +262,114 @@ export default function RecruitmentPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('subjects')
-        .insert({
-          school_id: currentUser.school_id,
-          subject_name: subjectName,
-          created_by: currentUser.id
-        })
+      if (editingSubject) {
+        // Update existing subject
+        const { error } = await supabase
+          .from('subjects')
+          .update({
+            subject_name: subjectName
+          })
+          .eq('id', editingSubject.id)
 
-      if (error) throw error
+        if (error) throw error
+        showToast('Subject updated successfully!', 'success')
+      } else {
+        // Add new subject
+        const { error } = await supabase
+          .from('subjects')
+          .insert({
+            school_id: currentUser.school_id,
+            subject_name: subjectName,
+            created_by: currentUser.id
+          })
 
-      showToast('Subject added successfully!', 'success')
+        if (error) throw error
+        showToast('Subject added successfully!', 'success')
+      }
+
       setSubjectName('')
+      setEditingSubject(null)
       setShowSubjectModal(false)
       fetchSubjects()
     } catch (error) {
-      console.error('Error adding subject:', error)
-      showToast('Error adding subject: ' + error.message, 'error')
+      console.error('Error saving subject:', error)
+      showToast('Error saving subject: ' + error.message, 'error')
     }
   }
 
-  // Add Job
+  // Open edit subject modal
+  const handleEditSubject = (subject) => {
+    setEditingSubject(subject)
+    setSubjectName(subject.subject_name)
+    setShowSubjectModal(true)
+  }
+
+  // Add/Edit Job
   const handleAddJob = async () => {
     if (!jobForm.title || !jobForm.departmentId) {
       showToast('Please fill required fields', 'warning')
       return
     }
 
+    // Check if custom department is needed
+    if (jobForm.departmentId === 'other' && !customDepartmentName.trim()) {
+      showToast('Please enter custom department name', 'warning')
+      return
+    }
+
     try {
-      const { error } = await supabase
-        .from('jobs')
-        .insert({
-          school_id: currentUser.school_id,
-          department_id: jobForm.departmentId,
-          title: jobForm.title,
-          salary: jobForm.salary || null,
-          deadline: jobForm.deadline || null,
-          description: jobForm.description,
-          created_by: currentUser.id
-        })
+      let finalDepartmentId = jobForm.departmentId
 
-      if (error) throw error
+      // If "Other" is selected, create a new department first
+      if (jobForm.departmentId === 'other') {
+        const { data: newDept, error: deptError } = await supabase
+          .from('departments')
+          .insert({
+            school_id: currentUser.school_id,
+            department_name: customDepartmentName,
+            created_by: currentUser.id
+          })
+          .select()
+          .single()
 
-      showToast('Job added successfully!', 'success')
+        if (deptError) throw deptError
+
+        finalDepartmentId = newDept.id
+      }
+
+      if (editingJob) {
+        // Update existing job
+        const { error } = await supabase
+          .from('jobs')
+          .update({
+            department_id: finalDepartmentId,
+            title: jobForm.title,
+            salary: jobForm.salary || null,
+            deadline: jobForm.deadline || null,
+            description: jobForm.description
+          })
+          .eq('id', editingJob.id)
+
+        if (error) throw error
+        showToast('Job updated successfully!', 'success')
+      } else {
+        // Add new job
+        const { error } = await supabase
+          .from('jobs')
+          .insert({
+            school_id: currentUser.school_id,
+            department_id: finalDepartmentId,
+            title: jobForm.title,
+            salary: jobForm.salary || null,
+            deadline: jobForm.deadline || null,
+            description: jobForm.description,
+            created_by: currentUser.id
+          })
+
+        if (error) throw error
+        showToast('Job added successfully!', 'success')
+      }
+
       setJobForm({
         departmentId: '',
         title: '',
@@ -295,15 +377,32 @@ export default function RecruitmentPage() {
         deadline: '',
         description: ''
       })
+      setShowCustomDepartment(false)
+      setCustomDepartmentName('')
+      setEditingJob(null)
       setShowJobModal(false)
       fetchJobs()
+      fetchDepartments() // Refresh departments list
     } catch (error) {
-      console.error('Error adding job:', error)
-      showToast('Error adding job: ' + error.message, 'error')
+      console.error('Error saving job:', error)
+      showToast('Error saving job: ' + error.message, 'error')
     }
   }
 
-  // Add Application
+  // Open edit job modal
+  const handleEditJob = (job) => {
+    setEditingJob(job)
+    setJobForm({
+      departmentId: job.department_id || '',
+      title: job.title,
+      salary: job.salary || '',
+      deadline: job.deadline || '',
+      description: job.description || ''
+    })
+    setShowJobModal(true)
+  }
+
+  // Add/Edit Application
   const handleAddApplication = async () => {
     if (!applicationForm.jobId || !applicationForm.candidateName) {
       showToast('Please fill required fields', 'warning')
@@ -311,24 +410,45 @@ export default function RecruitmentPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('job_applications')
-        .insert({
-          school_id: currentUser.school_id,
-          job_id: applicationForm.jobId,
-          candidate_name: applicationForm.candidateName,
-          father_name: applicationForm.fatherName,
-          email: applicationForm.email,
-          mobile_number: applicationForm.mobileNumber,
-          cnic_number: applicationForm.cnicNumber,
-          subjects: applicationForm.subjects,
-          experience_level: applicationForm.experienceLevel,
-          created_by: currentUser.id
-        })
+      if (editingApplication) {
+        // Update existing application
+        const { error } = await supabase
+          .from('job_applications')
+          .update({
+            job_id: applicationForm.jobId,
+            candidate_name: applicationForm.candidateName,
+            father_name: applicationForm.fatherName,
+            email: applicationForm.email,
+            mobile_number: applicationForm.mobileNumber,
+            cnic_number: applicationForm.cnicNumber,
+            subjects: applicationForm.subjects,
+            experience_level: applicationForm.experienceLevel
+          })
+          .eq('id', editingApplication.id)
 
-      if (error) throw error
+        if (error) throw error
+        showToast('Application updated successfully!', 'success')
+      } else {
+        // Add new application
+        const { error } = await supabase
+          .from('job_applications')
+          .insert({
+            school_id: currentUser.school_id,
+            job_id: applicationForm.jobId,
+            candidate_name: applicationForm.candidateName,
+            father_name: applicationForm.fatherName,
+            email: applicationForm.email,
+            mobile_number: applicationForm.mobileNumber,
+            cnic_number: applicationForm.cnicNumber,
+            subjects: applicationForm.subjects,
+            experience_level: applicationForm.experienceLevel,
+            created_by: currentUser.id
+          })
 
-      showToast('Application added successfully!', 'success')
+        if (error) throw error
+        showToast('Application added successfully!', 'success')
+      }
+
       setApplicationForm({
         jobId: '',
         candidateName: '',
@@ -339,13 +459,128 @@ export default function RecruitmentPage() {
         subjects: '',
         experienceLevel: ''
       })
+      setEditingApplication(null)
       setShowApplicationModal(false)
       fetchApplications()
       fetchJobs() // Refresh to update applicant counts
     } catch (error) {
-      console.error('Error adding application:', error)
-      showToast('Error adding application: ' + error.message, 'error')
+      console.error('Error saving application:', error)
+      showToast('Error saving application: ' + error.message, 'error')
     }
+  }
+
+  // Open edit application modal
+  const handleEditApplication = (app) => {
+    setEditingApplication(app)
+    setApplicationForm({
+      jobId: app.job_id || '',
+      candidateName: app.candidate_name || '',
+      cnicNumber: app.cnic_number || '',
+      fatherName: app.father_name || '',
+      email: app.email || '',
+      mobileNumber: app.mobile_number || '',
+      subjects: app.subjects || '',
+      experienceLevel: app.experience_level || ''
+    })
+    setShowApplicationModal(true)
+  }
+
+  // Add/Edit Interview
+  const handleAddInterview = async () => {
+    if (!interviewForm.applicationId || !interviewForm.interviewDate || !interviewForm.interviewTime) {
+      showToast('Please fill required fields', 'warning')
+      return
+    }
+
+    try {
+      if (editingInterview) {
+        // Update existing interview
+        const { error } = await supabase
+          .from('job_interviews')
+          .update({
+            application_id: interviewForm.applicationId,
+            interview_date: interviewForm.interviewDate,
+            interview_time: interviewForm.interviewTime,
+            interview_type: interviewForm.interviewType || null,
+            location: interviewForm.location || null,
+            notes: interviewForm.notes || null
+          })
+          .eq('id', editingInterview.id)
+
+        if (error) throw error
+        showToast('Interview updated successfully!', 'success')
+      } else {
+        // Add new interview
+        const { error } = await supabase
+          .from('job_interviews')
+          .insert({
+            school_id: currentUser.school_id,
+            application_id: interviewForm.applicationId,
+            interview_date: interviewForm.interviewDate,
+            interview_time: interviewForm.interviewTime,
+            interview_type: interviewForm.interviewType || 'in-person',
+            location: interviewForm.location || null,
+            notes: interviewForm.notes || null,
+            status: 'scheduled',
+            created_by: currentUser.id
+          })
+
+        if (error) throw error
+        showToast('Interview scheduled successfully!', 'success')
+      }
+
+      setInterviewForm({
+        applicationId: '',
+        interviewDate: '',
+        interviewTime: '',
+        interviewType: '',
+        location: '',
+        notes: ''
+      })
+      setEditingInterview(null)
+      setShowInterviewModal(false)
+      fetchInterviews()
+    } catch (error) {
+      console.error('Error saving interview:', error)
+      showToast('Error saving interview: ' + error.message, 'error')
+    }
+  }
+
+  // Open edit interview modal
+  const handleEditInterview = (interview) => {
+    setEditingInterview(interview)
+    setInterviewForm({
+      applicationId: interview.application_id || '',
+      interviewDate: interview.interview_date || '',
+      interviewTime: interview.interview_time || '',
+      interviewType: interview.interview_type || '',
+      location: interview.location || '',
+      notes: interview.notes || ''
+    })
+    setShowInterviewModal(true)
+  }
+
+  // Delete Interview
+  const handleDeleteInterview = (id) => {
+    showConfirmDialog(
+      'Delete Interview',
+      'Are you sure you want to delete this interview?',
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('job_interviews')
+            .delete()
+            .eq('id', id)
+
+          if (error) throw error
+          showToast('Interview deleted successfully', 'success')
+          fetchInterviews()
+        } catch (error) {
+          console.error('Error deleting interview:', error)
+          showToast('Error deleting interview', 'error')
+        }
+      }
+    )
   }
 
   // Delete Subject
@@ -421,19 +656,84 @@ export default function RecruitmentPage() {
   // Update Application Status
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const { error } = await supabase
+      // Get the application details first
+      const { data: application, error: fetchError } = await supabase
+        .from('job_applications')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Update application status
+      const { error: updateError } = await supabase
         .from('job_applications')
         .update({ status: newStatus })
         .eq('id', id)
 
-      if (error) throw error
-      showToast('Status updated successfully!', 'success')
+      if (updateError) throw updateError
+
+      // Handle status-specific actions
+      if (newStatus === 'qualified') {
+        // Create interview record when qualified
+        const { error: interviewError } = await supabase
+          .from('job_interviews')
+          .insert({
+            school_id: currentUser.school_id,
+            application_id: id,
+            interview_date: new Date().toISOString().split('T')[0],
+            interview_time: '09:00',
+            interview_type: 'in-person',
+            status: 'scheduled',
+            created_by: currentUser.id
+          })
+
+        if (interviewError) throw interviewError
+
+        // Delete application after moving to qualified
+        const { error: deleteError } = await supabase
+          .from('job_applications')
+          .delete()
+          .eq('id', id)
+
+        if (deleteError) throw deleteError
+
+        showToast('Application qualified and moved to interviews!', 'success')
+        fetchInterviews()
+      } else if (newStatus === 'hired') {
+        // Create staff record when hired
+        const { error: staffError } = await supabase
+          .from('staff')
+          .insert({
+            school_id: currentUser.school_id,
+            created_by: currentUser.id,
+            employee_number: `EMP-${Date.now()}`,
+            first_name: application.candidate_name,
+            father_name: application.father_name || null,
+            phone: application.mobile_number || null,
+            email: application.email || null,
+            joining_date: new Date().toISOString().split('T')[0],
+            status: 'active'
+          })
+
+        if (staffError) throw staffError
+        showToast('Candidate hired and added to staff!', 'success')
+      } else {
+        showToast('Status updated successfully!', 'success')
+      }
+
       fetchApplications()
+      fetchJobs()
     } catch (error) {
       console.error('Error updating status:', error)
-      showToast('Error updating status', 'error')
+      showToast('Error updating status: ' + error.message, 'error')
     }
   }
+
+  // Filtered Subjects
+  const filteredSubjects = subjects.filter(subject =>
+    subject.subject_name?.toLowerCase().includes(subjectSearchQuery.toLowerCase())
+  )
 
   // Filtered Jobs
   const filteredJobs = jobs.filter(job =>
@@ -441,10 +741,28 @@ export default function RecruitmentPage() {
     job.department?.department_name?.toLowerCase().includes(jobSearchQuery.toLowerCase())
   )
 
-  // Filtered Applications
-  const filteredApplications = applications.filter(app =>
-    app.candidate_name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
-    app.job?.title?.toLowerCase().includes(appSearchQuery.toLowerCase())
+  // Filtered Applications with sorting
+  const filteredApplications = applications
+    .filter(app =>
+      app.candidate_name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
+      app.job?.title?.toLowerCase().includes(appSearchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Priority order: short-listed > qualified > schedule > rejected
+      const statusPriority = {
+        'short-listed': 1,
+        'qualified': 2,
+        'schedule': 3,
+        'rejected': 4,
+        'hired': 5 // hired at the bottom or could be filtered out
+      }
+      return (statusPriority[a.status] || 0) - (statusPriority[b.status] || 0)
+    })
+
+  // Filtered Interviews
+  const filteredInterviews = interviews.filter(interview =>
+    interview.application?.candidate_name?.toLowerCase().includes(interviewSearchQuery.toLowerCase()) ||
+    interview.application?.job?.title?.toLowerCase().includes(interviewSearchQuery.toLowerCase())
   )
 
   return (
@@ -491,6 +809,8 @@ export default function RecruitmentPage() {
               <input
                 type="text"
                 placeholder="Search"
+                value={subjectSearchQuery}
+                onChange={(e) => setSubjectSearchQuery(e.target.value)}
                 className="border border-gray-300 rounded-lg px-4 py-2 pr-10"
               />
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -507,13 +827,17 @@ export default function RecruitmentPage() {
                 </tr>
               </thead>
               <tbody>
-                {subjects.map((subject, index) => (
+                {filteredSubjects.map((subject, index) => (
                   <tr key={subject.id} className="border-b border-gray-200 hover:bg-gray-50">
                     <td className="px-4 py-3">{index + 1}</td>
                     <td className="px-4 py-3">{subject.subject_name}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center gap-2">
-                        <button className="text-blue-500 hover:text-blue-600 p-1" title="Edit">
+                        <button
+                          onClick={() => handleEditSubject(subject)}
+                          className="text-blue-500 hover:text-blue-600 p-1"
+                          title="Edit"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
@@ -592,7 +916,11 @@ export default function RecruitmentPage() {
                     <td className="px-4 py-3 text-center">{job.applicant_count || 0}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center gap-2">
-                        <button className="text-blue-500 hover:text-blue-600 p-1" title="Edit">
+                        <button
+                          onClick={() => handleEditJob(job)}
+                          className="text-blue-500 hover:text-blue-600 p-1"
+                          title="Edit"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
@@ -703,8 +1031,12 @@ export default function RecruitmentPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center gap-2">
-                        <button className="text-blue-500 hover:text-blue-600 p-1" title="View Details">
-                          <Plus className="w-4 h-4" />
+                        <button
+                          onClick={() => handleEditApplication(app)}
+                          className="text-blue-500 hover:text-blue-600 p-1"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteApplication(app.id)}
@@ -727,10 +1059,23 @@ export default function RecruitmentPage() {
       {activeTab === 'interviews' && (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <button className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">
+            <button
+              onClick={() => setShowInterviewModal(true)}
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
+            >
               <Plus className="w-4 h-4" />
               Schedule Interview
             </button>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search"
+                value={interviewSearchQuery}
+                onChange={(e) => setInterviewSearchQuery(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2 pr-10"
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -748,14 +1093,14 @@ export default function RecruitmentPage() {
                 </tr>
               </thead>
               <tbody>
-                {interviews.length === 0 ? (
+                {filteredInterviews.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
                       No interviews scheduled yet
                     </td>
                   </tr>
                 ) : (
-                  interviews.map((interview, index) => (
+                  filteredInterviews.map((interview, index) => (
                     <tr key={interview.id} className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="px-4 py-3">{index + 1}</td>
                       <td className="px-4 py-3">{interview.application?.candidate_name || 'N/A'}</td>
@@ -772,10 +1117,18 @@ export default function RecruitmentPage() {
                       <td className="px-4 py-3 capitalize">{interview.status}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2">
-                          <button className="text-blue-500 hover:text-blue-600 p-1" title="Edit">
+                          <button
+                            onClick={() => handleEditInterview(interview)}
+                            className="text-blue-500 hover:text-blue-600 p-1"
+                            title="Edit"
+                          >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button className="text-red-500 hover:text-red-600 p-1" title="Delete">
+                          <button
+                            onClick={() => handleDeleteInterview(interview.id)}
+                            className="text-red-500 hover:text-red-600 p-1"
+                            title="Delete"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -789,14 +1142,22 @@ export default function RecruitmentPage() {
         </div>
       )}
 
-      {/* ADD SUBJECT MODAL */}
+      {/* ADD/EDIT SUBJECT MODAL */}
       {showSubjectModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowSubjectModal(false)} />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+            setShowSubjectModal(false)
+            setEditingSubject(null)
+            setSubjectName('')
+          }} />
           <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">Add New Subject</h2>
-              <button onClick={() => setShowSubjectModal(false)} className="hover:bg-blue-800 p-1 rounded">
+              <h2 className="text-xl font-semibold">{editingSubject ? 'Edit Subject' : 'Add New Subject'}</h2>
+              <button onClick={() => {
+                setShowSubjectModal(false)
+                setEditingSubject(null)
+                setSubjectName('')
+              }} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -815,7 +1176,11 @@ export default function RecruitmentPage() {
             </div>
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
-                onClick={() => setShowSubjectModal(false)}
+                onClick={() => {
+                  setShowSubjectModal(false)
+                  setEditingSubject(null)
+                  setSubjectName('')
+                }}
                 className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
@@ -831,14 +1196,26 @@ export default function RecruitmentPage() {
         </>
       )}
 
-      {/* ADD JOB MODAL */}
+      {/* ADD/EDIT JOB MODAL */}
       {showJobModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowJobModal(false)} />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+            setShowJobModal(false)
+            setShowCustomDepartment(false)
+            setCustomDepartmentName('')
+            setEditingJob(null)
+            setJobForm({ departmentId: '', title: '', salary: '', deadline: '', description: '' })
+          }} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">Add New Job</h2>
-              <button onClick={() => setShowJobModal(false)} className="hover:bg-blue-800 p-1 rounded">
+              <h2 className="text-xl font-semibold">{editingJob ? 'Edit Job' : 'Add New Job'}</h2>
+              <button onClick={() => {
+                setShowJobModal(false)
+                setShowCustomDepartment(false)
+                setCustomDepartmentName('')
+                setEditingJob(null)
+                setJobForm({ departmentId: '', title: '', salary: '', deadline: '', description: '' })
+              }} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -851,15 +1228,36 @@ export default function RecruitmentPage() {
                   </label>
                   <select
                     value={jobForm.departmentId}
-                    onChange={(e) => setJobForm({...jobForm, departmentId: e.target.value})}
+                    onChange={(e) => {
+                      setJobForm({...jobForm, departmentId: e.target.value})
+                      setShowCustomDepartment(e.target.value === 'other')
+                      if (e.target.value !== 'other') {
+                        setCustomDepartmentName('')
+                      }
+                    }}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
                     <option value="">Select an option</option>
                     {departments.map(dept => (
                       <option key={dept.id} value={dept.id}>{dept.department_name}</option>
                     ))}
+                    <option value="other">Other (Create New)</option>
                   </select>
                 </div>
+                {showCustomDepartment && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Custom Department Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter department name"
+                      value={customDepartmentName}
+                      onChange={(e) => setCustomDepartmentName(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Title <span className="text-red-500">*</span>
@@ -907,7 +1305,13 @@ export default function RecruitmentPage() {
             </div>
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
-                onClick={() => setShowJobModal(false)}
+                onClick={() => {
+                  setShowJobModal(false)
+                  setShowCustomDepartment(false)
+                  setCustomDepartmentName('')
+                  setEditingJob(null)
+                  setJobForm({ departmentId: '', title: '', salary: '', deadline: '', description: '' })
+                }}
                 className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
@@ -923,14 +1327,22 @@ export default function RecruitmentPage() {
         </>
       )}
 
-      {/* ADD APPLICATION MODAL */}
+      {/* ADD/EDIT APPLICATION MODAL */}
       {showApplicationModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowApplicationModal(false)} />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+            setShowApplicationModal(false)
+            setEditingApplication(null)
+            setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', subjects: '', experienceLevel: '' })
+          }} />
           <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">Add New Application</h2>
-              <button onClick={() => setShowApplicationModal(false)} className="hover:bg-blue-800 p-1 rounded">
+              <h2 className="text-xl font-semibold">{editingApplication ? 'Edit Application' : 'Add New Application'}</h2>
+              <button onClick={() => {
+                setShowApplicationModal(false)
+                setEditingApplication(null)
+                setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', subjects: '', experienceLevel: '' })
+              }} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1008,13 +1420,16 @@ export default function RecruitmentPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Subjects</label>
-                  <input
-                    type="text"
-                    placeholder="Subjects"
+                  <select
                     value={applicationForm.subjects}
                     onChange={(e) => setApplicationForm({...applicationForm, subjects: e.target.value})}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
+                  >
+                    <option value="">Select subject</option>
+                    {subjects.map(subject => (
+                      <option key={subject.id} value={subject.subject_name}>{subject.subject_name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1036,13 +1451,141 @@ export default function RecruitmentPage() {
             </div>
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
-                onClick={() => setShowApplicationModal(false)}
+                onClick={() => {
+                  setShowApplicationModal(false)
+                  setEditingApplication(null)
+                  setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', subjects: '', experienceLevel: '' })
+                }}
                 className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
               </button>
               <button
                 onClick={handleAddApplication}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+              >
+                Save <span className="text-xl">→</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ADD/EDIT INTERVIEW MODAL */}
+      {showInterviewModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+            setShowInterviewModal(false)
+            setEditingInterview(null)
+            setInterviewForm({ applicationId: '', interviewDate: '', interviewTime: '', interviewType: '', location: '', notes: '' })
+          }} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-xl font-semibold">{editingInterview ? 'Edit Interview' : 'Schedule Interview'}</h2>
+              <button onClick={() => {
+                setShowInterviewModal(false)
+                setEditingInterview(null)
+                setInterviewForm({ applicationId: '', interviewDate: '', interviewTime: '', interviewType: '', location: '', notes: '' })
+              }} className="hover:bg-blue-800 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <h3 className="text-sm font-semibold mb-4 text-gray-700">INTERVIEW DETAILS</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Application <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={interviewForm.applicationId}
+                    onChange={(e) => setInterviewForm({...interviewForm, applicationId: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    disabled={editingInterview}
+                  >
+                    <option value="">Select application</option>
+                    {applications.filter(app => app.status === 'qualified').map(app => (
+                      <option key={app.id} value={app.id}>
+                        {app.candidate_name} - {app.job?.title || 'N/A'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Interview Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={interviewForm.interviewType}
+                    onChange={(e) => setInterviewForm({...interviewForm, interviewType: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  >
+                    <option value="">Select type</option>
+                    <option value="phone">Phone</option>
+                    <option value="video">Video</option>
+                    <option value="in-person">In-Person</option>
+                    <option value="panel">Panel</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Interview Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={interviewForm.interviewDate}
+                    onChange={(e) => setInterviewForm({...interviewForm, interviewDate: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Interview Time <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={interviewForm.interviewTime}
+                    onChange={(e) => setInterviewForm({...interviewForm, interviewTime: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <input
+                  type="text"
+                  placeholder="Interview location"
+                  value={interviewForm.location}
+                  onChange={(e) => setInterviewForm({...interviewForm, location: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <textarea
+                  placeholder="Additional notes..."
+                  value={interviewForm.notes}
+                  onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
+              <button
+                onClick={() => {
+                  setShowInterviewModal(false)
+                  setEditingInterview(null)
+                  setInterviewForm({ applicationId: '', interviewDate: '', interviewTime: '', interviewType: '', location: '', notes: '' })
+                }}
+                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleAddInterview}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
               >
                 Save <span className="text-xl">→</span>

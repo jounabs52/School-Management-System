@@ -17,12 +17,15 @@ export default function ActiveStaffPage() {
   const [selectedStaff, setSelectedStaff] = useState([])
   const [editingStaff, setEditingStaff] = useState(null)
   const [statusDropdownId, setStatusDropdownId] = useState(null)
+  const [dropdownOpenUp, setDropdownOpenUp] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [importFile, setImportFile] = useState(null)
   const [importing, setImporting] = useState(false)
   const [toasts, setToasts] = useState([])
+  const [showCustomDepartment, setShowCustomDepartment] = useState(false)
+  const [customDepartment, setCustomDepartment] = useState('')
 
   // Form state matching Supabase staff table fields
   const [formData, setFormData] = useState({
@@ -136,12 +139,21 @@ export default function ActiveStaffPage() {
     'Via Biometric ID'
   ]
 
+  // Predefined department options
+  const departmentOptions = [
+    'ACADEMIC',
+    'ACCOUNTS',
+    'ADMIN',
+    'POLITICAL',
+    'SPORTS',
+    'SUPPORTING STAFF',
+    'TEACHING',
+    'Other'
+  ]
+
   // Status options for Active Staff
   const statusOptions = [
-    { value: 'inactive', label: 'Disable', color: 'bg-red-500' },
-    { value: 'terminated', label: 'Expel Now', color: 'bg-orange-500' },
-    { value: 'transferred', label: 'Transfer', color: 'bg-blue-500' },
-    { value: 'resigned', label: 'Retire/Left', color: 'bg-purple-500' }
+    { value: 'inactive', label: 'Deactive', color: 'bg-red-500' }
   ]
 
   // Fetch staff data from Supabase
@@ -565,6 +577,8 @@ export default function ActiveStaffPage() {
       emergencyContactName: '',
       emergencyContactPhone: ''
     })
+    setShowCustomDepartment(false)
+    setCustomDepartment('')
   }
 
   const handleSaveStaff = async () => {
@@ -576,7 +590,10 @@ export default function ActiveStaffPage() {
     try {
       setSaving(true)
 
-      // Only send fields that exist in Supabase staff table
+      // Determine final department value
+      const finalDepartment = formData.department === 'Other' ? customDepartment : formData.department
+
+      // All staff members are saved to the staff table
       const staffRecord = {
         school_id: currentUser.school_id,
         created_by: currentUser.id || null,
@@ -598,7 +615,7 @@ export default function ActiveStaffPage() {
         postal_code: formData.postalCode || null,
         joining_date: formData.joiningDate || new Date().toISOString().split('T')[0],
         designation: formData.designation || null,
-        department: formData.department || null,
+        department: finalDepartment || null,
         qualification: formData.qualification || null,
         experience_years: formData.experienceYears ? parseInt(formData.experienceYears) : null,
         employment_type: formData.employmentType || 'permanent',
@@ -773,14 +790,14 @@ export default function ActiveStaffPage() {
       </div>
 
       {/* Staff Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative overflow-visible">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading staff data...</div>
         ) : filteredStaffData.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No staff members found</div>
         ) : (
-          <div className="overflow-x-auto overflow-y-visible">
-            <table className="w-full relative">
+          <div className="overflow-x-auto">
+            <table className="w-full">
             <thead>
               <tr className="bg-slate-600 text-white text-sm">
                 <th className="px-4 py-3 text-left font-medium">
@@ -836,6 +853,11 @@ export default function ActiveStaffPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
+                          // Check if dropdown should open upward
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          const spaceBelow = window.innerHeight - rect.bottom
+                          const shouldOpenUp = spaceBelow < 200 // If less than 200px space below, open upward
+                          setDropdownOpenUp(shouldOpenUp)
                           setStatusDropdownId(statusDropdownId === staff.id ? null : staff.id)
                         }}
                         className="inline-flex items-center gap-1 px-3 py-1 rounded text-sm font-medium text-white bg-green-500"
@@ -847,7 +869,7 @@ export default function ActiveStaffPage() {
                       {statusDropdownId === staff.id && (
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute left-0 top-full mt-1 min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[100]"
+                          className={`absolute left-0 ${dropdownOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'} min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[9999]`}
                         >
                           {statusOptions.map((option) => (
                             <button
@@ -1124,8 +1146,35 @@ export default function ActiveStaffPage() {
                     </div>
                     <div>
                       <label className="block text-sm text-gray-600 mb-1">Department</label>
-                      <input type="text" placeholder="Department" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                      <select
+                        value={formData.department}
+                        onChange={(e) => {
+                          setFormData({...formData, department: e.target.value})
+                          setShowCustomDepartment(e.target.value === 'Other')
+                          if (e.target.value !== 'Other') {
+                            setCustomDepartment('')
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="">Select Department</option>
+                        {departmentOptions.map(dept => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                      </select>
                     </div>
+                    {showCustomDepartment && (
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Custom Department</label>
+                        <input
+                          type="text"
+                          placeholder="Enter department name"
+                          value={customDepartment}
+                          onChange={(e) => setCustomDepartment(e.target.value)}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm text-gray-600 mb-1">Designation</label>
                       <input type="text" placeholder="Designation" value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />

@@ -134,11 +134,7 @@ export default function OldStaffPage() {
 
   // Status options for Old Staff
   const statusOptions = [
-    { value: 'active', label: 'Reactivate', color: 'bg-green-500' },
-    { value: 'inactive', label: 'Disable', color: 'bg-red-500' },
-    { value: 'terminated', label: 'Expel Now', color: 'bg-orange-500' },
-    { value: 'transferred', label: 'Transfer', color: 'bg-blue-500' },
-    { value: 'resigned', label: 'Retire/Left', color: 'bg-purple-500' }
+    { value: 'active', label: 'Active', color: 'bg-green-500' }
   ]
 
   // Fetch OLD/DISABLED staff data from Supabase
@@ -597,14 +593,14 @@ export default function OldStaffPage() {
       </div>
 
       {/* Staff Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative overflow-visible">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading staff data...</div>
         ) : filteredStaffData.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No old/disabled staff members found</div>
         ) : (
-          <div className="overflow-x-auto overflow-y-visible">
-            <table className="w-full relative">
+          <div className="overflow-x-auto">
+            <table className="w-full">
             <thead>
               <tr className="bg-slate-600 text-white text-sm">
                 <th className="px-4 py-3 text-left font-medium">
@@ -671,7 +667,7 @@ export default function OldStaffPage() {
                       {statusDropdownId === staff.id && (
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute left-0 top-full mt-1 min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[100]"
+                          className="absolute left-0 bottom-full mb-1 min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[9999]"
                         >
                           {statusOptions.map((option) => (
                             <button
