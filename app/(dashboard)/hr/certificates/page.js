@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FileText, ChevronDown } from 'lucide-react'
+import { FileText, ChevronDown, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function HRCertificatesPage() {
@@ -15,6 +15,7 @@ export default function HRCertificatesPage() {
   const [showDropdown, setShowDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [toasts, setToasts] = useState([])
 
   // Certificate types matching database schema
   const certificateTypes = [
@@ -22,6 +23,19 @@ export default function HRCertificatesPage() {
     { value: 'relieving', label: 'Relieving Certificate' },
     { value: 'appreciation', label: 'Appreciation Certificate' }
   ]
+
+  // Toast notification function
+  const showToast = (message, type = 'info') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }, 5000)
+  }
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   // Get current user from cookie
   useEffect(() => {
@@ -80,7 +94,7 @@ export default function HRCertificatesPage() {
       setFilteredStaff(data || [])
     } catch (error) {
       console.error('Error fetching staff:', error)
-      alert('Error loading staff data')
+      showToast('Error loading staff data', 'error')
     } finally {
       setLoading(false)
     }
@@ -97,7 +111,7 @@ export default function HRCertificatesPage() {
   // Save certificate to database and print
   const handlePrint = async () => {
     if (!staffData) {
-      alert('Please select a staff member first')
+      showToast('Please select a staff member first', 'warning')
       return
     }
 
@@ -122,11 +136,12 @@ export default function HRCertificatesPage() {
 
       if (error) throw error
 
+      showToast('Certificate saved successfully!', 'success')
       // Print the certificate
       printCertificate()
     } catch (error) {
       console.error('Error saving certificate:', error)
-      alert('Error saving certificate: ' + error.message)
+      showToast('Error saving certificate: ' + error.message, 'error')
     } finally {
       setSaving(false)
     }
@@ -499,6 +514,32 @@ export default function HRCertificatesPage() {
             <p className="text-lg">Loading staff data...</p>
           </div>
         )}
+      </div>
+
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+              toast.type === 'success' ? 'bg-blue-500' :
+              toast.type === 'error' ? 'bg-blue-600' :
+              toast.type === 'warning' ? 'bg-blue-500' :
+              'bg-blue-500'
+            }`}
+          >
+            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   )

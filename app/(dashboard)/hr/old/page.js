@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   Search, Filter, Download, FileSpreadsheet,
-  Edit, Trash2, ChevronDown, X, User
+  Edit, Trash2, ChevronDown, X, User, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -18,6 +18,7 @@ export default function OldStaffPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [toasts, setToasts] = useState([])
 
   // Form state matching Supabase staff table fields
   const [formData, setFormData] = useState({
@@ -58,6 +59,47 @@ export default function OldStaffPage() {
   // Staff data from Supabase
   const [staffData, setStaffData] = useState([])
   const [filteredStaffData, setFilteredStaffData] = useState([])
+
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  })
+
+  const showConfirmDialog = (title, message, onConfirm) => {
+    setConfirmDialog({
+      show: true,
+      title,
+      message,
+      onConfirm
+    })
+  }
+
+  const handleConfirm = () => {
+    if (confirmDialog.onConfirm) {
+      confirmDialog.onConfirm()
+    }
+    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
+  }
+
+  const handleCancelConfirm = () => {
+    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
+  }
+
+  // Toast notification function
+  const showToast = (message, type = 'info') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }, 5000)
+  }
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   // Get current user from cookie
   useEffect(() => {
@@ -228,9 +270,10 @@ export default function OldStaffPage() {
       }
 
       setStatusDropdownId(null)
+      showToast('Status updated successfully!', 'success')
     } catch (error) {
       console.error('Error updating status:', error)
-      alert('Failed to update status')
+      showToast('Failed to update status', 'error')
     }
   }
 
@@ -241,24 +284,29 @@ export default function OldStaffPage() {
     return option ? option.color : 'bg-gray-500'
   }
 
-  const handleDelete = async (staffId) => {
-    if (!confirm('Are you sure you want to permanently delete this staff member?')) return
+  const handleDelete = (staffId) => {
+    showConfirmDialog(
+      'Permanently Delete Staff Member',
+      'Are you sure you want to permanently delete this staff member? This action cannot be undone.',
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('staff')
+            .delete()
+            .eq('id', staffId)
 
-    try {
-      const { error } = await supabase
-        .from('staff')
-        .delete()
-        .eq('id', staffId)
+          if (error) throw error
 
-      if (error) throw error
-
-      const updatedData = staffData.filter(s => s.id !== staffId)
-      setStaffData(updatedData)
-      setFilteredStaffData(updatedData)
-    } catch (error) {
-      console.error('Error deleting staff:', error)
-      alert('Error deleting staff: ' + error.message)
-    }
+          const updatedData = staffData.filter(s => s.id !== staffId)
+          setStaffData(updatedData)
+          setFilteredStaffData(updatedData)
+          showToast('Staff member deleted permanently', 'success')
+        } catch (error) {
+          console.error('Error deleting staff:', error)
+          showToast('Error deleting staff: ' + error.message, 'error')
+        }
+      }
+    )
   }
 
   // Search functionality
@@ -456,13 +504,14 @@ export default function OldStaffPage() {
 
       if (error) throw error
 
+      showToast('Staff member updated successfully!', 'success')
       setShowEditModal(false)
       setEditingStaff(null)
       resetForm()
       fetchStaffData()
     } catch (error) {
       console.error('Error updating staff:', error)
-      alert('Error updating staff: ' + error.message)
+      showToast('Error updating staff: ' + error.message, 'error')
     } finally {
       setSaving(false)
     }
@@ -851,6 +900,65 @@ export default function OldStaffPage() {
           </div>
         </>
       )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog.show && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+            <div
+              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700">{confirmDialog.message}</p>
+              </div>
+              <div className="px-6 pb-6 flex justify-end gap-3">
+                <button
+                  onClick={handleCancelConfirm}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+              toast.type === 'success' ? 'bg-blue-500' :
+              toast.type === 'error' ? 'bg-blue-600' :
+              toast.type === 'warning' ? 'bg-blue-500' :
+              'bg-blue-500'
+            }`}
+          >
+            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
