@@ -41,10 +41,16 @@ export async function POST(request) {
       headers: { 'Content-Type': 'application/json' },
     })
 
-    // Set auth-token cookie for middleware authentication
-    response.headers.set(
+    // Set auth-token cookie for middleware authentication (HttpOnly for security)
+    response.headers.append(
       'Set-Cookie',
-      `auth-token=${JSON.stringify(user)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`
+      `auth-token=${encodeURIComponent(JSON.stringify(user))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`
+    )
+
+    // Set user-data cookie for client-side access (NOT HttpOnly)
+    response.headers.append(
+      'Set-Cookie',
+      `user-data=${encodeURIComponent(JSON.stringify(user))}; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`
     )
 
     return response
