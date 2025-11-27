@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Search, Edit2, Trash2, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Search, Edit2, Trash2, X, CheckCircle, XCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 export default function SectionsPage() {
   const [showSidebar, setShowSidebar] = useState(false)
@@ -10,61 +12,249 @@ export default function SectionsPage() {
   const [selectedSection, setSelectedSection] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [classList, setClassList] = useState([])
+  const [staffList, setStaffList] = useState([])
+  const [sections, setSections] = useState([])
   const [formData, setFormData] = useState({
     class: '',
     section: '',
-    incharge: ''
+    incharge: '',
+    roomNumber: '',
+    capacity: '',
+    orderBy: ''
   })
   const [editFormData, setEditFormData] = useState({
     class: '',
     section: '',
-    incharge: ''
+    incharge: '',
+    roomNumber: '',
+    capacity: '',
+    orderBy: ''
   })
 
-  const sections = [
-    { id: 1, sr: 1, className: 'Playgroup', sectionName: 'Green', displayOrder: '2.00', incharge: 'Ahsan' },
-    { id: 2, sr: 2, className: 'Nursery', sectionName: 'Zahra', displayOrder: '1.00', incharge: 'SAIMA' },
-    { id: 3, sr: 3, className: '10th', sectionName: 'black', displayOrder: '1.00', incharge: 'SAMINA' },
-    { id: 4, sr: 4, className: 'Playgroup', sectionName: 'A', displayOrder: '4.00', incharge: 'Ali Ahmad' },
-    { id: 5, sr: 5, className: '', sectionName: 'z', displayOrder: '2.00', incharge: 'Shabana' },
-    { id: 6, sr: 6, className: 'Playgroup', sectionName: 'black', displayOrder: '3.00', incharge: 'Ali' },
-    { id: 7, sr: 7, className: 'Five', sectionName: 'blue', displayOrder: '1.00', incharge: '' },
-    { id: 8, sr: 8, className: 'Five', sectionName: 'black', displayOrder: '2.00', incharge: '' },
-    { id: 9, sr: 9, className: 'Five', sectionName: 'Green', displayOrder: '3.00', incharge: '' },
-    { id: 10, sr: 10, className: 'Five', sectionName: 'Red', displayOrder: '4.00', incharge: '' },
-    { id: 11, sr: 11, className: 'Five', sectionName: 'YELLOW', displayOrder: '5.00', incharge: '' },
-    { id: 12, sr: 12, className: 'K.G A', sectionName: 'A', displayOrder: '1.00', incharge: 'Abdullah' },
-    { id: 13, sr: 13, className: 'Nursery', sectionName: 'A', displayOrder: '2.00', incharge: 'Ali' },
-  ]
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchClasses()
+    fetchStaff()
+    fetchSections()
+  }, [])
 
-  const filteredSections = sections.filter(section => {
-    const matchesSearch = section.sectionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         section.className.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesClass = !selectedClass || section.className === selectedClass
-    return matchesSearch && matchesClass
-  })
+  const fetchClasses = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        console.error('No user found')
+        return
+      }
 
-  const handleSave = () => {
-    console.log('Form Data:', formData)
-    setShowSidebar(false)
-    setFormData({ class: '', section: '', incharge: '' })
+      const { data, error } = await supabase
+        .from('classes')
+        .select('id, class_name')
+        .eq('school_id', user.school_id)
+        .eq('status', 'active')
+        .order('class_name', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching classes:', error)
+      } else {
+        setClassList(data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching classes:', error)
+    }
+  }
+
+  const fetchStaff = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        console.error('No user found')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('school_id', user.school_id)
+        .eq('status', 'active')
+        .eq('department', 'TEACHING')
+        .order('first_name', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching staff:', error)
+      } else {
+        setStaffList(data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching staff:', error)
+    }
+  }
+
+  const fetchSections = async () => {
+    try {
+      setLoading(true)
+      const user = getUserFromCookie()
+      if (!user) {
+        console.error('No user found')
+        setLoading(false)
+        return
+      }
+
+      // Get sections with class name and teacher name
+      const { data: sections, error } = await supabase
+        .from('sections')
+        .select(`
+          id,
+          section_name,
+          class_id,
+          class_teacher_id,
+          room_number,
+          capacity,
+          status,
+          classes!inner(class_name)
+        `)
+        .eq('school_id', user.school_id)
+        .in('status', ['active', 'inactive'])
+        .order('section_name', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching sections:', error)
+        setSections([])
+      } else {
+        // Get teacher names for sections
+        const sectionsWithDetails = await Promise.all(
+          (sections || []).map(async (section) => {
+            let teacherName = null
+
+            if (section.class_teacher_id) {
+              const { data: teacher } = await supabase
+                .from('staff')
+                .select('first_name, last_name')
+                .eq('id', section.class_teacher_id)
+                .single()
+
+              if (teacher) {
+                teacherName = `${teacher.first_name} ${teacher.last_name || ''}`.trim()
+              }
+            }
+
+            return {
+              id: section.id,
+              section_name: section.section_name,
+              class_id: section.class_id,
+              class_name: section.classes?.class_name,
+              class_teacher_id: section.class_teacher_id,
+              teacher_name: teacherName,
+              room_number: section.room_number,
+              capacity: section.capacity,
+              status: section.status
+            }
+          })
+        )
+
+        setSections(sectionsWithDetails)
+      }
+    } catch (error) {
+      console.error('Error fetching sections:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredSections = sections
+    .filter(section => {
+      const matchesSearch = section.section_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           section.class_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesClass = !selectedClass || section.class_id === selectedClass
+      return matchesSearch && matchesClass
+    })
+    .sort((a, b) => a.section_name.localeCompare(b.section_name))
+
+  const handleSave = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        alert('Unauthorized')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('sections')
+        .insert([{
+          school_id: user.school_id,
+          class_id: formData.class,
+          section_name: formData.section,
+          class_teacher_id: formData.incharge || null,
+          room_number: formData.roomNumber || null,
+          capacity: formData.capacity ? parseInt(formData.capacity) : null,
+          created_by: user.id,
+          status: 'active'
+        }])
+        .select()
+
+      if (error) {
+        console.error('Error creating section:', error)
+        alert(`Failed to create section: ${error.message}`)
+      } else {
+        setShowSidebar(false)
+        setFormData({ class: '', section: '', incharge: '', roomNumber: '', capacity: '', orderBy: '' })
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error saving section:', error)
+      alert('Error saving section: ' + error.message)
+    }
   }
 
   const handleEdit = (section) => {
     setSelectedSection(section)
     setEditFormData({
-      class: section.className,
-      section: section.sectionName,
-      incharge: section.incharge
+      class: section.class_id || '',
+      section: section.section_name,
+      incharge: section.class_teacher_id || '',
+      roomNumber: section.room_number || '',
+      capacity: section.capacity || '',
+      orderBy: section.order_by || ''
     })
     setShowEditSidebar(true)
   }
 
-  const handleUpdate = () => {
-    console.log('Update Section:', selectedSection?.id, editFormData)
-    setShowEditSidebar(false)
-    setSelectedSection(null)
-    setEditFormData({ class: '', section: '', incharge: '' })
+  const handleUpdate = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        alert('Unauthorized')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('sections')
+        .update({
+          class_id: editFormData.class,
+          section_name: editFormData.section,
+          class_teacher_id: editFormData.incharge || null,
+          room_number: editFormData.roomNumber || null,
+          capacity: editFormData.capacity ? parseInt(editFormData.capacity) : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedSection.id)
+        .eq('school_id', user.school_id)
+        .select()
+
+      if (error) {
+        console.error('Error updating section:', error)
+        alert('Failed to update section: ' + error.message)
+      } else {
+        setShowEditSidebar(false)
+        setSelectedSection(null)
+        setEditFormData({ class: '', section: '', incharge: '', roomNumber: '', capacity: '', orderBy: '' })
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error updating section:', error)
+      alert('Error updating section')
+    }
   }
 
   const handleDelete = (section) => {
@@ -72,11 +262,77 @@ export default function SectionsPage() {
     setShowDeleteModal(true)
   }
 
-  const confirmDelete = () => {
-    console.log('Delete Section:', selectedSection?.id)
-    setShowDeleteModal(false)
-    setSelectedSection(null)
+  const confirmDelete = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        alert('Unauthorized')
+        return
+      }
+
+      const { error } = await supabase
+        .from('sections')
+        .update({ status: 'inactive' })
+        .eq('id', selectedSection.id)
+        .eq('school_id', user.school_id)
+
+      if (error) {
+        console.error('Error deleting section:', error)
+        alert('Failed to delete section: ' + error.message)
+      } else {
+        setShowDeleteModal(false)
+        setSelectedSection(null)
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error deleting section:', error)
+      alert('Error deleting section')
+    }
   }
+
+  const handleToggleStatus = async (section) => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        alert('Unauthorized')
+        return
+      }
+
+      const newStatus = section.status === 'active' ? 'inactive' : 'active'
+
+      const { data, error } = await supabase
+        .from('sections')
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', section.id)
+        .eq('school_id', user.school_id)
+        .select()
+
+      if (error) {
+        console.error('Error updating status:', error)
+        alert('Failed to update status: ' + error.message)
+      } else {
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      alert('Error updating status')
+    }
+  }
+
+  // Prevent body scroll when sidebar is open
+  useEffect(() => {
+    if (showSidebar || showEditSidebar || showDeleteModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showSidebar, showEditSidebar, showDeleteModal])
 
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
@@ -105,11 +361,11 @@ export default function SectionsPage() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Classes</option>
-              <option value="Playgroup">Playgroup</option>
-              <option value="Nursery">Nursery</option>
-              <option value="K.G A">K.G A</option>
-              <option value="Five">Five</option>
-              <option value="10th">10th</option>
+              {classList.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.class_name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -145,42 +401,69 @@ export default function SectionsPage() {
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class Name</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Section Name</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Display Order</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Incharge Name</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
-              {filteredSections.map((section, index) => (
-                <tr
-                  key={section.id}
-                  className={`${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  } hover:bg-blue-50 transition`}
-                >
-                  <td className="px-4 py-3 border border-gray-200 text-blue-600">{section.sr}</td>
-                  <td className="px-4 py-3 border border-gray-200 font-medium">{section.className}</td>
-                  <td className="px-4 py-3 border border-gray-200">{section.sectionName}</td>
-                  <td className="px-4 py-3 border border-gray-200">{section.displayOrder}</td>
-                  <td className="px-4 py-3 border border-gray-200">{section.incharge}</td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(section)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(section)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                    Loading sections...
                   </td>
                 </tr>
-              ))}
+              ) : filteredSections.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                    No sections found
+                  </td>
+                </tr>
+              ) : (
+                filteredSections.map((section, index) => (
+                  <tr
+                    key={section.id}
+                    className={`${
+                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                    } hover:bg-blue-50 transition`}
+                  >
+                    <td className="px-4 py-3 border border-gray-200 text-blue-600">{index + 1}</td>
+                    <td className="px-4 py-3 border border-gray-200 font-medium">{section.class_name}</td>
+                    <td className="px-4 py-3 border border-gray-200">{section.section_name}</td>
+                    <td className="px-4 py-3 border border-gray-200">{section.teacher_name || '-'}</td>
+                    <td className="px-4 py-3 border border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleStatus(section)}
+                          className={`p-2 rounded-lg transition ${
+                            section.status === 'active'
+                              ? 'text-green-600 hover:bg-green-50'
+                              : 'text-gray-400 hover:bg-gray-50'
+                          }`}
+                          title={section.status === 'active' ? 'Active - Click to Deactivate' : 'Inactive - Click to Activate'}
+                        >
+                          {section.status === 'active' ? (
+                            <CheckCircle size={18} />
+                          ) : (
+                            <XCircle size={18} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleEdit(section)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(section)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -189,9 +472,9 @@ export default function SectionsPage() {
       {/* Right Sidebar */}
       {showSidebar && (
         <>
-          {/* Backdrop with blur */}
+          {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity"
             onClick={() => setShowSidebar(false)}
           />
 
@@ -219,41 +502,51 @@ export default function SectionsPage() {
                 {/* Class */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Class
+                    Class <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.class}
-                    onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                    onChange={(e) => {
+                      const selectedClassId = e.target.value
+                      const selectedClass = classList.find(cls => cls.id === selectedClassId)
+
+                      // Auto-fill incharge if class has one
+                      if (selectedClass && selectedClass.incharge) {
+                        const matchingStaff = staffList.find(staff =>
+                          `${staff.first_name} ${staff.last_name || ''}`.trim() === selectedClass.incharge
+                        )
+                        setFormData({
+                          ...formData,
+                          class: selectedClassId,
+                          incharge: matchingStaff ? matchingStaff.id : ''
+                        })
+                      } else {
+                        setFormData({ ...formData, class: selectedClassId })
+                      }
+                    }}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
-                    <option value="">All Classes</option>
-                    <option value="playgroup">Playgroup</option>
-                    <option value="nursery">Nursery</option>
-                    <option value="kga">K.G A</option>
-                    <option value="five">Five</option>
-                    <option value="10th">10th</option>
+                    <option value="">Select Class</option>
+                    {classList.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.class_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Section */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Section <span className="text-red-500">*</span>
+                    Section Name <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <input
+                    type="text"
+                    placeholder="e.g., A, B, Green, Blue"
                     value={formData.section}
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  >
-                    <option value="">Select a section</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="Green">Green</option>
-                    <option value="Blue">Blue</option>
-                    <option value="Red">Red</option>
-                    <option value="Yellow">Yellow</option>
-                    <option value="Black">Black</option>
-                  </select>
+                  />
                 </div>
 
                 {/* Section Incharge */}
@@ -266,33 +559,61 @@ export default function SectionsPage() {
                     onChange={(e) => setFormData({ ...formData, incharge: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
-                    <option value="">Select incharge</option>
-                    <option value="ahsan">Ahsan</option>
-                    <option value="saima">SAIMA</option>
-                    <option value="samina">SAMINA</option>
-                    <option value="ali">Ali</option>
-                    <option value="abdullah">Abdullah</option>
-                    <option value="shabana">Shabana</option>
+                    <option value="">Select Teacher</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
+                {/* Room Number */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Room Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., 101, A-12"
+                    value={formData.roomNumber}
+                    onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  />
+                </div>
+
+                {/* Capacity */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Capacity
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 40"
+                    value={formData.capacity}
+                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  />
+                </div>
+
               </div>
             </div>
 
             {/* Sidebar Footer */}
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
+            <div className="border-t border-gray-200 px-6 py-4 bg-white">
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowSidebar(false)}
-                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  className="flex-1 px-4 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center gap-2 shadow-md hover:shadow-lg"
                 >
-                  <Plus size={18} />
-                  Save Section
+                  <Plus size={16} />
+                  Save
                 </button>
               </div>
             </div>
@@ -303,9 +624,9 @@ export default function SectionsPage() {
       {/* Edit Section Sidebar */}
       {showEditSidebar && (
         <>
-          {/* Backdrop with blur */}
+          {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity"
             onClick={() => setShowEditSidebar(false)}
           />
 
@@ -333,33 +654,50 @@ export default function SectionsPage() {
                 {/* Class */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Class
+                    Class <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={editFormData.class}
-                    onChange={(e) => setEditFormData({ ...editFormData, class: e.target.value })}
+                    onChange={(e) => {
+                      const selectedClassId = e.target.value
+                      const selectedClass = classList.find(cls => cls.id === selectedClassId)
+
+                      // Auto-fill incharge if class has one
+                      if (selectedClass && selectedClass.incharge) {
+                        const matchingStaff = staffList.find(staff =>
+                          `${staff.first_name} ${staff.last_name || ''}`.trim() === selectedClass.incharge
+                        )
+                        setEditFormData({
+                          ...editFormData,
+                          class: selectedClassId,
+                          incharge: matchingStaff ? matchingStaff.id : ''
+                        })
+                      } else {
+                        setEditFormData({ ...editFormData, class: selectedClassId })
+                      }
+                    }}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
-                    <option value="">All Classes</option>
-                    <option value="Playgroup">Playgroup</option>
-                    <option value="Nursery">Nursery</option>
-                    <option value="K.G A">K.G A</option>
-                    <option value="Five">Five</option>
-                    <option value="10th">10th</option>
+                    <option value="">Select Class</option>
+                    {classList.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.class_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Section */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Section <span className="text-red-500">*</span>
+                    Section Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={editFormData.section}
                     onChange={(e) => setEditFormData({ ...editFormData, section: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    placeholder="Enter section name"
+                    placeholder="e.g., A, B, Green, Blue"
                   />
                 </div>
 
@@ -373,33 +711,59 @@ export default function SectionsPage() {
                     onChange={(e) => setEditFormData({ ...editFormData, incharge: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
-                    <option value="">Select incharge</option>
-                    <option value="Ahsan">Ahsan</option>
-                    <option value="SAIMA">SAIMA</option>
-                    <option value="SAMINA">SAMINA</option>
-                    <option value="Ali">Ali</option>
-                    <option value="Abdullah">Abdullah</option>
-                    <option value="Shabana">Shabana</option>
-                    <option value="Ali Ahmad">Ali Ahmad</option>
+                    <option value="">Select Teacher</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
+                      </option>
+                    ))}
                   </select>
+                </div>
+
+                {/* Room Number */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Room Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., 101, A-12"
+                    value={editFormData.roomNumber}
+                    onChange={(e) => setEditFormData({ ...editFormData, roomNumber: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  />
+                </div>
+
+                {/* Capacity */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Capacity
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 40"
+                    value={editFormData.capacity}
+                    onChange={(e) => setEditFormData({ ...editFormData, capacity: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  />
                 </div>
               </div>
             </div>
 
             {/* Sidebar Footer */}
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
+            <div className="border-t border-gray-200 px-6 py-4 bg-white">
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowEditSidebar(false)}
-                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  className="flex-1 px-4 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center gap-2 shadow-md hover:shadow-lg"
                 >
-                  Update Section
+                  Update
                 </button>
               </div>
             </div>
@@ -410,18 +774,15 @@ export default function SectionsPage() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedSection && (
         <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowDeleteModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 z-40" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full my-8">
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
               <div className="p-6">
                 <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete section <span className="font-bold text-red-600">{selectedSection.sectionName}</span> from <span className="font-bold">{selectedSection.className || 'Unknown Class'}</span>? This action cannot be undone.
+                  Are you sure you want to delete section <span className="font-bold text-red-600">{selectedSection.section_name}</span> from <span className="font-bold">{selectedSection.class_name || 'Unknown Class'}</span>? This action cannot be undone.
                 </p>
                 <div className="flex gap-3">
                   <button

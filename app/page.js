@@ -10,11 +10,11 @@ export default function HomePage() {
     // Check if user is logged in
     const user = localStorage.getItem('user')
     if (user) {
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } else {
-      router.push('/login')
+      window.location.href = '/login'
     }
-  }, [router])
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

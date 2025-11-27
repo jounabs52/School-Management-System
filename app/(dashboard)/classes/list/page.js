@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Edit2, X, Eye, Trash2, Users, FileText, TrendingUp, RefreshCw, ArrowLeft, Filter } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 export default function ClassListPage() {
   const [showModal, setShowModal] = useState(false)
@@ -10,12 +12,40 @@ export default function ClassListPage() {
   const [showFeeIncrementModal, setShowFeeIncrementModal] = useState(false)
   const [showStudentEditModal, setShowStudentEditModal] = useState(false)
   const [showStudentDeleteModal, setShowStudentDeleteModal] = useState(false)
+
+  // Lock/unlock body scroll when modals open/close
+  useEffect(() => {
+    const isAnyModalOpen = showModal || showEditModal || showDeleteModal ||
+                          showFeeIncrementModal || showStudentEditModal || showStudentDeleteModal
+
+    if (isAnyModalOpen) {
+      // Get current scrollbar width
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+
+      // Prevent body scroll and add padding to prevent layout shift
+      document.body.style.overflow = 'hidden'
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    } else {
+      // Restore body scroll and remove padding
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+  }, [showModal, showEditModal, showDeleteModal, showFeeIncrementModal, showStudentEditModal, showStudentDeleteModal])
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [viewMode, setViewMode] = useState(false)
   const [activeTab, setActiveTab] = useState('students')
   const [selectedClass, setSelectedClass] = useState(null)
   const [classToDelete, setClassToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [staffList, setStaffList] = useState([])
+  const [classes, setClasses] = useState([])
   const [studentFormData, setStudentFormData] = useState({
     name: '',
     father: '',
@@ -36,24 +66,7 @@ export default function ClassListPage() {
     markingSystem: ''
   })
 
-  const classes = [
-    { id: 1, sr: 1, name: 'K.G A', standardFee: '6,000', students: 7, totalFee: '42,000', discount: '19,450', budget: '22,550' },
-    { id: 2, sr: 2, name: 'Nursery', standardFee: '5,000', students: 15, totalFee: '75,000', discount: '39,315', budget: '35,685' },
-    { id: 3, sr: 3, name: 'Playgroup', standardFee: '2,000', students: 42, totalFee: '84,000', discount: '', budget: '449,000' },
-    { id: 4, sr: 4, name: 'Prep1', standardFee: '1,000', students: 3, totalFee: '3,000', discount: '3,000', budget: '' },
-    { id: 5, sr: 5, name: 'One', standardFee: '2,000', students: 9, totalFee: '18,000', discount: '4,200', budget: '13,800' },
-    { id: 6, sr: 6, name: 'Three', standardFee: '2,000', students: 3, totalFee: '6,000', discount: '', budget: '6,000' },
-    { id: 7, sr: 7, name: 'Two', standardFee: '5,000', students: 5, totalFee: '25,000', discount: '11,000', budget: '14,000' },
-    { id: 8, sr: 8, name: 'Four', standardFee: '3,000', students: 2, totalFee: '6,000', discount: '500', budget: '5,500' },
-    { id: 9, sr: 9, name: 'Five', standardFee: '5,000', students: 12, totalFee: '60,000', discount: '9,000', budget: '51,000' },
-    { id: 10, sr: 10, name: 'Six', standardFee: '4,500', students: 4, totalFee: '18,000', discount: '6,200', budget: '11,800' },
-    { id: 11, sr: 11, name: 'Seven', standardFee: '5,000', students: 1, totalFee: '5,000', discount: '', budget: '5,000' },
-    { id: 12, sr: 12, name: 'Eight', standardFee: '5,000', students: 2, totalFee: '10,000', discount: '1,000', budget: '9,000' },
-    { id: 13, sr: 13, name: '10th', standardFee: '5,000', students: 12, totalFee: '60,000', discount: '27,500', budget: '32,500' },
-    { id: 14, sr: 14, name: '9th', standardFee: '6,000', students: 2, totalFee: '12,000', discount: '1,500', budget: '10,500' },
-  ]
-
-  // Sample students data
+  // Sample students data - will be replaced with real data later
   const studentsData = [
     { id: 1, name: 'ejaz', father: 'Nauman', section: 'A', rollNo: 1, fee: 'Free', discount: '6,000', avatar: '👦' },
     { id: 2, name: 'Zainab', father: 'Tariq', section: 'A', rollNo: 2, fee: '5,000', discount: '1,000', avatar: '👧', badge: 'Active student' },
@@ -71,32 +84,185 @@ export default function ClassListPage() {
     { id: 3, feeHead: 'Admission Fee', title: 'Admission fee', amount: '15,000' },
   ]
 
+  // Fetch staff and classes data
+  useEffect(() => {
+    fetchStaff()
+    fetchClasses()
+  }, [])
+
+  const fetchStaff = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        console.error('No user found')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('school_id', user.school_id)
+        .eq('status', 'active')
+        .eq('department', 'TEACHING')
+        .order('first_name', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching staff:', error)
+      } else {
+        setStaffList(data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching staff:', error)
+    }
+  }
+
+  const fetchClasses = async () => {
+    try {
+      setLoading(true)
+      const user = getUserFromCookie()
+      if (!user) {
+        console.error('No user found')
+        setLoading(false)
+        return
+      }
+
+      // Get classes with student count and total discount
+      const { data: classes, error } = await supabase
+        .from('classes')
+        .select('id, class_name, standard_fee, incharge, exam_marking_system')
+        .eq('school_id', user.school_id)
+        .eq('status', 'active')
+        .order('class_name', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching classes:', error)
+        setClasses([])
+      } else {
+        // For each class, get student count and total discount
+        const classesWithStats = await Promise.all(
+          (classes || []).map(async (cls) => {
+            // Get total students
+            const { count: totalStudents } = await supabase
+              .from('students')
+              .select('*', { count: 'exact', head: true })
+              .eq('school_id', user.school_id)
+              .eq('current_class_id', cls.id)
+              .eq('status', 'active')
+
+            // Get total discount
+            const { data: discountData } = await supabase
+              .from('students')
+              .select('discount_amount')
+              .eq('school_id', user.school_id)
+              .eq('current_class_id', cls.id)
+              .eq('status', 'active')
+
+            const totalDiscount = (discountData || []).reduce(
+              (sum, student) => sum + (parseFloat(student.discount_amount) || 0),
+              0
+            )
+
+            return {
+              ...cls,
+              total_students: totalStudents || 0,
+              total_discount: totalDiscount
+            }
+          })
+        )
+
+        setClasses(classesWithStats)
+      }
+    } catch (error) {
+      console.error('Error fetching classes:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filteredClasses = classes.filter(cls =>
-    cls.name.toLowerCase().includes(searchTerm.toLowerCase())
+    cls.class_name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleSave = () => {
-    console.log('Form Data:', formData)
-    setShowModal(false)
-    setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
+  const handleSave = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        alert('Unauthorized')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('classes')
+        .insert([{
+          school_id: user.school_id,
+          created_by: user.id,
+          class_name: formData.className,
+          standard_fee: parseFloat(formData.classFee) || 0,
+          incharge: formData.incharge,
+          exam_marking_system: formData.markingSystem,
+          status: 'active'
+        }])
+        .select()
+
+      if (error) {
+        console.error('Error creating class:', error)
+        alert('Failed to create class: ' + error.message)
+      } else {
+        setShowModal(false)
+        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
+        fetchClasses() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error saving class:', error)
+      alert('Error saving class')
+    }
   }
 
   const handleEdit = (cls) => {
     setSelectedClass(cls)
     setFormData({
-      incharge: '',
-      className: cls.name,
-      classFee: cls.standardFee.replace(',', ''),
-      markingSystem: ''
+      incharge: cls.incharge || '',
+      className: cls.class_name,
+      classFee: cls.standard_fee || '',
+      markingSystem: cls.exam_marking_system || ''
     })
     setShowEditModal(true)
   }
 
-  const handleUpdate = () => {
-    console.log('Updated Data:', formData)
-    setShowEditModal(false)
-    setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
-    setSelectedClass(null)
+  const handleUpdate = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        alert('Unauthorized')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('classes')
+        .update({
+          class_name: formData.className,
+          standard_fee: parseFloat(formData.classFee) || 0,
+          incharge: formData.incharge,
+          exam_marking_system: formData.markingSystem,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedClass.id)
+        .eq('school_id', user.school_id)
+        .select()
+
+      if (error) {
+        console.error('Error updating class:', error)
+        alert('Failed to update class: ' + error.message)
+      } else {
+        setShowEditModal(false)
+        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
+        setSelectedClass(null)
+        fetchClasses() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating class:', error)
+      alert('Error updating class')
+    }
   }
 
   const handleView = (cls) => {
@@ -110,10 +276,32 @@ export default function ClassListPage() {
     setShowDeleteModal(true)
   }
 
-  const confirmDelete = () => {
-    console.log('Delete:', classToDelete)
-    setShowDeleteModal(false)
-    setClassToDelete(null)
+  const confirmDelete = async () => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        alert('Unauthorized')
+        return
+      }
+
+      const { error } = await supabase
+        .from('classes')
+        .update({ status: 'inactive' })
+        .eq('id', classToDelete.id)
+        .eq('school_id', user.school_id)
+
+      if (error) {
+        console.error('Error deleting class:', error)
+        alert('Failed to delete class: ' + error.message)
+      } else {
+        setShowDeleteModal(false)
+        setClassToDelete(null)
+        fetchClasses() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting class:', error)
+      alert('Error deleting class')
+    }
   }
 
   const handleFeeIncrement = () => {
@@ -227,7 +415,7 @@ export default function ClassListPage() {
           <div>
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
               <h2 className="text-lg font-bold text-gray-800 mb-4">
-                Students enrolled in the <span className="text-blue-600">{selectedClass.name}</span> session <span className="font-bold">2024-2025</span>
+                Students enrolled in the <span className="text-blue-600">{selectedClass.class_name}</span> session <span className="font-bold">2024-2025</span>
               </h2>
 
               <div className="flex flex-col md:flex-row gap-4">
@@ -326,7 +514,7 @@ export default function ClassListPage() {
           <div>
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
               <h2 className="text-lg font-bold text-gray-800 mb-4">
-                Admission fee policy for the class <span className="text-blue-600">{selectedClass.name}</span>
+                Admission fee policy for the class <span className="text-blue-600">{selectedClass.class_name}</span>
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -406,7 +594,7 @@ export default function ClassListPage() {
         {activeTab === 'feeIncrement' && (
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-lg font-bold text-gray-800 mb-4">
-              Fee Increment for <span className="text-blue-600">{selectedClass.name}</span>
+              Fee Increment for <span className="text-blue-600">{selectedClass.class_name}</span>
             </h2>
             <p className="text-gray-600 mb-6">Click the button below to apply fee increment to all students in this class.</p>
             <button
@@ -424,7 +612,7 @@ export default function ClassListPage() {
           <div>
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
               <h2 className="text-lg font-bold text-gray-800 mb-4">
-                Recurring charges for the class <span className="text-blue-600">{selectedClass.name}</span>
+                Recurring charges for the class <span className="text-blue-600">{selectedClass.class_name}</span>
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -479,7 +667,7 @@ export default function ClassListPage() {
                       <td className="px-4 py-3 border border-gray-200">1</td>
                       <td className="px-4 py-3 border border-gray-200">Monthly Fee</td>
                       <td className="px-4 py-3 border border-gray-200">Monthly Tuition</td>
-                      <td className="px-4 py-3 border border-gray-200">{selectedClass.standardFee}</td>
+                      <td className="px-4 py-3 border border-gray-200">{selectedClass.standard_fee?.toLocaleString()}</td>
                       <td className="px-4 py-3 border border-gray-200">
                         <div className="flex items-center gap-2">
                           <button className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition">
@@ -782,51 +970,81 @@ export default function ClassListPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredClasses.map((cls, index) => (
-                <tr
-                  key={cls.id}
-                  className={`${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  } hover:bg-blue-50 transition`}
-                >
-                  <td className="px-4 py-3 border border-gray-200">{cls.sr}</td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    <span className="text-blue-600 font-medium hover:underline cursor-pointer">
-                      {cls.name}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 border border-gray-200">{cls.standardFee}</td>
-                  <td className="px-4 py-3 border border-gray-200">{cls.students}</td>
-                  <td className="px-4 py-3 border border-gray-200">{cls.totalFee}</td>
-                  <td className="px-4 py-3 border border-gray-200">{cls.discount}</td>
-                  <td className="px-4 py-3 border border-gray-200">{cls.budget}</td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleView(cls)}
-                        className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
-                        title="View"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(cls)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                        title="Edit"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(cls)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                    Loading classes...
                   </td>
                 </tr>
-              ))}
+              ) : filteredClasses.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                    No classes found
+                  </td>
+                </tr>
+              ) : (
+                filteredClasses.map((cls, index) => {
+                  const totalStudents = cls.total_students || 0
+                  const standardFee = parseFloat(cls.standard_fee) || 0
+                  const totalFee = standardFee * totalStudents
+                  const discount = parseFloat(cls.total_discount) || 0
+                  const budget = totalFee - discount
+
+                  return (
+                    <tr
+                      key={cls.id}
+                      className={`${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                      } hover:bg-blue-50 transition`}
+                    >
+                      <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        <span className="text-blue-600 font-medium hover:underline cursor-pointer">
+                          {cls.class_name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        {standardFee.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">{totalStudents}</td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        {totalFee.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        {discount > 0 ? discount.toLocaleString() : ''}
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        {budget.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleView(cls)}
+                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            title="View"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(cls)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Edit"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cls)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -866,9 +1084,11 @@ export default function ClassListPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Incharge</option>
-                    <option value="teacher1">Teacher 1</option>
-                    <option value="teacher2">Teacher 2</option>
-                    <option value="teacher3">Teacher 3</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={`${staff.first_name} ${staff.last_name || ''}`.trim()}>
+                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -970,9 +1190,11 @@ export default function ClassListPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Incharge</option>
-                    <option value="teacher1">Teacher 1</option>
-                    <option value="teacher2">Teacher 2</option>
-                    <option value="teacher3">Teacher 3</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={`${staff.first_name} ${staff.last_name || ''}`.trim()}>
+                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -1054,7 +1276,7 @@ export default function ClassListPage() {
               </div>
               <div className="p-6">
                 <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete <span className="font-bold text-red-600">{classToDelete.name}</span>? This action cannot be undone.
+                  Are you sure you want to delete <span className="font-bold text-red-600">{classToDelete.class_name}</span>? This action cannot be undone.
                 </p>
                 <div className="flex gap-3">
                   <button

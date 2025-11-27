@@ -17,8 +17,15 @@ export default function LoginPage() {
   // Check if already logged in
   useEffect(() => {
     const user = localStorage.getItem('user')
+    // Verify user data is valid JSON
     if (user) {
-      router.push('/dashboard')
+      try {
+        JSON.parse(user)
+        router.push('/dashboard')
+      } catch (error) {
+        // Invalid user data, clear it
+        localStorage.removeItem('user')
+      }
     }
   }, [router])
 

@@ -13,12 +13,45 @@ export default function DashboardLayout({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const userData = localStorage.getItem('user')
+    // Try to get user from localStorage first, then cookie
+    let userData = null
+
+    // Check localStorage
+    const localStorageUser = localStorage.getItem('user')
+    if (localStorageUser) {
+      try {
+        userData = JSON.parse(localStorageUser)
+      } catch (err) {
+        console.error('Error parsing localStorage user:', err)
+      }
+    }
+
+    // If not in localStorage, check cookie
+    if (!userData) {
+      const getCookie = (name) => {
+        const value = `; ${document.cookie}`
+        const parts = value.split(`; ${name}=`)
+        if (parts.length === 2) return parts.pop().split(';').shift()
+      }
+
+      const authToken = getCookie('auth-token')
+      if (authToken) {
+        try {
+          userData = JSON.parse(decodeURIComponent(authToken))
+        } catch (err) {
+          console.error('Error parsing cookie auth token:', err)
+        }
+      }
+    }
+
+    // If no user found, redirect to login
     if (!userData) {
       router.push('/login')
-    } else {
-      setUser(JSON.parse(userData))
+      setLoading(false)
+      return
     }
+
+    setUser(userData)
     setLoading(false)
 
     const handleResize = () => {
@@ -38,7 +71,11 @@ export default function DashboardLayout({ children }) {
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-2xl font-bold text-gray-600">Redirecting to login...</div>
+      </div>
+    )
   }
 
   return (
