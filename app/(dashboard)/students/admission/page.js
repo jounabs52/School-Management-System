@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Image, Loader2, AlertCircle } from 'lucide-react'
+import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Image, Loader2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -29,33 +29,49 @@ export default function AdmissionRegisterPage() {
   const [importExpanded, setImportExpanded] = useState(true)
   const [admissions, setAdmissions] = useState([])
   const [classes, setClasses] = useState([])
+  const [sections, setSections] = useState([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [loadingClasses, setLoadingClasses] = useState(false)
+  const [loadingSections, setLoadingSections] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [classSearchTerm, setClassSearchTerm] = useState('')
+  const [sectionSearchTerm, setSectionSearchTerm] = useState('')
+  const [showClassDropdown, setShowClassDropdown] = useState(false)
+  const [showSectionDropdown, setShowSectionDropdown] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
   const [importData, setImportData] = useState({
-    class: 'Playgroup',
-    section: '',
-    category: 'ORPHAN sTUDENT'
+    classId: '',
+    className: '',
+    sectionId: '',
+    sectionName: '',
+    category: 'Active Student'
   })
   const [formData, setFormData] = useState({
     id: null,
     admissionNo: '',
     class: '',
+    section: '',
     admissionDate: new Date().toISOString().split('T')[0],
     discount: '',
     baseFee: '',
     discountNote: '',
+    photoUrl: '',
+    rollNumber: '',
+    house: '',
     selectFamily: '',
     fatherCnic: '',
     familyNo: '',
     studentName: '',
     fatherName: '',
     fatherMobile: '',
+    fatherEmail: '',
     fatherQualification: '',
     fatherOccupation: '',
+    fatherAnnualIncome: '',
     guardianMobile: '',
     whatsappNumber: '',
     category: '',
@@ -64,12 +80,19 @@ export default function AdmissionRegisterPage() {
     casteRace: '',
     gender: 'male',
     currentAddress: '',
+    city: '',
+    state: '',
+    postalCode: '',
     motherName: '',
     motherCnic: '',
     motherMobile: '',
+    motherEmail: '',
     motherQualification: '',
+    motherOccupation: '',
+    motherAnnualIncome: '',
     guardianName: '',
     guardianRelation: '',
+    guardianEmail: '',
     emergencyRelation: '',
     emergencyContactName: '',
     emergencyPhone: '',
@@ -112,6 +135,20 @@ export default function AdmissionRegisterPage() {
     fetchStudents()
   }, [selectedOption])
 
+  // Prevent body scroll when any popup is open
+  useEffect(() => {
+    if (showRegisterSidebar || showDeleteModal || showViewModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    // Cleanup function to ensure scroll is re-enabled when component unmounts
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showRegisterSidebar, showDeleteModal, showViewModal])
+
   const fetchStudents = async () => {
     setLoading(true)
     setError(null)
@@ -119,7 +156,7 @@ export default function AdmissionRegisterPage() {
       let query = supabase
         .from('students')
         .select('*')
-        .eq('status', 'active')
+        .in('status', ['active', 'inactive'])
         .order('created_at', { ascending: false })
 
       // Apply class filter if selected
@@ -183,13 +220,43 @@ export default function AdmissionRegisterPage() {
     }
   }
 
+  const fetchSections = async (classId) => {
+    if (!classId) {
+      setSections([])
+      return
+    }
+
+    setLoadingSections(true)
+    try {
+      const { data, error } = await supabase
+        .from('sections')
+        .select('id, section_name, status')
+        .eq('class_id', classId)
+        .eq('status', 'active')
+        .order('section_name', { ascending: true })
+
+      if (error) throw error
+
+      setSections(data || [])
+    } catch (err) {
+      console.error('Error fetching sections:', err)
+      // Don't show error if sections table doesn't exist yet
+      setSections([])
+    } finally {
+      setLoadingSections(false)
+    }
+  }
+
   const handleClassChange = (classId) => {
     const selectedClass = classes.find(c => c.id === classId)
     setFormData({
       ...formData,
       class: classId,
+      section: '', // Reset section when class changes
       baseFee: selectedClass?.standard_fee || ''
     })
+    // Fetch sections for the selected class
+    fetchSections(classId)
   }
 
   const getClassName = (classId) => {
@@ -212,18 +279,24 @@ export default function AdmissionRegisterPage() {
       id: null,
       admissionNo: '',
       class: '',
+      section: '',
       admissionDate: new Date().toISOString().split('T')[0],
       discount: '',
       baseFee: '',
       discountNote: '',
+      photoUrl: '',
+      rollNumber: '',
+      house: '',
       selectFamily: '',
       fatherCnic: '',
       familyNo: '',
       studentName: '',
       fatherName: '',
       fatherMobile: '',
+      fatherEmail: '',
       fatherQualification: '',
       fatherOccupation: '',
+      fatherAnnualIncome: '',
       guardianMobile: '',
       whatsappNumber: '',
       category: '',
@@ -232,12 +305,19 @@ export default function AdmissionRegisterPage() {
       casteRace: '',
       gender: 'male',
       currentAddress: '',
+      city: '',
+      state: '',
+      postalCode: '',
       motherName: '',
       motherCnic: '',
       motherMobile: '',
+      motherEmail: '',
       motherQualification: '',
+      motherOccupation: '',
+      motherAnnualIncome: '',
       guardianName: '',
       guardianRelation: '',
+      guardianEmail: '',
       emergencyRelation: '',
       emergencyContactName: '',
       emergencyPhone: '',
@@ -259,6 +339,7 @@ export default function AdmissionRegisterPage() {
     })
     setIsEditMode(false)
     setShowOtherDetails(false)
+    setSections([])
   }
 
   const handleRegisterNewStudent = () => {
@@ -311,6 +392,9 @@ export default function AdmissionRegisterPage() {
             nationality: formData.nationality || 'Pakistan',
             admission_date: formData.admissionDate,
             current_class_id: formData.class || null,
+            current_section_id: formData.section || null,
+            roll_number: formData.rollNumber || null,
+            house: formData.house || null,
             base_fee: parseFloat(formData.baseFee) || 0,
             discount_amount: parseFloat(formData.discount) || 0,
             discount_note: formData.discountNote || null,
@@ -341,6 +425,9 @@ export default function AdmissionRegisterPage() {
             nationality: formData.nationality || 'Pakistan',
             admission_date: formData.admissionDate,
             current_class_id: formData.class || null,
+            current_section_id: formData.section || null,
+            roll_number: formData.rollNumber || null,
+            house: formData.house || null,
             base_fee: parseFloat(formData.baseFee) || 0,
             discount_amount: parseFloat(formData.discount) || 0,
             discount_note: formData.discountNote || null,
@@ -358,12 +445,18 @@ export default function AdmissionRegisterPage() {
         if (formData.fatherName && formData.fatherMobile) {
           contacts.push({
             student_id: insertedStudent.id,
+            school_id: schoolId,
             contact_type: 'father',
             name: formData.fatherName,
             phone: formData.fatherMobile,
             alternate_phone: formData.whatsappNumber || null,
+            email: formData.fatherEmail || null,
             occupation: formData.fatherOccupation || null,
+            annual_income: parseFloat(formData.fatherAnnualIncome) || null,
             address: formData.currentAddress || null,
+            city: formData.city || null,
+            state: formData.state || null,
+            postal_code: formData.postalCode || null,
             is_primary: true
           })
         }
@@ -371,10 +464,33 @@ export default function AdmissionRegisterPage() {
         if (formData.motherName && formData.motherMobile) {
           contacts.push({
             student_id: insertedStudent.id,
+            school_id: schoolId,
             contact_type: 'mother',
             name: formData.motherName,
             phone: formData.motherMobile,
+            email: formData.motherEmail || null,
+            occupation: formData.motherOccupation || null,
+            annual_income: parseFloat(formData.motherAnnualIncome) || null,
             address: formData.currentAddress || null,
+            city: formData.city || null,
+            state: formData.state || null,
+            postal_code: formData.postalCode || null,
+            is_primary: false
+          })
+        }
+
+        if (formData.guardianName && formData.guardianMobile) {
+          contacts.push({
+            student_id: insertedStudent.id,
+            school_id: schoolId,
+            contact_type: 'guardian',
+            name: formData.guardianName,
+            phone: formData.guardianMobile,
+            email: formData.guardianEmail || null,
+            address: formData.currentAddress || null,
+            city: formData.city || null,
+            state: formData.state || null,
+            postal_code: formData.postalCode || null,
             is_primary: false
           })
         }
@@ -431,10 +547,39 @@ export default function AdmissionRegisterPage() {
     }
   }
 
-  const handleEdit = async (student) => {
-    setLoading(true)
+  const handleToggleStatus = async (student) => {
+    setError(null)
+    setSuccess(null)
+
     try {
-      // Fetch full student details
+      // Toggle between active and inactive
+      const newStatus = student.status === 'active' ? 'inactive' : 'active'
+
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', student.id)
+
+      if (updateError) throw updateError
+
+      const statusText = newStatus === 'active' ? 'activated' : 'deactivated'
+      setSuccess(`Student ${statusText} successfully!`)
+      fetchStudents() // Refresh the list
+
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message || 'Failed to update student status')
+      console.error('Toggle status error:', err)
+    }
+  }
+
+  const handleEdit = async (student) => {
+    // Open sidebar immediately without affecting page loading state
+    setShowRegisterSidebar(true)
+    setIsEditMode(true)
+
+    try {
+      // Fetch full student details in background
       const { data: fullStudent, error } = await supabase
         .from('students')
         .select('*')
@@ -443,23 +588,33 @@ export default function AdmissionRegisterPage() {
 
       if (error) throw error
 
-      setIsEditMode(true)
+      // Fetch sections for the student's class
+      if (fullStudent.current_class_id) {
+        await fetchSections(fullStudent.current_class_id)
+      }
+
       setFormData({
         id: fullStudent.id,
         admissionNo: fullStudent.admission_number || '',
         class: fullStudent.current_class_id || '',
+        section: fullStudent.current_section_id || '',
         admissionDate: fullStudent.admission_date || '',
         discount: fullStudent.discount_amount || '',
         baseFee: fullStudent.base_fee || '',
         discountNote: fullStudent.discount_note || '',
+        photoUrl: fullStudent.photo_url || '',
+        rollNumber: fullStudent.roll_number || '',
+        house: fullStudent.house || '',
         selectFamily: '',
         fatherCnic: '',
         familyNo: '',
         studentName: `${fullStudent.first_name}${fullStudent.last_name ? ' ' + fullStudent.last_name : ''}`,
         fatherName: fullStudent.father_name || '',
         fatherMobile: '',
+        fatherEmail: '',
         fatherQualification: '',
         fatherOccupation: '',
+        fatherAnnualIncome: '',
         guardianMobile: '',
         whatsappNumber: '',
         category: '',
@@ -468,12 +623,19 @@ export default function AdmissionRegisterPage() {
         casteRace: fullStudent.caste || '',
         gender: fullStudent.gender || 'male',
         currentAddress: '',
+        city: '',
+        state: '',
+        postalCode: '',
         motherName: fullStudent.mother_name || '',
         motherCnic: '',
         motherMobile: '',
+        motherEmail: '',
         motherQualification: '',
+        motherOccupation: '',
+        motherAnnualIncome: '',
         guardianName: '',
         guardianRelation: '',
+        guardianEmail: '',
         emergencyRelation: '',
         emergencyContactName: '',
         emergencyPhone: '',
@@ -493,18 +655,312 @@ export default function AdmissionRegisterPage() {
         permanentAddress: '',
         medicalProblem: ''
       })
-      setShowRegisterSidebar(true)
     } catch (err) {
       setError(err.message || 'Failed to load student details')
       console.error('Edit error:', err)
-    } finally {
-      setLoading(false)
+      setShowRegisterSidebar(false)
+      setIsEditMode(false)
     }
   }
 
   const handleView = (student) => {
     setSelectedStudent(student)
     setShowViewModal(true)
+  }
+
+  const handleImportClassSelect = (classId, className) => {
+    setImportData({
+      ...importData,
+      classId,
+      className,
+      sectionId: '',
+      sectionName: ''
+    })
+    setClassSearchTerm(className)
+    setShowClassDropdown(false)
+    fetchSections(classId)
+  }
+
+  const handleImportSectionSelect = (sectionId, sectionName) => {
+    setImportData({
+      ...importData,
+      sectionId,
+      sectionName
+    })
+    setSectionSearchTerm(sectionName)
+    setShowSectionDropdown(false)
+  }
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const validTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+      const isValid = validTypes.includes(file.type) || file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+
+      if (isValid) {
+        setSelectedFile(file)
+        setError(null)
+      } else {
+        setError('Please select a valid CSV or Excel file')
+        setSelectedFile(null)
+        e.target.value = null
+      }
+    }
+  }
+
+  const parseCSV = (text) => {
+    const lines = text.split('\n').filter(line => line.trim())
+    if (lines.length < 2) return []
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+    const students = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim())
+      const student = {}
+
+      headers.forEach((header, index) => {
+        student[header] = values[index] || ''
+      })
+
+      students.push(student)
+    }
+
+    return students
+  }
+
+  const handleBulkImport = async () => {
+    if (!selectedFile) {
+      setError('Please select a file to import')
+      return
+    }
+
+    if (!importData.classId) {
+      setError('Please select a class')
+      return
+    }
+
+    setImporting(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      // Read file
+      const text = await selectedFile.text()
+      const parsedStudents = parseCSV(text)
+
+      if (parsedStudents.length === 0) {
+        throw new Error('No valid student data found in file')
+      }
+
+      // Fetch school_id
+      const { data: schools, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError) {
+        throw new Error('Unable to fetch school information')
+      }
+
+      const schoolId = schools?.id
+
+      // Get the selected class to fetch base fee
+      const selectedClass = classes.find(c => c.id === importData.classId)
+      const classBaseFee = parseFloat(selectedClass?.standard_fee || 0)
+
+      // Prepare bulk insert data
+      const studentsToInsert = []
+      const contactsToInsert = []
+      const errors = []
+
+      parsedStudents.forEach((student, index) => {
+        const rowNum = index + 2 // +2 because index starts at 0 and row 1 is headers
+
+        // Validate mandatory fields - support multiple column name formats
+        const admissionNo = student['admission number'] ||
+                           student['admission_number'] ||
+                           student['admissionno'] ||
+                           student['admission/cnic no'] ||
+                           student['admission no'] ||
+                           student['gr no'] ||
+                           student['gr number'] || ''
+
+        const studentName = student['student name'] ||
+                           student['studentname'] ||
+                           student['name'] || ''
+
+        const fatherName = student['father name'] ||
+                          student['fathername'] || ''
+
+        if (!admissionNo) {
+          errors.push(`Row ${rowNum}: Missing admission number`)
+          return
+        }
+
+        if (!studentName) {
+          errors.push(`Row ${rowNum}: Missing student name`)
+          return
+        }
+
+        if (!fatherName) {
+          errors.push(`Row ${rowNum}: Missing father name`)
+          return
+        }
+
+        // Extract data with multiple possible column name formats
+        const motherName = student['mother name'] || student['mothername'] || ''
+        const dateOfBirth = student['date of birth'] ||
+                           student['dob'] ||
+                           student['dateofbirth'] ||
+                           student['birth date'] || null
+        const gender = (student['gender'] || 'male').toLowerCase()
+        const fatherMobile = student['father mobile'] ||
+                            student['fathermobile'] ||
+                            student['mobile'] ||
+                            student['father phone'] ||
+                            student['contact'] || ''
+        const motherMobile = student['mother mobile'] ||
+                            student['mothermobile'] ||
+                            student['mother phone'] || ''
+        const bloodGroup = student['blood group'] || student['bloodgroup'] || ''
+        const religion = student['religion'] || ''
+        const address = student['address'] ||
+                       student['current address'] ||
+                       student['currentaddress'] || ''
+        // Use class base fee instead of reading from CSV
+        const baseFee = classBaseFee
+        const discount = parseFloat(student['discount'] || 0)
+
+        // Split student name
+        const nameParts = studentName.trim().split(' ')
+        const firstName = nameParts[0]
+        const lastName = nameParts.slice(1).join(' ') || null
+
+        // Determine status based on category
+        let studentStatus = 'active'
+        if (importData.category === 'Old Student') {
+          studentStatus = 'inactive'
+        } else if (importData.category === 'Orphan Student') {
+          studentStatus = 'active' // Orphan students are still active
+        }
+
+        const studentData = {
+          school_id: schoolId,
+          admission_number: admissionNo,
+          first_name: firstName,
+          last_name: lastName,
+          father_name: fatherName,
+          mother_name: motherName || null,
+          date_of_birth: dateOfBirth,
+          gender: gender,
+          blood_group: bloodGroup || null,
+          religion: religion || null,
+          nationality: 'Pakistan',
+          admission_date: new Date().toISOString().split('T')[0],
+          current_class_id: importData.classId,
+          current_section_id: importData.sectionId || null,
+          base_fee: baseFee,
+          discount_amount: discount,
+          final_fee: baseFee - discount,
+          status: studentStatus
+        }
+
+        studentsToInsert.push(studentData)
+
+        // Prepare contact data (will be inserted after students)
+        if (fatherName && fatherMobile) {
+          contactsToInsert.push({
+            contact_type: 'father',
+            name: fatherName,
+            phone: fatherMobile,
+            address: address || null,
+            is_primary: true
+          })
+        } else {
+          contactsToInsert.push(null)
+        }
+
+        if (motherName && motherMobile) {
+          contactsToInsert.push({
+            contact_type: 'mother',
+            name: motherName,
+            phone: motherMobile,
+            address: address || null,
+            is_primary: false
+          })
+        } else {
+          contactsToInsert.push(null)
+        }
+      })
+
+      if (errors.length > 0) {
+        throw new Error(`Validation errors:\n${errors.join('\n')}`)
+      }
+
+      if (studentsToInsert.length === 0) {
+        throw new Error('No valid students to import')
+      }
+
+      // Insert students in bulk
+      const { data: insertedStudents, error: insertError } = await supabase
+        .from('students')
+        .insert(studentsToInsert)
+        .select()
+
+      if (insertError) throw insertError
+
+      // Insert contacts
+      const contactsWithStudentIds = []
+      insertedStudents.forEach((student, index) => {
+        const fatherContact = contactsToInsert[index * 2]
+        const motherContact = contactsToInsert[index * 2 + 1]
+
+        if (fatherContact) {
+          contactsWithStudentIds.push({
+            ...fatherContact,
+            student_id: student.id
+          })
+        }
+
+        if (motherContact) {
+          contactsWithStudentIds.push({
+            ...motherContact,
+            student_id: student.id
+          })
+        }
+      })
+
+      if (contactsWithStudentIds.length > 0) {
+        await supabase.from('student_contacts').insert(contactsWithStudentIds)
+      }
+
+      setSuccess(`Successfully imported ${insertedStudents.length} students!`)
+      setSelectedFile(null)
+      setImportData({
+        classId: '',
+        className: '',
+        sectionId: '',
+        sectionName: '',
+        category: 'Active Student'
+      })
+      setClassSearchTerm('')
+      setSectionSearchTerm('')
+
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]')
+      if (fileInput) fileInput.value = null
+
+      fetchStudents() // Refresh the list
+
+      setTimeout(() => setSuccess(null), 5000)
+    } catch (err) {
+      console.error('Import error:', err)
+      setError(err.message || 'Failed to import students')
+    } finally {
+      setImporting(false)
+    }
   }
 
   return (
@@ -675,6 +1131,21 @@ export default function AdmissionRegisterPage() {
                             <Edit2 size={18} />
                           </button>
                           <button
+                            onClick={() => handleToggleStatus(admission)}
+                            className={`p-2 rounded-lg transition ${
+                              admission.status === 'active'
+                                ? 'text-green-600 hover:bg-green-50'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                            title={admission.status === 'active' ? 'Deactivate Student' : 'Activate Student'}
+                          >
+                            {admission.status === 'active' ? (
+                              <ToggleRight size={18} />
+                            ) : (
+                              <ToggleLeft size={18} />
+                            )}
+                          </button>
+                          <button
                             onClick={() => handleDelete(admission)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
@@ -703,7 +1174,8 @@ export default function AdmissionRegisterPage() {
         <div className="mt-6">
           <div
             onClick={() => setImportExpanded(!importExpanded)}
-            className="bg-gray-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center cursor-pointer"
+            className="text-white px-6 py-4 rounded-t-xl flex justify-between items-center cursor-pointer"
+            style={{ backgroundColor: '#1E3A8A' }}
           >
             <h3 className="font-semibold">Import Bulk Students</h3>
             {importExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -711,68 +1183,246 @@ export default function AdmissionRegisterPage() {
 
           {importExpanded && (
             <div className="bg-white p-6 border-x border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-gray-600 text-sm mb-2">Class</label>
-                  <select
-                    value={importData.class}
-                    onChange={(e) => setImportData({ ...importData, class: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="">Select Class</option>
-                    <option value="Playgroup">Playgroup</option>
-                    <option value="Nursery">Nursery</option>
-                    <option value="Prep1">Prep1</option>
-                    <option value="One">One</option>
-                  </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Class Selection with Search */}
+                <div className="relative">
+                  <label className="block text-gray-700 font-semibold text-sm mb-2">
+                    Class <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search and select class..."
+                      value={classSearchTerm}
+                      onChange={(e) => setClassSearchTerm(e.target.value)}
+                      onFocus={() => setShowClassDropdown(true)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  </div>
+                  {showClassDropdown && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowClassDropdown(false)}
+                      />
+                      <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {loadingClasses ? (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            <Loader2 size={20} className="animate-spin inline-block" />
+                            <span className="ml-2">Loading classes...</span>
+                          </div>
+                        ) : classes.filter(cls =>
+                          cls.class_name.toLowerCase().includes(classSearchTerm.toLowerCase())
+                        ).length > 0 ? (
+                          classes
+                            .filter(cls => cls.class_name.toLowerCase().includes(classSearchTerm.toLowerCase()))
+                            .map(cls => (
+                              <div
+                                key={cls.id}
+                                onClick={() => handleImportClassSelect(cls.id, cls.class_name)}
+                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="font-medium text-gray-800">{cls.class_name}</div>
+                                {cls.standard_fee && (
+                                  <div className="text-sm text-gray-500">Standard Fee: {cls.standard_fee}</div>
+                                )}
+                              </div>
+                            ))
+                        ) : (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            No classes found
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {importData.className && (
+                    <div className="mt-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 flex items-center justify-between">
+                      <span>Selected: <strong>{importData.className}</strong></span>
+                      <button
+                        onClick={() => {
+                          setImportData({ ...importData, classId: '', className: '', sectionId: '', sectionName: '' })
+                          setClassSearchTerm('')
+                          setSections([])
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
+                {/* Category Selection */}
                 <div>
-                  <label className="block text-gray-600 text-sm mb-2">Section</label>
-                  <select
-                    value={importData.section}
-                    onChange={(e) => setImportData({ ...importData, section: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="">Select Section</option>
-                    <option value="Green">Green</option>
-                    <option value="A">A</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-gray-600 text-sm mb-2">Category</label>
+                  <label className="block text-gray-700 font-semibold text-sm mb-2">
+                    Category <span className="text-red-500">*</span>
+                  </label>
                   <select
                     value={importData.category}
                     onChange={(e) => setImportData({ ...importData, category: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   >
-                    <option value="">Select Category</option>
-                    <option value="ORPHAN sTUDENT">ORPHAN sTUDENT</option>
-                    <option value="Active student">Active student</option>
+                    <option value="Active Student">Active Student</option>
+                    <option value="Old Student">Old Student</option>
+                    <option value="Orphan Student">Orphan Student</option>
                   </select>
                 </div>
 
-                <div className="border border-dashed border-red-400 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Image size={16} className="text-gray-600" />
-                    <span className="text-xs font-semibold text-gray-700">UPLOAD EXCEL FILE</span>
+                {/* Section Selection with Search - Only show if class is selected */}
+                {importData.classId && (
+                  <div className="relative">
+                    <label className="block text-gray-700 font-semibold text-sm mb-2">
+                      Section (Optional)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search and select section..."
+                        value={sectionSearchTerm}
+                        onChange={(e) => setSectionSearchTerm(e.target.value)}
+                        onFocus={() => setShowSectionDropdown(true)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    </div>
+                    {showSectionDropdown && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setShowSectionDropdown(false)}
+                        />
+                        <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {loadingSections ? (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              <Loader2 size={20} className="animate-spin inline-block" />
+                              <span className="ml-2">Loading sections...</span>
+                            </div>
+                          ) : sections.filter(sec =>
+                            sec.section_name.toLowerCase().includes(sectionSearchTerm.toLowerCase())
+                          ).length > 0 ? (
+                            sections
+                              .filter(sec => sec.section_name.toLowerCase().includes(sectionSearchTerm.toLowerCase()))
+                              .map(sec => (
+                                <div
+                                  key={sec.id}
+                                  onClick={() => handleImportSectionSelect(sec.id, sec.section_name)}
+                                  className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                >
+                                  <div className="font-medium text-gray-800">{sec.section_name}</div>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              No sections found for this class
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {importData.sectionName && (
+                      <div className="mt-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center justify-between">
+                        <span>Selected: <strong>{importData.sectionName}</strong></span>
+                        <button
+                          onClick={() => {
+                            setImportData({ ...importData, sectionId: '', sectionName: '' })
+                            setSectionSearchTerm('')
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 italic mb-2">Select excel file</p>
+                )}
+
+                {/* File Upload */}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-blue-500 transition">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Upload size={20} className="text-blue-600" />
+                    <span className="text-sm font-semibold text-gray-700">UPLOAD CSV/EXCEL FILE</span>
+                  </div>
+                  <p className="text-xs text-gray-500 italic mb-3">Select CSV or Excel file (.csv, .xlsx, .xls)</p>
                   <input
                     type="file"
                     accept=".xlsx,.xls,.csv"
-                    className="w-full text-xs"
+                    onChange={handleFileChange}
+                    className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
+                  {selectedFile && (
+                    <div className="mt-3 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                      <strong>Selected:</strong> {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* CSV Format Information */}
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <AlertCircle size={18} />
+                  CSV File Format Requirements
+                </h4>
+                <div className="text-sm text-blue-800">
+                  <p className="mb-2"><strong>Mandatory columns (any format accepted):</strong></p>
+                  <ul className="list-disc list-inside mb-3 ml-2 text-xs">
+                    <li><strong>Admission Number:</strong> "Admission/CNIC No", "Admission Number", "Admission No", "GR No", etc.</li>
+                    <li><strong>Student Name:</strong> "Student Name", "Name", etc.</li>
+                    <li><strong>Father Name:</strong> "Father Name", etc.</li>
+                  </ul>
+                  <p className="mb-2"><strong>Optional columns:</strong></p>
+                  <ul className="list-disc list-inside ml-2 text-xs">
+                    <li>Mother Name, Date of Birth (or DOB, Birth Date), Gender</li>
+                    <li>Father Mobile (or Contact, Mobile), Mother Mobile, Blood Group</li>
+                    <li>Religion, Address (or Current Address), Fee, Discount</li>
+                  </ul>
+                  <p className="mt-3 text-xs italic">
+                    <strong>Example 1:</strong> Admission/CNIC No,Student Name,Father Name,Date Of Birth,Current Address<br/>
+                    <strong>Example 2:</strong> admission number,student name,father name,mother name,gender,dob,father mobile,fee
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="bg-white p-4 rounded-b-xl border border-gray-200 flex justify-end">
-            <button className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
-              Save
-              <Plus size={18} />
+          <div className="bg-white p-4 rounded-b-xl border border-gray-200 flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setImportData({
+                  classId: '',
+                  className: '',
+                  sectionId: '',
+                  sectionName: '',
+                  category: 'Active Student'
+                })
+                setClassSearchTerm('')
+                setSectionSearchTerm('')
+                setSelectedFile(null)
+                const fileInput = document.querySelector('input[type="file"]')
+                if (fileInput) fileInput.value = null
+              }}
+              className="px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+            >
+              Clear All
+            </button>
+            <button
+              onClick={handleBulkImport}
+              disabled={importing || !importData.classId || !selectedFile}
+              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {importing ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload size={18} />
+                  Import Students
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -841,6 +1491,26 @@ export default function AdmissionRegisterPage() {
                     </select>
                   </div>
                   <div>
+                    <label className="block text-gray-700 text-sm mb-2">Section</label>
+                    <select
+                      value={formData.section}
+                      onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      disabled={loadingSections || !formData.class}
+                    >
+                      <option value="">
+                        {loadingSections ? 'Loading sections...' : formData.class ? 'Select Section' : 'Select Class First'}
+                      </option>
+                      {sections.map((sec) => (
+                        <option key={sec.id} value={sec.id}>
+                          {sec.section_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
                     <label className="block text-gray-700 text-sm mb-2">Admission Date</label>
                     <input
                       type="date"
@@ -848,6 +1518,30 @@ export default function AdmissionRegisterPage() {
                       onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Roll Number</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Roll Number"
+                      value={formData.rollNumber}
+                      onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">House</label>
+                    <select
+                      value={formData.house}
+                      onChange={(e) => setFormData({ ...formData, house: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="">Select House</option>
+                      <option value="red">Red</option>
+                      <option value="blue">Blue</option>
+                      <option value="green">Green</option>
+                      <option value="yellow">Yellow</option>
+                    </select>
                   </div>
                 </div>
                 <div className="mt-4 border border-dashed border-gray-300 rounded-lg p-3">
@@ -937,6 +1631,26 @@ export default function AdmissionRegisterPage() {
                     />
                   </div>
                   <div>
+                    <label className="block text-gray-700 text-sm mb-2">Father Email</label>
+                    <input
+                      type="email"
+                      placeholder="Enter Father Email"
+                      value={formData.fatherEmail}
+                      onChange={(e) => setFormData({ ...formData, fatherEmail: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Father CNIC</label>
+                    <input
+                      type="text"
+                      placeholder="xxxxx-xxxxxxx-x"
+                      value={formData.fatherCnic}
+                      onChange={(e) => setFormData({ ...formData, fatherCnic: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-gray-700 text-sm mb-2">Father Occupation</label>
                     <select
                       value={formData.fatherOccupation}
@@ -949,6 +1663,26 @@ export default function AdmissionRegisterPage() {
                       <option value="Private">Private</option>
                       <option value="Other">Other</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Father Annual Income</label>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={formData.fatherAnnualIncome}
+                      onChange={(e) => setFormData({ ...formData, fatherAnnualIncome: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">WhatsApp Number</label>
+                    <input
+                      type="text"
+                      placeholder="Enter WhatsApp Number"
+                      value={formData.whatsappNumber}
+                      onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">Date Of Birth</label>
@@ -972,12 +1706,22 @@ export default function AdmissionRegisterPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Current Address</label>
+                    <label className="block text-gray-700 text-sm mb-2">Student CNIC (if applicable)</label>
                     <input
                       type="text"
-                      placeholder="Enter Current Address"
-                      value={formData.currentAddress}
-                      onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })}
+                      placeholder="xxxxx-xxxxxxx-x"
+                      value={formData.studentCnic}
+                      onChange={(e) => setFormData({ ...formData, studentCnic: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Student Mobile</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Student Mobile"
+                      value={formData.studentMobile}
+                      onChange={(e) => setFormData({ ...formData, studentMobile: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
@@ -998,6 +1742,66 @@ export default function AdmissionRegisterPage() {
                       <option value="AB+">AB+</option>
                       <option value="AB-">AB-</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Caste/Race</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Caste/Race"
+                      value={formData.casteRace}
+                      onChange={(e) => setFormData({ ...formData, casteRace: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Birth Place</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Birth Place"
+                      value={formData.birthPlace}
+                      onChange={(e) => setFormData({ ...formData, birthPlace: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-700 text-sm mb-2">Current Address</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Current Address"
+                      value={formData.currentAddress}
+                      onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">City</label>
+                    <input
+                      type="text"
+                      placeholder="Enter City"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">State/Province</label>
+                    <input
+                      type="text"
+                      placeholder="Enter State/Province"
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Postal Code</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Postal Code"
+                      value={formData.postalCode}
+                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
                 </div>
               </div>
@@ -1027,12 +1831,62 @@ export default function AdmissionRegisterPage() {
                         />
                       </div>
                       <div>
+                        <label className="block text-gray-700 text-sm mb-2">Mother CNIC</label>
+                        <input
+                          type="text"
+                          placeholder="xxxxx-xxxxxxx-x"
+                          value={formData.motherCnic}
+                          onChange={(e) => setFormData({ ...formData, motherCnic: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
                         <label className="block text-gray-700 text-sm mb-2">Mother Mobile</label>
                         <input
                           type="text"
                           placeholder="Enter Mother Mobile"
                           value={formData.motherMobile}
                           onChange={(e) => setFormData({ ...formData, motherMobile: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Mother Email</label>
+                        <input
+                          type="email"
+                          placeholder="Enter Mother Email"
+                          value={formData.motherEmail}
+                          onChange={(e) => setFormData({ ...formData, motherEmail: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Mother Qualification</label>
+                        <input
+                          type="text"
+                          placeholder="Enter Qualification"
+                          value={formData.motherQualification}
+                          onChange={(e) => setFormData({ ...formData, motherQualification: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Mother Occupation</label>
+                        <input
+                          type="text"
+                          placeholder="Enter Occupation"
+                          value={formData.motherOccupation}
+                          onChange={(e) => setFormData({ ...formData, motherOccupation: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Mother Annual Income</label>
+                        <input
+                          type="number"
+                          placeholder="0.00"
+                          value={formData.motherAnnualIncome}
+                          onChange={(e) => setFormData({ ...formData, motherAnnualIncome: e.target.value })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
@@ -1051,12 +1905,86 @@ export default function AdmissionRegisterPage() {
                         />
                       </div>
                       <div>
+                        <label className="block text-gray-700 text-sm mb-2">Guardian Relation</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Uncle, Aunt"
+                          value={formData.guardianRelation}
+                          onChange={(e) => setFormData({ ...formData, guardianRelation: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
                         <label className="block text-gray-700 text-sm mb-2">Guardian Mobile</label>
                         <input
                           type="text"
                           placeholder="Guardian Mobile"
                           value={formData.guardianMobile}
                           onChange={(e) => setFormData({ ...formData, guardianMobile: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Guardian Email</label>
+                        <input
+                          type="email"
+                          placeholder="Enter Guardian Email"
+                          value={formData.guardianEmail}
+                          onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <h4 className="text-sm font-bold text-red-600 mb-4">EMERGENCY CONTACT</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Emergency Contact Name</label>
+                        <input
+                          type="text"
+                          placeholder="Emergency Contact Name"
+                          value={formData.emergencyContactName}
+                          onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Emergency Relation</label>
+                        <input
+                          type="text"
+                          placeholder="Relation"
+                          value={formData.emergencyRelation}
+                          onChange={(e) => setFormData({ ...formData, emergencyRelation: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Emergency Phone</label>
+                        <input
+                          type="text"
+                          placeholder="Emergency Phone"
+                          value={formData.emergencyPhone}
+                          onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Emergency Mobile</label>
+                        <input
+                          type="text"
+                          placeholder="Emergency Mobile"
+                          value={formData.emergencyMobile}
+                          onChange={(e) => setFormData({ ...formData, emergencyMobile: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-700 text-sm mb-2">Emergency Address</label>
+                        <input
+                          type="text"
+                          placeholder="Emergency Address"
+                          value={formData.emergencyAddress}
+                          onChange={(e) => setFormData({ ...formData, emergencyAddress: e.target.value })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
@@ -1085,6 +2013,46 @@ export default function AdmissionRegisterPage() {
                           value={formData.nationality}
                           onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Previous School</label>
+                        <input
+                          type="text"
+                          placeholder="Enter Previous School"
+                          value={formData.previousSchool}
+                          onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm mb-2">Previous Class</label>
+                        <input
+                          type="text"
+                          placeholder="Enter Previous Class"
+                          value={formData.previousClass}
+                          onChange={(e) => setFormData({ ...formData, previousClass: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-700 text-sm mb-2">Permanent Address</label>
+                        <input
+                          type="text"
+                          placeholder="Enter Permanent Address"
+                          value={formData.permanentAddress}
+                          onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-700 text-sm mb-2">Medical Problem / Special Needs</label>
+                        <textarea
+                          placeholder="Enter any medical problems or special needs"
+                          value={formData.medicalProblem}
+                          onChange={(e) => setFormData({ ...formData, medicalProblem: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                          rows="3"
                         />
                       </div>
                     </div>
@@ -1211,7 +2179,7 @@ export default function AdmissionRegisterPage() {
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-500 mb-1">Class</p>
-                    <p className="font-semibold text-gray-800">{selectedStudent.class}</p>
+                    <p className="font-semibold text-gray-800">{getClassName(selectedStudent.class)}</p>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-500 mb-1">Father Name</p>
