@@ -44,10 +44,10 @@ export default function DashboardLayout({ children }) {
       }
     }
 
-    // If no user found, redirect to login
+    // If no user found, redirect to login immediately
     if (!userData) {
-      router.push('/login')
-      setLoading(false)
+      console.log('No user found, redirecting to login...')
+      window.location.href = '/login'
       return
     }
 
