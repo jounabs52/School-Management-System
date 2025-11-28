@@ -19,6 +19,8 @@ export default function OldStaffPage() {
   const [saving, setSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [toasts, setToasts] = useState([])
+  const [showCustomDepartment, setShowCustomDepartment] = useState(false)
+  const [customDepartment, setCustomDepartment] = useState('')
 
   // Form state matching Supabase staff table fields
   const [formData, setFormData] = useState({
@@ -135,6 +137,18 @@ export default function OldStaffPage() {
   // Status options for Old Staff
   const statusOptions = [
     { value: 'active', label: 'Active', color: 'bg-green-500' }
+  ]
+
+  // Department options
+  const departmentOptions = [
+    'ACADEMIC',
+    'ACCOUNTS',
+    'ADMIN',
+    'POLITICAL',
+    'SPORTS',
+    'SUPPORTING STAFF',
+    'TEACHING',
+    'Other'
   ]
 
   // Fetch OLD/DISABLED staff data from Supabase
@@ -466,6 +480,9 @@ export default function OldStaffPage() {
     try {
       setSaving(true)
 
+      // Use custom department if "Other" is selected
+      const finalDepartment = formData.department === 'Other' ? customDepartment : formData.department
+
       const staffRecord = {
         first_name: formData.firstName,
         last_name: formData.lastName || null,
@@ -484,7 +501,7 @@ export default function OldStaffPage() {
         postal_code: formData.postalCode || null,
         joining_date: formData.joiningDate || null,
         designation: formData.designation || null,
-        department: formData.department || null,
+        department: finalDepartment || null,
         qualification: formData.qualification || null,
         experience_years: formData.experienceYears ? parseInt(formData.experienceYears) : null,
         employment_type: formData.employmentType || 'permanent',
@@ -812,8 +829,35 @@ export default function OldStaffPage() {
                     </div>
                     <div>
                       <label className="block text-sm text-gray-600 mb-1">Department</label>
-                      <input type="text" placeholder="Department" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                      <select
+                        value={formData.department}
+                        onChange={(e) => {
+                          setFormData({...formData, department: e.target.value})
+                          setShowCustomDepartment(e.target.value === 'Other')
+                          if (e.target.value !== 'Other') {
+                            setCustomDepartment('')
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="">Select Department</option>
+                        {departmentOptions.map(dept => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                      </select>
                     </div>
+                    {showCustomDepartment && (
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Custom Department</label>
+                        <input
+                          type="text"
+                          placeholder="Enter department name"
+                          value={customDepartment}
+                          onChange={(e) => setCustomDepartment(e.target.value)}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm text-gray-600 mb-1">Designation</label>
                       <input type="text" placeholder="Designation" value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
@@ -875,7 +919,12 @@ export default function OldStaffPage() {
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Department</label>
-                <input type="text" placeholder="Filter by department" value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2" />
+                <select value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                  <option value="">All Departments</option>
+                  {departmentOptions.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Gender</label>
@@ -884,6 +933,19 @@ export default function OldStaffPage() {
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Education/Qualification</label>
+                <select value={filters.qualification} onChange={(e) => setFilters({...filters, qualification: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                  <option value="">All Qualifications</option>
+                  <option value="Matric">Matric</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Bachelor">Bachelor</option>
+                  <option value="Master">Master</option>
+                  <option value="PhD">PhD</option>
+                  <option value="Diploma">Diploma</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
             </div>

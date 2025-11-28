@@ -1332,8 +1332,35 @@ export default function ActiveStaffPage() {
                     </div>
                     <div>
                       <label className="block text-sm text-gray-600 mb-1">Department</label>
-                      <input type="text" placeholder="Department" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                      <select
+                        value={formData.department}
+                        onChange={(e) => {
+                          setFormData({...formData, department: e.target.value})
+                          setShowCustomDepartment(e.target.value === 'Other')
+                          if (e.target.value !== 'Other') {
+                            setCustomDepartment('')
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="">Select Department</option>
+                        {departmentOptions.map(dept => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                      </select>
                     </div>
+                    {showCustomDepartment && (
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Custom Department</label>
+                        <input
+                          type="text"
+                          placeholder="Enter department name"
+                          value={customDepartment}
+                          onChange={(e) => setCustomDepartment(e.target.value)}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm text-gray-600 mb-1">Designation</label>
                       <input type="text" placeholder="Designation" value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
@@ -1395,7 +1422,12 @@ export default function ActiveStaffPage() {
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Department</label>
-                <input type="text" placeholder="Filter by department" value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2" />
+                <select value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                  <option value="">All Departments</option>
+                  {departmentOptions.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Gender</label>
@@ -1404,6 +1436,19 @@ export default function ActiveStaffPage() {
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Education/Qualification</label>
+                <select value={filters.qualification} onChange={(e) => setFilters({...filters, qualification: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                  <option value="">All Qualifications</option>
+                  <option value="Matric">Matric</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Bachelor">Bachelor</option>
+                  <option value="Master">Master</option>
+                  <option value="PhD">PhD</option>
+                  <option value="Diploma">Diploma</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
             </div>
