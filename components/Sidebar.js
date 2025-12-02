@@ -80,6 +80,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { title: "Transport", icon: Bus, key: "transport", submenus: [
       { title: "Passengers", href: "/transport/passengers" },
       { title: "Vehicles", href: "/transport/vehicles" },
+      { title: "Routes", href: "/transport/routes" },
     ]},
     { title: "Library", icon: Library, href: "/library" },
     { title: "Reports", icon: FileText, href: "/reports" },
