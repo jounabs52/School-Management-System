@@ -69,8 +69,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       { title: "Create Challan", href: "/fee/create" },
     ]},
     { title: "Payroll", icon: CreditCard, key: "payroll", submenus: [
+      { title: "Create Salary", href: "/payroll/salary-structure" },
       { title: "Pay Salary", href: "/payroll/pay" },
       { title: "Salary Slips", href: "/payroll/slips" },
+      { title: "Reports", href: "/payroll/reports" },
       { title: "Expenses", href: "/payroll/expenses" },
     ]},
     { title: "Examination", icon: Award, key: "exam", submenus: [

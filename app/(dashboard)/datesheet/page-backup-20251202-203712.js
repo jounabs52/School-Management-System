@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { X, Calendar, Pencil, Trash2, Clock, FileText, AlertCircle } from 'lucide-react'
+import { X, Calendar, Pencil, Trash2, Clock, FileText } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function DatesheetPage() {
@@ -10,18 +10,11 @@ export default function DatesheetPage() {
   const [exams, setExams] = useState([])
   const [classes, setClasses] = useState([])
   const [subjects, setSubjects] = useState([])
-  const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [toasts, setToasts] = useState([])
   const [session, setSession] = useState(null)
-
-  // Section State
-  const [activeSection, setActiveSection] = useState('datesheets') // 'datesheets' or 'reports'
-
-  // Notification states (matching payroll design)
-  const [success, setSuccess] = useState(null)
-  const [error, setError] = useState(null)
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -65,27 +58,17 @@ export default function DatesheetPage() {
     onConfirm: null
   })
 
-  // Reports State
-  const [selectedExamForReport, setSelectedExamForReport] = useState('')
-  const [showReportConfigModal, setShowReportConfigModal] = useState(false)
-  const [reportType, setReportType] = useState('') // 'datesheet', 'rollno', 'admit-card'
-  const [reportConfig, setReportConfig] = useState({
-    selectedClass: 'all',
-    genderFilter: 'all',
-    showRoomNumber: true,
-    showExamTime: true,
-    showPrincipalSignature: true,
-  })
+  // Toast notification function
+  const showToast = (message, type = 'info') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }, 5000)
+  }
 
-  // Toast notification function (matching payroll design)
-  const showToast = (message, type = 'success') => {
-    if (type === 'success') {
-      setSuccess(message)
-      setTimeout(() => setSuccess(null), 5000)
-    } else if (type === 'error' || type === 'warning') {
-      setError(message)
-      setTimeout(() => setError(null), 5000)
-    }
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
   const showConfirmDialog = (title, message, onConfirm) => {
@@ -174,23 +157,11 @@ export default function DatesheetPage() {
       fetchExams()
       fetchClasses()
       fetchSubjects()
-      fetchStudents()
     }
   }, [currentUser, session])
 
   const fetchExams = async () => {
-    if (!currentUser?.school_id || !session?.id) {
-      console.log('⚠️ fetchExams skipped - missing data:', {
-        school_id: currentUser?.school_id,
-        session_id: session?.id
-      })
-      return
-    }
-
-    console.log('📥 Fetching exams with:', {
-      school_id: currentUser.school_id,
-      session_id: session.id
-    })
+    if (!currentUser?.school_id || !session?.id) return
 
     setLoading(true)
     try {
@@ -202,12 +173,9 @@ export default function DatesheetPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-
-      console.log('✅ Fetched exams:', data)
-      console.log(`Found ${data?.length || 0} exams`)
       setExams(data || [])
     } catch (error) {
-      console.error('❌ Error fetching exams:', error)
+      console.error('Error fetching exams:', error)
       showToast('Error fetching exams', 'error')
     } finally {
       setLoading(false)
@@ -247,24 +215,6 @@ export default function DatesheetPage() {
       setSubjects(data || [])
     } catch (error) {
       console.error('Error fetching subjects:', error)
-    }
-  }
-
-  const fetchStudents = async () => {
-    if (!currentUser?.school_id) return
-
-    try {
-      const { data, error } = await supabase
-        .from('students')
-        .select('*')
-        .eq('school_id', currentUser.school_id)
-        .eq('status', 'active')
-        .order('roll_number')
-
-      if (error) throw error
-      setStudents(data || [])
-    } catch (error) {
-      console.error('Error fetching students:', error)
     }
   }
 
@@ -360,48 +310,35 @@ export default function DatesheetPage() {
       return
     }
 
-    console.log('📝 Creating exam with:', {
+    console.log('Creating exam with:', {
       school_id: currentUser.school_id,
       session_id: session.id,
       examName,
-      examType,
-      examStartDate,
-      examEndDate,
-      selectedClasses: selectedClasses.length
+      selectedClasses
     })
 
     setLoading(true)
     try {
       // Create exam
-      const examData = {
-        school_id: currentUser.school_id,
-        session_id: session.id,
-        exam_name: examName,
-        exam_type: examType,
-        start_date: examStartDate,
-        end_date: examEndDate,
-        status: 'scheduled',
-        created_by: currentUser.id
-      }
-
-      console.log('📤 Inserting exam:', examData)
-
       const { data: exam, error: examError } = await supabase
         .from('exams')
-        .insert(examData)
+        .insert({
+          school_id: currentUser.school_id,
+          session_id: session.id,
+          exam_name: examName,
+          exam_type: examType,
+          start_date: examStartDate,
+          end_date: examEndDate,
+          status: 'scheduled',
+          created_by: currentUser.id
+        })
         .select()
         .single()
 
-      if (examError) {
-        console.error('❌ Exam creation error:', examError)
-        throw examError
-      }
-
-      console.log('✅ Exam created successfully:', exam)
+      if (examError) throw examError
 
       // Generate schedule dates
       const dates = generateScheduleDates(examStartDate, examEndDate, interval, saturdayOff, sundayOff)
-      console.log(`📅 Generated ${dates.length} schedule dates`)
 
       // Create initial empty schedules for each class and date
       const scheduleRecords = []
@@ -423,35 +360,25 @@ export default function DatesheetPage() {
         })
       })
 
-      console.log(`📋 Creating ${scheduleRecords.length} schedule records for ${selectedClasses.length} classes`)
-
       if (scheduleRecords.length > 0) {
         // Insert schedules in batches to avoid timeout
         const batchSize = 50
         for (let i = 0; i < scheduleRecords.length; i += batchSize) {
           const batch = scheduleRecords.slice(i, i + batchSize)
-          console.log(`📤 Inserting batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(scheduleRecords.length / batchSize)} (${batch.length} records)`)
-
           const { error: scheduleError } = await supabase
             .from('exam_schedules')
             .insert(batch)
 
-          if (scheduleError) {
-            console.error('❌ Schedule insert error:', scheduleError)
-            throw scheduleError
-          }
+          if (scheduleError) throw scheduleError
         }
-        console.log('✅ All schedules created successfully')
       }
 
       showToast('Exam datesheet created successfully', 'success')
       setShowCreateModal(false)
       resetForm()
-
-      console.log('🔄 Refreshing exam list...')
-      await fetchExams()
+      fetchExams()
     } catch (error) {
-      console.error('❌ Error creating exam:', error)
+      console.error('Error creating exam:', error)
       showToast(`Failed to create exam: ${error.message}`, 'error')
     } finally {
       setLoading(false)
@@ -463,28 +390,28 @@ export default function DatesheetPage() {
       'Delete Exam',
       'Are you sure you want to delete this exam? This will also delete all associated schedules.',
       async () => {
-        console.log('🗑️ Deleting exam:', id)
         try {
-          // Delete exam (CASCADE will handle schedules automatically)
-          const { error, data } = await supabase
+          // Delete schedules first
+          const { error: scheduleError } = await supabase
+            .from('exam_schedules')
+            .delete()
+            .eq('exam_id', id)
+
+          if (scheduleError) throw scheduleError
+
+          // Delete exam
+          const { error } = await supabase
             .from('exams')
             .delete()
             .eq('id', id)
-            .select()
 
-          if (error) {
-            console.error('❌ Delete error:', error)
-            throw error
-          }
+          if (error) throw error
 
-          console.log('✅ Exam deleted successfully:', data)
           showToast('Exam deleted successfully', 'success')
-
-          console.log('🔄 Refreshing exam list...')
-          await fetchExams()
+          fetchExams()
         } catch (error) {
-          console.error('❌ Error deleting exam:', error)
-          showToast(`Failed to delete exam: ${error.message}`, 'error')
+          console.error('Error deleting exam:', error)
+          showToast('Failed to delete exam', 'error')
         }
       }
     )
@@ -637,83 +564,27 @@ export default function DatesheetPage() {
     return schedules.find(s => s.class_id === classId && s.exam_date === date)
   }
 
-  // Report handlers
-  const handleOpenReportConfig = (type) => {
-    if (!selectedExamForReport) {
-      showToast('Please select an exam first', 'warning')
-      return
-    }
-    setReportType(type)
-    setShowReportConfigModal(true)
-  }
-
-  const handleGenerateReport = () => {
-    // TODO: Implement report generation based on reportType
-    showToast(`${reportType} report generated successfully`, 'success')
-    setShowReportConfigModal(false)
-  }
-
   return (
-    <div className="container mx-auto p-6">
-      {/* Success/Error Messages (matching payroll design) */}
-      {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
-
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Exam Datesheets</h1>
-
-      {/* Section Tabs */}
-      <div className="bg-white rounded-lg shadow-md mb-6">
-        <div className="flex border-b">
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Exam Datesheets</h1>
+        <div className="flex gap-3">
           <button
-            onClick={() => setActiveSection('datesheets')}
-            className={`flex-1 px-6 py-4 text-center font-semibold transition-colors ${
-              activeSection === 'datesheets'
-                ? 'bg-blue-500 text-white border-b-4 border-blue-700'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            onClick={() => router.push('/datesheet/reports')}
+            className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 flex items-center gap-2"
           >
-            <div className="flex items-center justify-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Datesheets Management
-            </div>
+            <FileText className="w-5 h-5" />
+            Reports
           </button>
           <button
-            onClick={() => setActiveSection('reports')}
-            className={`flex-1 px-6 py-4 text-center font-semibold transition-colors ${
-              activeSection === 'reports'
-                ? 'bg-blue-500 text-white border-b-4 border-blue-700'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            onClick={() => setShowCreateModal(true)}
+            className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 flex items-center gap-2"
           >
-            <div className="flex items-center justify-center gap-2">
-              <FileText className="w-5 h-5" />
-              Reports & Slips
-            </div>
+            <Calendar className="w-5 h-5" />
+            Create New Datesheet
           </button>
         </div>
       </div>
-
-      {/* Datesheets Section */}
-      {activeSection === 'datesheets' && (
-        <>
-          <div className="flex justify-end mb-6">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2 font-medium"
-            >
-              <Calendar className="w-5 h-5" />
-              Create New Datesheet
-            </button>
-          </div>
 
       {/* Search */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -800,19 +671,14 @@ export default function DatesheetPage() {
 
       {/* Create Exam Modal */}
       {showCreateModal && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={() => { setShowCreateModal(false); resetForm(); }}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
-                <h2 className="text-xl font-bold">Create New Datesheet</h2>
-                <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="text-white hover:text-gray-200">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold">Create New Datesheet</h2>
+              <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
             <div className="p-6 space-y-4">
               {/* Class Selection */}
@@ -994,9 +860,8 @@ export default function DatesheetPage() {
                 {loading ? 'Creating...' : 'Create Datesheet'}
               </button>
             </div>
-            </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Schedule Modal */}
@@ -1270,224 +1135,59 @@ export default function DatesheetPage() {
         </div>
       )}
 
-      {/* Confirmation Dialog (matching payroll design) */}
+      {/* Confirmation Dialog */}
       {confirmDialog.show && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={handleCancel}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">{confirmDialog.title}</h3>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">{confirmDialog.message}</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleCancel}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirm}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition"
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </div>
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">{confirmDialog.title}</h3>
+              <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </div>
-        </>
-      )}
-
-        </>
-      )}
-
-      {/* Reports Section */}
-      {activeSection === 'reports' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-6">Datesheet Reports & Roll No Slips</h2>
-
-          {/* Exam Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Exam / Datesheet</label>
-            <select
-              value={selectedExamForReport}
-              onChange={(e) => setSelectedExamForReport(e.target.value)}
-              className="w-full md:w-1/2 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select an exam</option>
-              {exams.map(exam => (
-                <option key={exam.id} value={exam.id}>{exam.exam_name}</option>
-              ))}
-            </select>
-            {exams.length === 0 && (
-              <p className="text-sm text-red-500 mt-1">No exams found for current session</p>
-            )}
-          </div>
-
-          {/* Reports Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-teal-600 text-white">
-                  <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Sr.</th>
-                  <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Report Type</th>
-                  <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3">1</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Date Sheet Report</td>
-                  <td className="border border-gray-300 px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleOpenReportConfig('datesheet')}
-                      className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 font-medium transition-colors"
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-                <tr className="bg-gray-200">
-                  <td colSpan="3" className="border border-gray-300 px-4 py-2 font-semibold text-gray-700">
-                    Roll No Slips
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3">2</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Roll No Slips (All Students)</td>
-                  <td className="border border-gray-300 px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleOpenReportConfig('rollno')}
-                      className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 font-medium transition-colors"
-                    >
-                      Generate
-                    </button>
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3">3</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Admit Cards</td>
-                  <td className="border border-gray-300 px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleOpenReportConfig('admit-card')}
-                      className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 font-medium transition-colors"
-                    >
-                      Generate
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="p-4">
+              <p className="text-gray-600">{confirmDialog.message}</p>
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+              <button
+                onClick={handleCancel}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Report Configuration Modal (matching payroll design) */}
-      {showReportConfigModal && (
-        <>
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+        {toasts.map((toast) => (
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={() => setShowReportConfigModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">
-                  Configure {reportType === 'datesheet' ? 'Date Sheet' : reportType === 'rollno' ? 'Roll No Slips' : 'Admit Cards'} Report
-                </h3>
-              </div>
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                <div className="space-y-4">
-                  {/* Class Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
-                    <select
-                      value={reportConfig.selectedClass}
-                      onChange={(e) => setReportConfig({ ...reportConfig, selectedClass: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                    >
-                      <option value="all">All Classes</option>
-                      {classes.map(cls => (
-                        <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Gender Filter */}
-                  {reportType === 'rollno' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Gender Filter</label>
-                      <select
-                        value={reportConfig.genderFilter}
-                        onChange={(e) => setReportConfig({ ...reportConfig, genderFilter: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      >
-                        <option value="all">All Students</option>
-                        <option value="male">Boys Only</option>
-                        <option value="female">Girls Only</option>
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Display Options */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Display Options</label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={reportConfig.showRoomNumber}
-                          onChange={(e) => setReportConfig({ ...reportConfig, showRoomNumber: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">Show Room Number</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={reportConfig.showExamTime}
-                          onChange={(e) => setReportConfig({ ...reportConfig, showExamTime: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">Show Exam Time</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={reportConfig.showPrincipalSignature}
-                          onChange={(e) => setReportConfig({ ...reportConfig, showPrincipalSignature: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">Show Principal Signature</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowReportConfigModal(false)}
-                  className="px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleGenerateReport}
-                  className="px-6 py-3 bg-green-600 text-white font-semibold hover:bg-green-700 rounded-lg transition"
-                >
-                  Generate Report
-                </button>
-              </div>
-            </div>
+            key={toast.id}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[300px] ${
+              toast.type === 'success' ? 'bg-green-500 text-white' :
+              toast.type === 'error' ? 'bg-red-500 text-white' :
+              toast.type === 'warning' ? 'bg-yellow-500 text-white' :
+              'bg-blue-500 text-white'
+            }`}
+          >
+            <span className="flex-1">{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="text-white hover:text-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        </>
-      )}
+        ))}
+      </div>
     </div>
   )
 }
