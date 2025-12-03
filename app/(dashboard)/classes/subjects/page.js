@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown, MoreVertical } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 
@@ -18,15 +18,13 @@ export default function SubjectsPage() {
   })
   const [editFormData, setEditFormData] = useState({
     classId: '',
-    subjectName: '',
-    subjectCode: ''
+    subjects: []
   })
   const [subjects, setSubjects] = useState([])
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [user, setUser] = useState(null)
-  const [openMenuId, setOpenMenuId] = useState(null)
 
   // Fetch user and classes data on component mount
   useEffect(() => {
@@ -219,14 +217,13 @@ export default function SubjectsPage() {
       for (const subject of validSubjects) {
         let subjectId = null
 
-        // Check if subject already exists
+        // Check if subject already exists by name only
         const { data: existingSubject } = await supabase
           .from('subjects')
           .select('id')
           .eq('school_id', user.school_id)
           .eq('subject_name', subject.subjectName)
-          .eq('subject_code', subject.subjectCode || '')
-          .single()
+          .maybeSingle()
 
         if (existingSubject) {
           subjectId = existingSubject.id
@@ -237,7 +234,7 @@ export default function SubjectsPage() {
             .insert({
               school_id: user.school_id,
               subject_name: subject.subjectName,
-              subject_code: subject.subjectCode || '',
+              subject_code: subject.subjectCode || null,
               created_by: user.id
             })
             .select('id')
@@ -310,51 +307,124 @@ export default function SubjectsPage() {
     setFormData({ ...formData, subjects: newSubjects })
   }
 
-  const handleEdit = (subject) => {
-    setSelectedSubject(subject)
+  const addEditSubjectField = () => {
     setEditFormData({
-      classId: subject.classId,
-      subjectName: subject.subjectName,
-      subjectCode: subject.subjectCode
+      ...editFormData,
+      subjects: [...editFormData.subjects, { subjectName: '', subjectCode: '' }]
     })
-    setShowEditSidebar(true)
+  }
+
+  const removeEditSubjectField = (index) => {
+    if (editFormData.subjects.length > 1) {
+      const newSubjects = editFormData.subjects.filter((_, i) => i !== index)
+      setEditFormData({ ...editFormData, subjects: newSubjects })
+    }
+  }
+
+  const updateEditSubjectField = (index, field, value) => {
+    const newSubjects = [...editFormData.subjects]
+    newSubjects[index][field] = value
+    setEditFormData({ ...editFormData, subjects: newSubjects })
   }
 
   const handleUpdate = async () => {
     try {
-      if (!editFormData.classId || !editFormData.subjectName) {
-        alert('Please select a class and enter a subject name')
+      if (!editFormData.classId) {
+        alert('Please select a class')
         return
       }
 
-      // Update the subject in the subjects table
-      const { error: subjectError } = await supabase
-        .from('subjects')
-        .update({
-          subject_name: editFormData.subjectName,
-          subject_code: editFormData.subjectCode
-        })
-        .eq('id', selectedSubject.subjectId)
-
-      if (subjectError) {
-        console.error('Error updating subject:', subjectError)
-        alert('Failed to update subject')
+      // Validate at least one subject has a name
+      const validSubjects = editFormData.subjects.filter(s => s.subjectName.trim())
+      if (validSubjects.length === 0) {
+        alert('Please enter at least one subject name')
         return
       }
 
-      // Update class relationship if changed
-      if (editFormData.classId !== selectedSubject.classId) {
-        const { error: classSubjectError } = await supabase
+      if (!user || !user.school_id || !user.id) {
+        alert('User authentication error')
+        return
+      }
+
+      // Delete subjects that were removed
+      const subjectsToDelete = selectedSubject.subjects
+        .filter(s => !editFormData.subjects.find(es => es.id === s.id))
+
+      for (const subject of subjectsToDelete) {
+        await supabase
           .from('class_subjects')
-          .update({
-            class_id: editFormData.classId
-          })
-          .eq('id', selectedSubject.id)
+          .delete()
+          .eq('id', subject.id)
+      }
 
-        if (classSubjectError) {
-          console.error('Error updating class relationship:', classSubjectError)
-          alert('Failed to update class relationship')
-          return
+      // Process each subject (update existing or create new)
+      for (const subject of validSubjects) {
+        if (subject.id && subject.subjectId) {
+          // Update existing subject
+          await supabase
+            .from('subjects')
+            .update({
+              subject_name: subject.subjectName,
+              subject_code: subject.subjectCode || null
+            })
+            .eq('id', subject.subjectId)
+        } else {
+          // Create new subject
+          let subjectId = null
+
+          // Check if subject already exists by name only
+          const { data: existingSubject } = await supabase
+            .from('subjects')
+            .select('id')
+            .eq('school_id', user.school_id)
+            .eq('subject_name', subject.subjectName)
+            .maybeSingle()
+
+          if (existingSubject) {
+            subjectId = existingSubject.id
+          } else {
+            // Create new subject
+            const { data: newSubject, error: subjectError } = await supabase
+              .from('subjects')
+              .insert({
+                school_id: user.school_id,
+                subject_name: subject.subjectName,
+                subject_code: subject.subjectCode || null,
+                created_by: user.id
+              })
+              .select('id')
+              .single()
+
+            if (subjectError) {
+              console.error('Error creating subject:', subjectError)
+              alert(`Failed to create subject: ${subject.subjectName}`)
+              continue
+            }
+
+            subjectId = newSubject.id
+          }
+
+          // Check if this class-subject relationship already exists
+          const { data: existingRelation } = await supabase
+            .from('class_subjects')
+            .select('id')
+            .eq('school_id', user.school_id)
+            .eq('class_id', editFormData.classId)
+            .eq('subject_id', subjectId)
+            .single()
+
+          if (!existingRelation) {
+            // Create class_subject relationship
+            await supabase
+              .from('class_subjects')
+              .insert({
+                school_id: user.school_id,
+                class_id: editFormData.classId,
+                subject_id: subjectId,
+                is_compulsory: true,
+                created_by: user.id
+              })
+          }
         }
       }
 
@@ -362,30 +432,25 @@ export default function SubjectsPage() {
       await fetchSubjects()
       setShowEditSidebar(false)
       setSelectedSubject(null)
-      setEditFormData({ classId: '', subjectName: '', subjectCode: '' })
+      setEditFormData({ classId: '', subjects: [] })
     } catch (error) {
-      console.error('Error updating subject:', error)
+      console.error('Error updating subjects:', error)
       alert('An error occurred while updating')
     }
   }
 
-  const handleDelete = (subject) => {
-    setSelectedSubject(subject)
-    setShowDeleteModal(true)
-  }
-
   const confirmDelete = async () => {
     try {
-      // Delete from class_subjects table
-      const { error } = await supabase
-        .from('class_subjects')
-        .delete()
-        .eq('id', selectedSubject.id)
+      // Delete all subjects for this class
+      for (const subject of selectedSubject.subjects) {
+        const { error } = await supabase
+          .from('class_subjects')
+          .delete()
+          .eq('id', subject.id)
 
-      if (error) {
-        console.error('Error deleting subject:', error)
-        alert('Failed to delete subject')
-        return
+        if (error) {
+          console.error('Error deleting subject:', error)
+        }
       }
 
       // Refresh subjects list
@@ -393,7 +458,7 @@ export default function SubjectsPage() {
       setShowDeleteModal(false)
       setSelectedSubject(null)
     } catch (error) {
-      console.error('Error deleting subject:', error)
+      console.error('Error deleting subjects:', error)
       alert('An error occurred while deleting')
     }
   }
@@ -493,77 +558,53 @@ export default function SubjectsPage() {
                     <td className="px-4 py-3 border border-gray-200 font-medium align-top w-32">{classGroup.className}</td>
                     <td className="px-4 py-3 border border-gray-200">
                       <div className="flex flex-wrap gap-2">
-                        {classGroup.subjects.map((subject, idx) => (
+                        {classGroup.subjects.map((subject) => (
                           <div key={subject.id} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
                             <BookOpen size={14} className="text-blue-600" />
                             <span className="font-medium text-sm">{subject.subjectName}</span>
-                            {subject.subjectCode && (
-                              <span className="text-gray-500 text-xs">({subject.subjectCode})</span>
-                            )}
                           </div>
                         ))}
                       </div>
                     </td>
                     <td className="px-4 py-3 border border-gray-200 align-top w-24">
-                      <div className="relative">
+                      <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => setOpenMenuId(openMenuId === classGroup.classId ? null : classGroup.classId)}
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition mx-auto block"
+                          onClick={() => {
+                            setSelectedSubject({
+                              classId: classGroup.classId,
+                              className: classGroup.className,
+                              subjects: classGroup.subjects
+                            })
+                            setEditFormData({
+                              classId: classGroup.classId,
+                              subjects: classGroup.subjects.map(s => ({
+                                id: s.id,
+                                subjectId: s.subjectId,
+                                subjectName: s.subjectName,
+                                subjectCode: s.subjectCode
+                              }))
+                            })
+                            setShowEditSidebar(true)
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Subjects"
                         >
-                          <MoreVertical size={20} />
+                          <Edit2 size={18} />
                         </button>
-
-                        {openMenuId === classGroup.classId && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setOpenMenuId(null)}
-                            />
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
-                              {classGroup.subjects.map((subject, idx) => (
-                                <div key={subject.id} className={`${idx !== 0 ? 'border-t border-gray-100' : ''}`}>
-                                  <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-600">
-                                    {subject.subjectName}
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      handleEdit({
-                                        id: subject.id,
-                                        classId: classGroup.classId,
-                                        className: classGroup.className,
-                                        subjectId: subject.subjectId,
-                                        subjectName: subject.subjectName,
-                                        subjectCode: subject.subjectCode
-                                      })
-                                      setOpenMenuId(null)
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
-                                  >
-                                    <Edit2 size={14} className="text-blue-600" />
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      handleDelete({
-                                        id: subject.id,
-                                        classId: classGroup.classId,
-                                        className: classGroup.className,
-                                        subjectId: subject.subjectId,
-                                        subjectName: subject.subjectName,
-                                        subjectCode: subject.subjectCode
-                                      })
-                                      setOpenMenuId(null)
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-red-50 flex items-center gap-2"
-                                  >
-                                    <Trash2 size={14} className="text-red-600" />
-                                    Delete
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                        <button
+                          onClick={() => {
+                            setSelectedSubject({
+                              classId: classGroup.classId,
+                              className: classGroup.className,
+                              subjects: classGroup.subjects
+                            })
+                            setShowDeleteModal(true)
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="Delete Subjects"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -717,7 +758,7 @@ export default function SubjectsPage() {
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Edit Subject</h3>
+                  <h3 className="text-xl font-bold">Edit Subjects</h3>
                   <p className="text-blue-200 text-sm mt-1">Update subject details</p>
                 </div>
                 <button
@@ -754,32 +795,65 @@ export default function SubjectsPage() {
                   {loadingClasses && (
                     <p className="text-xs text-gray-500 mt-2">Loading classes...</p>
                   )}
+                  {!loadingClasses && classes.length === 0 && (
+                    <p className="text-xs text-red-500 mt-2">⚠️ No classes found! Please add classes first in Classes section.</p>
+                  )}
+                  {!loadingClasses && classes.length > 0 && (
+                    <p className="text-xs text-green-600 mt-2">✓ {classes.length} classes loaded</p>
+                  )}
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Subject Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.subjectName}
-                    onChange={(e) => setEditFormData({ ...editFormData, subjectName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    placeholder="e.g., Mathematics, English"
-                  />
-                </div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-gray-800 font-semibold text-sm uppercase tracking-wide">
+                      Subjects <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addEditSubjectField}
+                      className="text-blue-600 hover:text-blue-700 text-sm font-semibold flex items-center gap-1"
+                    >
+                      <Plus size={16} />
+                      Add More
+                    </button>
+                  </div>
 
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Subject Code
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.subjectCode}
-                    onChange={(e) => setEditFormData({ ...editFormData, subjectCode: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    placeholder="e.g., MTH-01, ENG-01"
-                  />
+                  <div className="space-y-3">
+                    {editFormData.subjects.map((subject, index) => (
+                      <div key={index} className="relative p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-semibold text-gray-600">Subject {index + 1}</span>
+                          {editFormData.subjects.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeEditSubjectField(index)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={subject.subjectName}
+                            onChange={(e) => updateEditSubjectField(index, 'subjectName', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm"
+                            placeholder="Subject name (e.g., Mathematics)"
+                          />
+
+                          <input
+                            type="text"
+                            value={subject.subjectCode}
+                            onChange={(e) => updateEditSubjectField(index, 'subjectCode', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm"
+                            placeholder="Subject code (e.g., MTH-01)"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -797,7 +871,7 @@ export default function SubjectsPage() {
                   className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 >
                   <Edit2 size={18} />
-                  Update Subject
+                  Update Subjects
                 </button>
               </div>
             </div>
@@ -818,9 +892,18 @@ export default function SubjectsPage() {
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
               <div className="p-6">
-                <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete subject <span className="font-bold text-red-600">{selectedSubject.subjectName}</span> from <span className="font-bold">{selectedSubject.className}</span>? This action cannot be undone.
+                <p className="text-gray-700 mb-4">
+                  Are you sure you want to delete all subjects from <span className="font-bold">{selectedSubject.className}</span>?
                 </p>
+                <div className="mb-6 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm font-semibold text-red-800 mb-2">Subjects to be deleted:</p>
+                  <ul className="text-sm text-red-700 space-y-1">
+                    {selectedSubject.subjects.map((subject) => (
+                      <li key={subject.id}>• {subject.subjectName} {subject.subjectCode && `(${subject.subjectCode})`}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-red-600 mt-3">⚠️ This action cannot be undone.</p>
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
@@ -833,7 +916,7 @@ export default function SubjectsPage() {
                     className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
                   >
                     <Trash2 size={18} />
-                    Delete
+                    Delete All
                   </button>
                 </div>
               </div>
