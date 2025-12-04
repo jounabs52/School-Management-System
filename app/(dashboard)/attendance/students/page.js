@@ -108,6 +108,8 @@ export default function StudentAttendancePage() {
   }, [searchQuery, studentList])
 
   const fetchClasses = async () => {
+    if (!currentUser?.school_id) return
+
     try {
       const { data, error } = await supabase
         .from('classes')
@@ -125,6 +127,8 @@ export default function StudentAttendancePage() {
   }
 
   const fetchSections = async (classId) => {
+    if (!currentUser?.school_id || !classId) return
+
     try {
       const { data, error } = await supabase
         .from('sections')

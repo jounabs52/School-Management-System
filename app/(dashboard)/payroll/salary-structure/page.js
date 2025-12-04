@@ -1,0 +1,789 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { AlertCircle } from 'lucide-react'
+
+export default function SalaryStructurePage() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [searchEmployeeNumber, setSearchEmployeeNumber] = useState('')
+  const [searchGeneralData, setSearchGeneralData] = useState('')
+  const [staffList, setStaffList] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [selectedStaff, setSelectedStaff] = useState(null)
+  const [existingStructure, setExistingStructure] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  // Notification states
+  const [success, setSuccess] = useState(null)
+  const [error, setError] = useState(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  // Salary structure form state
+  const [basicSalary, setBasicSalary] = useState(0)
+  const [houseAllowance, setHouseAllowance] = useState(0)
+  const [medicalAllowance, setMedicalAllowance] = useState(0)
+  const [transportAllowance, setTransportAllowance] = useState(0)
+  const [otherAllowances, setOtherAllowances] = useState(0)
+  const [providentFund, setProvidentFund] = useState(0)
+  const [taxDeduction, setTaxDeduction] = useState(0)
+  const [otherDeductions, setOtherDeductions] = useState(0)
+  const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().split('T')[0])
+  const [effectiveTo, setEffectiveTo] = useState('')
+
+  const showToast = (message, type = 'success') => {
+    if (type === 'success') {
+      setSuccess(message)
+      setTimeout(() => setSuccess(null), 5000)
+    } else if (type === 'error' || type === 'warning') {
+      setError(message)
+      setTimeout(() => setError(null), 5000)
+    }
+  }
+
+  useEffect(() => {
+    const userData = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('user-data='))
+
+    if (userData) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userData.split('=')[1]))
+        setCurrentUser(user)
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (currentUser?.school_id) {
+      loadStaffList()
+    }
+  }, [currentUser, searchEmployeeNumber, searchGeneralData])
+
+  const loadStaffList = async () => {
+    if (!currentUser?.school_id) return
+
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('staff')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+        .eq('status', 'active')
+        .order('first_name')
+
+      if (searchEmployeeNumber) {
+        query = query.eq('employee_number', searchEmployeeNumber)
+      }
+
+      if (searchGeneralData) {
+        query = query.or(`first_name.ilike.%${searchGeneralData}%,last_name.ilike.%${searchGeneralData}%,employee_number.ilike.%${searchGeneralData}%,father_name.ilike.%${searchGeneralData}%`)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      setStaffList(data || [])
+    } catch (error) {
+      console.error('Error loading staff:', error)
+      showToast('Failed to load staff list', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadStaffSalaryStructure = async (staff) => {
+    setSelectedStaff(staff)
+
+    try {
+      const { data, error } = await supabase
+        .from('salary_structures')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+        .eq('staff_id', staff.id)
+        .eq('status', 'active')
+        .order('effective_from', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+
+      if (data) {
+        setExistingStructure(data)
+        setBasicSalary(parseFloat(data.basic_salary) || 0)
+        setHouseAllowance(parseFloat(data.house_allowance) || 0)
+        setMedicalAllowance(parseFloat(data.medical_allowance) || 0)
+        setTransportAllowance(parseFloat(data.transport_allowance) || 0)
+        setOtherAllowances(parseFloat(data.other_allowances) || 0)
+        setProvidentFund(parseFloat(data.provident_fund) || 0)
+        setTaxDeduction(parseFloat(data.tax_deduction) || 0)
+        setOtherDeductions(parseFloat(data.other_deductions) || 0)
+        setEffectiveFrom(data.effective_from || new Date().toISOString().split('T')[0])
+        setEffectiveTo(data.effective_to || '')
+      } else {
+        resetForm()
+      }
+    } catch (error) {
+      console.error('Error loading salary structure:', error)
+      resetForm()
+    }
+  }
+
+  const resetForm = () => {
+    setExistingStructure(null)
+    setBasicSalary(0)
+    setHouseAllowance(0)
+    setMedicalAllowance(0)
+    setTransportAllowance(0)
+    setOtherAllowances(0)
+    setProvidentFund(0)
+    setTaxDeduction(0)
+    setOtherDeductions(0)
+    setEffectiveFrom(new Date().toISOString().split('T')[0])
+    setEffectiveTo('')
+  }
+
+  const calculateGrossSalary = () => {
+    return (
+      parseFloat(basicSalary || 0) +
+      parseFloat(houseAllowance || 0) +
+      parseFloat(medicalAllowance || 0) +
+      parseFloat(transportAllowance || 0) +
+      parseFloat(otherAllowances || 0)
+    )
+  }
+
+  const calculateTotalDeductions = () => {
+    return (
+      parseFloat(providentFund || 0) +
+      parseFloat(taxDeduction || 0) +
+      parseFloat(otherDeductions || 0)
+    )
+  }
+
+  const calculateNetSalary = () => {
+    return calculateGrossSalary() - calculateTotalDeductions()
+  }
+
+  const handleSaveSalaryStructure = async () => {
+    if (!selectedStaff) {
+      showToast('Please select a staff member', 'warning')
+      return
+    }
+
+    if (basicSalary <= 0) {
+      showToast('Please enter a valid basic salary', 'warning')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const salaryData = {
+        school_id: currentUser.school_id,
+        staff_id: selectedStaff.id,
+        basic_salary: parseFloat(basicSalary),
+        house_allowance: parseFloat(houseAllowance || 0),
+        medical_allowance: parseFloat(medicalAllowance || 0),
+        transport_allowance: parseFloat(transportAllowance || 0),
+        other_allowances: parseFloat(otherAllowances || 0),
+        provident_fund: parseFloat(providentFund || 0),
+        tax_deduction: parseFloat(taxDeduction || 0),
+        other_deductions: parseFloat(otherDeductions || 0),
+        gross_salary: calculateGrossSalary(),
+        net_salary: calculateNetSalary(),
+        effective_from: effectiveFrom,
+        effective_to: effectiveTo || null,
+        status: 'active',
+        created_by: currentUser.id
+      }
+
+      if (existingStructure) {
+        // Update existing structure
+        const { error } = await supabase
+          .from('salary_structures')
+          .update(salaryData)
+          .eq('id', existingStructure.id)
+
+        if (error) throw error
+
+        showToast('Salary structure updated successfully!', 'success')
+      } else {
+        // Create new structure
+        console.log('=== Creating New Salary Structure ===')
+        const { error } = await supabase
+          .from('salary_structures')
+          .insert(salaryData)
+
+        if (error) throw error
+        console.log('Salary structure created successfully')
+
+        // Auto-create pending payment for current month
+        const currentDate = new Date()
+        const currentMonth = currentDate.getMonth() + 1
+        const currentYear = currentDate.getFullYear()
+
+        console.log('=== Auto-creating Pending Payment ===')
+        console.log('Current Month:', currentMonth, 'Current Year:', currentYear)
+
+        // Check if payment already exists for current month
+        const { data: existingPayment } = await supabase
+          .from('salary_payments')
+          .select('id')
+          .eq('school_id', currentUser.school_id)
+          .eq('staff_id', selectedStaff.id)
+          .eq('payment_month', currentMonth)
+          .eq('payment_year', currentYear)
+          .single()
+
+        console.log('Existing payment check:', existingPayment)
+
+        if (!existingPayment) {
+          console.log('No existing payment found, creating pending payment...')
+
+          // Create pending payment record
+          const paymentDataToInsert = {
+            school_id: currentUser.school_id,
+            staff_id: selectedStaff.id,
+            payment_month: currentMonth,
+            payment_year: currentYear,
+            basic_salary: parseFloat(basicSalary),
+            total_allowances:
+              parseFloat(houseAllowance || 0) +
+              parseFloat(medicalAllowance || 0) +
+              parseFloat(transportAllowance || 0) +
+              parseFloat(otherAllowances || 0),
+            total_deductions:
+              parseFloat(providentFund || 0) +
+              parseFloat(taxDeduction || 0) +
+              parseFloat(otherDeductions || 0),
+            gross_salary: calculateGrossSalary(),
+            net_salary: calculateNetSalary(),
+            payment_date: new Date().toISOString().split('T')[0],
+            payment_method: 'pending',
+            status: 'pending',
+            paid_by: currentUser.id,
+            remarks: `Pending salary slip for ${getMonthName(currentMonth)} ${currentYear}`
+          }
+
+          console.log('Payment data to insert:', paymentDataToInsert)
+
+          const { data: paymentData, error: paymentError } = await supabase
+            .from('salary_payments')
+            .insert(paymentDataToInsert)
+            .select()
+            .single()
+
+          console.log('Payment creation result:', { paymentData, paymentError })
+
+          if (!paymentError && paymentData) {
+            console.log('Payment created successfully, now creating salary slip record...')
+
+            const slipDataToInsert = {
+              school_id: currentUser.school_id,
+              staff_id: selectedStaff.id,
+              payment_id: paymentData.id,
+              slip_number: `SLP-${currentYear}-${String(currentMonth).padStart(2, '0')}-${selectedStaff.employee_number || selectedStaff.id}`,
+              month: currentMonth,
+              year: currentYear,
+              generated_by: currentUser.id,
+              generated_date: new Date().toISOString().split('T')[0],
+              file_path: null,
+              status: 'pending'
+            }
+
+            console.log('Slip data to insert:', slipDataToInsert)
+
+            const { data: slipData, error: slipError } = await supabase
+              .from('salary_slips')
+              .insert(slipDataToInsert)
+
+            console.log('Slip creation result:', { slipData, slipError })
+
+            if (slipError) {
+              console.error('Error creating salary slip:', slipError)
+            } else {
+              console.log('Salary slip created successfully!')
+            }
+          } else {
+            console.error('Payment creation failed or paymentData is null')
+          }
+        } else {
+          console.log('Payment already exists for this month, skipping creation')
+        }
+
+        showToast('Salary structure created successfully! Unpaid slip generated for current month.', 'success')
+      }
+
+      // Reload the structure
+      await loadStaffSalaryStructure(selectedStaff)
+    } catch (error) {
+      console.error('Error saving salary structure:', error)
+      showToast('Failed to save salary structure', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const getMonthName = (month) => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December']
+    return months[month - 1]
+  }
+
+  const handleDeleteSalaryStructure = async () => {
+    if (!existingStructure) return
+
+    setDeleting(true)
+    try {
+      const { error } = await supabase
+        .from('salary_structures')
+        .delete()
+        .eq('id', existingStructure.id)
+
+      if (error) throw error
+
+      showToast('Salary structure deleted successfully', 'success')
+      setShowDeleteModal(false)
+      resetForm()
+      setSelectedStaff(null)
+    } catch (error) {
+      console.error('Error deleting salary structure:', error)
+      showToast('Failed to delete salary structure', 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const clearScreen = () => {
+    setSearchEmployeeNumber('')
+    setSearchGeneralData('')
+    setSelectedStaff(null)
+    resetForm()
+  }
+
+  if (!currentUser) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  }
+
+  return (
+    <div className="container mx-auto p-6">
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
+          <AlertCircle size={20} />
+          {error}
+        </div>
+      )}
+
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Salary Structure Management</h1>
+        <p className="text-gray-600 mt-1">Set and manage staff salary structures, allowances, and deductions</p>
+      </div>
+
+      {/* Search Section */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Employee Number</label>
+            <input
+              type="text"
+              placeholder="Employee Number"
+              value={searchEmployeeNumber}
+              onChange={(e) => setSearchEmployeeNumber(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">OR General Data</label>
+            <input
+              type="text"
+              placeholder="Search by name, father name or employee number"
+              value={searchGeneralData}
+              onChange={(e) => setSearchGeneralData(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+        <p className="text-sm text-gray-500">
+          Click on <span className="text-blue-600 font-medium underline cursor-pointer" onClick={clearScreen}>clear screen</span> or press <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Shift+Esc</kbd> to clear the screen.
+        </p>
+      </div>
+
+      {/* Staff List */}
+      {!selectedStaff && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Active Staff Members</h2>
+
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Loading staff...</div>
+          ) : staffList.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Staff Name</th>
+                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Employee Number</th>
+                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Designation</th>
+                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Department</th>
+                    <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Options</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffList.map((staff, index) => (
+                    <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.first_name} {staff.last_name}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.employee_number || 'N/A'}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.designation || 'N/A'}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.department || 'N/A'}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        <button
+                          onClick={() => loadStaffSalaryStructure(staff)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-1 rounded font-medium transition-colors"
+                        >
+                          Manage Salary
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">No active staff found. Please adjust your search criteria.</div>
+          )}
+        </div>
+      )}
+
+      {/* Salary Structure Form */}
+      {selectedStaff && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          {/* Staff Info Header */}
+          <div className="flex items-center gap-4 mb-6 pb-6 border-b">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-3xl">👨‍💼</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-blue-600">
+                {selectedStaff.first_name} {selectedStaff.last_name}
+              </h2>
+              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-1">
+                <span>Employee No: {selectedStaff.employee_number || 'N/A'}</span>
+                <span>Designation: {selectedStaff.designation || 'N/A'}</span>
+                <span>Department: {selectedStaff.department || 'N/A'}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedStaff(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Status Badge */}
+          {existingStructure && (
+            <div className="mb-6">
+              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                ✓ Salary Structure Exists
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Basic Salary & Allowances */}
+            <div className="bg-green-50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
+                <span>💰</span> Basic Salary & Allowances
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Basic Salary <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={basicSalary}
+                    onChange={(e) => setBasicSalary(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">House Allowance</label>
+                  <input
+                    type="number"
+                    value={houseAllowance}
+                    onChange={(e) => setHouseAllowance(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Medical Allowance</label>
+                  <input
+                    type="number"
+                    value={medicalAllowance}
+                    onChange={(e) => setMedicalAllowance(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Transport Allowance</label>
+                  <input
+                    type="number"
+                    value={transportAllowance}
+                    onChange={(e) => setTransportAllowance(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Other Allowances</label>
+                  <input
+                    type="number"
+                    value={otherAllowances}
+                    onChange={(e) => setOtherAllowances(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Deductions */}
+            <div className="bg-red-50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-red-700 mb-4 flex items-center gap-2">
+                <span>➖</span> Deductions
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provident Fund</label>
+                  <input
+                    type="number"
+                    value={providentFund}
+                    onChange={(e) => setProvidentFund(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax Deduction</label>
+                  <input
+                    type="number"
+                    value={taxDeduction}
+                    onChange={(e) => setTaxDeduction(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Other Deductions</label>
+                  <input
+                    type="number"
+                    value={otherDeductions}
+                    onChange={(e) => setOtherDeductions(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div className="pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Effective From</label>
+                  <input
+                    type="date"
+                    value={effectiveFrom}
+                    onChange={(e) => setEffectiveFrom(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Effective To (Optional)</label>
+                  <input
+                    type="date"
+                    value={effectiveTo}
+                    onChange={(e) => setEffectiveTo(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className="bg-blue-50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-blue-700 mb-4 flex items-center gap-2">
+                <span>📊</span> Salary Summary
+              </h3>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-white rounded-lg border border-blue-200">
+                  <div className="text-sm text-gray-600">Gross Salary</div>
+                  <div className="text-2xl font-bold text-blue-600">{calculateGrossSalary().toLocaleString()} PKR</div>
+                  <div className="text-xs text-gray-500 mt-1">Basic + All Allowances</div>
+                </div>
+
+                <div className="p-4 bg-white rounded-lg border border-red-200">
+                  <div className="text-sm text-gray-600">Total Deductions</div>
+                  <div className="text-2xl font-bold text-red-600">{calculateTotalDeductions().toLocaleString()} PKR</div>
+                  <div className="text-xs text-gray-500 mt-1">All Deductions</div>
+                </div>
+
+                <div className="p-4 bg-green-100 rounded-lg border-2 border-green-400">
+                  <div className="text-sm text-gray-700 font-medium">Net Salary (Take Home)</div>
+                  <div className="text-3xl font-bold text-green-700">{calculateNetSalary().toLocaleString()} PKR</div>
+                  <div className="text-xs text-gray-600 mt-1">Gross - Deductions</div>
+                </div>
+
+                <div className="pt-4 space-y-2">
+                  <button
+                    onClick={handleSaveSalaryStructure}
+                    disabled={saving || basicSalary <= 0}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {saving ? 'Saving...' : existingStructure ? 'Update Salary Structure' : 'Create Salary Structure'}
+                  </button>
+
+                  {existingStructure && (
+                    <button
+                      onClick={() => setShowDeleteModal(true)}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                    >
+                      Delete Salary Structure
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setSelectedStaff(null)}
+                    className="w-full bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                  >
+                    Back to Staff List
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown Table */}
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Component</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right font-semibold">Amount (PKR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-gray-300 px-4 py-2 font-medium">Basic Salary</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right">{parseFloat(basicSalary || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-green-50">
+                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ House Allowance</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(houseAllowance || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-green-50">
+                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ Medical Allowance</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(medicalAllowance || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-green-50">
+                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ Transport Allowance</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(transportAllowance || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-green-50">
+                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ Other Allowances</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(otherAllowances || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-blue-100 font-bold">
+                  <td className="border border-gray-300 px-4 py-3">= Gross Salary</td>
+                  <td className="border border-gray-300 px-4 py-3 text-right text-blue-700">{calculateGrossSalary().toLocaleString()}</td>
+                </tr>
+                <tr className="bg-red-50">
+                  <td className="border border-gray-300 px-4 py-2 pl-8 text-red-700">- Provident Fund</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right text-red-700">{parseFloat(providentFund || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-red-50">
+                  <td className="border border-gray-300 px-4 py-2 pl-8 text-red-700">- Tax Deduction</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right text-red-700">{parseFloat(taxDeduction || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-red-50">
+                  <td className="border border-gray-300 px-4 py-2 pl-8 text-red-700">- Other Deductions</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right text-red-700">{parseFloat(otherDeductions || 0).toLocaleString()}</td>
+                </tr>
+                <tr className="bg-green-200 font-bold text-lg">
+                  <td className="border border-gray-300 px-4 py-3">= Net Salary</td>
+                  <td className="border border-gray-300 px-4 py-3 text-right text-green-800">{calculateNetSalary().toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && existingStructure && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={() => !deleting && setShowDeleteModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete the salary structure for <span className="font-bold text-red-600">{selectedStaff.first_name} {selectedStaff.last_name}</span>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleting}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteSalaryStructure}
+                    disabled={deleting}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+                  >
+                    {deleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
