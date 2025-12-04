@@ -67,6 +67,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       { title: "Collect Fee", href: "/fee/collect" },
       { title: "View Challan", href: "/fee/challans" },
       { title: "Create Challan", href: "/fee/create" },
+      { title: "Fee Policy", href: "/fee/admission-fee" },
     ]},
     { title: "Payroll", icon: CreditCard, key: "payroll", submenus: [
       { title: "Pay Salary", href: "/payroll/pay" },
