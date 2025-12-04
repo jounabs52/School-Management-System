@@ -1,27 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, X, Eye, Trash2, Users, FileText, TrendingUp, RefreshCw, ArrowLeft, Filter } from 'lucide-react'
+import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
-import toast from 'react-hot-toast'
 
 export default function ClassListPage() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showFeeIncrementModal, setShowFeeIncrementModal] = useState(false)
   const [showStudentEditModal, setShowStudentEditModal] = useState(false)
   const [showStudentDeleteModal, setShowStudentDeleteModal] = useState(false)
-  const [showFeePolicyEditModal, setShowFeePolicyEditModal] = useState(false)
-  const [showFeePolicyDeleteModal, setShowFeePolicyDeleteModal] = useState(false)
-  const [showFeePolicyDrawer, setShowFeePolicyDrawer] = useState(false)
 
   // Lock/unlock body scroll when modals open/close
   useEffect(() => {
     const isAnyModalOpen = showModal || showEditModal || showDeleteModal ||
-                          showFeeIncrementModal || showStudentEditModal || showStudentDeleteModal ||
-                          showFeePolicyEditModal || showFeePolicyDeleteModal || showFeePolicyDrawer
+                          showStudentEditModal || showStudentDeleteModal
 
     if (isAnyModalOpen) {
       // Get current scrollbar width
@@ -41,10 +35,9 @@ export default function ClassListPage() {
       document.body.style.overflow = ''
       document.body.style.paddingRight = ''
     }
-  }, [showModal, showEditModal, showDeleteModal, showFeeIncrementModal, showStudentEditModal, showStudentDeleteModal, showFeePolicyEditModal, showFeePolicyDeleteModal, showFeePolicyDrawer])
+  }, [showModal, showEditModal, showDeleteModal, showStudentEditModal, showStudentDeleteModal])
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [viewMode, setViewMode] = useState(false)
-  const [activeTab, setActiveTab] = useState('students')
   const [selectedClass, setSelectedClass] = useState(null)
   const [classToDelete, setClassToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -66,26 +59,12 @@ export default function ClassListPage() {
     fee: '',
     discount: ''
   })
-  const [feeIncrementData, setFeeIncrementData] = useState({
-    mode: '',
-    type: '',
-    amount: ''
-  })
   const [formData, setFormData] = useState({
     incharge: '',
     className: '',
     classFee: '',
     markingSystem: ''
   })
-  const [feePolicyFormData, setFeePolicyFormData] = useState({
-    classId: '',
-    feeHead: '',
-    title: '',
-    amount: ''
-  })
-  const [feePolicies, setFeePolicies] = useState([])
-  const [loadingFeePolicies, setLoadingFeePolicies] = useState(false)
-  const [selectedFeePolicy, setSelectedFeePolicy] = useState(null)
 
   // Fetch sections for a class
   const fetchClassSections = async (classId) => {
@@ -189,309 +168,6 @@ export default function ClassListPage() {
     }
   }
 
-  // Fetch fee policies for a class
-  const fetchFeePolicies = async (classId) => {
-    try {
-      setLoadingFeePolicies(true)
-      const user = getUserFromCookie()
-      if (!user) {
-        console.error('No user found')
-        setLoadingFeePolicies(false)
-        return
-      }
-
-      // Get current session
-      const { data: sessionData } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('school_id', user.school_id)
-        .eq('is_current', true)
-        .single()
-
-      if (!sessionData) {
-        setFeePolicies([])
-        setLoadingFeePolicies(false)
-        return
-      }
-
-      // Fetch fee structures for this class first
-      const { data: feeStructures, error: structuresError } = await supabase
-        .from('fee_structures')
-        .select('*')
-        .eq('school_id', user.school_id)
-        .eq('session_id', sessionData.id)
-        .eq('class_id', classId)
-        .eq('status', 'active')
-
-      if (structuresError) {
-        console.error('Error fetching fee structures:', structuresError)
-        setFeePolicies([])
-        setLoadingFeePolicies(false)
-        return
-      }
-
-      // If no structures found, return empty
-      if (!feeStructures || feeStructures.length === 0) {
-        setFeePolicies([])
-        setLoadingFeePolicies(false)
-        return
-      }
-
-      // Get the fee type IDs from structures
-      const feeTypeIds = feeStructures.map(s => s.fee_type_id)
-
-      // Fetch only the fee types that have structures for this class
-      const { data: feeTypes, error: feeTypesError } = await supabase
-        .from('fee_types')
-        .select('*')
-        .eq('school_id', user.school_id)
-        .eq('status', 'active')
-        .in('id', feeTypeIds)
-        .order('created_at', { ascending: false })
-
-      if (feeTypesError) {
-        console.error('Error fetching fee types:', feeTypesError)
-        setFeePolicies([])
-        setLoadingFeePolicies(false)
-        return
-      }
-
-      // Merge fee types with their amounts
-      const feePoliciesWithAmounts = (feeTypes || []).map(feeType => {
-        const structure = feeStructures.find(s => s.fee_type_id === feeType.id)
-        return {
-          ...feeType,
-          amount: structure?.amount || 0,
-          structure_id: structure?.id
-        }
-      })
-
-      setFeePolicies(feePoliciesWithAmounts)
-    } catch (error) {
-      console.error('Error fetching fee policies:', error)
-      setFeePolicies([])
-    } finally {
-      setLoadingFeePolicies(false)
-    }
-  }
-
-  // Save fee policy
-  const handleSaveFeePolicy = async () => {
-    try {
-      const user = getUserFromCookie()
-      if (!user) {
-        toast.error('Unauthorized', { duration: 3000 })
-        return
-      }
-
-      console.log('Form Data:', feePolicyFormData)
-      console.log('Selected Class:', selectedClass)
-
-      if (!feePolicyFormData.feeHead || !feePolicyFormData.title || !feePolicyFormData.amount) {
-        toast.error('Please fill all required fields', { duration: 3000 })
-        return
-      }
-
-      // First, create or get the fee type
-      // Create a unique fee_code by combining fee_name and timestamp
-      const uniqueFeeCode = `${feePolicyFormData.feeHead.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`
-
-      const { data: feeTypeData, error: feeTypeError } = await supabase
-        .from('fee_types')
-        .insert([{
-          school_id: user.school_id,
-          created_by: user.id,
-          fee_name: feePolicyFormData.feeHead,
-          fee_code: uniqueFeeCode,
-          description: feePolicyFormData.title,
-          status: 'active'
-        }])
-        .select()
-        .single()
-
-      if (feeTypeError) {
-        console.error('Error creating fee policy:', feeTypeError)
-        toast.error('Failed to create fee policy: ' + feeTypeError.message, { duration: 3000 })
-        return
-      }
-
-      console.log('Fee Type Created:', feeTypeData)
-
-      // Then create fee structure with amount for the selected class
-      const classIdToUse = feePolicyFormData.classId || selectedClass?.id
-      console.log('Class ID to use:', classIdToUse)
-
-      if (classIdToUse) {
-        // Get current session
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('sessions')
-          .select('id')
-          .eq('school_id', user.school_id)
-          .eq('is_current', true)
-          .single()
-
-        console.log('Session Data:', sessionData)
-        console.log('Session Error:', sessionError)
-
-        if (sessionData) {
-          const { data: structureData, error: structureError } = await supabase
-            .from('fee_structures')
-            .insert([{
-              school_id: user.school_id,
-              session_id: sessionData.id,
-              class_id: classIdToUse,
-              fee_type_id: feeTypeData.id,
-              amount: parseFloat(feePolicyFormData.amount) || 0,
-              status: 'active',
-              created_by: user.id
-            }])
-            .select()
-
-          console.log('Structure Data:', structureData)
-          console.log('Structure Error:', structureError)
-
-          if (structureError) {
-            console.error('Error creating fee structure:', structureError)
-            toast.error('Fee type created but failed to add amount: ' + structureError.message, { duration: 3000 })
-          }
-        } else {
-          toast.error('No active session found. Please create a session first.', { duration: 3000 })
-        }
-      }
-
-      setFeePolicyFormData({ classId: '', feeHead: '', title: '', amount: '' })
-      setShowFeePolicyDrawer(false)
-      fetchFeePolicies(selectedClass.id)
-      toast.success('Fee policy created successfully', { duration: 3000 })
-    } catch (error) {
-      console.error('Error saving fee policy:', error)
-      toast.error('Error saving fee policy', { duration: 3000 })
-    }
-  }
-
-  // Edit fee policy
-  const handleEditFeePolicy = (policy) => {
-    setSelectedFeePolicy(policy)
-    setFeePolicyFormData({
-      classId: selectedClass?.id || '',
-      feeHead: policy.fee_name,
-      title: policy.description,
-      amount: policy.amount || ''
-    })
-    setShowFeePolicyDrawer(true)
-  }
-
-  // Update fee policy
-  const handleUpdateFeePolicy = async () => {
-    try {
-      const user = getUserFromCookie()
-      if (!user) {
-        toast.error('Unauthorized', { duration: 3000 })
-        return
-      }
-
-      // Update fee type
-      const { error: feeTypeError } = await supabase
-        .from('fee_types')
-        .update({
-          fee_name: feePolicyFormData.feeHead,
-          fee_code: feePolicyFormData.title.toLowerCase().replace(/\s+/g, '_'),
-          description: feePolicyFormData.title,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedFeePolicy.id)
-        .eq('school_id', user.school_id)
-
-      if (feeTypeError) {
-        console.error('Error updating fee policy:', feeTypeError)
-        toast.error('Failed to update fee policy', { duration: 3000 })
-        return
-      }
-
-      // Update or insert fee structure amount if provided
-      if (feePolicyFormData.amount && feePolicyFormData.classId) {
-        const { data: sessionData } = await supabase
-          .from('sessions')
-          .select('id')
-          .eq('school_id', user.school_id)
-          .eq('is_current', true)
-          .single()
-
-        if (sessionData) {
-          // Check if structure exists
-          if (selectedFeePolicy.structure_id) {
-            // Update existing structure
-            await supabase
-              .from('fee_structures')
-              .update({
-                amount: parseFloat(feePolicyFormData.amount) || 0,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', selectedFeePolicy.structure_id)
-          } else {
-            // Create new structure
-            await supabase
-              .from('fee_structures')
-              .insert([{
-                school_id: user.school_id,
-                session_id: sessionData.id,
-                class_id: feePolicyFormData.classId,
-                fee_type_id: selectedFeePolicy.id,
-                amount: parseFloat(feePolicyFormData.amount) || 0,
-                status: 'active',
-                created_by: user.id
-              }])
-          }
-        }
-      }
-
-      setShowFeePolicyDrawer(false)
-      setSelectedFeePolicy(null)
-      setFeePolicyFormData({ classId: '', feeHead: '', title: '', amount: '' })
-      fetchFeePolicies(selectedClass.id)
-      toast.success('Fee policy updated successfully', { duration: 3000 })
-    } catch (error) {
-      console.error('Error updating fee policy:', error)
-      toast.error('An error occurred while updating', { duration: 3000 })
-    }
-  }
-
-  // Delete fee policy
-  const handleDeleteFeePolicy = (policy) => {
-    setSelectedFeePolicy(policy)
-    setShowFeePolicyDeleteModal(true)
-  }
-
-  // Confirm delete fee policy
-  const confirmDeleteFeePolicy = async () => {
-    try {
-      const user = getUserFromCookie()
-      if (!user) {
-        toast.error('Unauthorized', { duration: 3000 })
-        return
-      }
-
-      const { error } = await supabase
-        .from('fee_types')
-        .update({ status: 'inactive' })
-        .eq('id', selectedFeePolicy.id)
-        .eq('school_id', user.school_id)
-
-      if (error) {
-        console.error('Error deleting fee policy:', error)
-        toast.error('Failed to delete fee policy', { duration: 3000 })
-        return
-      }
-
-      setShowFeePolicyDeleteModal(false)
-      setSelectedFeePolicy(null)
-      fetchFeePolicies(selectedClass.id)
-      toast.success('Fee policy deleted successfully', { duration: 3000 })
-    } catch (error) {
-      console.error('Error deleting fee policy:', error)
-      toast.error('An error occurred while deleting', { duration: 3000 })
-    }
-  }
 
   // Fetch staff and classes data
   useEffect(() => {
@@ -602,7 +278,7 @@ export default function ClassListPage() {
         return
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('classes')
         .insert([{
           school_id: user.school_id,
@@ -648,7 +324,7 @@ export default function ClassListPage() {
         return
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('classes')
         .update({
           class_name: formData.className,
@@ -678,13 +354,11 @@ export default function ClassListPage() {
 
   const handleView = (cls) => {
     setSelectedClass(cls)
-    setActiveTab('students')
     setViewMode(true)
     setSelectedSection('')
     setStudentSearchTerm('')
     fetchClassSections(cls.id)
     fetchStudents(cls.id)
-    fetchFeePolicies(cls.id)
   }
 
   const handleDelete = (cls) => {
@@ -720,15 +394,6 @@ export default function ClassListPage() {
     }
   }
 
-  const handleFeeIncrement = () => {
-    setShowFeeIncrementModal(true)
-  }
-
-  const applyFeeIncrement = () => {
-    console.log('Fee Increment Data:', feeIncrementData)
-    setShowFeeIncrementModal(false)
-    setFeeIncrementData({ mode: '', type: '', amount: '' })
-  }
 
   const handleGoBack = () => {
     setViewMode(false)
@@ -853,41 +518,11 @@ export default function ClassListPage() {
   if (viewMode && selectedClass) {
     return (
       <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
-        {/* Tab Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('students')}
-            className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition ${
-              activeTab === 'students'
-                ? 'bg-red-600 text-white shadow-lg'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <Users size={16} />
-            Class Students
-          </button>
-          <button
-            onClick={() => setActiveTab('feePolicy')}
-            className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition ${
-              activeTab === 'feePolicy'
-                ? 'bg-red-600 text-white shadow-lg'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <FileText size={16} />
-            Admission Fee Policy
-          </button>
-          <button
-            onClick={() => setActiveTab('feeIncrement')}
-            className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition ${
-              activeTab === 'feeIncrement'
-                ? 'bg-red-600 text-white shadow-lg'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <TrendingUp size={16} />
-            Fee Increment
-          </button>
+        {/* Top Bar with Go Back Button */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            Class: <span className="text-blue-600">{selectedClass.class_name}</span>
+          </h2>
           <button
             onClick={handleGoBack}
             className="px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 bg-red-600 text-white hover:bg-red-700 transition"
@@ -897,10 +532,8 @@ export default function ClassListPage() {
           </button>
         </div>
 
-        {/* Tab Content */}
-        {/* Class Students Tab */}
-        {activeTab === 'students' && (
-          <div>
+        {/* Class Students Section */}
+        <div>
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
               <h2 className="text-lg font-bold text-gray-800 mb-4">
                 Students enrolled in the <span className="text-blue-600">{selectedClass.class_name}</span> session <span className="font-bold">2024-2025</span>
@@ -1015,181 +648,7 @@ export default function ClassListPage() {
               </div>
             </div>
           </div>
-        )}
 
-        {/* Admission Fee Policy Tab */}
-        {activeTab === 'feePolicy' && (
-          <div>
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-gray-800">
-                  Admission fee policy for the class <span className="text-blue-600">{selectedClass.class_name}</span>
-                </h2>
-                <button
-                  onClick={() => {
-                    setSelectedFeePolicy(null)
-                    setFeePolicyFormData({ classId: selectedClass?.id || '', feeHead: '', title: '', amount: '' })
-                    setShowFeePolicyDrawer(true)
-                  }}
-                  className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
-                >
-                  <Plus size={18} />
-                  Add Fee Policy
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-blue-900 text-white">
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee Head</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Title</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Amount</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadingFeePolicies ? (
-                      <tr>
-                        <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                          Loading fee policies...
-                        </td>
-                      </tr>
-                    ) : feePolicies.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                          No fee policies found
-                        </td>
-                      </tr>
-                    ) : (
-                      feePolicies.map((fee, index) => (
-                        <tr key={fee.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
-                          <td className="px-4 py-3 border border-gray-200">{fee.fee_name}</td>
-                          <td className="px-4 py-3 border border-gray-200">{fee.description || '-'}</td>
-                          <td className="px-4 py-3 border border-gray-200">
-                            {fee.amount > 0 ? fee.amount.toLocaleString() : '-'}
-                          </td>
-                          <td className="px-4 py-3 border border-gray-200">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleEditFeePolicy(fee)}
-                                className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
-                              >
-                                <Edit2 size={18} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteFeePolicy(fee)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Fee Increment Tab */}
-        {activeTab === 'feeIncrement' && (
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
-              Fee Increment for <span className="text-blue-600">{selectedClass.class_name}</span>
-            </h2>
-            <p className="text-gray-600 mb-6">Click the button below to apply fee increment to all students in this class.</p>
-            <button
-              onClick={handleFeeIncrement}
-              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
-            >
-              <TrendingUp size={18} />
-              Apply Fee Increment
-            </button>
-          </div>
-        )}
-
-        {/* Fee Increment Modal - in view mode */}
-        {showFeeIncrementModal && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-              onClick={() => setShowFeeIncrementModal(false)}
-            />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-                <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-bold">Fee Increment</h3>
-                    <button
-                      onClick={() => setShowFeeIncrementModal(false)}
-                      className="text-white hover:bg-white/10 p-1 rounded-full transition"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Mode</label>
-                    <select
-                      value={feeIncrementData.mode}
-                      onChange={(e) => setFeeIncrementData({ ...feeIncrementData, mode: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                    >
-                      <option value="">Select Mode</option>
-                      <option value="percentage">Percentage</option>
-                      <option value="fixed">Fixed Amount</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Type</label>
-                    <select
-                      value={feeIncrementData.type}
-                      onChange={(e) => setFeeIncrementData({ ...feeIncrementData, type: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                    >
-                      <option value="">Select Type</option>
-                      <option value="increase">Increase</option>
-                      <option value="decrease">Decrease</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Enter Increment Amount</label>
-                    <input
-                      type="text"
-                      placeholder="Enter amount..."
-                      value={feeIncrementData.amount}
-                      onChange={(e) => setFeeIncrementData({ ...feeIncrementData, amount: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={() => setShowFeeIncrementModal(false)}
-                      className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={applyFeeIncrement}
-                      className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
 
         {/* Student Edit Sidebar */}
         {showStudentEditModal && selectedStudent && (
@@ -1347,153 +806,6 @@ export default function ClassListPage() {
           </>
         )}
 
-        {/* Fee Policy Drawer - Slide in from Right */}
-        {showFeePolicyDrawer && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-              onClick={() => {
-                setShowFeePolicyDrawer(false)
-                setSelectedFeePolicy(null)
-                setFeePolicyFormData({ classId: '', feeHead: '', title: '', amount: '' })
-              }}
-            />
-            <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200 animate-slide-in-right">
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-xl font-bold">
-                      {selectedFeePolicy ? 'Edit Fee Policy' : 'Add Fee Policy'}
-                    </h3>
-                    <p className="text-blue-200 text-sm mt-1">
-                      {selectedFeePolicy ? 'Update fee policy details' : 'Create new fee policy'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowFeePolicyDrawer(false)
-                      setSelectedFeePolicy(null)
-                      setFeePolicyFormData({ classId: '', feeHead: '', title: '', amount: '' })
-                    }}
-                    className="text-white hover:bg-white/10 p-2 rounded-full transition"
-                  >
-                    <X size={22} />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                <div className="space-y-6">
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                      Fee Head <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Admission Fee, Registration Fee"
-                      value={feePolicyFormData.feeHead}
-                      onChange={(e) => setFeePolicyFormData({ ...feePolicyFormData, feeHead: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    />
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                      Title <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Fee description or title"
-                      value={feePolicyFormData.title}
-                      onChange={(e) => setFeePolicyFormData({ ...feePolicyFormData, title: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    />
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                      Amount <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rs.</span>
-                      <input
-                        type="text"
-                        placeholder="0"
-                        value={feePolicyFormData.amount}
-                        onChange={(e) => setFeePolicyFormData({ ...feePolicyFormData, amount: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="border-t border-gray-200 px-6 py-5 bg-white">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowFeePolicyDrawer(false)
-                      setSelectedFeePolicy(null)
-                      setFeePolicyFormData({ classId: '', feeHead: '', title: '', amount: '' })
-                    }}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={selectedFeePolicy ? handleUpdateFeePolicy : handleSaveFeePolicy}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                  >
-                    {selectedFeePolicy ? (
-                      <>
-                        <Edit2 size={18} />
-                        Update Policy
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={18} />
-                        Save Policy
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Fee Policy Delete Confirmation Modal */}
-        {showFeePolicyDeleteModal && selectedFeePolicy && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-              onClick={() => setShowFeePolicyDeleteModal(false)}
-            />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                  <h3 className="text-lg font-bold">Confirm Delete</h3>
-                </div>
-                <div className="p-6">
-                  <p className="text-gray-700 mb-6">
-                    Are you sure you want to delete fee policy <span className="font-bold text-red-600">{selectedFeePolicy.fee_name}</span>? This action cannot be undone.
-                  </p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShowFeePolicyDeleteModal(false)}
-                      className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={confirmDeleteFeePolicy}
-                      className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
-                    >
-                      <Trash2 size={18} />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
       </div>
     )
   }
@@ -1903,80 +1215,6 @@ export default function ClassListPage() {
         </>
       )}
 
-      {/* Fee Increment Modal */}
-      {showFeeIncrementModal && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowFeeIncrementModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-bold">Fee Increment</h3>
-                  <button
-                    onClick={() => setShowFeeIncrementModal(false)}
-                    className="text-white hover:bg-white/10 p-1 rounded-full transition"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Mode</label>
-                  <select
-                    value={feeIncrementData.mode}
-                    onChange={(e) => setFeeIncrementData({ ...feeIncrementData, mode: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="">Select Mode</option>
-                    <option value="percentage">Percentage</option>
-                    <option value="fixed">Fixed Amount</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Type</label>
-                  <select
-                    value={feeIncrementData.type}
-                    onChange={(e) => setFeeIncrementData({ ...feeIncrementData, type: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="">Select Type</option>
-                    <option value="increase">Increase</option>
-                    <option value="decrease">Decrease</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Enter Increment Amount</label>
-                  <input
-                    type="text"
-                    placeholder="Enter amount..."
-                    value={feeIncrementData.amount}
-                    onChange={(e) => setFeeIncrementData({ ...feeIncrementData, amount: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => setShowFeeIncrementModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={applyFeeIncrement}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }

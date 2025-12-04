@@ -49,12 +49,18 @@ export default function StudentCertificatesPage() {
   }, [selectedClass])
 
   useEffect(() => {
-    if (selectedSection) {
-      fetchStudents()
+    if (selectedClass) {
+      // Fetch students if class is selected (with or without section)
+      // If sections exist but none selected, don't fetch yet
+      if (sections.length === 0 || selectedSection) {
+        fetchStudents()
+      } else {
+        setStudents([])
+      }
     } else {
       setStudents([])
     }
-  }, [selectedSection])
+  }, [selectedClass, selectedSection, sections.length])
 
   const fetchClasses = async () => {
     try {
@@ -92,13 +98,19 @@ export default function StudentCertificatesPage() {
   const fetchStudents = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('students')
         .select('*')
         .eq('current_class_id', selectedClass)
-        .eq('current_section_id', selectedSection)
         .eq('status', 'active')
         .order('first_name', { ascending: true })
+
+      // Only filter by section if a section is selected
+      if (selectedSection) {
+        query = query.eq('current_section_id', selectedSection)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setStudents(data || [])
@@ -166,6 +178,10 @@ export default function StudentCertificatesPage() {
 
       setSuccess('Certificate saved successfully!')
       setTimeout(() => setSuccess(null), 3000)
+
+      // Close the modal after successful save
+      setShowPreview(false)
+      setSelectedStudent(null)
     } catch (err) {
       console.error('Save error:', err)
       setError(err.message || 'Failed to save certificate')
@@ -174,7 +190,7 @@ export default function StudentCertificatesPage() {
     }
   }
 
-  const handlePrintCertificate = (student, conduct) => {
+  const handlePrintCertificate = async (student, conduct) => {
     // Use provided student or fall back to selectedStudent
     const studentData = student || selectedStudent
     const conductValue = conduct || certificateData.conduct
@@ -185,6 +201,34 @@ export default function StudentCertificatesPage() {
     }
 
     console.log('Generating certificate for:', studentData)
+
+    // Save to database first
+    try {
+      // Fetch school_id
+      const { data: schools, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (!schoolError && schools) {
+        const certificateRecord = {
+          student_id: studentData.id,
+          school_id: schools.id,
+          certificate_type: 'character',
+          issue_date: new Date().toISOString().split('T')[0],
+          remarks: `Conduct: ${conductValue}`,
+          created_at: new Date().toISOString()
+        }
+
+        await supabase
+          .from('student_certificates')
+          .insert([certificateRecord])
+      }
+    } catch (err) {
+      console.error('Error saving certificate:', err)
+      // Continue with printing even if save fails
+    }
 
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -285,6 +329,12 @@ export default function StudentCertificatesPage() {
     // Save PDF
     const fileName = `Certificate_${studentData.first_name || 'Student'}_${studentData.admission_number || 'NA'}_${Date.now()}.pdf`
     doc.save(fileName)
+
+    // Close the modal after printing (only if modal is open)
+    if (selectedStudent) {
+      setShowPreview(false)
+      setSelectedStudent(null)
+    }
   }
 
   return (
@@ -355,9 +405,9 @@ export default function StudentCertificatesPage() {
                 Select Section <span className="text-red-500">*</span>
               </label>
               {sections.length === 0 ? (
-                <div className="w-full px-4 py-3 border border-orange-300 rounded-lg bg-orange-50 text-orange-700 text-sm">
+                <div className="w-full px-4 py-3 border border-blue-300 rounded-lg bg-blue-50 text-blue-700 text-sm">
                   <AlertCircle size={16} className="inline mr-2" />
-                  No sections found for this class. Please add sections first.
+                  No sections found. Showing all students from this class.
                 </div>
               ) : (
                 <select
@@ -380,7 +430,7 @@ export default function StudentCertificatesPage() {
           )}
 
           {/* Certificate For */}
-          {selectedSection && (
+          {(selectedSection || (selectedClass && sections.length === 0)) && (
             <div>
               <label className="block text-gray-700 font-semibold text-sm mb-2">
                 Certificate For <span className="text-red-500">*</span>
@@ -394,17 +444,17 @@ export default function StudentCertificatesPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               >
                 <option value="individual">Individual Student</option>
-                <option value="section">Full Section</option>
+                <option value="section">{sections.length === 0 ? 'Full Class' : 'Full Section'}</option>
               </select>
             </div>
           )}
         </div>
 
         {/* Students List */}
-        {selectedSection && (
+        {(selectedSection || (selectedClass && sections.length === 0)) && (
           <div className="mt-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {certificateFor === 'individual' ? 'Select Student' : 'Students in Section'}
+              {certificateFor === 'individual' ? 'Select Student' : sections.length === 0 ? 'Students in Class' : 'Students in Section'}
             </h3>
 
             {loading ? (
