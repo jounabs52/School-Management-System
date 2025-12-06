@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { X, Printer, FileText, Settings } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function DatesheetReportsPage() {
   const router = useRouter()
@@ -20,6 +22,10 @@ export default function DatesheetReportsPage() {
   // Configuration Modal State
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [configType, setConfigType] = useState('datesheet') // 'datesheet' or 'rollno'
+
+  // New state for datesheet type selection
+  const [showClassSelectionModal, setShowClassSelectionModal] = useState(false)
+  const [selectedClassForDatesheet, setSelectedClassForDatesheet] = useState('')
 
   // Configuration Form State
   const [config, setConfig] = useState({
@@ -133,7 +139,7 @@ export default function DatesheetReportsPage() {
 
   // Fetch data
   useEffect(() => {
-    if (currentUser?.school_id && session?.id) {
+    if (currentUser?.school_id && session?.name) {
       fetchDatesheets()
       fetchClasses()
       fetchSubjects()
@@ -142,35 +148,35 @@ export default function DatesheetReportsPage() {
   }, [currentUser, session])
 
   const fetchDatesheets = async () => {
-    if (!currentUser?.school_id || !session?.id) {
+    if (!currentUser?.school_id || !session?.name) {
       console.log('⚠️ fetchDatesheets skipped - missing data:', {
         school_id: currentUser?.school_id,
-        session_id: session?.id
+        session_name: session?.name
       })
       return
     }
 
-    console.log('📥 Fetching exams/datesheets with:', {
+    console.log('📥 Fetching datesheets with:', {
       school_id: currentUser.school_id,
-      session_id: session.id
+      session: session.name
     })
 
     try {
       const { data, error } = await supabase
-        .from('exams')
+        .from('datesheets')
         .select('*')
         .eq('school_id', currentUser.school_id)
-        .eq('session_id', session.id)
+        .eq('session', session.name)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      console.log('✅ Fetched datesheets/exams:', data)
-      console.log(`Found ${data?.length || 0} exams for reports`)
+      console.log('✅ Fetched datesheets:', data)
+      console.log(`Found ${data?.length || 0} datesheets for reports`)
       setDatesheets(data || [])
     } catch (error) {
       console.error('❌ Error fetching datesheets:', error)
-      showToast('Error fetching exams', 'error')
+      showToast('Error fetching datesheets', 'error')
     }
   }
 
@@ -228,20 +234,20 @@ export default function DatesheetReportsPage() {
     }
   }
 
-  const fetchSchedules = async (examId) => {
+  const fetchSchedules = async (datesheetId) => {
     if (!currentUser?.school_id) return
 
-    console.log('📅 Fetching schedules for exam:', examId)
+    console.log('📅 Fetching schedules for datesheet:', datesheetId)
 
     try {
       const { data, error } = await supabase
-        .from('exam_schedules')
+        .from('datesheet_schedules')
         .select(`
           *,
           classes (class_name),
           subjects (subject_name)
         `)
-        .eq('exam_id', examId)
+        .eq('datesheet_id', datesheetId)
         .order('exam_date')
         .order('start_time')
 
@@ -306,15 +312,98 @@ export default function DatesheetReportsPage() {
     }
   }
 
-  const handleProcessConfig = () => {
-    if (configType === 'datesheet') {
-      // Generate Date Sheet Report (could open a new window or download PDF)
-      showToast('Date Sheet Report generated successfully', 'success')
-      setShowConfigModal(false)
-    } else {
-      // Generate Roll No Slips for all students
-      handlePrintIndividualSlip()
-      setShowConfigModal(false)
+  const handleProcessConfig = async () => {
+    if (!config.selectedDatesheet || !currentUser?.school_id || !currentUser?.id) {
+      showToast('Missing required information', 'error')
+      return
+    }
+
+    try {
+      // Get the selected datesheet details
+      const selectedDatesheet = datesheets.find(d => d.id === config.selectedDatesheet)
+      if (!selectedDatesheet) {
+        showToast('Selected datesheet not found', 'error')
+        return
+      }
+
+      // Fetch schedules first
+      await fetchSchedules(config.selectedDatesheet)
+
+      let data, error
+
+      // Save to appropriate table based on config type
+      if (configType === 'datesheet') {
+        // Save to datesheet_reports table
+        const result = await supabase
+          .from('datesheet_reports')
+          .insert({
+            school_id: currentUser.school_id,
+            datesheet_id: config.selectedDatesheet,
+            report_name: `${selectedDatesheet.title} - Date Sheet Report`,
+            report_type: 'datesheet',
+            class_id: config.selectedClass !== 'all' ? config.selectedClass : null,
+            gender_filter: null,
+            file_url: `/reports/datesheet/${config.selectedDatesheet}`,
+            configuration: config,
+            generated_by: currentUser.id,
+            status: 'generated'
+          })
+          .select()
+
+        data = result.data
+        error = result.error
+
+        if (!error) {
+          showToast('Date Sheet Report generated and saved successfully', 'success')
+          setShowConfigModal(false)
+        }
+      } else {
+        // For roll no slips
+        const studentsToProcess = config.selectedClass !== 'all'
+          ? students.filter(s => s.current_class_id === config.selectedClass)
+          : students
+
+        if (studentsToProcess.length === 0) {
+          showToast('No students found with the selected filters', 'warning')
+          return
+        }
+
+        // Create roll no slips for all students
+        const slips = studentsToProcess.map(student => ({
+          school_id: currentUser.school_id,
+          datesheet_id: config.selectedDatesheet,
+          student_id: student.id,
+          slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
+          slip_type: 'roll_no_slip',
+          gender: student.gender,
+          file_url: `/reports/rollno/${config.selectedDatesheet}/${student.id}`,
+          generated_by: currentUser.id,
+          configuration: config,
+          status: 'generated'
+        }))
+
+        const result = await supabase
+          .from('roll_no_slips')
+          .insert(slips)
+          .select()
+
+        data = result.data
+        error = result.error
+
+        if (!error) {
+          showToast(`Roll No Slips generated for ${studentsToProcess.length} students and saved successfully`, 'success')
+          // Still show the print preview for the first student
+          handlePrintIndividualSlip()
+          setShowConfigModal(false)
+        }
+      }
+
+      if (error) throw error
+
+      console.log('✅ Report saved to database:', data)
+    } catch (error) {
+      console.error('❌ Error saving report:', error)
+      showToast(`Failed to save report: ${error.message}`, 'error')
     }
   }
 
@@ -338,11 +427,278 @@ export default function DatesheetReportsPage() {
 
   const formatTime = (timeString) => {
     if (!timeString) return ''
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    })
+    try {
+      return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+    } catch {
+      return timeString
+    }
+  }
+
+  // Generate Single Class Datesheet PDF
+  const generateSingleClassDatesheetPDF = async (classId) => {
+    if (!config.selectedDatesheet || !classId) {
+      showToast('Please select both datesheet and class', 'warning')
+      return
+    }
+
+    try {
+      const datesheet = datesheets.find(d => d.id === config.selectedDatesheet)
+      if (!datesheet) {
+        showToast('Datesheet not found', 'error')
+        return
+      }
+
+      // Fetch schedules for this class
+      const { data: classSchedules, error } = await supabase
+        .from('datesheet_schedules')
+        .select(`
+          *,
+          subjects (subject_name, subject_code)
+        `)
+        .eq('datesheet_id', config.selectedDatesheet)
+        .eq('class_id', classId)
+        .not('subject_id', 'is', null)
+        .order('exam_date')
+
+      if (error) throw error
+
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Header
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 20, { align: 'center' })
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 27, { align: 'center' })
+      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 32, { align: 'center' })
+
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('DATE SHEET SCHEDULE', pageWidth / 2, 45, { align: 'center' })
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 52, { align: 'center' })
+
+      // Info Box
+      const leftMargin = 20
+      const boxTop = 60
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Class: ${getClassName(classId)}`, leftMargin, boxTop)
+      doc.text(`Session: ${datesheet.session}`, leftMargin, boxTop + 7)
+      doc.text(`Exam Center: ${datesheet.exam_center || 'skoolzoom demo software, BLOCK D STREET 29 ISLAMABAD'}`, leftMargin, boxTop + 14)
+
+      // Schedule Table
+      const tableTop = boxTop + 25
+      const tableData = classSchedules?.map((schedule, index) => {
+        const date = new Date(schedule.exam_date)
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+        const formattedDate = `${dayNames[date.getDay()]}, ${date.getDate().toString().padStart(2, '0')}-${monthNames[date.getMonth()]}-${date.getFullYear()}`
+
+        return [
+          (index + 1).toString(),
+          schedule.subjects?.subject_name || 'N/A',
+          formattedDate,
+          schedule.start_time || 'N/A',
+          schedule.end_time || 'N/A',
+          schedule.room_number || 'N/A'
+        ]
+      }) || []
+
+      autoTable(doc, {
+        startY: tableTop,
+        head: [['#', 'Subject', 'Exam Date', 'Start Time', 'End Time', 'Room No']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [25, 49, 83],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 20 }
+        }
+      })
+
+      const finalY = doc.lastAutoTable.finalY + 15
+
+      // Footer
+      const footerY = pageHeight - 20
+      doc.setFontSize(8)
+      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, leftMargin, footerY)
+      doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
+
+      // Save PDF
+      const fileName = `${getClassName(classId)}_${datesheet.title}_Datesheet.pdf`
+      doc.save(fileName)
+
+      showToast('Single class datesheet generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating single class datesheet:', error)
+      showToast(`Error generating datesheet: ${error.message}`, 'error')
+    }
+  }
+
+  // Generate All Classes Datesheet PDF
+  const generateAllClassesDatesheetPDF = async () => {
+    if (!config.selectedDatesheet) {
+      showToast('Please select a datesheet', 'warning')
+      return
+    }
+
+    try {
+      const datesheet = datesheets.find(d => d.id === config.selectedDatesheet)
+      if (!datesheet) {
+        showToast('Datesheet not found', 'error')
+        return
+      }
+
+      // Fetch all schedules for this datesheet
+      const { data: allSchedules, error } = await supabase
+        .from('datesheet_schedules')
+        .select(`
+          *,
+          subjects (subject_name, subject_code)
+        `)
+        .eq('datesheet_id', config.selectedDatesheet)
+        .order('exam_date')
+
+      if (error) throw error
+
+      // Get unique dates
+      const uniqueDates = [...new Set(allSchedules.map(s => s.exam_date))].sort()
+
+      // Get classes that have schedules
+      const classesInDatesheet = datesheet.class_ids || []
+      const filteredClasses = classes.filter(c => classesInDatesheet.includes(c.id))
+
+      const doc = new jsPDF('l') // Landscape mode
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Header
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 15, { align: 'center' })
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 22, { align: 'center' })
+      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 27, { align: 'center' })
+
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 37, { align: 'center' })
+
+      // Build table data
+      const tableHead = [
+        ['#', 'Class Name', ...uniqueDates.map(date => {
+          const d = new Date(date)
+          return `${d.getDate().toString().padStart(2, '0')}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`
+        })]
+      ]
+
+      const tableBody = filteredClasses.map((cls, index) => {
+        const row = [
+          (index + 1).toString(),
+          cls.class_name
+        ]
+
+        uniqueDates.forEach(date => {
+          const schedule = allSchedules.find(s => s.class_id === cls.id && s.exam_date === date)
+          if (schedule && schedule.subjects) {
+            row.push(schedule.subjects.subject_name)
+          } else {
+            row.push('-')
+          }
+        })
+
+        return row
+      })
+
+      const tableTop = 45
+
+      autoTable(doc, {
+        startY: tableTop,
+        head: tableHead,
+        body: tableBody,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [25, 49, 83],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 30 }
+        }
+      })
+
+      const finalY = doc.lastAutoTable.finalY + 10
+
+      // Footer
+      const footerY = pageHeight - 15
+      doc.setFontSize(8)
+      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, 20, footerY)
+      doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
+
+      // Save PDF
+      const fileName = `All_Classes_${datesheet.title}_Datesheet.pdf`
+      doc.save(fileName)
+
+      showToast('All classes datesheet generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating all classes datesheet:', error)
+      showToast(`Error generating datesheet: ${error.message}`, 'error')
+    }
+  }
+
+  const handleSingleClassDatesheet = () => {
+    if (!config.selectedDatesheet) {
+      showToast('Please select a datesheet first', 'warning')
+      return
+    }
+    setShowClassSelectionModal(true)
+  }
+
+  const handleAllClassesDatesheet = () => {
+    generateAllClassesDatesheetPDF()
+  }
+
+  const handleGenerateSingleClassPDF = () => {
+    if (!selectedClassForDatesheet) {
+      showToast('Please select a class', 'warning')
+      return
+    }
+    generateSingleClassDatesheetPDF(selectedClassForDatesheet)
+    setShowClassSelectionModal(false)
+    setSelectedClassForDatesheet('')
   }
 
   return (
@@ -393,13 +749,13 @@ export default function DatesheetReportsPage() {
             onChange={(e) => setConfig({ ...config, selectedDatesheet: e.target.value })}
             className="w-full border border-gray-300 rounded px-3 py-2"
           >
-            <option value="">Select an exam</option>
+            <option value="">Select a datesheet</option>
             {datesheets.map(ds => (
-              <option key={ds.id} value={ds.id}>{ds.exam_name}</option>
+              <option key={ds.id} value={ds.id}>{ds.title}</option>
             ))}
           </select>
           {datesheets.length === 0 && (
-            <p className="text-sm text-red-500 mt-1">No exams found for current session</p>
+            <p className="text-sm text-red-500 mt-1">No datesheets found for current session</p>
           )}
         </div>
       </div>
@@ -417,13 +773,25 @@ export default function DatesheetReportsPage() {
           <tbody className="divide-y divide-gray-200">
             <tr className="hover:bg-gray-50">
               <td className="px-4 py-3 text-sm">1</td>
-              <td className="px-4 py-3 text-sm font-medium">Date Sheet</td>
+              <td className="px-4 py-3 text-sm font-medium">Single Class Datesheet</td>
               <td className="px-4 py-3 text-right">
                 <button
-                  onClick={handleViewDateSheet}
+                  onClick={handleSingleClassDatesheet}
                   className="bg-teal-600 text-white px-6 py-1 rounded hover:bg-teal-700"
                 >
-                  View
+                  Generate
+                </button>
+              </td>
+            </tr>
+            <tr className="hover:bg-gray-50">
+              <td className="px-4 py-3 text-sm">2</td>
+              <td className="px-4 py-3 text-sm font-medium">All Classes Datesheet</td>
+              <td className="px-4 py-3 text-right">
+                <button
+                  onClick={handleAllClassesDatesheet}
+                  className="bg-teal-600 text-white px-6 py-1 rounded hover:bg-teal-700"
+                >
+                  Generate
                 </button>
               </td>
             </tr>
@@ -433,7 +801,7 @@ export default function DatesheetReportsPage() {
               </td>
             </tr>
             <tr className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm">2</td>
+              <td className="px-4 py-3 text-sm">3</td>
               <td className="px-4 py-3 text-sm font-medium">Roll No Slips</td>
               <td className="px-4 py-3 text-right">
                 <button
@@ -530,7 +898,7 @@ export default function DatesheetReportsPage() {
                     >
                       <option value="">Select an option</option>
                       {datesheets.map(ds => (
-                        <option key={ds.id} value={ds.id}>{ds.exam_name}</option>
+                        <option key={ds.id} value={ds.id}>{ds.title}</option>
                       ))}
                     </select>
                   </div>
@@ -703,15 +1071,15 @@ export default function DatesheetReportsPage() {
                   S
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">SKOOLZOOM DEMO SOFTWARE</h1>
-                  <p className="text-sm">BLOCK D STREET 29 ISLAMABAD</p>
-                  <p className="text-sm">Ph: 03011016102</p>
+                  <h1 className="text-2xl font-bold">SCHOOL MANAGEMENT SYSTEM</h1>
+                  <p className="text-sm">Your School Address Here</p>
+                  <p className="text-sm">Ph: Your Phone Number</p>
                 </div>
               </div>
             </div>
 
             <h2 className="text-xl font-bold text-center mb-2">EXAM ENTRANCE SLIP</h2>
-            <h3 className="text-lg font-bold text-center mb-6">{selectedDatesheetForSlip.exam_name?.toUpperCase()}</h3>
+            <h3 className="text-lg font-bold text-center mb-6">{selectedDatesheetForSlip.title?.toUpperCase()}</h3>
 
             {/* Student Details */}
             <div className="border-2 border-red-600 rounded p-4 mb-6 relative">
@@ -745,7 +1113,7 @@ export default function DatesheetReportsPage() {
                   <tr className="border-b">
                     <td className="py-2 font-semibold">Session</td>
                     <td className="py-2">
-                      {session?.session_name || '2024-2025'}
+                      {session?.session_name || session?.name || '2024-2025'}
                       <span className="ml-8 font-semibold">Roll#</span> {selectedStudent.roll_number}
                     </td>
                   </tr>
@@ -830,6 +1198,49 @@ export default function DatesheetReportsPage() {
                 className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
               >
                 Print
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Class Selection Modal */}
+      {showClassSelectionModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+            <div className="bg-teal-600 text-white px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold">Select Class</h2>
+              <button onClick={() => setShowClassSelectionModal(false)} className="text-white hover:text-gray-200">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select a Class</label>
+              <select
+                value={selectedClassForDatesheet}
+                onChange={(e) => setSelectedClassForDatesheet(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+              >
+                <option value="">Select a class</option>
+                {classes.map(cls => (
+                  <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowClassSelectionModal(false)}
+                className="px-6 py-2 text-gray-700 hover:text-gray-900"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerateSingleClassPDF}
+                className="bg-teal-600 text-white px-6 py-2 rounded hover:bg-teal-700"
+              >
+                Generate PDF
               </button>
             </div>
           </div>

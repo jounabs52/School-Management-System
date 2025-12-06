@@ -6,10 +6,10 @@ import { X, Plus, Search, Save, AlertCircle, CheckCircle, XCircle, FileText, Pri
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-export default function ExamMarksPage() {
+export default function TestMarksPage() {
   const [currentUser, setCurrentUser] = useState(null)
-  const [datesheets, setDatesheets] = useState([])
-  const [completedDatesheets, setCompletedDatesheets] = useState([])
+  const [tests, setTests] = useState([])
+  const [completedTests, setCompletedTests] = useState([])
   const [classes, setClasses] = useState([])
   const [sections, setSections] = useState([])
   const [students, setStudents] = useState([])
@@ -19,18 +19,17 @@ export default function ExamMarksPage() {
   const [activeTab, setActiveTab] = useState('enter') // 'enter' or 'view'
 
   // Enter Marks States
-  const [selectedDatesheet, setSelectedDatesheet] = useState('')
+  const [selectedTest, setSelectedTest] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSection, setSelectedSection] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('')
-  const [totalMarks, setTotalMarks] = useState(0)
   const [marksData, setMarksData] = useState({})
   const [existingMarks, setExistingMarks] = useState({})
 
   // View Results States
-  const [viewDatesheet, setViewDatesheet] = useState('')
-  const [viewClass, setViewClass] = useState('')
+  const [viewTest, setViewTest] = useState('')
   const [viewSubject, setViewSubject] = useState('')
+  const [viewStudents, setViewStudents] = useState([])
   const [viewMarks, setViewMarks] = useState([])
 
   const showToast = (message, type = 'info') => {
@@ -66,27 +65,15 @@ export default function ExamMarksPage() {
 
   useEffect(() => {
     if (currentUser?.school_id) {
-      fetchDatesheets()
-      fetchCompletedDatesheets()
+      fetchClasses()
+      fetchOpenTests()
+      fetchCompletedTests()
     }
   }, [currentUser])
 
   useEffect(() => {
-    if (selectedDatesheet && currentUser?.school_id) {
-      fetchClassesForDatesheet()
-      setSelectedClass('')
-      setSelectedSection('')
-      setSelectedSubject('')
-    } else {
-      setClasses([])
-      setSelectedClass('')
-    }
-  }, [selectedDatesheet])
-
-  useEffect(() => {
     if (selectedClass && currentUser?.school_id) {
       fetchSections()
-      fetchSubjects()
     } else {
       setSections([])
       setSelectedSection('')
@@ -94,36 +81,24 @@ export default function ExamMarksPage() {
   }, [selectedClass])
 
   useEffect(() => {
-    if (selectedDatesheet && selectedClass && selectedSubject && currentUser?.school_id) {
+    if (selectedTest && selectedClass && selectedSubject && currentUser?.school_id) {
       fetchStudents()
       fetchExistingMarks()
-      fetchTotalMarks()
     } else {
       setStudents([])
       setMarksData({})
     }
-  }, [selectedDatesheet, selectedClass, selectedSection, selectedSubject])
+  }, [selectedTest, selectedClass, selectedSection, selectedSubject])
 
-  // View Results Effects
+  // View Results Effect
   useEffect(() => {
-    if (viewDatesheet && currentUser?.school_id) {
-      fetchClassesForViewDatesheet()
-      setViewClass('')
-      setViewSubject('')
+    if (viewTest && viewSubject && currentUser?.school_id) {
+      fetchTestResults()
     } else {
-      setClasses([])
-      setViewClass('')
-    }
-  }, [viewDatesheet])
-
-  useEffect(() => {
-    if (viewDatesheet && viewClass && viewSubject && currentUser?.school_id) {
-      fetchViewSubjects()
-      fetchExamResults()
-    } else {
+      setViewStudents([])
       setViewMarks([])
     }
-  }, [viewDatesheet, viewClass, viewSubject])
+  }, [viewTest, viewSubject])
 
   const fetchClasses = async () => {
     try {
@@ -138,70 +113,6 @@ export default function ExamMarksPage() {
       setClasses(data || [])
     } catch (error) {
       console.error('Error fetching classes:', error)
-    }
-  }
-
-  const fetchClassesForDatesheet = async () => {
-    try {
-      // Get the exam details to find its class
-      const { data: examData, error: examError } = await supabase
-        .from('exams')
-        .select('class_id')
-        .eq('id', selectedDatesheet)
-        .single()
-
-      if (examError) throw examError
-
-      if (examData?.class_id) {
-        // Fetch the class details
-        const { data, error } = await supabase
-          .from('classes')
-          .select('*')
-          .eq('id', examData.class_id)
-          .eq('school_id', currentUser.school_id)
-          .eq('status', 'active')
-          .order('class_name')
-
-        if (error) throw error
-        setClasses(data || [])
-      } else {
-        setClasses([])
-      }
-    } catch (error) {
-      console.error('Error fetching classes for exam:', error)
-      setClasses([])
-    }
-  }
-
-  const fetchClassesForViewDatesheet = async () => {
-    try {
-      // Get the exam details to find its class
-      const { data: examData, error: examError } = await supabase
-        .from('exams')
-        .select('class_id')
-        .eq('id', viewDatesheet)
-        .single()
-
-      if (examError) throw examError
-
-      if (examData?.class_id) {
-        // Fetch the class details
-        const { data, error } = await supabase
-          .from('classes')
-          .select('*')
-          .eq('id', examData.class_id)
-          .eq('school_id', currentUser.school_id)
-          .eq('status', 'active')
-          .order('class_name')
-
-        if (error) throw error
-        setClasses(data || [])
-      } else {
-        setClasses([])
-      }
-    } catch (error) {
-      console.error('Error fetching classes for view exam:', error)
-      setClasses([])
     }
   }
 
@@ -222,57 +133,65 @@ export default function ExamMarksPage() {
     }
   }
 
-  const fetchDatesheets = async () => {
+  const fetchOpenTests = async () => {
     try {
       const { data, error } = await supabase
-        .from('exams')
-        .select('*')
+        .from('tests')
+        .select(`
+          *,
+          classes (class_name),
+          sections (section_name)
+        `)
         .eq('school_id', currentUser.school_id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
+        .eq('status', 'opened')
+        .order('test_date', { ascending: false })
 
       if (error) throw error
-      setDatesheets(data || [])
+      setTests(data || [])
     } catch (error) {
-      console.error('Error fetching exams:', error)
+      console.error('Error fetching tests:', error)
     }
   }
 
-  const fetchCompletedDatesheets = async () => {
+  const fetchCompletedTests = async () => {
     try {
-      // Fetch exams that have marks entered
+      // Fetch tests that have marks entered
       const { data: marksData, error: marksError } = await supabase
-        .from('exam_marks')
-        .select('exam_id')
+        .from('test_marks')
+        .select('test_id')
         .eq('school_id', currentUser.school_id)
 
       if (marksError) throw marksError
 
-      const examIds = [...new Set(marksData?.map(m => m.exam_id) || [])]
+      const testIds = [...new Set(marksData?.map(m => m.test_id) || [])]
 
-      if (examIds.length === 0) {
-        setCompletedDatesheets([])
+      if (testIds.length === 0) {
+        setCompletedTests([])
         return
       }
 
       const { data, error } = await supabase
-        .from('exams')
-        .select('*')
-        .in('id', examIds)
+        .from('tests')
+        .select(`
+          *,
+          classes (class_name),
+          sections (section_name)
+        `)
+        .in('id', testIds)
         .eq('school_id', currentUser.school_id)
-        .order('created_at', { ascending: false })
+        .order('test_date', { ascending: false })
 
       if (error) throw error
-      setCompletedDatesheets(data || [])
+      setCompletedTests(data || [])
     } catch (error) {
-      console.error('Error fetching completed exams:', error)
+      console.error('Error fetching completed tests:', error)
     }
   }
 
-  const fetchSubjects = async () => {
+  const fetchTestSubjects = async (testId) => {
     try {
       const { data, error } = await supabase
-        .from('class_subjects')
+        .from('test_subjects')
         .select(`
           subject_id,
           subjects (
@@ -281,55 +200,12 @@ export default function ExamMarksPage() {
             subject_code
           )
         `)
-        .eq('school_id', currentUser.school_id)
-        .eq('class_id', selectedClass)
+        .eq('test_id', testId)
 
       if (error) throw error
-      setSubjects(data?.map(cs => cs.subjects) || [])
+      setSubjects(data?.map(ts => ts.subjects) || [])
     } catch (error) {
-      console.error('Error fetching subjects:', error)
-    }
-  }
-
-  const fetchViewSubjects = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('class_subjects')
-        .select(`
-          subject_id,
-          subjects (
-            id,
-            subject_name,
-            subject_code
-          )
-        `)
-        .eq('school_id', currentUser.school_id)
-        .eq('class_id', viewClass)
-
-      if (error) throw error
-      setSubjects(data?.map(cs => cs.subjects) || [])
-    } catch (error) {
-      console.error('Error fetching subjects:', error)
-    }
-  }
-
-  const fetchTotalMarks = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('exams')
-        .select('total_marks')
-        .eq('id', selectedDatesheet)
-        .single()
-
-      if (error) {
-        // If no exam found, default to 100
-        setTotalMarks(100)
-      } else {
-        setTotalMarks(data?.total_marks || 100)
-      }
-    } catch (error) {
-      console.error('Error fetching total marks:', error)
-      setTotalMarks(100)
+      console.error('Error fetching test subjects:', error)
     }
   }
 
@@ -343,13 +219,11 @@ export default function ExamMarksPage() {
         .eq('status', 'active')
         .order('roll_number')
 
-      // Add section filter only if section is selected
       if (selectedSection) {
         query = query.eq('current_section_id', selectedSection)
       }
 
       const { data, error } = await query
-
       if (error) throw error
       setStudents(data || [])
     } catch (error) {
@@ -359,19 +233,11 @@ export default function ExamMarksPage() {
 
   const fetchExistingMarks = async () => {
     try {
-      let query = supabase
-        .from('exam_marks')
+      const { data, error } = await supabase
+        .from('test_marks')
         .select('*')
-        .eq('exam_id', selectedDatesheet)
-        .eq('class_id', selectedClass)
+        .eq('test_id', selectedTest)
         .eq('subject_id', selectedSubject)
-
-      // Add section filter only if section is selected
-      if (selectedSection) {
-        query = query.eq('section_id', selectedSection)
-      }
-
-      const { data, error } = await query
 
       if (error) throw error
 
@@ -379,7 +245,7 @@ export default function ExamMarksPage() {
       data?.forEach(mark => {
         marksMap[mark.student_id] = {
           obtained_marks: mark.obtained_marks,
-          is_absent: mark.obtained_marks === null,
+          is_absent: mark.is_absent,
           remarks: mark.remarks || '',
           id: mark.id
         }
@@ -391,10 +257,12 @@ export default function ExamMarksPage() {
     }
   }
 
-  const fetchExamResults = async () => {
+  const fetchTestResults = async () => {
     try {
+      const test = completedTests.find(t => t.id === viewTest)
+
       const { data: marksData, error: marksError } = await supabase
-        .from('exam_marks')
+        .from('test_marks')
         .select(`
           *,
           students (
@@ -407,17 +275,46 @@ export default function ExamMarksPage() {
             current_section_id
           )
         `)
-        .eq('exam_id', viewDatesheet)
-        .eq('class_id', viewClass)
+        .eq('test_id', viewTest)
         .eq('subject_id', viewSubject)
         .order('students(roll_number)')
 
       if (marksError) throw marksError
 
       setViewMarks(marksData || [])
+      setViewStudents(marksData?.map(m => m.students) || [])
     } catch (error) {
-      console.error('Error fetching exam results:', error)
-      showToast('Failed to fetch exam results', 'error')
+      console.error('Error fetching test results:', error)
+      showToast('Failed to fetch test results', 'error')
+    }
+  }
+
+  const handleTestChange = (testId) => {
+    setSelectedTest(testId)
+    setSelectedSubject('')
+    setSubjects([])
+    setStudents([])
+    setMarksData({})
+
+    if (testId) {
+      const test = tests.find(t => t.id === testId)
+      if (test) {
+        setSelectedClass(test.class_id)
+        setSelectedSection(test.section_id || '')
+        fetchTestSubjects(testId)
+      }
+    }
+  }
+
+  const handleViewTestChange = (testId) => {
+    setViewTest(testId)
+    setViewSubject('')
+    setSubjects([])
+    setViewStudents([])
+    setViewMarks([])
+
+    if (testId) {
+      fetchTestSubjects(testId)
     }
   }
 
@@ -432,18 +329,16 @@ export default function ExamMarksPage() {
   }
 
   const handleSaveMarks = async () => {
-    if (!currentUser || !currentUser.school_id) {
-      showToast('User session not found. Please refresh and try again.', 'error')
-      return
-    }
-
-    if (!selectedDatesheet || !selectedClass || !selectedSubject || students.length === 0) {
-      showToast('Please select exam, class, subject and ensure students are loaded', 'error')
+    if (!selectedTest || !selectedSubject || students.length === 0) {
+      showToast('Please select test, subject and ensure students are loaded', 'error')
       return
     }
 
     setLoading(true)
     try {
+      const test = tests.find(t => t.id === selectedTest)
+      const totalMarks = test?.total_marks || 0
+
       // Validate marks
       for (const studentId in marksData) {
         const marks = marksData[studentId]
@@ -461,39 +356,28 @@ export default function ExamMarksPage() {
         const marks = marksData[student.id] || {}
         return {
           school_id: currentUser.school_id,
-          exam_id: selectedDatesheet,
+          test_id: selectedTest,
           student_id: student.id,
-          class_id: selectedClass,
-          section_id: selectedSection || student.current_section_id,
           subject_id: selectedSubject,
-          total_marks: parseFloat(totalMarks),
-          obtained_marks: marks.is_absent ? null : (marks.obtained_marks ? parseFloat(marks.obtained_marks) : null),
+          obtained_marks: marks.is_absent ? null : (marks.obtained_marks || null),
+          is_absent: marks.is_absent || false,
+          remarks: marks.remarks || null,
           entered_by: currentUser.id,
           entry_date: new Date().toISOString().split('T')[0]
         }
       })
 
-      console.log('Saving marks data:', {
-        count: marksToSave.length,
-        sample: marksToSave[0],
-        school_id: currentUser.school_id,
-        exam_id: selectedDatesheet
-      })
-
       const { error } = await supabase
-        .from('exam_marks')
+        .from('test_marks')
         .upsert(marksToSave, {
-          onConflict: 'school_id,exam_id,student_id,subject_id'
+          onConflict: 'test_id,student_id,subject_id'
         })
 
-      if (error) {
-        console.error('Supabase error details:', error)
-        throw error
-      }
+      if (error) throw error
 
       showToast('Marks saved successfully', 'success')
       fetchExistingMarks()
-      fetchCompletedDatesheets()
+      fetchCompletedTests()
     } catch (error) {
       console.error('Error saving marks:', error)
       showToast('Failed to save marks', 'error')
@@ -503,22 +387,21 @@ export default function ExamMarksPage() {
   }
 
   const generatePDF = () => {
-    if (!viewDatesheet || !viewClass || !viewSubject || viewMarks.length === 0) {
+    if (!viewTest || !viewSubject || viewMarks.length === 0) {
       showToast('No data to generate PDF', 'error')
       return
     }
 
     try {
-      const datesheet = completedDatesheets.find(d => d.id === viewDatesheet)
-      const classData = classes.find(c => c.id === viewClass)
+      const test = completedTests.find(t => t.id === viewTest)
       const subject = subjects.find(s => s.id === viewSubject)
 
-      if (!datesheet || !classData || !subject) {
-        showToast('Exam, class or subject data not found', 'error')
+      if (!test || !subject) {
+        showToast('Test or subject data not found', 'error')
         return
       }
 
-      console.log('Generating PDF for:', { datesheet, classData, subject, marksCount: viewMarks.length })
+      console.log('Generating PDF for:', { test, subject, marksCount: viewMarks.length })
 
       const doc = new jsPDF()
 
@@ -529,33 +412,36 @@ export default function ExamMarksPage() {
       doc.text(schoolName, doc.internal.pageSize.width / 2, 15, { align: 'center' })
 
       doc.setFontSize(14)
-      doc.text('Exam Marks Report', doc.internal.pageSize.width / 2, 25, { align: 'center' })
+      doc.text('Test Marks Report', doc.internal.pageSize.width / 2, 25, { align: 'center' })
 
-      // Exam Details
+      // Test Details
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
+      const testDate = new Date(test.test_date).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
 
-      doc.text(`Exam: ${datesheet.exam_name || 'N/A'}`, 14, 35)
-      doc.text(`Class: ${classData.class_name || 'N/A'}`, 14, 42)
+      doc.text(`Test Name: ${test.test_name || 'N/A'}`, 14, 35)
+      doc.text(`Class: ${test.classes?.class_name || 'N/A'}`, 14, 42)
+      doc.text(`Section: ${test.sections?.section_name || 'All'}`, 14, 49)
       doc.text(`Subject: ${subject.subject_name || 'N/A'}`, 120, 35)
-      doc.text(`Total Students: ${viewMarks.length}`, 120, 42)
+      doc.text(`Test Date: ${testDate}`, 120, 42)
+      doc.text(`Total Marks: ${test.total_marks || 0}`, 120, 49)
 
       // Draw line
       doc.setLineWidth(0.5)
-      doc.line(14, 48, 196, 48)
+      doc.line(14, 54, 196, 54)
 
-      // Get total marks from first record
-      const examTotalMarks = viewMarks[0]?.total_marks || 100
-
-      // Prepare table data with percentage and status
+      // Prepare table data with null checks, percentage, and status
       const tableData = viewMarks.map((mark, index) => {
         const student = mark.students || {}
-        const isAbsent = mark.obtained_marks === null
-        const percentage = isAbsent ? 0 : ((mark.obtained_marks / examTotalMarks) * 100).toFixed(2)
+        const percentage = mark.is_absent ? 0 : ((mark.obtained_marks / test.total_marks) * 100).toFixed(2)
         const isPassing = percentage >= 40
 
         let status = 'Pass'
-        if (isAbsent) {
+        if (mark.is_absent) {
           status = 'Absent'
         } else if (!isPassing) {
           status = 'Fail'
@@ -567,9 +453,9 @@ export default function ExamMarksPage() {
           student.admission_number || 'N/A',
           `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'N/A',
           student.father_name || 'N/A',
-          examTotalMarks.toString(),
-          isAbsent ? 'Absent' : (mark.obtained_marks?.toString() || '0'),
-          isAbsent ? '-' : `${percentage}%`,
+          (test.total_marks || 0).toString(),
+          mark.is_absent ? 'Absent' : (mark.obtained_marks?.toString() || '0'),
+          mark.is_absent ? '-' : `${percentage}%`,
           status
         ]
       })
@@ -578,7 +464,7 @@ export default function ExamMarksPage() {
 
       // Generate table
       autoTable(doc, {
-        startY: 54,
+        startY: 60,
         head: [['Sr.', 'Roll No', 'Adm. No', 'Student Name', 'Father Name', 'Total', 'Obtained', 'Percentage', 'Status']],
         body: tableData,
         theme: 'grid',
@@ -635,9 +521,9 @@ export default function ExamMarksPage() {
       }
 
       // Save PDF with sanitized filename
-      const examTitle = datesheet.exam_name || 'Exam'
+      const testName = test.test_name || 'Test'
       const subjectName = subject.subject_name || 'Subject'
-      const fileName = `${examTitle}_${classData.class_name}_${subjectName}_Marks.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_')
+      const fileName = `${testName}_${subjectName}_Marks.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_')
 
       console.log('Saving PDF as:', fileName)
       doc.save(fileName)
@@ -649,13 +535,8 @@ export default function ExamMarksPage() {
     }
   }
 
-  const selectedDatesheetData = datesheets.find(d => d.id === selectedDatesheet)
-  const selectedClassData = classes.find(c => c.id === selectedClass)
-  const selectedSectionData = sections.find(s => s.id === selectedSection)
-  const selectedSubjectData = subjects.find(s => s.id === selectedSubject)
-
-  const viewDatesheetData = completedDatesheets.find(d => d.id === viewDatesheet)
-  const viewClassData = classes.find(c => c.id === viewClass)
+  const selectedTestData = tests.find(t => t.id === selectedTest)
+  const viewTestData = completedTests.find(t => t.id === viewTest)
   const viewSubjectData = subjects.find(s => s.id === viewSubject)
 
   return (
@@ -683,7 +564,7 @@ export default function ExamMarksPage() {
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Exam Marks Management</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Test Marks Management</h1>
           <div className="flex gap-3">
             <button
               onClick={() => setActiveTab('enter')}
@@ -712,60 +593,43 @@ export default function ExamMarksPage() {
 
         {activeTab === 'enter' && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-4 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Exam <span className="text-red-500">*</span>
+                  Select Test <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={selectedDatesheet}
-                  onChange={(e) => setSelectedDatesheet(e.target.value)}
+                  value={selectedTest}
+                  onChange={(e) => handleTestChange(e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 >
-                  <option value="">Select Exam</option>
-                  {datesheets.map(datesheet => (
-                    <option key={datesheet.id} value={datesheet.id}>
-                      {datesheet.exam_name}
+                  <option value="">Select Test</option>
+                  {tests.map(test => (
+                    <option key={test.id} value={test.id}>
+                      {test.test_name} - {test.classes?.class_name} ({new Date(test.test_date).toLocaleDateString()})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Class <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="">Select Class</option>
-                  {classes.map(cls => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.class_name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
+                <input
+                  type="text"
+                  value={selectedTestData?.classes?.class_name || ''}
+                  disabled
+                  className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100"
+                />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Section <span className="text-gray-400 text-xs">(Optional)</span>
-                </label>
-                <select
-                  value={selectedSection}
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                  disabled={!selectedClass}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="">All Sections</option>
-                  {sections.map(section => (
-                    <option key={section.id} value={section.id}>
-                      {section.section_name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+                <input
+                  type="text"
+                  value={selectedTestData?.sections?.section_name || 'All Sections'}
+                  disabled
+                  className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100"
+                />
               </div>
 
               <div>
@@ -775,7 +639,7 @@ export default function ExamMarksPage() {
                 <select
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value)}
-                  disabled={!selectedClass}
+                  disabled={!selectedTest}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 >
                   <option value="">Select Subject</option>
@@ -788,24 +652,30 @@ export default function ExamMarksPage() {
               </div>
             </div>
 
-            {selectedDatesheet && selectedClass && selectedSection && selectedSubject && (
+            {selectedTestData && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
-                    <span className="font-semibold text-gray-700">Exam:</span>
-                    <span className="ml-2 text-gray-900">{selectedDatesheetData?.exam_name}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-700">Class:</span>
-                    <span className="ml-2 text-gray-900">{selectedClassData?.class_name}</span>
-                  </div>
-                  <div>
                     <span className="font-semibold text-gray-700">Total Marks:</span>
-                    <span className="ml-2 text-gray-900">{totalMarks}</span>
+                    <span className="ml-2 text-gray-900">{selectedTestData.total_marks}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-700">Test Date:</span>
+                    <span className="ml-2 text-gray-900">
+                      {new Date(selectedTestData.test_date).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Students:</span>
                     <span className="ml-2 text-gray-900">{students.length}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-700">Status:</span>
+                    <span className="ml-2 text-green-600 font-medium">{selectedTestData.status}</span>
                   </div>
                 </div>
               </div>
@@ -817,7 +687,6 @@ export default function ExamMarksPage() {
                   <table className="w-full">
                     <thead className="bg-blue-900 text-white sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Admission No</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Student Name</th>
@@ -826,6 +695,7 @@ export default function ExamMarksPage() {
                           Marks Obtained <span className="text-red-300">*</span>
                         </th>
                         <th className="px-4 py-3 text-left text-sm font-semibold w-24">Absent</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold w-48">Remarks</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -833,7 +703,6 @@ export default function ExamMarksPage() {
                         const marks = marksData[student.id] || {}
                         return (
                           <tr key={student.id} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm">{index + 1}</td>
                             <td className="px-4 py-3 text-sm">{student.roll_number || 'N/A'}</td>
                             <td className="px-4 py-3 text-sm">{student.admission_number}</td>
                             <td className="px-4 py-3 text-sm font-medium">
@@ -845,7 +714,7 @@ export default function ExamMarksPage() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                max={totalMarks}
+                                max={selectedTestData?.total_marks || 100}
                                 value={marks.obtained_marks || ''}
                                 onChange={(e) => handleMarksChange(student.id, 'obtained_marks', e.target.value)}
                                 disabled={marks.is_absent}
@@ -859,6 +728,15 @@ export default function ExamMarksPage() {
                                 checked={marks.is_absent || false}
                                 onChange={(e) => handleMarksChange(student.id, 'is_absent', e.target.checked)}
                                 className="w-4 h-4 text-blue-600 rounded"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={marks.remarks || ''}
+                                onChange={(e) => handleMarksChange(student.id, 'remarks', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                placeholder="Optional"
                               />
                             </td>
                           </tr>
@@ -890,17 +768,17 @@ export default function ExamMarksPage() {
               </div>
             )}
 
-            {selectedDatesheet && selectedClass && selectedSubject && students.length === 0 && (
+            {selectedTest && selectedSubject && students.length === 0 && (
               <div className="text-center py-12 text-gray-500">
                 <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No students found for the selected class{selectedSection ? '/section' : ''}</p>
+                <p>No students found for the selected class/section</p>
               </div>
             )}
 
-            {(!selectedDatesheet || !selectedClass || !selectedSubject) && (
+            {(!selectedTest || !selectedSubject) && (
               <div className="text-center py-12 text-gray-500">
                 <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>Please select exam, class, and subject to enter marks</p>
+                <p>Please select a test and subject to enter marks</p>
               </div>
             )}
           </div>
@@ -908,44 +786,20 @@ export default function ExamMarksPage() {
 
         {activeTab === 'view' && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Exam <span className="text-red-500">*</span>
+                  Select Test <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={viewDatesheet}
-                  onChange={(e) => {
-                    setViewDatesheet(e.target.value)
-                    setViewClass('')
-                    setViewSubject('')
-                    setViewMarks([])
-                  }}
+                  value={viewTest}
+                  onChange={(e) => handleViewTestChange(e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 >
-                  <option value="">Select Exam</option>
-                  {completedDatesheets.map(datesheet => (
-                    <option key={datesheet.id} value={datesheet.id}>
-                      {datesheet.exam_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Class <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={viewClass}
-                  onChange={(e) => setViewClass(e.target.value)}
-                  disabled={!viewDatesheet}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="">Select Class</option>
-                  {classes.map(cls => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.class_name}
+                  <option value="">Select Test</option>
+                  {completedTests.map(test => (
+                    <option key={test.id} value={test.id}>
+                      {test.test_name} - {test.classes?.class_name} ({new Date(test.test_date).toLocaleDateString()})
                     </option>
                   ))}
                 </select>
@@ -958,7 +812,7 @@ export default function ExamMarksPage() {
                 <select
                   value={viewSubject}
                   onChange={(e) => setViewSubject(e.target.value)}
-                  disabled={!viewClass}
+                  disabled={!viewTest}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 >
                   <option value="">Select Subject</option>
@@ -973,7 +827,7 @@ export default function ExamMarksPage() {
               <div className="flex items-end">
                 <button
                   onClick={generatePDF}
-                  disabled={!viewDatesheet || !viewClass || !viewSubject || viewMarks.length === 0}
+                  disabled={!viewTest || !viewSubject || viewMarks.length === 0}
                   className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center justify-center gap-2 font-medium"
                 >
                   <Printer className="w-5 h-5" />
@@ -982,20 +836,20 @@ export default function ExamMarksPage() {
               </div>
             </div>
 
-            {viewDatesheet && viewClass && viewSubject && (
+            {viewTestData && viewSubject && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
-                    <span className="font-semibold text-gray-700">Exam:</span>
-                    <span className="ml-2 text-gray-900">{viewDatesheetData?.exam_name}</span>
+                    <span className="font-semibold text-gray-700">Test Name:</span>
+                    <span className="ml-2 text-gray-900">{viewTestData.test_name}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Class:</span>
-                    <span className="ml-2 text-gray-900">{viewClassData?.class_name}</span>
+                    <span className="ml-2 text-gray-900">{viewTestData.classes?.class_name}</span>
                   </div>
                   <div>
-                    <span className="font-semibold text-gray-700">Subject:</span>
-                    <span className="ml-2 text-gray-900">{viewSubjectData?.subject_name}</span>
+                    <span className="font-semibold text-gray-700">Total Marks:</span>
+                    <span className="ml-2 text-gray-900">{viewTestData.total_marks}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Total Students:</span>
@@ -1025,8 +879,7 @@ export default function ExamMarksPage() {
                     <tbody>
                       {viewMarks.map((mark, index) => {
                         const student = mark.students
-                        const isAbsent = mark.obtained_marks === null
-                        const percentage = isAbsent ? 0 : ((mark.obtained_marks / mark.total_marks) * 100).toFixed(2)
+                        const percentage = mark.is_absent ? 0 : ((mark.obtained_marks / viewTestData.total_marks) * 100).toFixed(2)
                         const isPassing = percentage >= 40
 
                         return (
@@ -1038,19 +891,19 @@ export default function ExamMarksPage() {
                               {student.first_name} {student.last_name}
                             </td>
                             <td className="px-4 py-3 text-sm">{student.father_name}</td>
-                            <td className="px-4 py-3 text-sm text-center">{mark.total_marks}</td>
+                            <td className="px-4 py-3 text-sm text-center">{viewTestData.total_marks}</td>
                             <td className="px-4 py-3 text-sm text-center font-medium">
-                              {isAbsent ? (
+                              {mark.is_absent ? (
                                 <span className="text-red-600">Absent</span>
                               ) : (
                                 mark.obtained_marks || 0
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-center">
-                              {isAbsent ? '-' : `${percentage}%`}
+                              {mark.is_absent ? '-' : `${percentage}%`}
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {isAbsent ? (
+                              {mark.is_absent ? (
                                 <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                   Absent
                                 </span>
@@ -1073,17 +926,17 @@ export default function ExamMarksPage() {
               </div>
             )}
 
-            {viewDatesheet && viewClass && viewSubject && viewMarks.length === 0 && (
+            {viewTest && viewSubject && viewMarks.length === 0 && (
               <div className="text-center py-12 text-gray-500">
                 <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No marks found for the selected exam, class, and subject</p>
+                <p>No marks found for the selected test and subject</p>
               </div>
             )}
 
-            {(!viewDatesheet || !viewClass || !viewSubject) && (
+            {(!viewTest || !viewSubject) && (
               <div className="text-center py-12 text-gray-500">
                 <Eye className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>Please select exam, class, and subject to view results</p>
+                <p>Please select a test and subject to view results</p>
               </div>
             )}
           </div>

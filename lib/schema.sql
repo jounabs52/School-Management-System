@@ -420,14 +420,18 @@ CREATE TABLE classes (
     school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL, -- NEW
     class_name VARCHAR(50) NOT NULL,
-    class_numeric INTEGER NOT NULL,
     standard_fee NUMERIC(10,2) DEFAULT 0,  -- NEW COLUMN
+     incharge VARCHAR(100),
+    exam_marking_system VARCHAR(50),
     order_number INTEGER,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(school_id, class_name)
 );
+
+
+
 
 -- Sections Table
 CREATE TABLE sections (
@@ -504,6 +508,35 @@ CREATE TABLE periods (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(school_id, period_number)
 );
+
+
+ALTER TABLE periods DROP COLUMN IF EXISTS day_of_week;
+
+-- Add indexes for better performance (if not already added)
+CREATE INDEX IF NOT EXISTS idx_periods_school ON periods(school_id);
+CREATE INDEX IF NOT EXISTS idx_periods_type ON periods(period_type);
+CREATE INDEX IF NOT EXISTS idx_periods_number ON periods(period_number);
+
+CREATE INDEX IF NOT EXISTS idx_timetable_school ON timetable(school_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_class ON timetable(class_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_section ON timetable(section_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_session ON timetable(session_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_day ON timetable(day_of_week);
+CREATE INDEX IF NOT EXISTS idx_timetable_teacher ON timetable(teacher_id);
+
+
+-- Add class_id and day_of_week columns to periods table
+ALTER TABLE periods 
+ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS day_of_week VARCHAR(20) CHECK (day_of_week IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'));
+
+-- Update the unique constraint to include class and day
+ALTER TABLE periods DROP CONSTRAINT IF EXISTS periods_school_id_period_number_key;
+ALTER TABLE periods ADD CONSTRAINT periods_unique_key UNIQUE(school_id, class_id, day_of_week, period_number);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_periods_class ON periods(class_id);
+CREATE INDEX IF NOT EXISTS idx_periods_day ON periods(day_of_week);
 
 -- Timetable Table
 CREATE TABLE timetable (
@@ -857,6 +890,13 @@ CREATE TABLE vehicles (
     UNIQUE(school_id, vehicle_number) -- UPDATED: Unique per school
 );
 
+-- Add route_id column to vehicles table
+ALTER TABLE vehicles
+ADD COLUMN IF NOT EXISTS route_id UUID REFERENCES routes(id) ON DELETE SET NULL;
+
+-- Create index for better performance
+CREATE INDEX IF NOT EXISTS idx_vehicles_route_id ON vehicles(route_id);
+
 -- Transport Routes Table
 CREATE TABLE transport_routes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -924,6 +964,212 @@ CREATE TABLE vehicle_maintenance (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+
+
+--updated by Naeem
+-- =====================================================
+-- TRANSPORT MODULE SCHEMA FIX
+-- Adding missing tables and fields for transport pages
+-- =====================================================
+
+-- 1. CREATE ROUTES TABLE (if not exists)
+CREATE TABLE IF NOT EXISTS routes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    route_name VARCHAR(255) NOT NULL,
+    fare DECIMAL(10, 2) DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. CREATE STATIONS TABLE (if not exists)
+CREATE TABLE IF NOT EXISTS stations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    route_id UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    station_name VARCHAR(255) NOT NULL,
+    station_order INTEGER,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. CREATE PASSENGERS TABLE (if not exists)
+CREATE TABLE IF NOT EXISTS passengers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('STUDENT', 'STAFF')),
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+    staff_id UUID REFERENCES staff(id) ON DELETE CASCADE,
+    route_id UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    vehicle_id UUID REFERENCES vehicles(id) ON DELETE SET NULL,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT check_passenger_type CHECK (
+        (type = 'STUDENT' AND student_id IS NOT NULL AND staff_id IS NULL) OR
+        (type = 'STAFF' AND staff_id IS NOT NULL AND student_id IS NULL)
+    )
+);
+
+-- 4. ALTER VEHICLES TABLE - Add missing columns (only if they don't exist)
+DO $$
+BEGIN
+    -- Add registration_number if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vehicles' AND column_name = 'registration_number'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN registration_number VARCHAR(50);
+    END IF;
+
+    -- Add seating_capacity if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vehicles' AND column_name = 'seating_capacity'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN seating_capacity INTEGER;
+    END IF;
+
+    -- Add driver_name if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vehicles' AND column_name = 'driver_name'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN driver_name VARCHAR(255);
+    END IF;
+
+    -- Add driver_mobile if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vehicles' AND column_name = 'driver_mobile'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN driver_mobile VARCHAR(20);
+    END IF;
+
+    -- Add route_id if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vehicles' AND column_name = 'route_id'
+    ) THEN
+        ALTER TABLE vehicles ADD COLUMN route_id UUID REFERENCES routes(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- Update unique constraint for vehicles (drop old, add new)
+DO $$
+BEGIN
+    -- Drop old constraint if exists
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'vehicles_school_id_vehicle_number_key'
+    ) THEN
+        ALTER TABLE vehicles DROP CONSTRAINT vehicles_school_id_vehicle_number_key;
+    END IF;
+
+    -- Add new constraint if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'vehicles_school_id_registration_number_key'
+    ) THEN
+        ALTER TABLE vehicles ADD CONSTRAINT vehicles_school_id_registration_number_key
+            UNIQUE(school_id, registration_number);
+    END IF;
+END $$;
+
+-- 5. ALTER STAFF TABLE - Add computer_no (only if it doesn't exist)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'staff' AND column_name = 'computer_no'
+    ) THEN
+        ALTER TABLE staff ADD COLUMN computer_no VARCHAR(50);
+    END IF;
+END $$;
+
+-- Add unique constraint for staff computer_no if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'staff_school_id_computer_no_key'
+    ) THEN
+        ALTER TABLE staff ADD CONSTRAINT staff_school_id_computer_no_key
+            UNIQUE(school_id, computer_no);
+    END IF;
+END $$;
+
+-- 6. CREATE INDEXES (only if they don't exist)
+CREATE INDEX IF NOT EXISTS idx_routes_school_id ON routes(school_id);
+CREATE INDEX IF NOT EXISTS idx_stations_route_id ON stations(route_id);
+CREATE INDEX IF NOT EXISTS idx_stations_school_id ON stations(school_id);
+CREATE INDEX IF NOT EXISTS idx_passengers_school_id ON passengers(school_id);
+CREATE INDEX IF NOT EXISTS idx_passengers_student_id ON passengers(student_id);
+CREATE INDEX IF NOT EXISTS idx_passengers_staff_id ON passengers(staff_id);
+CREATE INDEX IF NOT EXISTS idx_passengers_route_id ON passengers(route_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_route_id ON vehicles(route_id);
+
+-- 7. ADD TRIGGERS for updated_at (only if they don't exist)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'update_routes_updated_at'
+    ) THEN
+        CREATE TRIGGER update_routes_updated_at
+        BEFORE UPDATE ON routes
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'update_stations_updated_at'
+    ) THEN
+        CREATE TRIGGER update_stations_updated_at
+        BEFORE UPDATE ON stations
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'update_passengers_updated_at'
+    ) THEN
+        CREATE TRIGGER update_passengers_updated_at
+        BEFORE UPDATE ON passengers
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'update_vehicles_updated_at'
+    ) THEN
+        CREATE TRIGGER update_vehicles_updated_at
+        BEFORE UPDATE ON vehicles
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
+
+-- =====================================================
+-- COMPLETION MESSAGE
+-- =====================================================
+-- Transport module schema fix completed!
+-- Added:
+-- - routes table
+-- - stations table
+-- - passengers table
+-- - vehicles table fields: registration_number, seating_capacity, driver_name, driver_mobile, route_id
+-- - staff table field: computer_no
+-- - All necessary indexes and triggers
+-- =====================================================
+
+ALTER TABLE vehicles 
+ALTER COLUMN vehicle_number DROP NOT NULL;
 
 -- =====================================================
 -- 12. LIBRARY MODULE
@@ -1250,3 +1496,410 @@ WHERE fc.status IN ('pending', 'overdue');
 -- 3. API middleware to filter by school_id
 -- 4. Subscription management and access control
 -- =====================================================
+
+-- SQL script to create datesheet-related tables in Supabase
+-- Run this in your Supabase SQL Editor
+
+-- Create datesheets table
+CREATE TABLE IF NOT EXISTS datesheets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  school_id UUID NOT NULL,
+  session VARCHAR(50) NOT NULL DEFAULT '2024-2025',
+  title VARCHAR(255) NOT NULL,
+  start_date DATE NOT NULL,
+  default_start_time TIME DEFAULT '11:00',
+  default_end_time TIME DEFAULT '12:30',
+  interval_days INTEGER DEFAULT 2,
+  saturday_off BOOLEAN DEFAULT TRUE,
+  sunday_off BOOLEAN DEFAULT TRUE,
+  exam_center TEXT,
+  class_ids UUID[] NOT NULL DEFAULT '{}',
+  created_by UUID NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create datesheet_schedules table
+CREATE TABLE IF NOT EXISTS datesheet_schedules (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  datesheet_id UUID NOT NULL REFERENCES datesheets(id) ON DELETE CASCADE,
+  school_id UUID NOT NULL,
+  class_id UUID NOT NULL,
+  subject_id UUID,
+  exam_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  room_number VARCHAR(50),
+  created_by UUID NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(datesheet_id, class_id, exam_date)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_datesheets_school_id ON datesheets(school_id);
+CREATE INDEX IF NOT EXISTS idx_datesheets_session ON datesheets(session);
+CREATE INDEX IF NOT EXISTS idx_datesheet_schedules_datesheet_id ON datesheet_schedules(datesheet_id);
+CREATE INDEX IF NOT EXISTS idx_datesheet_schedules_school_id ON datesheet_schedules(school_id);
+CREATE INDEX IF NOT EXISTS idx_datesheet_schedules_class_id ON datesheet_schedules(class_id);
+CREATE INDEX IF NOT EXISTS idx_datesheet_schedules_exam_date ON datesheet_schedules(exam_date);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE datesheets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE datesheet_schedules ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for datesheets (adjust according to your security needs)
+CREATE POLICY "Users can view datesheets from their school"
+  ON datesheets FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can insert datesheets for their school"
+  ON datesheets FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Users can update datesheets from their school"
+  ON datesheets FOR UPDATE
+  USING (true);
+
+CREATE POLICY "Users can delete datesheets from their school"
+  ON datesheets FOR DELETE
+  USING (true);
+
+-- Create RLS policies for datesheet_schedules
+CREATE POLICY "Users can view schedules from their school"
+  ON datesheet_schedules FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can insert schedules for their school"
+  ON datesheet_schedules FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Users can update schedules from their school"
+  ON datesheet_schedules FOR UPDATE
+  USING (true);
+
+CREATE POLICY "Users can delete schedules from their school"
+  ON datesheet_schedules FOR DELETE
+  USING (true);
+
+-- Create updated_at trigger function if it doesn't exist
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add triggers to automatically update updated_at
+CREATE TRIGGER update_datesheets_updated_at
+  BEFORE UPDATE ON datesheets
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_datesheet_schedules_updated_at
+  BEFORE UPDATE ON datesheet_schedules
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Grant permissions (adjust according to your setup)
+-- GRANT ALL ON datesheets TO authenticated;
+-- GRANT ALL ON datesheet_schedules TO authenticated;
+
+
+
+
+-- =====================================================
+-- RECRUITMENT MODULE SCHEMA
+-- Multi-tenant SaaS compatible
+-- =====================================================
+
+-- Departments Table (if not exists)
+CREATE TABLE IF NOT EXISTS departments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    department_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(school_id, department_name)
+);
+
+-- Jobs Table
+CREATE TABLE IF NOT EXISTS jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    salary NUMERIC(12, 2),
+    deadline DATE,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'closed', 'on-hold')),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Job Applications Table
+CREATE TABLE IF NOT EXISTS job_applications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    candidate_name VARCHAR(255) NOT NULL,
+    father_name VARCHAR(255),
+    email VARCHAR(255),
+    mobile_number VARCHAR(20),
+    cnic_number VARCHAR(50),
+    subjects TEXT,
+    experience_level VARCHAR(50),
+    application_date DATE DEFAULT CURRENT_DATE,
+    status VARCHAR(20) DEFAULT 'short-listed' CHECK (status IN ('short-listed', 'qualified', 'schedule', 'hired', 'rejected')),
+    cv_url TEXT,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Job Interviews Table
+CREATE TABLE IF NOT EXISTS job_interviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    application_id UUID NOT NULL REFERENCES job_applications(id) ON DELETE CASCADE,
+    interview_date DATE NOT NULL,
+    interview_time TIME NOT NULL,
+    interview_type VARCHAR(50) CHECK (interview_type IN ('phone', 'video', 'in-person', 'panel')),
+    interviewer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    location VARCHAR(255),
+    notes TEXT,
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'rescheduled')),
+    result VARCHAR(20) CHECK (result IN ('pass', 'fail', 'pending')),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_jobs_school_id ON jobs(school_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_school_job ON job_applications(school_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_job_interviews_school_app ON job_interviews(school_id, application_id);
+CREATE INDEX IF NOT EXISTS idx_departments_school_id ON departments(school_id);
+
+-- Triggers
+CREATE TRIGGER update_jobs_updated_at BEFORE UPDATE ON jobs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_job_applications_updated_at BEFORE UPDATE ON job_applications
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_job_interviews_updated_at BEFORE UPDATE ON job_interviews
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_departments_updated_at BEFORE UPDATE ON departments
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+
+
+-- =====================================================
+-- CREATE GENERATED_REPORTS TABLE
+-- Run this migration in your Supabase SQL Editor
+-- =====================================================
+
+-- Create the generated_reports table if it doesn't exist
+CREATE TABLE IF NOT EXISTS generated_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    report_template_id UUID REFERENCES report_templates(id) ON DELETE SET NULL,
+    generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    report_parameters JSONB,
+    file_url TEXT NOT NULL,
+    generation_date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create index for performance
+CREATE INDEX IF NOT EXISTS idx_generated_reports_school_id ON generated_reports(school_id);
+CREATE INDEX IF NOT EXISTS idx_generated_reports_generated_by ON generated_reports(generated_by);
+CREATE INDEX IF NOT EXISTS idx_generated_reports_generation_date ON generated_reports(generation_date);
+
+-- Create report_templates table if it doesn't exist (required by foreign key)
+CREATE TABLE IF NOT EXISTS report_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    report_name VARCHAR(255) NOT NULL,
+    report_category VARCHAR(50) CHECK (report_category IN ('student', 'staff', 'fee', 'exam', 'attendance', 'other')),
+    description TEXT,
+    template_file TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create index for report_templates
+CREATE INDEX IF NOT EXISTS idx_report_templates_school_id ON report_templates(school_id);
+
+-- Success message
+DO $$
+BEGIN
+    RAISE NOTICE 'Generated reports table and related tables created successfully!';
+END $$;
+
+
+
+-- Now create fresh tables
+CREATE TABLE datesheets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    session VARCHAR(50) NOT NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    start_date DATE NOT NULL,
+    default_start_time TIME DEFAULT '11:00',
+    default_end_time TIME DEFAULT '12:30',
+    interval_days INTEGER DEFAULT 2,
+    saturday_off BOOLEAN DEFAULT true,
+    sunday_off BOOLEAN DEFAULT true,
+    exam_center VARCHAR(255),
+    class_ids UUID[],
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE datesheet_schedules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    datesheet_id UUID NOT NULL REFERENCES datesheets(id) ON DELETE CASCADE,
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    subject_id UUID REFERENCES subjects(id) ON DELETE SET NULL,
+    exam_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    room_number VARCHAR(100),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE datesheet_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    datesheet_id UUID NOT NULL REFERENCES datesheets(id) ON DELETE CASCADE,
+    generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    report_name VARCHAR(255) NOT NULL,
+    report_type VARCHAR(50) NOT NULL,
+    class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
+    gender_filter VARCHAR(20),
+    file_url TEXT,
+    configuration JSONB,
+    status VARCHAR(20) DEFAULT 'generated',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE roll_no_slips (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    datesheet_id UUID NOT NULL REFERENCES datesheets(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    slip_number VARCHAR(100) NOT NULL,
+    slip_type VARCHAR(50) NOT NULL,
+    gender VARCHAR(20),
+    file_url TEXT,
+    configuration JSONB,
+    status VARCHAR(20) DEFAULT 'generated',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(school_id, datesheet_id, student_id, slip_type)
+);
+
+-- Create indexes
+CREATE INDEX idx_datesheets_school_session ON datesheets(school_id, session);
+CREATE INDEX idx_datesheet_schedules_datesheet_id ON datesheet_schedules(datesheet_id);
+CREATE INDEX idx_datesheet_schedules_school_id ON datesheet_schedules(school_id);
+CREATE INDEX idx_datesheet_schedules_class_id ON datesheet_schedules(class_id);
+
+SELECT '✅ SUCCESS! All tables created.' as result;
+
+
+
+-- =====================================================
+-- TESTS MODULE SCHEMA
+-- Create tests table for managing class tests
+-- =====================================================
+
+-- Create tests table
+CREATE TABLE IF NOT EXISTS tests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    test_name VARCHAR(255) NOT NULL,
+    test_date DATE NOT NULL,
+    result_date DATE,
+    class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    section_id UUID REFERENCES sections(id) ON DELETE CASCADE,
+    total_marks NUMERIC(10,2) NOT NULL,
+    details TEXT,
+    status VARCHAR(20) DEFAULT 'opened' CHECK (status IN ('opened', 'closed', 'cancelled')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create test_subjects junction table (many-to-many relationship)
+CREATE TABLE IF NOT EXISTS test_subjects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    test_id UUID NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(test_id, subject_id)
+);
+
+-- Create test_marks table to store student marks for tests
+CREATE TABLE IF NOT EXISTS test_marks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    test_id UUID NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    obtained_marks NUMERIC(10,2),
+    is_absent BOOLEAN DEFAULT false,
+    entered_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    entry_date DATE DEFAULT CURRENT_DATE,
+    remarks TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(test_id, student_id, subject_id)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_tests_school_id ON tests(school_id);
+CREATE INDEX IF NOT EXISTS idx_tests_class_id ON tests(class_id);
+CREATE INDEX IF NOT EXISTS idx_tests_test_date ON tests(test_date);
+CREATE INDEX IF NOT EXISTS idx_tests_status ON tests(status);
+
+CREATE INDEX IF NOT EXISTS idx_test_subjects_test_id ON test_subjects(test_id);
+CREATE INDEX IF NOT EXISTS idx_test_subjects_subject_id ON test_subjects(subject_id);
+CREATE INDEX IF NOT EXISTS idx_test_subjects_school_id ON test_subjects(school_id);
+
+CREATE INDEX IF NOT EXISTS idx_test_marks_test_id ON test_marks(test_id);
+CREATE INDEX IF NOT EXISTS idx_test_marks_student_id ON test_marks(student_id);
+CREATE INDEX IF NOT EXISTS idx_test_marks_school_id ON test_marks(school_id);
+
+-- Create trigger for updated_at
+CREATE TRIGGER update_tests_updated_at
+    BEFORE UPDATE ON tests
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_test_marks_updated_at
+    BEFORE UPDATE ON test_marks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Success message
+DO $$
+BEGIN
+    RAISE NOTICE 'Tests module tables created successfully!';
+END $$;

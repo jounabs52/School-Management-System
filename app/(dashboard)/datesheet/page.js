@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { X, Calendar, Pencil, Trash2, Clock, FileText, AlertCircle } from 'lucide-react'
+import { X, Calendar, Pencil, Trash2, Clock, FileText, AlertCircle, Download, Plus, CheckCircle, XCircle, Briefcase } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { generateDatesheetPDF } from '@/lib/pdfGenerator'
 
 export default function DatesheetPage() {
   const router = useRouter()
-  const [exams, setExams] = useState([])
+  const [datesheets, setDatesheets] = useState([])
   const [classes, setClasses] = useState([])
   const [subjects, setSubjects] = useState([])
   const [students, setStudents] = useState([])
@@ -15,13 +18,10 @@ export default function DatesheetPage() {
   const [currentUser, setCurrentUser] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [session, setSession] = useState(null)
+  const [toasts, setToasts] = useState([])
 
-  // Section State
-  const [activeSection, setActiveSection] = useState('datesheets') // 'datesheets' or 'reports'
-
-  // Notification states (matching payroll design)
-  const [success, setSuccess] = useState(null)
-  const [error, setError] = useState(null)
+  // Section State (now using tabs like HR)
+  const [activeTab, setActiveTab] = useState('datesheets')
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -31,10 +31,8 @@ export default function DatesheetPage() {
 
   // Form States
   const [selectedClasses, setSelectedClasses] = useState([])
-  const [examName, setExamName] = useState('')
-  const [examType, setExamType] = useState('term')
+  const [datesheetTitle, setDatesheetTitle] = useState('') // Changed from examName
   const [examStartDate, setExamStartDate] = useState('')
-  const [examEndDate, setExamEndDate] = useState('')
   const [defaultStartTime, setDefaultStartTime] = useState('11:00')
   const [defaultEndTime, setDefaultEndTime] = useState('12:30')
   const [interval, setInterval] = useState(2)
@@ -42,8 +40,10 @@ export default function DatesheetPage() {
   const [sundayOff, setSundayOff] = useState(true)
   const [examCenter, setExamCenter] = useState('')
 
+  // Removed: examType, examEndDate (not in datesheets table)
+
   // Schedule States
-  const [currentExam, setCurrentExam] = useState(null)
+  const [currentDatesheet, setCurrentDatesheet] = useState(null) // Changed from currentExam
   const [schedules, setSchedules] = useState([])
   const [scheduleDates, setScheduleDates] = useState([])
 
@@ -54,8 +54,8 @@ export default function DatesheetPage() {
   const [editStartTime, setEditStartTime] = useState('')
   const [editEndTime, setEditEndTime] = useState('')
   const [editRoomNumber, setEditRoomNumber] = useState('')
-  const [editTotalMarks, setEditTotalMarks] = useState('100')
-  const [editPassingMarks, setEditPassingMarks] = useState('40')
+  const [classSubjects, setClassSubjects] = useState([]) // Subjects for the selected class
+  // Removed: editTotalMarks, editPassingMarks (not in datesheet_schedules)
 
   // Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState({
@@ -68,6 +68,7 @@ export default function DatesheetPage() {
   // Reports State
   const [selectedExamForReport, setSelectedExamForReport] = useState('')
   const [showReportConfigModal, setShowReportConfigModal] = useState(false)
+  const [showGeneratedSlipsModal, setShowGeneratedSlipsModal] = useState(false)
   const [reportType, setReportType] = useState('') // 'datesheet', 'rollno', 'admit-card'
   const [reportConfig, setReportConfig] = useState({
     selectedClass: 'all',
@@ -75,17 +76,27 @@ export default function DatesheetPage() {
     showRoomNumber: true,
     showExamTime: true,
     showPrincipalSignature: true,
+    selectedStudent: 'all', // New: for individual student selection
   })
+  const [generatedSlips, setGeneratedSlips] = useState([])
+  const [filteredStudents, setFilteredStudents] = useState([])
+  const [studentSearchQuery, setStudentSearchQuery] = useState('')
 
-  // Toast notification function (matching payroll design)
-  const showToast = (message, type = 'success') => {
-    if (type === 'success') {
-      setSuccess(message)
-      setTimeout(() => setSuccess(null), 5000)
-    } else if (type === 'error' || type === 'warning') {
-      setError(message)
-      setTimeout(() => setError(null), 5000)
-    }
+  // Datesheet PDF generation state
+  const [showDatesheetClassModal, setShowDatesheetClassModal] = useState(false)
+  const [selectedClassForDatesheet, setSelectedClassForDatesheet] = useState('')
+
+  // Toast notification function (matching HR design)
+  const showToast = (message, type = 'info') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }, 5000)
+  }
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
   const showConfirmDialog = (title, message, onConfirm) => {
@@ -171,44 +182,44 @@ export default function DatesheetPage() {
   // Fetch data
   useEffect(() => {
     if (currentUser?.school_id) {
-      fetchExams()
+      fetchDatesheets()
       fetchClasses()
       fetchSubjects()
       fetchStudents()
     }
   }, [currentUser, session])
 
-  const fetchExams = async () => {
-    if (!currentUser?.school_id || !session?.id) {
-      console.log('⚠️ fetchExams skipped - missing data:', {
+  const fetchDatesheets = async () => {
+    if (!currentUser?.school_id || !session?.name) {
+      console.log('⚠️ fetchDatesheets skipped - missing data:', {
         school_id: currentUser?.school_id,
-        session_id: session?.id
+        session_name: session?.name
       })
       return
     }
 
-    console.log('📥 Fetching exams with:', {
+    console.log('📥 Fetching datesheets with:', {
       school_id: currentUser.school_id,
-      session_id: session.id
+      session: session.name
     })
 
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('exams')
+        .from('datesheets')
         .select('*')
         .eq('school_id', currentUser.school_id)
-        .eq('session_id', session.id)
+        .eq('session', session.name)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      console.log('✅ Fetched exams:', data)
-      console.log(`Found ${data?.length || 0} exams`)
-      setExams(data || [])
+      console.log('✅ Fetched datesheets:', data)
+      console.log(`Found ${data?.length || 0} datesheets`)
+      setDatesheets(data || [])
     } catch (error) {
-      console.error('❌ Error fetching exams:', error)
-      showToast('Error fetching exams', 'error')
+      console.error('❌ Error fetching datesheets:', error)
+      showToast('Error fetching datesheets', 'error')
     } finally {
       setLoading(false)
     }
@@ -250,6 +261,37 @@ export default function DatesheetPage() {
     }
   }
 
+  const fetchSubjectsForClass = async (classId) => {
+    if (!currentUser?.school_id || !classId) {
+      setClassSubjects([])
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('class_subjects')
+        .select(`
+          subject_id,
+          subjects (
+            id,
+            subject_name,
+            subject_code
+          )
+        `)
+        .eq('school_id', currentUser.school_id)
+        .eq('class_id', classId)
+
+      if (error) throw error
+
+      // Extract subjects from the nested structure
+      const subjectsData = data?.map(item => item.subjects).filter(Boolean) || []
+      setClassSubjects(subjectsData)
+    } catch (error) {
+      console.error('Error fetching class subjects:', error)
+      setClassSubjects([])
+    }
+  }
+
   const fetchStudents = async () => {
     if (!currentUser?.school_id) return
 
@@ -268,18 +310,18 @@ export default function DatesheetPage() {
     }
   }
 
-  const fetchSchedules = async (examId) => {
+  const fetchSchedules = async (datesheetId, classIds = []) => {
     if (!currentUser?.school_id) return
 
     try {
       const { data, error } = await supabase
-        .from('exam_schedules')
+        .from('datesheet_schedules')
         .select(`
           *,
           classes (class_name),
           subjects (subject_name)
         `)
-        .eq('exam_id', examId)
+        .eq('datesheet_id', datesheetId)
         .order('exam_date')
         .order('start_time')
 
@@ -288,7 +330,33 @@ export default function DatesheetPage() {
 
       // Extract unique dates
       const dates = [...new Set(data?.map(s => s.exam_date) || [])]
-      setScheduleDates(dates)
+
+      // Calculate max subjects across all selected classes to limit columns
+      if (classIds.length > 0) {
+        let maxSubjects = 0
+
+        // Fetch subject count for each class
+        for (const classId of classIds) {
+          const { data: classSubjectsData } = await supabase
+            .from('class_subjects')
+            .select('subject_id', { count: 'exact' })
+            .eq('school_id', currentUser.school_id)
+            .eq('class_id', classId)
+
+          if (classSubjectsData && classSubjectsData.length > maxSubjects) {
+            maxSubjects = classSubjectsData.length
+          }
+        }
+
+        // Limit dates to max subjects count, or show all if maxSubjects is 0
+        if (maxSubjects > 0 && dates.length > maxSubjects) {
+          setScheduleDates(dates.slice(0, maxSubjects))
+        } else {
+          setScheduleDates(dates)
+        }
+      } else {
+        setScheduleDates(dates)
+      }
     } catch (error) {
       console.error('Error fetching schedules:', error)
       showToast('Error fetching schedules', 'error')
@@ -336,7 +404,7 @@ export default function DatesheetPage() {
     return dates
   }
 
-  const handleCreateExam = async () => {
+  const handleCreateDatesheet = async () => {
     // Detailed validation with specific error messages
     if (!currentUser?.school_id) {
       console.error('Current user or school_id not found:', currentUser)
@@ -344,7 +412,7 @@ export default function DatesheetPage() {
       return
     }
 
-    if (!session?.id) {
+    if (!session?.name) {
       console.error('Session not loaded:', session)
       showToast('Academic session not found. Please ensure a session is created and marked as current.', 'error')
       return
@@ -355,73 +423,100 @@ export default function DatesheetPage() {
       return
     }
 
-    if (!examName || !examStartDate || !examEndDate) {
+    if (!datesheetTitle || !examStartDate) {
       showToast('Please fill all required fields', 'warning')
       return
     }
 
-    console.log('📝 Creating exam with:', {
+    console.log('📝 Creating datesheet with:', {
       school_id: currentUser.school_id,
-      session_id: session.id,
-      examName,
-      examType,
+      session: session.name,
+      datesheetTitle,
       examStartDate,
-      examEndDate,
       selectedClasses: selectedClasses.length
     })
 
     setLoading(true)
     try {
-      // Create exam
-      const examData = {
+      // Create datesheet
+      const datesheetData = {
         school_id: currentUser.school_id,
-        session_id: session.id,
-        exam_name: examName,
-        exam_type: examType,
+        session: session.name, // String, not UUID
+        title: datesheetTitle,
         start_date: examStartDate,
-        end_date: examEndDate,
-        status: 'scheduled',
+        default_start_time: defaultStartTime,
+        default_end_time: defaultEndTime,
+        interval_days: interval,
+        saturday_off: saturdayOff,
+        sunday_off: sundayOff,
+        exam_center: examCenter,
+        class_ids: selectedClasses, // Array
         created_by: currentUser.id
       }
 
-      console.log('📤 Inserting exam:', examData)
+      console.log('📤 Inserting datesheet:', datesheetData)
 
-      const { data: exam, error: examError } = await supabase
-        .from('exams')
-        .insert(examData)
+      const { data: datesheet, error: datesheetError } = await supabase
+        .from('datesheets')
+        .insert(datesheetData)
         .select()
         .single()
 
-      if (examError) {
-        console.error('❌ Exam creation error:', examError)
-        throw examError
+      if (datesheetError) {
+        console.error('❌ Datesheet creation error:', datesheetError)
+        throw datesheetError
       }
 
-      console.log('✅ Exam created successfully:', exam)
+      console.log('✅ Datesheet created successfully:', datesheet)
 
-      // Generate schedule dates
-      const dates = generateScheduleDates(examStartDate, examEndDate, interval, saturdayOff, sundayOff)
+      // Generate schedule dates (we need an estimated end date for initial schedule creation)
+      // Let's assume 30 days as default duration if user doesn't specify
+      const estimatedEndDate = new Date(examStartDate)
+      estimatedEndDate.setDate(estimatedEndDate.getDate() + 30)
+
+      const dates = generateScheduleDates(examStartDate, estimatedEndDate.toISOString().split('T')[0], interval, saturdayOff, sundayOff)
       console.log(`📅 Generated ${dates.length} schedule dates`)
 
-      // Create initial empty schedules for each class and date
+      // Fetch subjects for each class and auto-assign to dates
       const scheduleRecords = []
-      selectedClasses.forEach(classId => {
-        dates.forEach(date => {
+
+      for (const classId of selectedClasses) {
+        // Get subjects for this class
+        const { data: classSubjectsData, error: subjectsError } = await supabase
+          .from('class_subjects')
+          .select('subject_id')
+          .eq('school_id', currentUser.school_id)
+          .eq('class_id', classId)
+          .order('created_at')
+
+        if (subjectsError) {
+          console.error('Error fetching class subjects:', subjectsError)
+          continue
+        }
+
+        const classSubjectIds = classSubjectsData?.map(cs => cs.subject_id) || []
+        console.log(`📚 Class ${classId} has ${classSubjectIds.length} subjects`)
+
+        // Assign subjects to dates (don't cycle - leave extra dates empty)
+        dates.forEach((date, index) => {
+          // Only assign subject if we have enough subjects, otherwise leave empty
+          const subjectId = index < classSubjectIds.length
+            ? classSubjectIds[index]
+            : null
+
           scheduleRecords.push({
-            exam_id: exam.id,
+            datesheet_id: datesheet.id,
             school_id: currentUser.school_id,
             class_id: classId,
-            subject_id: null,
+            subject_id: subjectId, // Auto-assigned subject or null for empty dates
             exam_date: date.toISOString().split('T')[0],
             start_time: defaultStartTime,
             end_time: defaultEndTime,
             room_number: examCenter,
-            total_marks: 100,
-            passing_marks: 40,
             created_by: currentUser.id
           })
         })
-      })
+      }
 
       console.log(`📋 Creating ${scheduleRecords.length} schedule records for ${selectedClasses.length} classes`)
 
@@ -433,7 +528,7 @@ export default function DatesheetPage() {
           console.log(`📤 Inserting batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(scheduleRecords.length / batchSize)} (${batch.length} records)`)
 
           const { error: scheduleError } = await supabase
-            .from('exam_schedules')
+            .from('datesheet_schedules')
             .insert(batch)
 
           if (scheduleError) {
@@ -444,30 +539,30 @@ export default function DatesheetPage() {
         console.log('✅ All schedules created successfully')
       }
 
-      showToast('Exam datesheet created successfully', 'success')
+      showToast('Datesheet created successfully', 'success')
       setShowCreateModal(false)
       resetForm()
 
-      console.log('🔄 Refreshing exam list...')
-      await fetchExams()
+      console.log('🔄 Refreshing datesheet list...')
+      await fetchDatesheets()
     } catch (error) {
-      console.error('❌ Error creating exam:', error)
-      showToast(`Failed to create exam: ${error.message}`, 'error')
+      console.error('❌ Error creating datesheet:', error)
+      showToast(`Failed to create datesheet: ${error.message}`, 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleDeleteExam = async (id) => {
+  const handleDeleteDatesheet = async (id) => {
     showConfirmDialog(
-      'Delete Exam',
-      'Are you sure you want to delete this exam? This will also delete all associated schedules.',
+      'Delete Datesheet',
+      'Are you sure you want to delete this datesheet? This will also delete all associated schedules.',
       async () => {
-        console.log('🗑️ Deleting exam:', id)
+        console.log('🗑️ Deleting datesheet:', id)
         try {
-          // Delete exam (CASCADE will handle schedules automatically)
+          // Delete datesheet (CASCADE will handle schedules automatically)
           const { error, data } = await supabase
-            .from('exams')
+            .from('datesheets')
             .delete()
             .eq('id', id)
             .select()
@@ -477,79 +572,90 @@ export default function DatesheetPage() {
             throw error
           }
 
-          console.log('✅ Exam deleted successfully:', data)
-          showToast('Exam deleted successfully', 'success')
+          console.log('✅ Datesheet deleted successfully:', data)
+          showToast('Datesheet deleted successfully', 'success')
 
-          console.log('🔄 Refreshing exam list...')
-          await fetchExams()
+          console.log('🔄 Refreshing datesheet list...')
+          await fetchDatesheets()
         } catch (error) {
-          console.error('❌ Error deleting exam:', error)
-          showToast(`Failed to delete exam: ${error.message}`, 'error')
+          console.error('❌ Error deleting datesheet:', error)
+          showToast(`Failed to delete datesheet: ${error.message}`, 'error')
         }
       }
     )
   }
 
-  const handleOpenSchedule = async (exam) => {
-    setCurrentExam(exam)
+  const handleOpenSchedule = async (datesheet) => {
+    setCurrentDatesheet(datesheet)
 
-    // Get all classes that have schedules for this exam
-    const { data: examSchedules } = await supabase
-      .from('exam_schedules')
+    // Get all classes that have schedules for this datesheet
+    const { data: datesheetSchedules } = await supabase
+      .from('datesheet_schedules')
       .select('class_id')
-      .eq('exam_id', exam.id)
+      .eq('datesheet_id', datesheet.id)
 
-    const classIds = [...new Set(examSchedules?.map(s => s.class_id) || [])]
+    const classIds = [...new Set(datesheetSchedules?.map(s => s.class_id) || [])]
     setSelectedClasses(classIds)
 
-    await fetchSchedules(exam.id)
+    await fetchSchedules(datesheet.id, classIds)
     setShowScheduleModal(true)
   }
 
-  const handleOpenEditExam = (exam) => {
-    setCurrentExam(exam)
-    setExamName(exam.exam_name)
-    setExamType(exam.exam_type)
-    setExamStartDate(exam.start_date)
-    setExamEndDate(exam.end_date)
+  const handleOpenEditDatesheet = (datesheet) => {
+    setCurrentDatesheet(datesheet)
+    setDatesheetTitle(datesheet.title)
+    setExamStartDate(datesheet.start_date)
+    setDefaultStartTime(datesheet.default_start_time || '11:00')
+    setDefaultEndTime(datesheet.default_end_time || '12:30')
+    setInterval(datesheet.interval_days || 2)
+    setSaturdayOff(datesheet.saturday_off !== false)
+    setSundayOff(datesheet.sunday_off !== false)
+    setExamCenter(datesheet.exam_center || '')
     setShowEditExamModal(true)
   }
 
-  const handleUpdateExam = async () => {
-    if (!currentExam) return
+  const handleUpdateDatesheet = async () => {
+    if (!currentDatesheet) return
 
     try {
       const { error } = await supabase
-        .from('exams')
+        .from('datesheets')
         .update({
-          exam_name: examName,
-          exam_type: examType,
+          title: datesheetTitle,
           start_date: examStartDate,
-          end_date: examEndDate
+          default_start_time: defaultStartTime,
+          default_end_time: defaultEndTime,
+          interval_days: interval,
+          saturday_off: saturdayOff,
+          sunday_off: sundayOff,
+          exam_center: examCenter
         })
-        .eq('id', currentExam.id)
+        .eq('id', currentDatesheet.id)
 
       if (error) throw error
 
-      showToast('Exam updated successfully', 'success')
+      showToast('Datesheet updated successfully', 'success')
       setShowEditExamModal(false)
       resetForm()
-      fetchExams()
+      fetchDatesheets()
     } catch (error) {
-      console.error('Error updating exam:', error)
-      showToast('Failed to update exam', 'error')
+      console.error('Error updating datesheet:', error)
+      showToast('Failed to update datesheet', 'error')
     }
   }
 
-  const handleEditSchedule = (schedule) => {
+  const handleEditSchedule = async (schedule) => {
     setEditingSchedule(schedule)
     setEditSubject(schedule.subject_id || '')
     setEditDate(schedule.exam_date)
     setEditStartTime(schedule.start_time)
     setEditEndTime(schedule.end_time)
     setEditRoomNumber(schedule.room_number || '')
-    setEditTotalMarks(schedule.total_marks || '100')
-    setEditPassingMarks(schedule.passing_marks || '40')
+    // Removed: total_marks, passing_marks
+
+    // Fetch subjects for this class
+    await fetchSubjectsForClass(schedule.class_id)
+
     setShowEditScheduleModal(true)
   }
 
@@ -558,15 +664,14 @@ export default function DatesheetPage() {
 
     try {
       const { error } = await supabase
-        .from('exam_schedules')
+        .from('datesheet_schedules')
         .update({
           subject_id: editSubject || null,
           exam_date: editDate,
           start_time: editStartTime,
           end_time: editEndTime,
-          room_number: editRoomNumber,
-          total_marks: parseFloat(editTotalMarks),
-          passing_marks: parseFloat(editPassingMarks)
+          room_number: editRoomNumber
+          // Removed: total_marks, passing_marks
         })
         .eq('id', editingSchedule.id)
 
@@ -574,7 +679,7 @@ export default function DatesheetPage() {
 
       showToast('Schedule updated successfully', 'success')
       setShowEditScheduleModal(false)
-      fetchSchedules(currentExam.id)
+      fetchSchedules(currentDatesheet.id, selectedClasses)
     } catch (error) {
       console.error('Error updating schedule:', error)
       showToast('Failed to update schedule', 'error')
@@ -588,14 +693,14 @@ export default function DatesheetPage() {
       async () => {
         try {
           const { error } = await supabase
-            .from('exam_schedules')
+            .from('datesheet_schedules')
             .update({ subject_id: null })
             .eq('id', scheduleId)
 
           if (error) throw error
 
           showToast('Schedule cleared successfully', 'success')
-          fetchSchedules(currentExam.id)
+          fetchSchedules(currentDatesheet.id, selectedClasses)
         } catch (error) {
           console.error('Error deleting schedule:', error)
           showToast('Failed to delete schedule', 'error')
@@ -606,17 +711,15 @@ export default function DatesheetPage() {
 
   const resetForm = () => {
     setSelectedClasses([])
-    setExamName('')
-    setExamType('term')
+    setDatesheetTitle('')
     setExamStartDate('')
-    setExamEndDate('')
     setDefaultStartTime('11:00')
     setDefaultEndTime('12:30')
     setInterval(2)
     setSaturdayOff(true)
     setSundayOff(true)
     setExamCenter('')
-    setCurrentExam(null)
+    setCurrentDatesheet(null)
   }
 
   const getClassName = (classId) => {
@@ -629,157 +732,832 @@ export default function DatesheetPage() {
     return subject?.subject_name || ''
   }
 
-  const filteredExams = exams.filter(exam =>
-    exam.exam_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredDatesheets = datesheets.filter(datesheet =>
+    datesheet.title?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const getScheduleForClassAndDate = (classId, date) => {
     return schedules.find(s => s.class_id === classId && s.exam_date === date)
   }
 
+  // Generate PDF for Roll No Slip or Admit Card
+  const generateRollNoSlipPDF = async (slip) => {
+    try {
+      if (!slip.students) {
+        showToast('Student information not available', 'error')
+        return
+      }
+
+      // Get the datesheet details
+      const datesheet = datesheets.find(d => d.id === slip.datesheet_id)
+      if (!datesheet) {
+        showToast('Datesheet not found', 'error')
+        return
+      }
+
+      // Get exam schedules for this student's class
+      const { data: examSchedules, error } = await supabase
+        .from('datesheet_schedules')
+        .select(`
+          *,
+          subjects (subject_name)
+        `)
+        .eq('datesheet_id', slip.datesheet_id)
+        .eq('class_id', slip.students.current_class_id)
+        .not('subject_id', 'is', null)
+        .order('exam_date')
+
+      if (error) {
+        console.error('Error fetching schedules:', error)
+        showToast('Error fetching exam schedule', 'error')
+        return
+      }
+
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Header - School Name
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text(currentUser?.school_name || 'SCHOOL NAME', pageWidth / 2, 20, { align: 'center' })
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 27, { align: 'center' })
+      doc.text('Ph: 03011016102', pageWidth / 2, 32, { align: 'center' })
+
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('EXAM ENTRANCE SLIP', pageWidth / 2, 45, { align: 'center' })
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 52, { align: 'center' })
+
+      // Student Details Box
+      const leftMargin = 20
+      const boxTop = 60
+      const boxWidth = 120
+
+      // Student Info
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text("Student's Name", leftMargin, boxTop)
+      doc.setFont('helvetica', 'normal')
+      const studentName = slip.students.first_name && slip.students.last_name
+        ? `${slip.students.first_name} ${slip.students.last_name}`
+        : slip.students.first_name || 'N/A'
+      doc.text(studentName, leftMargin + 50, boxTop)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text("Father's Name", leftMargin, boxTop + 7)
+      doc.setFont('helvetica', 'normal')
+      doc.text(slip.students.father_name || 'N/A', leftMargin + 50, boxTop + 7)
+
+      const className = getClassName(slip.students.current_class_id)
+      doc.setFont('helvetica', 'bold')
+      doc.text("Class", leftMargin, boxTop + 14)
+      doc.setFont('helvetica', 'normal')
+      doc.text(className, leftMargin + 50, boxTop + 14)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text("Admit", leftMargin + 90, boxTop + 14)
+      doc.setFont('helvetica', 'normal')
+      doc.text(slip.students.admission_number?.toString() || 'N/A', leftMargin + 110, boxTop + 14)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text("Session", leftMargin, boxTop + 21)
+      doc.setFont('helvetica', 'normal')
+      doc.text(datesheet.session || 'N/A', leftMargin + 50, boxTop + 21)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text("Roll #", leftMargin + 90, boxTop + 21)
+      doc.setFont('helvetica', 'normal')
+      doc.text(slip.students.roll_number?.toString() || 'N/A', leftMargin + 110, boxTop + 21)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text("Exam Center", leftMargin, boxTop + 28)
+      doc.setFont('helvetica', 'normal')
+      doc.text(datesheet.exam_center || 'N/A', leftMargin + 50, boxTop + 28)
+
+      // Exam Schedule Table
+      const tableTop = boxTop + 40
+      const tableData = examSchedules?.map((schedule, index) => [
+        (index + 1).toString(),
+        schedule.subjects?.subject_name || 'N/A',
+        new Date(schedule.exam_date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }),
+        schedule.start_time || 'N/A',
+        schedule.end_time || 'N/A',
+        schedule.room_number || 'N/A'
+      ]) || []
+
+      autoTable(doc, {
+        startY: tableTop,
+        head: [['#', 'Subject', 'Exam Date', 'Start Time', 'End Time', 'Room No']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [25, 49, 83],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 20 }
+        }
+      })
+
+      const finalY = doc.lastAutoTable.finalY + 10
+
+      // Footer
+      const footerY = pageHeight - 20
+      doc.setFontSize(8)
+      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, leftMargin, footerY)
+      doc.text('Controller Examination', pageWidth - 60, footerY)
+
+      // Save PDF
+      const fileStudentName = slip.students.first_name && slip.students.last_name
+        ? `${slip.students.first_name}_${slip.students.last_name}`
+        : slip.students.first_name || 'unknown'
+      const fileName = `${slip.slip_type}_${fileStudentName}_${slip.students.roll_number}.pdf`
+      doc.save(fileName)
+
+      showToast('PDF generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast(`Error generating PDF: ${error.message}`, 'error')
+    }
+  }
+
+  // Fetch generated slips for a datesheet
+  const fetchGeneratedSlips = async (datesheetId, slipType) => {
+    if (!currentUser?.school_id || !datesheetId) return
+
+    try {
+      // First fetch the slips
+      const { data: slipsData, error: slipsError } = await supabase
+        .from('roll_no_slips')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+        .eq('datesheet_id', datesheetId)
+        .eq('slip_type', slipType)
+        .order('created_at', { ascending: false })
+
+      if (slipsError) {
+        console.error('Error fetching slips:', slipsError)
+        throw slipsError
+      }
+
+      if (!slipsData || slipsData.length === 0) {
+        setGeneratedSlips([])
+        return
+      }
+
+      console.log('📄 Fetched slips:', slipsData)
+
+      // Get unique student IDs
+      const studentIds = [...new Set(slipsData.map(slip => slip.student_id).filter(Boolean))]
+      console.log('👥 Student IDs:', studentIds)
+
+      if (studentIds.length === 0) {
+        console.warn('No student IDs found in slips')
+        setGeneratedSlips(slipsData.map(slip => ({ ...slip, students: null })))
+        return
+      }
+
+      // Fetch student details
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('id, first_name, last_name, father_name, admission_number, roll_number, photo_url, current_class_id')
+        .in('id', studentIds)
+
+      if (studentsError) {
+        console.error('Error fetching students:', studentsError)
+        // Continue without student data
+        setGeneratedSlips(slipsData.map(slip => ({ ...slip, students: null })))
+        return
+      }
+
+      console.log('✅ Fetched students:', studentsData)
+
+      // Combine slips with student data
+      const slipsWithStudents = slipsData.map(slip => {
+        const studentData = studentsData?.find(s => s.id === slip.student_id)
+        if (!studentData) {
+          console.warn(`No student found for slip ${slip.id}, student_id: ${slip.student_id}`)
+        }
+        return {
+          ...slip,
+          students: studentData || null
+        }
+      })
+
+      console.log('📋 Final slips with students:', slipsWithStudents)
+      setGeneratedSlips(slipsWithStudents)
+    } catch (error) {
+      console.error('Error fetching generated slips:', error)
+      showToast(`Error fetching slips: ${error.message}`, 'error')
+    }
+  }
+
   // Report handlers
+  const handleViewGeneratedSlips = async (type) => {
+    if (!selectedExamForReport) {
+      showToast('Please select an exam first', 'warning')
+      return
+    }
+
+    const slipType = type === 'admit-card' ? 'admit_card' : 'roll_no_slip'
+    await fetchGeneratedSlips(selectedExamForReport, slipType)
+    setReportType(type)
+    setShowGeneratedSlipsModal(true)
+  }
+
   const handleOpenReportConfig = (type) => {
     if (!selectedExamForReport) {
       showToast('Please select an exam first', 'warning')
       return
     }
     setReportType(type)
+
+    // Filter students based on selected class
+    if (reportConfig.selectedClass !== 'all') {
+      const classStudents = students.filter(s => s.current_class_id === reportConfig.selectedClass)
+      setFilteredStudents(classStudents)
+    } else {
+      setFilteredStudents(students)
+    }
+
     setShowReportConfigModal(true)
   }
 
-  const handleGenerateReport = () => {
-    // TODO: Implement report generation based on reportType
-    showToast(`${reportType} report generated successfully`, 'success')
-    setShowReportConfigModal(false)
+  const handleGenerateReport = async () => {
+    if (!selectedExamForReport || !currentUser?.school_id || !currentUser?.id) {
+      showToast('Missing required information', 'error')
+      return
+    }
+
+    try {
+      // Get the selected datesheet details
+      const selectedDatesheet = datesheets.find(d => d.id === selectedExamForReport)
+      if (!selectedDatesheet) {
+        showToast('Selected datesheet not found', 'error')
+        return
+      }
+
+      let data, error
+
+      // Save to appropriate table based on report type
+      if (reportType === 'datesheet') {
+        // Save to datesheet_reports table
+        const result = await supabase
+          .from('datesheet_reports')
+          .insert({
+            school_id: currentUser.school_id,
+            datesheet_id: selectedExamForReport, // Changed from exam_id
+            report_name: `${selectedDatesheet.title} - Date Sheet`,
+            report_type: 'datesheet',
+            class_id: reportConfig.selectedClass !== 'all' ? reportConfig.selectedClass : null,
+            gender_filter: reportConfig.genderFilter || null,
+            file_url: `/reports/datesheet/${selectedExamForReport}`,
+            configuration: reportConfig,
+            generated_by: currentUser.id,
+            status: 'generated'
+          })
+          .select()
+
+        data = result.data
+        error = result.error
+      } else if (reportType === 'rollno' || reportType === 'admit-card') {
+        // For roll no slips and admit cards, we need to create entries for each student
+        let studentsToProcess = []
+
+        // Check if specific student is selected
+        if (reportConfig.selectedStudent && reportConfig.selectedStudent !== 'all') {
+          const selectedStudent = students.find(s => s.id === reportConfig.selectedStudent)
+          if (selectedStudent) {
+            studentsToProcess = [selectedStudent]
+          }
+        } else {
+          // Get all students based on class filter
+          studentsToProcess = reportConfig.selectedClass !== 'all'
+            ? students.filter(s => s.current_class_id === reportConfig.selectedClass)
+            : students
+        }
+
+        // Filter by gender if specified
+        const filteredStudents = reportConfig.genderFilter && reportConfig.genderFilter !== 'all'
+          ? studentsToProcess.filter(s => s.gender?.toLowerCase() === reportConfig.genderFilter)
+          : studentsToProcess
+
+        if (filteredStudents.length === 0) {
+          showToast('No students found with the selected filters', 'warning')
+          return
+        }
+
+        // Create roll no slips for all students
+        const slips = filteredStudents.map(student => ({
+          school_id: currentUser.school_id,
+          datesheet_id: selectedExamForReport, // Changed from exam_id
+          student_id: student.id,
+          slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
+          slip_type: reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip',
+          gender: student.gender,
+          file_url: `/reports/${reportType}/${selectedExamForReport}/${student.id}`,
+          generated_by: currentUser.id,
+          configuration: reportConfig,
+          status: 'generated'
+        }))
+
+        const result = await supabase
+          .from('roll_no_slips')
+          .insert(slips)
+          .select()
+
+        data = result.data
+        error = result.error
+
+        if (!error) {
+          showToast(`${reportType} generated for ${filteredStudents.length} students and saved successfully`, 'success')
+        }
+      }
+
+      if (error) throw error
+
+      console.log('✅ Report saved to database:', data)
+      if (reportType === 'datesheet') {
+        showToast(`${reportType} report generated and saved successfully`, 'success')
+      }
+      setShowReportConfigModal(false)
+    } catch (error) {
+      console.error('❌ Error saving report:', error)
+      showToast(`Failed to save report: ${error.message}`, 'error')
+    }
+  }
+
+  const handleGeneratePDF = async (datesheet) => {
+    try {
+      setLoading(true)
+
+      // Fetch schedules for this datesheet
+      const { data: schedules, error } = await supabase
+        .from('datesheet_schedules')
+        .select('*')
+        .eq('datesheet_id', datesheet.id)
+        .order('exam_date')
+        .order('start_time')
+
+      if (error) throw error
+
+      if (!schedules || schedules.length === 0) {
+        showToast('No schedules found for this datesheet', 'warning')
+        return
+      }
+
+      // Get school name from current user (you might want to fetch this from schools table)
+      const schoolName = currentUser?.school_name || 'School Name'
+
+      // Generate PDF
+      generateDatesheetPDF(
+        datesheet,
+        schedules,
+        classes,
+        subjects,
+        schoolName
+      )
+
+      showToast('PDF generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast(`Failed to generate PDF: ${error.message}`, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Generate Single Class Datesheet PDF
+  const generateSingleClassDatesheetPDF = async (classId) => {
+    if (!selectedExamForReport || !classId) {
+      showToast('Please select both datesheet and class', 'warning')
+      return
+    }
+
+    try {
+      const datesheet = datesheets.find(d => d.id === selectedExamForReport)
+      if (!datesheet) {
+        showToast('Datesheet not found', 'error')
+        return
+      }
+
+      console.log('📊 Generating single class PDF with:', {
+        datesheet_id: selectedExamForReport,
+        class_id: classId,
+        datesheet_title: datesheet.title
+      })
+
+      // Fetch schedules for this class
+      const { data: classSchedules, error } = await supabase
+        .from('datesheet_schedules')
+        .select(`
+          *,
+          subjects (subject_name, subject_code)
+        `)
+        .eq('datesheet_id', selectedExamForReport)
+        .eq('class_id', classId)
+        .not('subject_id', 'is', null)
+        .order('exam_date')
+
+      if (error) {
+        console.error('❌ Error fetching schedules:', error)
+        throw error
+      }
+
+      console.log('✅ Fetched schedules:', classSchedules)
+      console.log(`📋 Found ${classSchedules?.length || 0} schedules for this class`)
+
+      if (!classSchedules || classSchedules.length === 0) {
+        showToast('No exam schedules found for this class. Please add subjects to the datesheet first.', 'warning')
+        return
+      }
+
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Header
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 20, { align: 'center' })
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 27, { align: 'center' })
+      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 32, { align: 'center' })
+
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('DATE SHEET SCHEDULE', pageWidth / 2, 45, { align: 'center' })
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 52, { align: 'center' })
+
+      // Info Box
+      const leftMargin = 20
+      const boxTop = 60
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Class: ${getClassName(classId)}`, leftMargin, boxTop)
+      doc.text(`Session: ${datesheet.session}`, leftMargin, boxTop + 7)
+      doc.text(`Exam Center: ${datesheet.exam_center || 'skoolzoom demo software, BLOCK D STREET 29 ISLAMABAD'}`, leftMargin, boxTop + 14)
+
+      // Schedule Table
+      const tableTop = boxTop + 25
+      const tableData = classSchedules?.map((schedule, index) => {
+        const date = new Date(schedule.exam_date)
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+        const formattedDate = `${dayNames[date.getDay()]}, ${date.getDate().toString().padStart(2, '0')}-${monthNames[date.getMonth()]}-${date.getFullYear()}`
+
+        return [
+          (index + 1).toString(),
+          schedule.subjects?.subject_name || 'N/A',
+          formattedDate,
+          schedule.start_time || 'N/A',
+          schedule.end_time || 'N/A',
+          schedule.room_number || 'N/A'
+        ]
+      }) || []
+
+      autoTable(doc, {
+        startY: tableTop,
+        head: [['#', 'Subject', 'Exam Date', 'Start Time', 'End Time', 'Room No']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [25, 49, 83],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 20 }
+        }
+      })
+
+      const finalY = doc.lastAutoTable.finalY + 15
+
+      // Footer
+      const footerY = pageHeight - 20
+      doc.setFontSize(8)
+      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, leftMargin, footerY)
+      doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
+
+      // Save PDF
+      const fileName = `${getClassName(classId)}_${datesheet.title}_Datesheet.pdf`
+      doc.save(fileName)
+
+      showToast('Single class datesheet generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating single class datesheet:', error)
+      showToast(`Error generating datesheet: ${error.message}`, 'error')
+    }
+  }
+
+  // Generate All Classes Datesheet PDF
+  const generateAllClassesDatesheetPDF = async () => {
+    if (!selectedExamForReport) {
+      showToast('Please select a datesheet', 'warning')
+      return
+    }
+
+    try {
+      const datesheet = datesheets.find(d => d.id === selectedExamForReport)
+      if (!datesheet) {
+        showToast('Datesheet not found', 'error')
+        return
+      }
+
+      console.log('📊 Generating all classes PDF with:', {
+        datesheet_id: selectedExamForReport,
+        datesheet_title: datesheet.title,
+        class_ids: datesheet.class_ids
+      })
+
+      // Fetch all schedules for this datesheet
+      const { data: allSchedules, error } = await supabase
+        .from('datesheet_schedules')
+        .select(`
+          *,
+          subjects (subject_name, subject_code)
+        `)
+        .eq('datesheet_id', selectedExamForReport)
+        .order('exam_date')
+
+      if (error) {
+        console.error('❌ Error fetching schedules:', error)
+        throw error
+      }
+
+      console.log('✅ Fetched all schedules:', allSchedules)
+      console.log(`📋 Found ${allSchedules?.length || 0} total schedules`)
+
+      if (!allSchedules || allSchedules.length === 0) {
+        showToast('No exam schedules found. Please add subjects to the datesheet first.', 'warning')
+        return
+      }
+
+      // Get unique dates
+      const uniqueDates = [...new Set(allSchedules.map(s => s.exam_date))].sort()
+
+      // Get classes that have schedules
+      const classesInDatesheet = datesheet.class_ids || []
+      const filteredClasses = classes.filter(c => classesInDatesheet.includes(c.id))
+
+      const doc = new jsPDF('l') // Landscape mode
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Header
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 15, { align: 'center' })
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 22, { align: 'center' })
+      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 27, { align: 'center' })
+
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 37, { align: 'center' })
+
+      // Build table data
+      const tableHead = [
+        ['#', 'Class Name', ...uniqueDates.map(date => {
+          const d = new Date(date)
+          return `${d.getDate().toString().padStart(2, '0')}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`
+        })]
+      ]
+
+      const tableBody = filteredClasses.map((cls, index) => {
+        const row = [
+          (index + 1).toString(),
+          cls.class_name
+        ]
+
+        uniqueDates.forEach(date => {
+          const schedule = allSchedules.find(s => s.class_id === cls.id && s.exam_date === date)
+          if (schedule && schedule.subjects) {
+            row.push(schedule.subjects.subject_name)
+          } else {
+            row.push('-')
+          }
+        })
+
+        return row
+      })
+
+      const tableTop = 45
+
+      autoTable(doc, {
+        startY: tableTop,
+        head: tableHead,
+        body: tableBody,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [25, 49, 83],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 30 }
+        }
+      })
+
+      const finalY = doc.lastAutoTable.finalY + 10
+
+      // Footer
+      const footerY = pageHeight - 15
+      doc.setFontSize(8)
+      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, 20, footerY)
+      doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
+
+      // Save PDF
+      const fileName = `All_Classes_${datesheet.title}_Datesheet.pdf`
+      doc.save(fileName)
+
+      showToast('All classes datesheet generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating all classes datesheet:', error)
+      showToast(`Error generating datesheet: ${error.message}`, 'error')
+    }
+  }
+
+  const handleSingleClassDatesheet = () => {
+    if (!selectedExamForReport) {
+      showToast('Please select a datesheet first', 'warning')
+      return
+    }
+    setShowDatesheetClassModal(true)
+  }
+
+  const handleAllClassesDatesheet = () => {
+    generateAllClassesDatesheetPDF()
+  }
+
+  const handleGenerateSingleClassPDF = () => {
+    if (!selectedClassForDatesheet) {
+      showToast('Please select a class', 'warning')
+      return
+    }
+    generateSingleClassDatesheetPDF(selectedClassForDatesheet)
+    setShowDatesheetClassModal(false)
+    setSelectedClassForDatesheet('')
   }
 
   return (
-    <div className="container mx-auto p-6">
-      {/* Success/Error Messages (matching payroll design) */}
-      {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
-
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Exam Datesheets</h1>
-
-      {/* Section Tabs */}
-      <div className="bg-white rounded-lg shadow-md mb-6">
-        <div className="flex border-b">
-          <button
-            onClick={() => setActiveSection('datesheets')}
-            className={`flex-1 px-6 py-4 text-center font-semibold transition-colors ${
-              activeSection === 'datesheets'
-                ? 'bg-blue-500 text-white border-b-4 border-blue-700'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Datesheets Management
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveSection('reports')}
-            className={`flex-1 px-6 py-4 text-center font-semibold transition-colors ${
-              activeSection === 'reports'
-                ? 'bg-blue-500 text-white border-b-4 border-blue-700'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <FileText className="w-5 h-5" />
-              Reports & Slips
-            </div>
-          </button>
+    <div className="p-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-blue-600 rounded-lg">
+            <Calendar className="w-6 h-6 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800">Exam Datesheets</h1>
         </div>
       </div>
 
-      {/* Datesheets Section */}
-      {activeSection === 'datesheets' && (
-        <>
-          <div className="flex justify-end mb-6">
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-gray-200">
+        {['datesheets', 'reports'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-6 py-3 font-medium transition-colors capitalize ${
+              activeTab === tab
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            {tab === 'datesheets' ? 'Datesheets Management' : 'Reports & Slips'}
+          </button>
+        ))}
+      </div>
+
+      {/* DATESHEETS TAB */}
+      {activeTab === 'datesheets' && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2 font-medium"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
             >
-              <Calendar className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               Create New Datesheet
             </button>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search datesheets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-80"
+              />
+            </div>
           </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        {!session && (
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-            <p className="font-semibold">⚠️ No Active Session</p>
-            <p className="text-sm">Please create an academic session and mark it as current before creating datesheets.</p>
+          {!session && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-yellow-400" />
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    <strong>No Active Session:</strong> Please create an academic session and mark it as current before creating datesheets.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-4 text-sm text-gray-600">
+            There are <span className="font-semibold text-blue-600">{filteredDatesheets.length}</span> records for session
+            <span className="font-semibold"> {session?.name || 'Loading...'}</span>
           </div>
-        )}
 
-        <div className="flex items-center gap-4">
-          <input
-            type="text"
-            placeholder="Search exams..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 border border-gray-300 rounded px-4 py-2"
-          />
-          <button className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
-            Search
-          </button>
-        </div>
-        <div className="mt-4 text-sm text-gray-600">
-          There are <span className="font-semibold text-red-600">{filteredExams.length}</span> records for session
-          <span className="font-semibold"> {session?.name || 'Loading...'}</span>
-        </div>
-      </div>
-
-      {/* Exams Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full">
           <thead className="bg-blue-900 text-white">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Exam Name</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Datesheet Title</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Start Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">End Date</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Exam Center</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Options</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {filteredExams.length > 0 ? (
-              filteredExams.map((exam, index) => (
-                <tr key={exam.id} className="hover:bg-gray-50">
+            {filteredDatesheets.length > 0 ? (
+              filteredDatesheets.map((datesheet, index) => (
+                <tr key={datesheet.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm">{index + 1}</td>
-                  <td className="px-4 py-3 text-sm font-medium">{exam.exam_name}</td>
-                  <td className="px-4 py-3 text-sm">{exam.start_date || '-'}</td>
-                  <td className="px-4 py-3 text-sm">{exam.end_date || '-'}</td>
+                  <td className="px-4 py-3 text-sm font-medium">{datesheet.title}</td>
+                  <td className="px-4 py-3 text-sm">{datesheet.start_date || '-'}</td>
+                  <td className="px-4 py-3 text-sm">{datesheet.exam_center || '-'}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleOpenSchedule(exam)}
+                        onClick={() => handleOpenSchedule(datesheet)}
                         className="bg-orange-500 text-white px-4 py-1 rounded text-sm hover:bg-orange-600 flex items-center gap-1"
                       >
                         <Calendar className="w-4 h-4" />
-                        Exam Schedule
+                        Schedule
                       </button>
                       <button
-                        onClick={() => handleOpenEditExam(exam)}
+                        onClick={() => handleGeneratePDF(datesheet)}
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        title="Download PDF"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenEditDatesheet(datesheet)}
                         className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteExam(exam.id)}
-                        className="bg-red-500 text-white p-2 rounded hover:bg-red-600"
+                        onClick={() => handleDeleteDatesheet(datesheet.id)}
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -790,29 +1568,27 @@ export default function DatesheetPage() {
             ) : (
               <tr>
                 <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                  {loading ? 'Loading...' : 'No exams found'}
+                  {loading ? 'Loading...' : 'No datesheets found'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Exam Modal */}
       {showCreateModal && (
         <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={() => { setShowCreateModal(false); resetForm(); }}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
-                <h2 className="text-xl font-bold">Create New Datesheet</h2>
-                <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="text-white hover:text-gray-200">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreateModal(false); resetForm(); }} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-xl font-semibold">Create New Datesheet</h2>
+              <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="hover:bg-blue-800 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             <div className="p-6 space-y-4">
               {/* Class Selection */}
@@ -846,7 +1622,7 @@ export default function DatesheetPage() {
                 </div>
               </div>
 
-              {/* Exam Name */}
+              {/* Datesheet Title */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Datesheet Title <span className="text-red-500">*</span>
@@ -854,31 +1630,16 @@ export default function DatesheetPage() {
                 <input
                   type="text"
                   placeholder="e.g. Mid term exam"
-                  value={examName}
-                  onChange={(e) => setExamName(e.target.value)}
+                  value={datesheetTitle}
+                  onChange={(e) => setDatesheetTitle(e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                {/* Exam Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Type</label>
-                  <select
-                    value={examType}
-                    onChange={(e) => setExamType(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  >
-                    <option value="term">Term</option>
-                    <option value="unit">Unit</option>
-                    <option value="final">Final</option>
-                    <option value="assessment">Assessment</option>
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-2 gap-4">
                 {/* Exam Start Date */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Start Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Start Date <span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     value={examStartDate}
@@ -887,13 +1648,14 @@ export default function DatesheetPage() {
                   />
                 </div>
 
-                {/* Exam End Date */}
+                {/* Exam Center */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam End Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Center / Room</label>
                   <input
-                    type="date"
-                    value={examEndDate}
-                    onChange={(e) => setExamEndDate(e.target.value)}
+                    type="text"
+                    placeholder="Room number or location"
+                    value={examCenter}
+                    onChange={(e) => setExamCenter(e.target.value)}
                     className="w-full border border-gray-300 rounded px-3 py-2"
                   />
                 </div>
@@ -938,7 +1700,7 @@ export default function DatesheetPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {/* Saturday Off */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Saturday Off</label>
@@ -964,51 +1726,40 @@ export default function DatesheetPage() {
                     <option value="no">No</option>
                   </select>
                 </div>
-
-                {/* Exam Center */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Center / Room</label>
-                  <input
-                    type="text"
-                    placeholder="Room number or location"
-                    value={examCenter}
-                    onChange={(e) => setExamCenter(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
+            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => { setShowCreateModal(false); resetForm(); }}
-                className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
               </button>
               <button
-                onClick={handleCreateExam}
+                onClick={handleCreateDatesheet}
                 disabled={loading}
-                className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 disabled:bg-gray-400 flex items-center gap-2"
+                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
-                {loading ? 'Creating...' : 'Create Datesheet'}
+                {loading ? 'Creating...' : 'Save'} <span className="text-xl">→</span>
               </button>
-            </div>
             </div>
           </div>
         </>
       )}
 
       {/* Schedule Modal */}
-      {showScheduleModal && currentExam && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="bg-green-500 text-white px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Update Date Sheet Schedule ({currentExam.exam_name})</h2>
-              <button onClick={() => setShowScheduleModal(false)} className="text-white hover:text-gray-200">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+      {showScheduleModal && currentDatesheet && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowScheduleModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Update Date Sheet Schedule ({currentDatesheet.title})</h2>
+                <button onClick={() => setShowScheduleModal(false)} className="hover:bg-blue-800 p-1 rounded">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
             <div className="flex-1 overflow-auto p-6">
               <div className="overflow-x-auto">
@@ -1078,47 +1829,35 @@ export default function DatesheetPage() {
                 </table>
               </div>
             </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Edit Exam Modal */}
-      {showEditExamModal && currentExam && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl">
-            <div className="bg-green-500 text-white px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Update Date Sheet ({currentExam.exam_name})</h2>
-              <button onClick={() => setShowEditExamModal(false)} className="text-white hover:text-gray-200">
-                <X className="w-6 h-6" />
+      {/* Edit Datesheet Modal */}
+      {showEditExamModal && currentDatesheet && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowEditExamModal(false)} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-xl font-semibold">Update Date Sheet ({currentDatesheet.title})</h2>
+              <button onClick={() => setShowEditExamModal(false)} className="hover:bg-blue-800 p-1 rounded">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Exam Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Datesheet Title</label>
                 <input
                   type="text"
-                  value={examName}
-                  onChange={(e) => setExamName(e.target.value)}
+                  value={datesheetTitle}
+                  onChange={(e) => setDatesheetTitle(e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Type</label>
-                  <select
-                    value={examType}
-                    onChange={(e) => setExamType(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  >
-                    <option value="term">Term</option>
-                    <option value="unit">Unit</option>
-                    <option value="final">Final</option>
-                    <option value="assessment">Assessment</option>
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
                   <input
@@ -1130,43 +1869,85 @@ export default function DatesheetPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Center</label>
                   <input
-                    type="date"
-                    value={examEndDate}
-                    onChange={(e) => setExamEndDate(e.target.value)}
+                    type="text"
+                    value={examCenter}
+                    onChange={(e) => setExamCenter(e.target.value)}
                     className="w-full border border-gray-300 rounded px-3 py-2"
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                  <input
+                    type="time"
+                    value={defaultStartTime}
+                    onChange={(e) => setDefaultStartTime(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                  <input
+                    type="time"
+                    value={defaultEndTime}
+                    onChange={(e) => setDefaultEndTime(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Interval</label>
+                  <select
+                    value={interval}
+                    onChange={(e) => setInterval(parseInt(e.target.value))}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  >
+                    <option value={1}>Every Day</option>
+                    <option value={2}>Every 2nd Day</option>
+                    <option value={3}>Every 3rd Day</option>
+                    <option value={4}>Every 4th Day</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
+            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowEditExamModal(false)}
-                className="px-6 py-2 text-blue-600 hover:text-blue-800"
+                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
               </button>
               <button
-                onClick={handleUpdateExam}
-                className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 flex items-center gap-2"
+                onClick={handleUpdateDatesheet}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
-                <Clock className="w-4 h-4" />
-                Save
+                {loading ? 'Updating...' : 'Save'} <span className="text-xl">→</span>
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Edit Schedule Modal */}
       {showEditScheduleModal && editingSchedule && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-            <div className="bg-blue-600 text-white px-6 py-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold">Edit Schedule</h2>
-              <button onClick={() => setShowEditScheduleModal(false)} className="text-white hover:text-gray-200">
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowEditScheduleModal(false)} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+              <div>
+                <h2 className="text-xl font-semibold">Edit Schedule</h2>
+                <p className="text-sm text-blue-100">
+                  Class: {getClassName(editingSchedule.class_id)}
+                </p>
+              </div>
+              <button onClick={() => setShowEditScheduleModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1180,9 +1961,13 @@ export default function DatesheetPage() {
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 >
                   <option value="">Select Subject</option>
-                  {subjects.map(subject => (
-                    <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
-                  ))}
+                  {classSubjects.length > 0 ? (
+                    classSubjects.map(subject => (
+                      <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No subjects assigned to this class</option>
+                  )}
                 </select>
               </div>
 
@@ -1228,105 +2013,47 @@ export default function DatesheetPage() {
                   placeholder="e.g., Room 101"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Total Marks</label>
-                  <input
-                    type="number"
-                    value={editTotalMarks}
-                    onChange={(e) => setEditTotalMarks(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Passing Marks</label>
-                  <input
-                    type="number"
-                    value={editPassingMarks}
-                    onChange={(e) => setEditPassingMarks(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
-              </div>
             </div>
 
-            <div className="bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
+            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowEditScheduleModal(false)}
-                className="px-6 py-2 text-gray-700 hover:text-gray-900"
+                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateSchedule}
-                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
-                Save
+                {loading ? 'Saving...' : 'Save'} <span className="text-xl">→</span>
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Confirmation Dialog (matching payroll design) */}
-      {confirmDialog.show && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={handleCancel}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">{confirmDialog.title}</h3>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">{confirmDialog.message}</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleCancel}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirm}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition"
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </>
       )}
 
-        </>
-      )}
-
-      {/* Reports Section */}
-      {activeSection === 'reports' && (
+      {/* REPORTS TAB */}
+      {activeTab === 'reports' && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-700 mb-6">Datesheet Reports & Roll No Slips</h2>
 
-          {/* Exam Selection */}
+          {/* Datesheet Selection */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Exam / Datesheet</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Datesheet</label>
             <select
               value={selectedExamForReport}
               onChange={(e) => setSelectedExamForReport(e.target.value)}
               className="w-full md:w-1/2 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">Select an exam</option>
-              {exams.map(exam => (
-                <option key={exam.id} value={exam.id}>{exam.exam_name}</option>
+              <option value="">Select a datesheet</option>
+              {datesheets.map(datesheet => (
+                <option key={datesheet.id} value={datesheet.id}>{datesheet.title}</option>
               ))}
             </select>
-            {exams.length === 0 && (
-              <p className="text-sm text-red-500 mt-1">No exams found for current session</p>
+            {datesheets.length === 0 && (
+              <p className="text-sm text-red-500 mt-1">No datesheets found for current session</p>
             )}
           </div>
 
@@ -1334,22 +2061,39 @@ export default function DatesheetPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-teal-600 text-white">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Sr.</th>
                   <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Report Type</th>
-                  <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Action</th>
+                  <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
+                <tr className="bg-gray-200">
+                  <td colSpan="3" className="border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+                    Date Sheet Reports
+                  </td>
+                </tr>
                 <tr className="hover:bg-gray-50">
                   <td className="border border-gray-300 px-4 py-3">1</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Date Sheet Report</td>
+                  <td className="border border-gray-300 px-4 py-3 font-medium">Single Class Datesheet</td>
                   <td className="border border-gray-300 px-4 py-3 text-center">
                     <button
-                      onClick={() => handleOpenReportConfig('datesheet')}
-                      className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 font-medium transition-colors"
+                      onClick={handleSingleClassDatesheet}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
                     >
-                      View
+                      Generate
+                    </button>
+                  </td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="border border-gray-300 px-4 py-3">2</td>
+                  <td className="border border-gray-300 px-4 py-3 font-medium">All Classes Datesheet</td>
+                  <td className="border border-gray-300 px-4 py-3 text-center">
+                    <button
+                      onClick={handleAllClassesDatesheet}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                    >
+                      Generate
                     </button>
                   </td>
                 </tr>
@@ -1359,27 +2103,23 @@ export default function DatesheetPage() {
                   </td>
                 </tr>
                 <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3">2</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Roll No Slips (All Students)</td>
-                  <td className="border border-gray-300 px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleOpenReportConfig('rollno')}
-                      className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 font-medium transition-colors"
-                    >
-                      Generate
-                    </button>
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
                   <td className="border border-gray-300 px-4 py-3">3</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Admit Cards</td>
+                  <td className="border border-gray-300 px-4 py-3 font-medium">Roll No Slips</td>
                   <td className="border border-gray-300 px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleOpenReportConfig('admit-card')}
-                      className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 font-medium transition-colors"
-                    >
-                      Generate
-                    </button>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => handleViewGeneratedSlips('rollno')}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                      >
+                        View Generated
+                      </button>
+                      <button
+                        onClick={() => handleOpenReportConfig('rollno')}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                      >
+                        Generate New
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -1388,28 +2128,120 @@ export default function DatesheetPage() {
         </div>
       )}
 
-      {/* Report Configuration Modal (matching payroll design) */}
-      {showReportConfigModal && (
+      {/* Generated Slips Modal */}
+      {showGeneratedSlipsModal && (
         <>
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={() => setShowReportConfigModal(false)}
+            onClick={() => setShowGeneratedSlipsModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-xl">
+            <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
                 <h3 className="text-lg font-bold">
-                  Configure {reportType === 'datesheet' ? 'Date Sheet' : reportType === 'rollno' ? 'Roll No Slips' : 'Admit Cards'} Report
+                  Generated {reportType === 'admit-card' ? 'Admit Cards' : 'Roll No Slips'}
                 </h3>
+                <button onClick={() => setShowGeneratedSlipsModal(false)} className="text-white hover:text-gray-200">
+                  <X className="w-6 h-6" />
+                </button>
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                {generatedSlips.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 px-4 py-2 text-left">Sr.</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Student Name</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Father Name</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Roll No</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Slip Number</th>
+                          <th className="border border-gray-300 px-4 py-2 text-left">Generated On</th>
+                          <th className="border border-gray-300 px-4 py-2 text-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {generatedSlips.map((slip, index) => (
+                          <tr key={slip.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 px-4 py-2">{index + 1}</td>
+                            <td className="border border-gray-300 px-4 py-2">
+                              {slip.students?.first_name && slip.students?.last_name
+                                ? `${slip.students.first_name} ${slip.students.last_name}`
+                                : slip.students?.first_name || 'N/A'}
+                            </td>
+                            <td className="border border-gray-300 px-4 py-2">{slip.students?.father_name || 'N/A'}</td>
+                            <td className="border border-gray-300 px-4 py-2">{slip.students?.roll_number || 'N/A'}</td>
+                            <td className="border border-gray-300 px-4 py-2">{slip.slip_number}</td>
+                            <td className="border border-gray-300 px-4 py-2">
+                              {new Date(slip.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="border border-gray-300 px-4 py-2 text-center">
+                              <button
+                                onClick={() => generateRollNoSlipPDF(slip)}
+                                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm flex items-center gap-1 mx-auto"
+                                title="Download PDF"
+                              >
+                                <Download className="w-4 h-4" />
+                                PDF
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No slips generated yet</p>
+                    <p className="text-gray-400 text-sm mt-2">Click "Generate New" to create slips</p>
+                  </div>
+                )}
+              </div>
+              <div className="bg-gray-50 px-6 py-4 flex justify-end">
+                <button
+                  onClick={() => setShowGeneratedSlipsModal(false)}
+                  className="px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Report Configuration Modal (matching payroll design) */}
+      {showReportConfigModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowReportConfigModal(false)} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-xl font-semibold">
+                Generate {reportType === 'datesheet' ? 'Date Sheet' : reportType === 'rollno' ? 'Roll No Slips' : 'Admit Cards'}
+              </h2>
+              <button onClick={() => setShowReportConfigModal(false)} className="hover:bg-blue-800 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
                 <div className="space-y-4">
                   {/* Class Filter */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
                     <select
                       value={reportConfig.selectedClass}
-                      onChange={(e) => setReportConfig({ ...reportConfig, selectedClass: e.target.value })}
+                      onChange={(e) => {
+                        const newConfig = { ...reportConfig, selectedClass: e.target.value }
+                        setReportConfig(newConfig)
+                        // Filter students when class changes
+                        if (e.target.value !== 'all') {
+                          const classStudents = students.filter(s => s.current_class_id === e.target.value)
+                          setFilteredStudents(classStudents)
+                        } else {
+                          setFilteredStudents(students)
+                        }
+                      }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
                       <option value="all">All Classes</option>
@@ -1419,8 +2251,55 @@ export default function DatesheetPage() {
                     </select>
                   </div>
 
+                  {/* Student Selection with Search */}
+                  {(reportType === 'rollno' || reportType === 'admit-card') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Select Student</label>
+                      {/* Search Input */}
+                      <input
+                        type="text"
+                        placeholder="Search student by name or roll number..."
+                        value={studentSearchQuery}
+                        onChange={(e) => setStudentSearchQuery(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
+                      />
+                      {/* Student Dropdown */}
+                      <select
+                        value={reportConfig.selectedStudent}
+                        onChange={(e) => setReportConfig({ ...reportConfig, selectedStudent: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        size="5"
+                      >
+                        <option value="all">All Students</option>
+                        {filteredStudents
+                          .filter(student => {
+                            if (!studentSearchQuery) return true
+                            const searchLower = studentSearchQuery.toLowerCase()
+                            const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
+                            return (
+                              fullName.toLowerCase().includes(searchLower) ||
+                              student.roll_number?.toString().includes(searchLower) ||
+                              student.admission_number?.toString().includes(searchLower)
+                            )
+                          })
+                          .map(student => {
+                            const displayName = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Unnamed'
+                            return (
+                              <option key={student.id} value={student.id}>
+                                {displayName} - Roll: {student.roll_number} - Adm: {student.admission_number}
+                              </option>
+                            )
+                          })}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {filteredStudents.length} students found
+                        {studentSearchQuery && ` (filtered by: "${studentSearchQuery}")`}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Gender Filter */}
-                  {reportType === 'rollno' && (
+                  {(reportType === 'rollno' || reportType === 'admit-card') && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Gender Filter</label>
                       <select
@@ -1470,24 +2349,131 @@ export default function DatesheetPage() {
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+
+            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
+              <button
+                onClick={() => setShowReportConfigModal(false)}
+                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerateReport}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+              >
+                {loading ? 'Generating...' : 'Generate Report'} <span className="text-xl">→</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Class Selection Modal for Datesheet */}
+      {showDatesheetClassModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowDatesheetClassModal(false)} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-xl font-semibold">Select Class</h2>
+              <button onClick={() => setShowDatesheetClassModal(false)} className="hover:bg-blue-800 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select a Class</label>
+                <select
+                  value={selectedClassForDatesheet}
+                  onChange={(e) => setSelectedClassForDatesheet(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">Select a class</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
+              <button
+                onClick={() => setShowDatesheetClassModal(false)}
+                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerateSingleClassPDF}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+              >
+                {loading ? 'Generating...' : 'Generate PDF'} <span className="text-xl">→</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog.show && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancel}>
+            <div
+              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700">{confirmDialog.message}</p>
+              </div>
+              <div className="px-6 pb-6 flex justify-end gap-3">
                 <button
-                  onClick={() => setShowReportConfigModal(false)}
-                  className="px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  onClick={handleCancel}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleGenerateReport}
-                  className="px-6 py-3 bg-green-600 text-white font-semibold hover:bg-green-700 rounded-lg transition"
+                  onClick={handleConfirm}
+                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
                 >
-                  Generate Report
+                  Confirm
                 </button>
               </div>
             </div>
           </div>
         </>
       )}
+
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+              toast.type === 'success' ? 'bg-blue-500' :
+              toast.type === 'error' ? 'bg-blue-600' :
+              toast.type === 'warning' ? 'bg-blue-500' :
+              'bg-blue-500'
+            }`}
+          >
+            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
