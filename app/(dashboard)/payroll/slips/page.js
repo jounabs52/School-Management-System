@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { AlertCircle, Search, Printer, Info, Trash2, Download, Filter } from 'lucide-react'
+import { Search, Printer, Info, Trash2, Filter } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function SalarySlipsPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -13,10 +16,7 @@ export default function SalarySlipsPage() {
   const [searchType, setSearchType] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
-
-  // Notification states
-  const [success, setSuccess] = useState(null)
-  const [error, setError] = useState(null)
+  const [schoolDetails, setSchoolDetails] = useState(null)
 
   // Modal states
   const [selectedPayment, setSelectedPayment] = useState(null)
@@ -24,17 +24,6 @@ export default function SalarySlipsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [paymentToDelete, setPaymentToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
-  const [generating, setGenerating] = useState(false)
-
-  const showToast = (message, type = 'success') => {
-    if (type === 'success') {
-      setSuccess(message)
-      setTimeout(() => setSuccess(null), 5000)
-    } else if (type === 'error' || type === 'warning') {
-      setError(message)
-      setTimeout(() => setError(null), 5000)
-    }
-  }
 
   useEffect(() => {
     const userData = document.cookie
@@ -54,8 +43,24 @@ export default function SalarySlipsPage() {
   useEffect(() => {
     if (currentUser?.school_id) {
       loadSalaryPayments()
+      fetchSchoolDetails()
     }
   }, [currentUser])
+
+  const fetchSchoolDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('school_name, logo')
+        .eq('id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+      setSchoolDetails(data)
+    } catch (error) {
+      console.error('Error fetching school details:', error)
+    }
+  }
 
   useEffect(() => {
     filterPayments()
@@ -102,7 +107,7 @@ export default function SalarySlipsPage() {
       console.log('Salary payments state updated')
     } catch (error) {
       console.error('Error loading salary payments:', error)
-      showToast('Failed to load salary slips', 'error')
+      toast.error('Failed to load salary slips')
     } finally {
       setLoading(false)
     }
@@ -171,149 +176,187 @@ export default function SalarySlipsPage() {
     setShowDetailsModal(true)
   }
 
-  const handleGenerateSlip = async (payment) => {
-    setGenerating(true)
-    try {
-      // Check if slip already exists
-      const { data: existingSlip } = await supabase
-        .from('salary_slips')
-        .select('*')
-        .eq('school_id', currentUser.school_id)
-        .eq('payment_id', payment.id)
-        .single()
-
-      if (existingSlip) {
-        showToast('Salary slip already generated for this payment', 'warning')
-        // You can add logic here to open/download the existing slip
-        return
-      }
-
-      // Generate slip data
-      const slipData = {
-        school_id: currentUser.school_id,
-        staff_id: payment.staff_id,
-        payment_id: payment.id,
-        slip_number: `SLP-${payment.payment_year}-${String(payment.payment_month).padStart(2, '0')}-${payment.staff.employee_number}`,
-        month: payment.payment_month,
-        year: payment.payment_year,
-        generated_by: currentUser.id,
-        generated_date: new Date().toISOString().split('T')[0],
-        // In a real app, you would generate a PDF and store the file_path
-        file_path: null,
-        status: 'generated'
-      }
-
-      const { error } = await supabase
-        .from('salary_slips')
-        .insert(slipData)
-
-      if (error) throw error
-
-      showToast('Salary slip generated successfully!', 'success')
-      // In a real application, you would generate a PDF here and open it
-      await loadSalaryPayments()
-    } catch (error) {
-      console.error('Error generating salary slip:', error)
-      showToast('Failed to generate salary slip', 'error')
-    } finally {
-      setGenerating(false)
+  const handlePrintSlip = async (payment) => {
+    if (!payment) {
+      toast.error('Invalid payment data')
+      return
     }
-  }
 
-  const handlePrintSlip = (payment) => {
-    // Generate a simple print-friendly view
-    const printWindow = window.open('', '_blank')
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      let yPos = 20
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Salary Slip - ${payment.staff?.first_name} ${payment.staff?.last_name}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 40px; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-            .info-section { margin-bottom: 30px; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f5f5f5; }
-            .total-row { background-color: #e8f5e9; font-weight: bold; font-size: 1.1em; }
-            .text-right { text-align: right; }
-            @media print {
-              body { padding: 20px; }
-              button { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>SALARY SLIP</h1>
-            <p>${getMonthName(payment.payment_month)} ${payment.payment_year}</p>
-          </div>
+      // Add school logo if available
+      if (schoolDetails?.logo) {
+        try {
+          // Add logo centered at top
+          const imgWidth = 25
+          const imgHeight = 25
+          const imgX = (pageWidth - imgWidth) / 2
+          pdf.addImage(schoolDetails.logo, 'PNG', imgX, yPos, imgWidth, imgHeight)
+          yPos += 30
+        } catch (error) {
+          console.error('Error adding logo:', error)
+          toast.error('Could not load school logo, generating slip without logo...')
+          yPos += 5
+        }
+      }
 
-          <div class="info-section">
-            <h3>Employee Information</h3>
-            <div class="info-row">
-              <span><strong>Name:</strong> ${payment.staff?.first_name} ${payment.staff?.last_name}</span>
-              <span><strong>Employee No:</strong> ${payment.staff?.employee_number || 'N/A'}</span>
-            </div>
-            <div class="info-row">
-              <span><strong>Designation:</strong> ${payment.staff?.designation || 'N/A'}</span>
-              <span><strong>Department:</strong> ${payment.staff?.department || 'N/A'}</span>
-            </div>
-            <div class="info-row">
-              <span><strong>Payment Date:</strong> ${new Date(payment.payment_date).toLocaleDateString('en-GB')}</span>
-              <span><strong>Payment Method:</strong> ${payment.payment_method?.replace('_', ' ').toUpperCase()}</span>
-            </div>
-          </div>
+      // School Name
+      if (schoolDetails?.school_name) {
+        pdf.setFontSize(20)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(31, 78, 120)
+        pdf.text(schoolDetails.school_name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 10
+      }
 
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th class="text-right">Amount (Rs)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Basic Salary</td>
-                <td class="text-right">${parseFloat(payment.basic_salary || 0).toLocaleString()}</td>
-              </tr>
-              <tr>
-                <td>Total Allowances</td>
-                <td class="text-right">${parseFloat(payment.total_allowances || 0).toLocaleString()}</td>
-              </tr>
-              <tr style="background-color: #e3f2fd;">
-                <td><strong>Gross Salary</strong></td>
-                <td class="text-right"><strong>${parseFloat(payment.gross_salary || 0).toLocaleString()}</strong></td>
-              </tr>
-              <tr>
-                <td>Total Deductions</td>
-                <td class="text-right">${parseFloat(payment.total_deductions || 0).toLocaleString()}</td>
-              </tr>
-              <tr class="total-row">
-                <td>NET SALARY</td>
-                <td class="text-right">Rs ${parseFloat(payment.net_salary || 0).toLocaleString()}</td>
-              </tr>
-            </tbody>
-          </table>
+      // Title
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(0, 0, 0)
+      pdf.text('SALARY SLIP', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
 
-          ${payment.remarks ? `<div style="margin-top: 30px;"><strong>Remarks:</strong> ${payment.remarks}</div>` : ''}
+      // Period
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(100, 100, 100)
+      pdf.text(`${getMonthName(payment.payment_month)} ${payment.payment_year}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 12
 
-          <div style="margin-top: 50px; text-align: center;">
-            <button onclick="window.print()" style="background-color: #2196F3; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
-              Print Slip
-            </button>
-            <button onclick="window.close()" style="background-color: #757575; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-left: 10px;">
-              Close
-            </button>
-          </div>
-        </body>
-      </html>
-    `)
+      // Divider line
+      pdf.setDrawColor(200, 200, 200)
+      pdf.line(15, yPos, pageWidth - 15, yPos)
+      yPos += 10
 
-    printWindow.document.close()
-    showToast('Salary slip opened in new window', 'success')
+      // Employee Information Section
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(31, 78, 120)
+      pdf.text('Employee Information', 15, yPos)
+      yPos += 8
+
+      // Employee details table
+      const employeeData = [
+        ['Name:', `${payment.staff?.first_name || ''} ${payment.staff?.last_name || ''}`.trim() || 'N/A', 'Employee No:', payment.staff?.employee_number || 'N/A'],
+        ['Designation:', payment.staff?.designation || 'N/A', 'Department:', payment.staff?.department || 'N/A'],
+        ['Payment Date:', payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB') : 'N/A', 'Payment Method:', payment.payment_method?.replace('_', ' ').toUpperCase() || 'N/A']
+      ]
+
+      autoTable(pdf, {
+        startY: yPos,
+        body: employeeData,
+        theme: 'plain',
+        styles: {
+          fontSize: 10,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 35, textColor: [80, 80, 80] },
+          1: { cellWidth: 60, textColor: [0, 0, 0] },
+          2: { fontStyle: 'bold', cellWidth: 35, textColor: [80, 80, 80] },
+          3: { cellWidth: 50, textColor: [0, 0, 0] }
+        }
+      })
+
+      yPos = pdf.lastAutoTable.finalY + 12
+
+      // Salary Breakdown Section
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(31, 78, 120)
+      pdf.text('Salary Breakdown', 15, yPos)
+      yPos += 5
+
+      // Salary breakdown table
+      const salaryData = [
+        ['Basic Salary', `Rs ${parseFloat(payment.basic_salary || 0).toLocaleString()}`],
+        ['Total Allowances', `Rs ${parseFloat(payment.total_allowances || 0).toLocaleString()}`],
+        ['Gross Salary', `Rs ${parseFloat(payment.gross_salary || 0).toLocaleString()}`],
+        ['Total Deductions', `Rs ${parseFloat(payment.total_deductions || 0).toLocaleString()}`],
+        ['NET SALARY', `Rs ${parseFloat(payment.net_salary || 0).toLocaleString()}`]
+      ]
+
+      autoTable(pdf, {
+        startY: yPos,
+        head: [['Description', 'Amount']],
+        body: salaryData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [31, 78, 120],
+          textColor: [255, 255, 255],
+          fontSize: 11,
+          fontStyle: 'bold',
+          halign: 'left'
+        },
+        styles: {
+          fontSize: 10,
+          cellPadding: 5
+        },
+        columnStyles: {
+          0: { cellWidth: 130, fontStyle: 'normal' },
+          1: { cellWidth: 50, halign: 'right', fontStyle: 'normal' }
+        },
+        didParseCell: function(data) {
+          // Highlight gross salary row
+          if (data.row.index === 2 && data.section === 'body') {
+            data.cell.styles.fillColor = [227, 242, 253]
+            data.cell.styles.fontStyle = 'bold'
+          }
+          // Highlight net salary row
+          if (data.row.index === 4 && data.section === 'body') {
+            data.cell.styles.fillColor = [232, 245, 233]
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.fontSize = 12
+            data.cell.styles.textColor = [27, 94, 32]
+          }
+          // Color deductions red
+          if (data.row.index === 3 && data.section === 'body' && data.column.index === 1) {
+            data.cell.styles.textColor = [198, 40, 40]
+          }
+          // Color allowances green
+          if (data.row.index === 1 && data.section === 'body' && data.column.index === 1) {
+            data.cell.styles.textColor = [27, 94, 32]
+          }
+        }
+      })
+
+      yPos = pdf.lastAutoTable.finalY + 10
+
+      // Remarks if available
+      if (payment.remarks) {
+        pdf.setFontSize(10)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(80, 80, 80)
+        pdf.text('Remarks:', 15, yPos)
+        yPos += 5
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(0, 0, 0)
+        const remarksLines = pdf.splitTextToSize(payment.remarks, pageWidth - 30)
+        pdf.text(remarksLines, 15, yPos)
+        yPos += remarksLines.length * 5 + 5
+      }
+
+      // Footer
+      const footerY = pageHeight - 20
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'italic')
+      pdf.setTextColor(150, 150, 150)
+      pdf.text('This is a computer-generated salary slip. No signature required.', pageWidth / 2, footerY, { align: 'center' })
+      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, pageWidth / 2, footerY + 5, { align: 'center' })
+
+      // Auto download PDF
+      const fileName = `Salary-Slip-${payment.staff?.first_name || 'Staff'}-${payment.staff?.last_name || ''}-${getMonthName(payment.payment_month)}-${payment.payment_year}.pdf`
+      pdf.save(fileName)
+      toast.success('Salary slip downloaded successfully!')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      const errorMessage = error.message || 'Unknown error occurred'
+      toast.error(`Failed to generate salary slip: ${errorMessage}`)
+    }
   }
 
   const confirmDelete = (payment) => {
@@ -340,13 +383,13 @@ export default function SalarySlipsPage() {
 
       if (error) throw error
 
-      showToast('Payment record deleted successfully', 'success')
+      toast.success('Payment record deleted successfully')
       setShowDeleteModal(false)
       setPaymentToDelete(null)
       await loadSalaryPayments()
     } catch (error) {
       console.error('Error deleting payment:', error)
-      showToast('Failed to delete payment record', 'error')
+      toast.error('Failed to delete payment record')
     } finally {
       setDeleting(false)
     }
@@ -364,18 +407,30 @@ export default function SalarySlipsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
 
       {/* Header */}
       <div className="mb-6">
@@ -487,7 +542,6 @@ export default function SalarySlipsPage() {
               <tbody>
                 {filteredPayments.map((payment, index) => {
                   const balance = calculateBalance(payment)
-                  const isPaid = payment.status === 'paid'
 
                   return (
                     <tr key={payment.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -552,16 +606,6 @@ export default function SalarySlipsPage() {
                           >
                             <Printer size={20} />
                           </button>
-                          {isPaid && (
-                            <button
-                              onClick={() => handleGenerateSlip(payment)}
-                              disabled={generating}
-                              className="text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
-                              title="Generate Slip"
-                            >
-                              <Download size={20} />
-                            </button>
-                          )}
                           <button
                             onClick={() => confirmDelete(payment)}
                             className="text-red-600 hover:text-red-800 transition-colors"
@@ -692,12 +736,6 @@ export default function SalarySlipsPage() {
                 </div>
               </div>
               <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-                <button
-                  onClick={() => handlePrintSlip(selectedPayment)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Print Slip
-                </button>
                 <button
                   onClick={() => setShowDetailsModal(false)}
                   className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"

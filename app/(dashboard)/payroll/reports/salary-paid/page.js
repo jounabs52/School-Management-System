@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { AlertCircle, Printer, Download, Filter, ArrowLeft } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function SalaryPaidReport() {
   const router = useRouter()
@@ -15,20 +18,7 @@ export default function SalaryPaidReport() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [statusFilter, setStatusFilter] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
-
-  // Notification states
-  const [success, setSuccess] = useState(null)
-  const [error, setError] = useState(null)
-
-  const showToast = (message, type = 'success') => {
-    if (type === 'success') {
-      setSuccess(message)
-      setTimeout(() => setSuccess(null), 5000)
-    } else if (type === 'error' || type === 'warning') {
-      setError(message)
-      setTimeout(() => setError(null), 5000)
-    }
-  }
+  const [schoolDetails, setSchoolDetails] = useState(null)
 
   useEffect(() => {
     const userData = document.cookie
@@ -48,8 +38,24 @@ export default function SalaryPaidReport() {
   useEffect(() => {
     if (currentUser?.school_id) {
       loadSalaryPayments()
+      fetchSchoolDetails()
     }
   }, [currentUser])
+
+  const fetchSchoolDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('school_name, logo')
+        .eq('id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+      setSchoolDetails(data)
+    } catch (error) {
+      console.error('Error fetching school details:', error)
+    }
+  }
 
   useEffect(() => {
     filterPayments()
@@ -87,7 +93,7 @@ export default function SalaryPaidReport() {
       setSalaryPayments(data || [])
     } catch (error) {
       console.error('Error loading salary payments:', error)
-      showToast('Failed to load salary payment report', 'error')
+      toast.error('Failed to load salary payment report')
     } finally {
       setLoading(false)
     }
@@ -119,12 +125,198 @@ export default function SalaryPaidReport() {
     return filteredPayments.reduce((sum, payment) => sum + parseFloat(payment.net_salary || 0), 0)
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    if (filteredPayments.length === 0) {
+      toast.error('No data to print')
+      return
+    }
+
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      let yPos = 20
+
+      // Add school logo if available
+      if (schoolDetails?.logo) {
+        try {
+          const imgWidth = 20
+          const imgHeight = 20
+          const imgX = (pageWidth - imgWidth) / 2
+          pdf.addImage(schoolDetails.logo, 'PNG', imgX, yPos, imgWidth, imgHeight)
+          yPos += 25
+        } catch (error) {
+          console.error('Error adding logo:', error)
+          yPos += 5
+        }
+      }
+
+      // School Name
+      if (schoolDetails?.school_name) {
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(31, 78, 120)
+        pdf.text(schoolDetails.school_name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 8
+      }
+
+      // Title
+      pdf.setFontSize(16)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(0, 0, 0)
+      pdf.text('Salary Payment Report', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 6
+
+      // Report period
+      pdf.setFontSize(11)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(100, 100, 100)
+      let subtitle = `Report for ${getMonthName(selectedMonth)} ${selectedYear}`
+      if (statusFilter !== 'all') {
+        subtitle += ` - Status: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`
+      }
+      pdf.text(subtitle, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
+
+      // Prepare table data
+      const tableData = filteredPayments.map((payment, index) => [
+        index + 1,
+        `${payment.staff?.first_name} ${payment.staff?.last_name}`,
+        payment.staff?.employee_number || 'N/A',
+        `Salary ${payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : 'Partial'} for ${getMonthName(payment.payment_month)} ${payment.payment_year}`,
+        parseFloat(payment.net_salary || 0).toLocaleString(),
+        new Date(payment.payment_date).toLocaleDateString('en-GB')
+      ])
+
+      // Add grand total row
+      const grandTotal = calculateGrandTotal()
+      const totals = [
+        '',
+        '',
+        '',
+        'Grand Total',
+        grandTotal.toLocaleString(),
+        '---'
+      ]
+
+      autoTable(pdf, {
+        startY: yPos,
+        head: [['#', 'Staff Name', 'Emp#', 'Narration', 'Amount Paid', 'Date']],
+        body: [...tableData, totals],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [220, 38, 38],
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        styles: {
+          fontSize: 9,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 45 },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 50 },
+          4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+          5: { cellWidth: 25, halign: 'center' }
+        },
+        didParseCell: function(data) {
+          // Highlight totals row
+          if (data.row.index === tableData.length && data.section === 'body') {
+            data.cell.styles.fillColor = [254, 202, 202]
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.textColor = [153, 27, 27]
+          }
+        }
+      })
+
+      // Footer
+      const finalY = pdf.lastAutoTable.finalY + 10
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'italic')
+      pdf.setTextColor(150, 150, 150)
+      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, pageWidth / 2, finalY, { align: 'center' })
+
+      // Download PDF
+      const fileName = `Salary-Payment-Report-${getMonthName(selectedMonth)}-${selectedYear}.pdf`
+      pdf.save(fileName)
+      toast.success('Salary payment report downloaded successfully!')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast.error('Failed to generate PDF: ' + error.message)
+    }
   }
 
   const handleExport = () => {
-    showToast('Export functionality coming soon!', 'success')
+    if (filteredPayments.length === 0) {
+      toast.error('No data to export')
+      return
+    }
+
+    try {
+      // Prepare CSV content with proper escaping
+      const escapeCSV = (value) => {
+        if (value === null || value === undefined) return ''
+        const stringValue = String(value)
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+          return `"${stringValue.replace(/"/g, '""')}"`
+        }
+        return stringValue
+      }
+
+      const headers = ['#', 'Staff Name', 'Employee No', 'Narration', 'Amount Paid', 'Date', 'Status', 'Payment Method']
+
+      const rows = filteredPayments.map((payment, index) => [
+        index + 1,
+        `${payment.staff?.first_name || ''} ${payment.staff?.last_name || ''}`.trim(),
+        payment.staff?.employee_number || 'N/A',
+        `Salary ${payment.status} for ${getMonthName(payment.payment_month)} ${payment.payment_year}`,
+        parseFloat(payment.net_salary || 0),
+        new Date(payment.payment_date).toLocaleDateString('en-GB'),
+        payment.status,
+        payment.payment_method || 'N/A'
+      ])
+
+      // Add grand total row
+      const grandTotal = calculateGrandTotal()
+      const totals = [
+        '',
+        '',
+        '',
+        'Grand Total',
+        grandTotal,
+        '---',
+        '---',
+        '---'
+      ]
+
+      // Create CSV string
+      let csvContent = headers.map(escapeCSV).join(',') + '\n'
+      rows.forEach(row => {
+        csvContent += row.map(escapeCSV).join(',') + '\n'
+      })
+      csvContent += totals.map(escapeCSV).join(',') + '\n'
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `Salary-Payment-Report-${getMonthName(selectedMonth)}-${selectedYear}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success('Salary payment report exported successfully!')
+    } catch (error) {
+      console.error('Error exporting data:', error)
+      toast.error('Failed to export data')
+    }
   }
 
   if (!currentUser) {
@@ -133,18 +325,30 @@ export default function SalaryPaidReport() {
 
   return (
     <div className="container mx-auto p-6">
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative print:hidden">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2 print:hidden">
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
 
       {/* Header */}
       <div className="mb-6 print:mb-4">

@@ -9,7 +9,8 @@
       "Bash(npm run build:*)",
       "Bash(if exist .next rmdir /s /q .next)",
       "Bash(npm install)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

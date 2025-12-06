@@ -667,7 +667,7 @@ export default function DatesheetPage() {
         .from('datesheet_schedules')
         .update({
           subject_id: editSubject || null,
-          exam_date: editDate,
+          exam_date: editDate || null,
           start_time: editStartTime,
           end_time: editEndTime,
           room_number: editRoomNumber

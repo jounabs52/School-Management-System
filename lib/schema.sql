@@ -1903,3 +1903,231 @@ DO $$
 BEGIN
     RAISE NOTICE 'Tests module tables created successfully!';
 END $$;
+
+
+
+
+
+-- =====================================================
+-- FRONT DESK MODULE SCHEMA UPDATE
+-- This script updates the existing Front Desk tables and removes duplicates
+-- Run this in your Supabase SQL Editor
+-- =====================================================
+
+-- =====================================================
+-- STEP 1: DROP DUPLICATE TABLES AT THE BOTTOM
+-- =====================================================
+
+-- Drop the duplicate tables that were defined at the bottom of schema.sql
+-- These are at lines 1912-1992
+DROP TABLE IF EXISTS visitors CASCADE;
+DROP TABLE IF EXISTS contacts CASCADE;
+DROP TABLE IF EXISTS contact_groups CASCADE;
+DROP TABLE IF EXISTS admission_inquiries CASCADE;
+DROP TABLE IF EXISTS people_directory CASCADE;
+
+-- =====================================================
+-- STEP 2: CREATE UPDATED FRONT DESK TABLES
+-- Following SaaS multi-tenant patterns
+-- =====================================================
+
+-- Contact Groups Table (NEW - doesn't exist in old schema)
+CREATE TABLE contact_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    group_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(school_id, group_name)
+);
+
+-- Contacts Table (NEW - doesn't exist in old schema)
+CREATE TABLE contacts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    group_id UUID NOT NULL REFERENCES contact_groups(id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    company VARCHAR(200),
+    mobile VARCHAR(20) NOT NULL,
+    whatsapp VARCHAR(20),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Visitors Table (UPDATED - replaces old definition)
+CREATE TABLE visitors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    visitor_name VARCHAR(255) NOT NULL,
+    visitor_mobile VARCHAR(20) NOT NULL,
+    destination VARCHAR(200) NOT NULL,
+    time_in TIME NOT NULL,
+    time_out TIME,
+    visit_details TEXT,
+    visit_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Admission Inquiries Table (UPDATED - replaces old definition)
+CREATE TABLE admission_inquiries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    session_id UUID REFERENCES sessions(id) ON DELETE SET NULL,
+    class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
+    inquiry_no VARCHAR(50) NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    email VARCHAR(200),
+    address TEXT,
+    gender VARCHAR(20) CHECK (gender IN ('male', 'female', 'other')),
+    date_of_birth DATE,
+    father_name VARCHAR(255),
+    father_mobile VARCHAR(20),
+    father_cnic VARCHAR(50),
+    father_qualification VARCHAR(100),
+    father_profession VARCHAR(100),
+    mother_name VARCHAR(255),
+    mother_mobile VARCHAR(20),
+    mother_cnic VARCHAR(50),
+    mother_qualification VARCHAR(100),
+    mother_profession VARCHAR(100),
+    blood_group VARCHAR(10),
+    region VARCHAR(100),
+    current_address TEXT,
+    previous_school VARCHAR(255),
+    inquiry_source VARCHAR(100),
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    follow_up_date DATE,
+    note TEXT,
+    reference VARCHAR(200),
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'visited', 'admitted', 'rejected')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(school_id, inquiry_no)
+);
+
+-- =====================================================
+-- STEP 3: CREATE INDEXES
+-- =====================================================
+
+-- Contact Groups indexes
+CREATE INDEX idx_contact_groups_school_id ON contact_groups(school_id);
+
+-- Contacts indexes
+CREATE INDEX idx_contacts_school_id ON contacts(school_id);
+CREATE INDEX idx_contacts_group_id ON contacts(group_id);
+CREATE INDEX idx_contacts_mobile ON contacts(mobile);
+
+-- Visitors indexes
+CREATE INDEX idx_visitors_school_id ON visitors(school_id);
+CREATE INDEX idx_visitors_visit_date ON visitors(visit_date);
+CREATE INDEX idx_visitors_mobile ON visitors(visitor_mobile);
+
+-- Admission Inquiries indexes
+CREATE INDEX idx_admission_inquiries_school_id ON admission_inquiries(school_id);
+CREATE INDEX idx_admission_inquiries_inquiry_no ON admission_inquiries(inquiry_no);
+CREATE INDEX idx_admission_inquiries_phone ON admission_inquiries(phone);
+CREATE INDEX idx_admission_inquiries_date ON admission_inquiries(date);
+CREATE INDEX idx_admission_inquiries_status ON admission_inquiries(status);
+CREATE INDEX idx_admission_inquiries_class_id ON admission_inquiries(class_id);
+CREATE INDEX idx_admission_inquiries_session_id ON admission_inquiries(session_id);
+
+-- =====================================================
+-- STEP 4: CREATE TRIGGERS FOR UPDATED_AT
+-- =====================================================
+
+-- Contact Groups trigger
+CREATE TRIGGER update_contact_groups_updated_at
+    BEFORE UPDATE ON contact_groups
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Contacts trigger
+CREATE TRIGGER update_contacts_updated_at
+    BEFORE UPDATE ON contacts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Visitors trigger
+CREATE TRIGGER update_visitors_updated_at
+    BEFORE UPDATE ON visitors
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Admission Inquiries trigger
+CREATE TRIGGER update_admission_inquiries_updated_at
+    BEFORE UPDATE ON admission_inquiries
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- STEP 5: ENABLE ROW LEVEL SECURITY (RLS)
+-- =====================================================
+
+ALTER TABLE contact_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE visitors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admission_inquiries ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- STEP 6: CREATE RLS POLICIES
+-- =====================================================
+
+-- Contact Groups policies
+CREATE POLICY "contact_groups_select_policy" ON contact_groups FOR SELECT USING (true);
+CREATE POLICY "contact_groups_insert_policy" ON contact_groups FOR INSERT WITH CHECK (true);
+CREATE POLICY "contact_groups_update_policy" ON contact_groups FOR UPDATE USING (true);
+CREATE POLICY "contact_groups_delete_policy" ON contact_groups FOR DELETE USING (true);
+
+-- Contacts policies
+CREATE POLICY "contacts_select_policy" ON contacts FOR SELECT USING (true);
+CREATE POLICY "contacts_insert_policy" ON contacts FOR INSERT WITH CHECK (true);
+CREATE POLICY "contacts_update_policy" ON contacts FOR UPDATE USING (true);
+CREATE POLICY "contacts_delete_policy" ON contacts FOR DELETE USING (true);
+
+-- Visitors policies
+CREATE POLICY "visitors_select_policy" ON visitors FOR SELECT USING (true);
+CREATE POLICY "visitors_insert_policy" ON visitors FOR INSERT WITH CHECK (true);
+CREATE POLICY "visitors_update_policy" ON visitors FOR UPDATE USING (true);
+CREATE POLICY "visitors_delete_policy" ON visitors FOR DELETE USING (true);
+
+-- Admission Inquiries policies
+CREATE POLICY "admission_inquiries_select_policy" ON admission_inquiries FOR SELECT USING (true);
+CREATE POLICY "admission_inquiries_insert_policy" ON admission_inquiries FOR INSERT WITH CHECK (true);
+CREATE POLICY "admission_inquiries_update_policy" ON admission_inquiries FOR UPDATE USING (true);
+CREATE POLICY "admission_inquiries_delete_policy" ON admission_inquiries FOR DELETE USING (true);
+
+-- =====================================================
+-- COMPLETION MESSAGE
+-- =====================================================
+DO $$
+BEGIN
+    RAISE NOTICE '✅ Front Desk Module Schema Updated Successfully!';
+    RAISE NOTICE '';
+    RAISE NOTICE 'Actions performed:';
+    RAISE NOTICE '  1. ✓ Removed duplicate table definitions';
+    RAISE NOTICE '  2. ✓ Created contact_groups table (new)';
+    RAISE NOTICE '  3. ✓ Created contacts table (new)';
+    RAISE NOTICE '  4. ✓ Updated visitors table (visitor_name, visitor_mobile, destination, time_in, time_out, visit_details)';
+    RAISE NOTICE '  5. ✓ Updated admission_inquiries table with complete fields';
+    RAISE NOTICE '';
+    RAISE NOTICE 'All tables follow SaaS multi-tenant patterns:';
+    RAISE NOTICE '  ✓ school_id with CASCADE delete';
+    RAISE NOTICE '  ✓ created_by user tracking';
+    RAISE NOTICE '  ✓ created_at and updated_at timestamps';
+    RAISE NOTICE '  ✓ Proper indexes for performance';
+    RAISE NOTICE '  ✓ RLS enabled with policies';
+    RAISE NOTICE '  ✓ Automatic updated_at triggers';
+    RAISE NOTICE '';
+    RAISE NOTICE 'Front Desk Tables Ready:';
+    RAISE NOTICE '  - contact_groups (group management)';
+    RAISE NOTICE '  - contacts (contact directory with groups)';
+    RAISE NOTICE '  - visitors (visitor log tracking)';
+    RAISE NOTICE '  - admission_inquiries (admission inquiry management)';
+END $$;

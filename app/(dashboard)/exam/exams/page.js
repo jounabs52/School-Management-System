@@ -462,13 +462,14 @@ export default function ExamsPage() {
           school_id: currentUser.school_id,
           session_id: currentSession.id,
           exam_name: examName,
-          exam_date: examDate,
-          result_date: resultDate,
+          start_date: examDate,
+          end_date: examDate,
+          result_declaration_date: resultDate || null,
           class_id: selectedClass,
           section_id: selectedSection || null,
           total_marks: parseInt(totalMarks),
-          details: details,
-          status: 'active',
+          details: details || null,
+          status: 'scheduled',
           created_by: currentUser.id
         }
 
@@ -492,13 +493,14 @@ export default function ExamsPage() {
           school_id: currentUser.school_id,
           session_id: currentSession.id,
           exam_name: examName,
-          exam_date: examDate,
-          result_date: resultDate,
+          start_date: examDate,
+          end_date: examDate,
+          result_declaration_date: resultDate || null,
           class_id: selectedClass,
           section_id: selectedSection || null,
           total_marks: parseInt(totalMarks),
-          details: details,
-          status: 'active',
+          details: details || null,
+          status: 'scheduled',
           created_by: currentUser.id
         }
 
@@ -543,7 +545,13 @@ export default function ExamsPage() {
       setShowModal(false)
     } catch (error) {
       console.error('Error saving exam:', error)
-      showToast('Failed to save exam', 'error')
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      showToast(`Failed to save exam: ${error.message || 'Unknown error'}`, 'error')
     } finally {
       setLoading(false)
     }
@@ -553,8 +561,8 @@ export default function ExamsPage() {
     setEditMode(true)
     setCurrentExamId(exam.id)
     setExamName(exam.exam_name)
-    setExamDate(exam.exam_date)
-    setResultDate(exam.result_date || '')
+    setExamDate(exam.start_date)
+    setResultDate(exam.result_declaration_date || '')
     setSelectedClass(exam.class_id)
     setSelectedSection(exam.section_id || '')
     setTotalMarks(exam.total_marks?.toString() || '')
@@ -810,8 +818,8 @@ export default function ExamsPage() {
                           <td className="px-4 py-3 text-sm max-w-xs truncate">{exam.subjects}</td>
                           <td className="px-4 py-3 text-sm">{exam.total_marks || 'N/A'}</td>
                           <td className="px-4 py-3 text-sm">
-                            {exam.exam_date
-                              ? new Date(exam.exam_date).toLocaleDateString('en-GB', {
+                            {exam.start_date
+                              ? new Date(exam.start_date).toLocaleDateString('en-GB', {
                                   day: '2-digit',
                                   month: 'short',
                                   year: 'numeric'
@@ -820,8 +828,8 @@ export default function ExamsPage() {
                             }
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            {exam.result_date
-                              ? new Date(exam.result_date).toLocaleDateString('en-GB', {
+                            {exam.result_declaration_date
+                              ? new Date(exam.result_declaration_date).toLocaleDateString('en-GB', {
                                   day: '2-digit',
                                   month: 'short',
                                   year: 'numeric'
@@ -835,13 +843,17 @@ export default function ExamsPage() {
                               onChange={(e) => handleStatusChange(exam.id, e.target.value)}
                               disabled={loading}
                               className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${
-                                exam.status === 'opened' ? 'bg-green-100 text-green-800' :
-                                exam.status === 'closed' ? 'bg-red-100 text-red-800' :
+                                exam.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                                exam.status === 'ongoing' ? 'bg-green-100 text-green-800' :
+                                exam.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                                exam.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}
                             >
-                              <option value="opened">opened</option>
-                              <option value="closed">closed</option>
+                              <option value="scheduled">Scheduled</option>
+                              <option value="ongoing">Ongoing</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
                             </select>
                           </td>
                           <td className="px-4 py-3 text-sm">

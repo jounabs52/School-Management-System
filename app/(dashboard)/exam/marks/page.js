@@ -16,7 +16,7 @@ export default function ExamMarksPage() {
   const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(false)
   const [toasts, setToasts] = useState([])
-  const [activeTab, setActiveTab] = useState('enter') // 'enter' or 'view'
+  const [activeTab, setActiveTab] = useState('enter') // 'enter', 'view', or 'result'
 
   // Enter Marks States
   const [selectedDatesheet, setSelectedDatesheet] = useState('')
@@ -32,6 +32,13 @@ export default function ExamMarksPage() {
   const [viewClass, setViewClass] = useState('')
   const [viewSubject, setViewSubject] = useState('')
   const [viewMarks, setViewMarks] = useState([])
+
+  // Result Card States
+  const [resultExam, setResultExam] = useState('')
+  const [resultClass, setResultClass] = useState('')
+  const [resultStudent, setResultStudent] = useState('')
+  const [resultStudents, setResultStudents] = useState([])
+  const [resultCardData, setResultCardData] = useState(null)
 
   const showToast = (message, type = 'info') => {
     const id = Date.now()
@@ -84,14 +91,16 @@ export default function ExamMarksPage() {
   }, [selectedDatesheet])
 
   useEffect(() => {
-    if (selectedClass && currentUser?.school_id) {
+    if (selectedDatesheet && selectedClass && currentUser?.school_id) {
       fetchSections()
       fetchSubjects()
     } else {
       setSections([])
+      setSubjects([])
       setSelectedSection('')
+      setSelectedSubject('')
     }
-  }, [selectedClass])
+  }, [selectedDatesheet, selectedClass])
 
   useEffect(() => {
     if (selectedDatesheet && selectedClass && selectedSubject && currentUser?.school_id) {
@@ -117,13 +126,48 @@ export default function ExamMarksPage() {
   }, [viewDatesheet])
 
   useEffect(() => {
-    if (viewDatesheet && viewClass && viewSubject && currentUser?.school_id) {
+    if (viewDatesheet && viewClass && currentUser?.school_id) {
       fetchViewSubjects()
+    } else {
+      setSubjects([])
+    }
+  }, [viewDatesheet, viewClass])
+
+  useEffect(() => {
+    if (viewDatesheet && viewClass && viewSubject && currentUser?.school_id) {
       fetchExamResults()
     } else {
       setViewMarks([])
     }
   }, [viewDatesheet, viewClass, viewSubject])
+
+  // Result Card Effects
+  useEffect(() => {
+    if (resultExam && currentUser?.school_id) {
+      fetchResultClasses()
+      setResultClass('')
+      setResultStudent('')
+    } else {
+      setResultClass('')
+    }
+  }, [resultExam])
+
+  useEffect(() => {
+    if (resultExam && resultClass && currentUser?.school_id) {
+      fetchResultStudents()
+      setResultStudent('')
+    } else {
+      setResultStudents([])
+    }
+  }, [resultExam, resultClass])
+
+  useEffect(() => {
+    if (resultExam && resultClass && resultStudent && currentUser?.school_id) {
+      fetchResultCardData()
+    } else {
+      setResultCardData(null)
+    }
+  }, [resultExam, resultClass, resultStudent])
 
   const fetchClasses = async () => {
     try {
@@ -228,7 +272,7 @@ export default function ExamMarksPage() {
         .from('exams')
         .select('*')
         .eq('school_id', currentUser.school_id)
-        .eq('status', 'active')
+        .eq('status', 'scheduled')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -271,8 +315,9 @@ export default function ExamMarksPage() {
 
   const fetchSubjects = async () => {
     try {
+      // Fetch subjects from exam_schedules for the selected exam and class
       const { data, error } = await supabase
-        .from('class_subjects')
+        .from('exam_schedules')
         .select(`
           subject_id,
           subjects (
@@ -282,10 +327,22 @@ export default function ExamMarksPage() {
           )
         `)
         .eq('school_id', currentUser.school_id)
+        .eq('exam_id', selectedDatesheet)
         .eq('class_id', selectedClass)
 
       if (error) throw error
-      setSubjects(data?.map(cs => cs.subjects) || [])
+
+      // Get unique subjects (in case there are duplicates)
+      const uniqueSubjects = []
+      const seenIds = new Set()
+      data?.forEach(item => {
+        if (item.subjects && !seenIds.has(item.subjects.id)) {
+          seenIds.add(item.subjects.id)
+          uniqueSubjects.push(item.subjects)
+        }
+      })
+
+      setSubjects(uniqueSubjects)
     } catch (error) {
       console.error('Error fetching subjects:', error)
     }
@@ -293,8 +350,9 @@ export default function ExamMarksPage() {
 
   const fetchViewSubjects = async () => {
     try {
+      // Fetch subjects from exam_schedules for the selected exam and class
       const { data, error } = await supabase
-        .from('class_subjects')
+        .from('exam_schedules')
         .select(`
           subject_id,
           subjects (
@@ -304,10 +362,22 @@ export default function ExamMarksPage() {
           )
         `)
         .eq('school_id', currentUser.school_id)
+        .eq('exam_id', viewDatesheet)
         .eq('class_id', viewClass)
 
       if (error) throw error
-      setSubjects(data?.map(cs => cs.subjects) || [])
+
+      // Get unique subjects (in case there are duplicates)
+      const uniqueSubjects = []
+      const seenIds = new Set()
+      data?.forEach(item => {
+        if (item.subjects && !seenIds.has(item.subjects.id)) {
+          seenIds.add(item.subjects.id)
+          uniqueSubjects.push(item.subjects)
+        }
+      })
+
+      setSubjects(uniqueSubjects)
     } catch (error) {
       console.error('Error fetching subjects:', error)
     }
@@ -418,6 +488,222 @@ export default function ExamMarksPage() {
     } catch (error) {
       console.error('Error fetching exam results:', error)
       showToast('Failed to fetch exam results', 'error')
+    }
+  }
+
+  // Result Card Fetch Functions
+  const fetchResultClasses = async () => {
+    try {
+      // Get the exam details to find its class
+      const { data: examData, error: examError } = await supabase
+        .from('exams')
+        .select('class_id')
+        .eq('id', resultExam)
+        .single()
+
+      if (examError) throw examError
+
+      if (examData?.class_id) {
+        // Fetch the class details
+        const { data, error } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('id', examData.class_id)
+          .eq('school_id', currentUser.school_id)
+          .eq('status', 'active')
+
+        if (error) throw error
+        setClasses(data || [])
+
+        // Auto-select if only one class
+        if (data?.length === 1) {
+          setResultClass(data[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching result classes:', error)
+      setClasses([])
+    }
+  }
+
+  const fetchResultStudents = async () => {
+    try {
+      // Get students who have exam marks for this exam and class
+      const { data: marksData, error: marksError } = await supabase
+        .from('exam_marks')
+        .select(`
+          student_id,
+          students (
+            id,
+            admission_number,
+            first_name,
+            last_name,
+            father_name,
+            roll_number
+          )
+        `)
+        .eq('exam_id', resultExam)
+        .eq('class_id', resultClass)
+        .eq('school_id', currentUser.school_id)
+
+      if (marksError) throw marksError
+
+      // Get unique students
+      const uniqueStudents = []
+      const seenIds = new Set()
+      marksData?.forEach(item => {
+        if (item.students && !seenIds.has(item.students.id)) {
+          seenIds.add(item.students.id)
+          uniqueStudents.push(item.students)
+        }
+      })
+
+      // Sort by roll number
+      uniqueStudents.sort((a, b) => {
+        const rollA = parseInt(a.roll_number) || 0
+        const rollB = parseInt(b.roll_number) || 0
+        return rollA - rollB
+      })
+
+      setResultStudents(uniqueStudents)
+    } catch (error) {
+      console.error('Error fetching result students:', error)
+      setResultStudents([])
+    }
+  }
+
+  const fetchResultCardData = async () => {
+    try {
+      // Fetch all marks for this student in this exam
+      const { data: marksData, error: marksError } = await supabase
+        .from('exam_marks')
+        .select(`
+          *,
+          subjects (
+            id,
+            subject_name,
+            subject_code
+          )
+        `)
+        .eq('exam_id', resultExam)
+        .eq('student_id', resultStudent)
+        .eq('school_id', currentUser.school_id)
+        .order('subjects(subject_name)')
+
+      if (marksError) throw marksError
+
+      // Fetch student details
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', resultStudent)
+        .single()
+
+      if (studentError) throw studentError
+
+      // Fetch exam details
+      const { data: examData, error: examError } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('id', resultExam)
+        .single()
+
+      if (examError) throw examError
+
+      // Fetch class details
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('*')
+        .eq('id', resultClass)
+        .single()
+
+      if (classError) throw classError
+
+      // Calculate statistics
+      let totalObtained = 0
+      let totalMax = 0
+      let subjectsPassed = 0
+      let subjectsFailed = 0
+      let absences = 0
+
+      const subjects = marksData.map(mark => {
+        const isAbsent = mark.obtained_marks === null
+        const percentage = isAbsent ? 0 : ((mark.obtained_marks / mark.total_marks) * 100)
+        const isPassing = percentage >= 40
+
+        if (isAbsent) {
+          absences++
+        } else {
+          totalObtained += parseFloat(mark.obtained_marks) || 0
+          if (isPassing) {
+            subjectsPassed++
+          } else {
+            subjectsFailed++
+          }
+        }
+        totalMax += parseFloat(mark.total_marks) || 0
+
+        // Calculate grade
+        let grade = 'F'
+        if (isAbsent) {
+          grade = 'Abs'
+        } else if (percentage >= 90) {
+          grade = 'A+'
+        } else if (percentage >= 80) {
+          grade = 'A'
+        } else if (percentage >= 70) {
+          grade = 'B'
+        } else if (percentage >= 60) {
+          grade = 'C'
+        } else if (percentage >= 50) {
+          grade = 'D'
+        } else if (percentage >= 40) {
+          grade = 'E'
+        }
+
+        return {
+          subject_name: mark.subjects?.subject_name || 'N/A',
+          subject_code: mark.subjects?.subject_code || 'N/A',
+          total_marks: mark.total_marks,
+          obtained_marks: mark.obtained_marks,
+          percentage: percentage.toFixed(2),
+          grade: grade,
+          is_absent: isAbsent,
+          is_passing: isPassing
+        }
+      })
+
+      const overallPercentage = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(2) : 0
+      const overallGrade =
+        overallPercentage >= 90 ? 'A+' :
+        overallPercentage >= 80 ? 'A' :
+        overallPercentage >= 70 ? 'B' :
+        overallPercentage >= 60 ? 'C' :
+        overallPercentage >= 50 ? 'D' :
+        overallPercentage >= 40 ? 'E' : 'F'
+
+      const result = subjectsFailed === 0 && absences === 0 ? 'PASS' : 'FAIL'
+
+      setResultCardData({
+        student: studentData,
+        exam: examData,
+        class: classData,
+        subjects: subjects,
+        statistics: {
+          totalObtained,
+          totalMax,
+          overallPercentage,
+          overallGrade,
+          subjectsPassed,
+          subjectsFailed,
+          absences,
+          result
+        }
+      })
+    } catch (error) {
+      console.error('Error fetching result card data:', error)
+      showToast('Failed to fetch result card data', 'error')
+      setResultCardData(null)
     }
   }
 
@@ -649,6 +935,234 @@ export default function ExamMarksPage() {
     }
   }
 
+  const generateResultCardPDF = () => {
+    if (!resultCardData) {
+      showToast('No result card data available', 'error')
+      return
+    }
+
+    try {
+      const doc = new jsPDF()
+      const { student, exam, class: classData, subjects, statistics } = resultCardData
+
+      // Header with border
+      doc.setDrawColor(30, 58, 138)
+      doc.setLineWidth(1)
+      doc.rect(10, 10, 190, 30)
+
+      // School Name
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(30, 58, 138)
+      doc.text('School Management System', doc.internal.pageSize.width / 2, 20, { align: 'center' })
+
+      // Title
+      doc.setFontSize(14)
+      doc.text('EXAMINATION RESULT CARD', doc.internal.pageSize.width / 2, 32, { align: 'center' })
+
+      // Student Information Section
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+
+      let yPos = 50
+
+      // Student Details - Left Column
+      doc.setFont('helvetica', 'bold')
+      doc.text('Student Name:', 15, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`${student.first_name} ${student.last_name}`, 55, yPos)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Father Name:', 15, yPos + 7)
+      doc.setFont('helvetica', 'normal')
+      doc.text(student.father_name || 'N/A', 55, yPos + 7)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Roll Number:', 15, yPos + 14)
+      doc.setFont('helvetica', 'normal')
+      doc.text(student.roll_number?.toString() || 'N/A', 55, yPos + 14)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Admission No:', 15, yPos + 21)
+      doc.setFont('helvetica', 'normal')
+      doc.text(student.admission_number || 'N/A', 55, yPos + 21)
+
+      // Student Details - Right Column
+      doc.setFont('helvetica', 'bold')
+      doc.text('Class:', 120, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(classData.class_name || 'N/A', 150, yPos)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Exam:', 120, yPos + 7)
+      doc.setFont('helvetica', 'normal')
+      doc.text(exam.exam_name || 'N/A', 150, yPos + 7)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Exam Date:', 120, yPos + 14)
+      doc.setFont('helvetica', 'normal')
+      const examDate = exam.start_date
+        ? new Date(exam.start_date).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          })
+        : 'N/A'
+      doc.text(examDate, 150, yPos + 14)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Result Date:', 120, yPos + 21)
+      doc.setFont('helvetica', 'normal')
+      const resultDate = exam.result_declaration_date
+        ? new Date(exam.result_declaration_date).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          })
+        : 'N/A'
+      doc.text(resultDate, 150, yPos + 21)
+
+      // Divider line
+      yPos += 28
+      doc.setLineWidth(0.5)
+      doc.line(15, yPos, 195, yPos)
+
+      // Marks Table
+      yPos += 5
+      const tableData = subjects.map((subject, index) => {
+        return [
+          (index + 1).toString(),
+          subject.subject_name,
+          subject.total_marks.toString(),
+          subject.is_absent ? 'Absent' : subject.obtained_marks?.toString() || '0',
+          subject.is_absent ? '-' : `${subject.percentage}%`,
+          subject.grade,
+          subject.is_absent ? 'Absent' : (subject.is_passing ? 'Pass' : 'Fail')
+        ]
+      })
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Sr.', 'Subject', 'Total', 'Obtained', 'Percentage', 'Grade', 'Status']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [30, 58, 138],
+          textColor: 255,
+          fontSize: 10,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fontSize: 9,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          1: { halign: 'left', cellWidth: 60 },
+          2: { halign: 'center', cellWidth: 20 },
+          3: { halign: 'center', cellWidth: 25 },
+          4: { halign: 'center', cellWidth: 25 },
+          5: { halign: 'center', cellWidth: 20 },
+          6: { halign: 'center', cellWidth: 20 }
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251]
+        },
+        didParseCell: function(data) {
+          // Color code grade column
+          if (data.column.index === 5 && data.section === 'body') {
+            const grade = data.cell.raw
+            if (grade === 'A+' || grade === 'A') {
+              data.cell.styles.textColor = [34, 197, 94] // green
+              data.cell.styles.fontStyle = 'bold'
+            } else if (grade === 'F') {
+              data.cell.styles.textColor = [239, 68, 68] // red
+              data.cell.styles.fontStyle = 'bold'
+            } else if (grade === 'Abs') {
+              data.cell.styles.textColor = [107, 114, 128] // gray
+              data.cell.styles.fontStyle = 'bold'
+            }
+          }
+          // Color code status column
+          if (data.column.index === 6 && data.section === 'body') {
+            const status = data.cell.raw
+            if (status === 'Pass') {
+              data.cell.styles.textColor = [34, 197, 94] // green
+              data.cell.styles.fontStyle = 'bold'
+            } else if (status === 'Fail') {
+              data.cell.styles.textColor = [239, 68, 68] // red
+              data.cell.styles.fontStyle = 'bold'
+            } else if (status === 'Absent') {
+              data.cell.styles.textColor = [107, 114, 128] // gray
+              data.cell.styles.fontStyle = 'bold'
+            }
+          }
+        },
+        // Add total row
+        foot: [[
+          '',
+          'Total',
+          statistics.totalMax.toString(),
+          statistics.totalObtained.toString(),
+          `${statistics.overallPercentage}%`,
+          statistics.overallGrade,
+          statistics.result
+        ]],
+        footStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontSize: 10,
+          fontStyle: 'bold',
+          halign: 'center'
+        }
+      })
+
+      // Final Result Box
+      const finalY = doc.lastAutoTable.finalY + 10
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+
+      // Result status with colored background
+      const resultText = `Final Result: ${statistics.result}`
+      const resultColor = statistics.result === 'PASS' ? [34, 197, 94] : [239, 68, 68]
+
+      doc.setFillColor(resultColor[0], resultColor[1], resultColor[2])
+      doc.setTextColor(255, 255, 255)
+      const textWidth = doc.getTextWidth(resultText)
+      doc.rect(doc.internal.pageSize.width / 2 - textWidth / 2 - 5, finalY - 5, textWidth + 10, 10, 'F')
+      doc.text(resultText, doc.internal.pageSize.width / 2, finalY + 2, { align: 'center' })
+
+      // Grading Scale
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Grading Scale:', 15, finalY + 15)
+      doc.setFont('helvetica', 'normal')
+      doc.text('A+ (90-100%)  |  A (80-89%)  |  B (70-79%)  |  C (60-69%)  |  D (50-59%)  |  E (40-49%)  |  F (<40%)', 15, finalY + 21)
+
+      // Footer
+      doc.setFontSize(8)
+      doc.setTextColor(100, 100, 100)
+      const footerY = doc.internal.pageSize.height - 15
+      doc.text(`Generated on: ${new Date().toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })}`, doc.internal.pageSize.width / 2, footerY, { align: 'center' })
+
+      // Save PDF
+      const fileName = `ResultCard_${student.first_name}_${student.last_name}_${exam.exam_name}.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_')
+      doc.save(fileName)
+
+      showToast('Result card PDF generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating result card PDF:', error)
+      showToast(`Failed to generate result card PDF: ${error.message}`, 'error')
+    }
+  }
+
   const selectedDatesheetData = datesheets.find(d => d.id === selectedDatesheet)
   const selectedClassData = classes.find(c => c.id === selectedClass)
   const selectedSectionData = sections.find(s => s.id === selectedSection)
@@ -706,6 +1220,17 @@ export default function ExamMarksPage() {
             >
               <Eye className="w-5 h-5" />
               View Results
+            </button>
+            <button
+              onClick={() => setActiveTab('result')}
+              className={`px-6 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors ${
+                activeTab === 'result'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <FileText className="w-5 h-5" />
+              Result Card
             </button>
           </div>
         </div>
@@ -1084,6 +1609,265 @@ export default function ExamMarksPage() {
               <div className="text-center py-12 text-gray-500">
                 <Eye className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                 <p>Please select exam, class, and subject to view results</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'result' && (
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Exam <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={resultExam}
+                  onChange={(e) => {
+                    setResultExam(e.target.value)
+                    setResultClass('')
+                    setResultStudent('')
+                    setResultCardData(null)
+                  }}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">Select Exam</option>
+                  {completedDatesheets.map(exam => (
+                    <option key={exam.id} value={exam.id}>
+                      {exam.exam_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Class <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={resultClass}
+                  onChange={(e) => {
+                    setResultClass(e.target.value)
+                    setResultStudent('')
+                    setResultCardData(null)
+                  }}
+                  disabled={!resultExam}
+                  className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100"
+                >
+                  <option value="">Select Class</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.class_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Student <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={resultStudent}
+                  onChange={(e) => setResultStudent(e.target.value)}
+                  disabled={!resultClass}
+                  className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100"
+                >
+                  <option value="">Select Student</option>
+                  {resultStudents.map(student => (
+                    <option key={student.id} value={student.id}>
+                      {student.roll_number} - {student.first_name} {student.last_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {resultCardData && (
+              <div className="bg-white rounded-lg border-2 border-gray-300 overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 text-center">
+                  <h1 className="text-2xl font-bold mb-1">School Management System</h1>
+                  <h2 className="text-lg font-semibold">EXAMINATION RESULT CARD</h2>
+                </div>
+
+                {/* Student & Exam Info */}
+                <div className="p-6 border-b border-gray-300 bg-gray-50">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Student Name:</span>
+                        <span className="text-gray-900">{resultCardData.student.first_name} {resultCardData.student.last_name}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Father Name:</span>
+                        <span className="text-gray-900">{resultCardData.student.father_name}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Roll Number:</span>
+                        <span className="text-gray-900">{resultCardData.student.roll_number}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Admission No:</span>
+                        <span className="text-gray-900">{resultCardData.student.admission_number}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Class:</span>
+                        <span className="text-gray-900">{resultCardData.class.class_name}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Exam:</span>
+                        <span className="text-gray-900">{resultCardData.exam.exam_name}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Exam Date:</span>
+                        <span className="text-gray-900">
+                          {resultCardData.exam.start_date
+                            ? new Date(resultCardData.exam.start_date).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })
+                            : 'N/A'
+                          }
+                        </span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold w-36 text-gray-700">Result Date:</span>
+                        <span className="text-gray-900">
+                          {resultCardData.exam.result_declaration_date
+                            ? new Date(resultCardData.exam.result_declaration_date).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })
+                            : 'N/A'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Marks Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-blue-900 text-white">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold">Total Marks</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold">Obtained Marks</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold">Percentage</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold">Grade</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {resultCardData.subjects.map((subject, index) => (
+                        <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm">{index + 1}</td>
+                          <td className="px-4 py-3 text-sm font-medium">{subject.subject_name}</td>
+                          <td className="px-4 py-3 text-sm text-center">{subject.total_marks}</td>
+                          <td className="px-4 py-3 text-sm text-center font-medium">
+                            {subject.is_absent ? (
+                              <span className="text-red-600">Absent</span>
+                            ) : (
+                              subject.obtained_marks
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-center">
+                            {subject.is_absent ? '-' : `${subject.percentage}%`}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              subject.grade === 'A+' ? 'bg-green-100 text-green-800' :
+                              subject.grade === 'A' ? 'bg-green-100 text-green-700' :
+                              subject.grade === 'B' ? 'bg-blue-100 text-blue-800' :
+                              subject.grade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                              subject.grade === 'D' || subject.grade === 'E' ? 'bg-orange-100 text-orange-800' :
+                              subject.grade === 'Abs' ? 'bg-gray-100 text-gray-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {subject.grade}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {subject.is_absent ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Absent
+                              </span>
+                            ) : subject.is_passing ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Pass
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Fail
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                      <tr>
+                        <td colSpan="2" className="px-4 py-4 text-right font-bold text-base">Total:</td>
+                        <td className="px-4 py-4 text-center font-bold text-base">{resultCardData.statistics.totalMax}</td>
+                        <td className="px-4 py-4 text-center font-bold text-base">{resultCardData.statistics.totalObtained}</td>
+                        <td className="px-4 py-4 text-center font-bold text-base">{resultCardData.statistics.overallPercentage}%</td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                            resultCardData.statistics.overallGrade === 'A+' ? 'bg-green-100 text-green-800' :
+                            resultCardData.statistics.overallGrade === 'A' ? 'bg-green-100 text-green-700' :
+                            resultCardData.statistics.overallGrade === 'B' ? 'bg-blue-100 text-blue-800' :
+                            resultCardData.statistics.overallGrade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                            resultCardData.statistics.overallGrade === 'D' || resultCardData.statistics.overallGrade === 'E' ? 'bg-orange-100 text-orange-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {resultCardData.statistics.overallGrade}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                            resultCardData.statistics.result === 'PASS'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-red-600 text-white'
+                          }`}>
+                            {resultCardData.statistics.result}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {/* Download Button */}
+                <div className="p-6 bg-gray-50 border-t border-gray-300 flex justify-center">
+                  <button
+                    onClick={generateResultCardPDF}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg flex items-center gap-2 font-medium shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Printer className="w-5 h-5" />
+                    Download Result Card PDF
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!resultCardData && resultExam && resultClass && resultStudent && (
+              <div className="text-center py-12 text-gray-500">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>Loading result card data...</p>
+              </div>
+            )}
+
+            {(!resultExam || !resultClass || !resultStudent) && (
+              <div className="text-center py-12 text-gray-500">
+                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>Please select exam, class, and student to generate result card</p>
               </div>
             )}
           </div>

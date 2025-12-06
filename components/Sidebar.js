@@ -80,7 +80,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       { title: "Exams", href: "/exam/exams" },
       { title: "Tests", href: "/exam/test" },
       { title: "Test Marks", href: "/exam/test/marks" },
-      { title: "Update Marks", href: "/exam/marks" },
+      { title: "Exam Marks", href: "/exam/marks" },
       { title: "Reports", href: "/exam/reports" },
     ]},
     { title: "Transport", icon: Bus, key: "transport", submenus: [

@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { AlertCircle, Printer, Download, ArrowLeft } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function SalaryRegisterReport() {
   const router = useRouter()
@@ -12,20 +15,7 @@ export default function SalaryRegisterReport() {
   const [loading, setLoading] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-
-  // Notification states
-  const [success, setSuccess] = useState(null)
-  const [error, setError] = useState(null)
-
-  const showToast = (message, type = 'success') => {
-    if (type === 'success') {
-      setSuccess(message)
-      setTimeout(() => setSuccess(null), 5000)
-    } else if (type === 'error' || type === 'warning') {
-      setError(message)
-      setTimeout(() => setError(null), 5000)
-    }
-  }
+  const [schoolDetails, setSchoolDetails] = useState(null)
 
   useEffect(() => {
     const userData = document.cookie
@@ -45,8 +35,24 @@ export default function SalaryRegisterReport() {
   useEffect(() => {
     if (currentUser?.school_id) {
       loadSalaryStructures()
+      fetchSchoolDetails()
     }
   }, [currentUser, selectedMonth, selectedYear])
+
+  const fetchSchoolDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('school_name, logo')
+        .eq('id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+      setSchoolDetails(data)
+    } catch (error) {
+      console.error('Error fetching school details:', error)
+    }
+  }
 
   const loadSalaryStructures = async () => {
     console.log('=== Loading Salary Structures ===')
@@ -88,7 +94,7 @@ export default function SalaryRegisterReport() {
     } catch (error) {
       console.error('Error loading salary structures:', error)
       console.error('Error details:', error.message, error.code)
-      showToast('Failed to load salary register', 'error')
+      toast.error('Failed to load salary register')
     } finally {
       setLoading(false)
     }
@@ -100,12 +106,227 @@ export default function SalaryRegisterReport() {
     return months[month - 1]
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    if (salaryStructures.length === 0) {
+      toast.error('No data to print')
+      return
+    }
+
+    try {
+      const pdf = new jsPDF('l', 'mm', 'a4') // Landscape for wide table
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      let yPos = 20
+
+      // Add school logo if available
+      if (schoolDetails?.logo) {
+        try {
+          const imgWidth = 20
+          const imgHeight = 20
+          const imgX = (pageWidth - imgWidth) / 2
+          pdf.addImage(schoolDetails.logo, 'PNG', imgX, yPos, imgWidth, imgHeight)
+          yPos += 25
+        } catch (error) {
+          console.error('Error adding logo:', error)
+          yPos += 5
+        }
+      }
+
+      // School Name
+      if (schoolDetails?.school_name) {
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(31, 78, 120)
+        pdf.text(schoolDetails.school_name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 8
+      }
+
+      // Title
+      pdf.setFontSize(16)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(0, 0, 0)
+      pdf.text('Staff Salary Register', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 6
+
+      // Report period
+      pdf.setFontSize(11)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(100, 100, 100)
+      pdf.text(`Report Criteria: ${getMonthName(selectedMonth)} ${selectedYear}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
+
+      // Prepare table data
+      const tableData = salaryStructures.map((structure, index) => [
+        index + 1,
+        `${structure.staff?.first_name} ${structure.staff?.last_name}`,
+        structure.staff?.designation || 'N/A',
+        structure.staff?.employee_number || 'N/A',
+        parseFloat(structure.provident_fund || 0).toLocaleString(),
+        parseFloat(structure.basic_salary || 0).toLocaleString(),
+        parseFloat(structure.house_allowance || 0).toLocaleString(),
+        parseFloat(structure.medical_allowance || 0).toLocaleString(),
+        parseFloat(structure.transport_allowance || 0).toLocaleString(),
+        parseFloat(structure.other_allowances || 0).toLocaleString(),
+        parseFloat(structure.gross_salary || 0).toLocaleString(),
+        parseFloat(structure.tax_deduction || 0).toLocaleString(),
+        parseFloat(structure.other_deductions || 0).toLocaleString(),
+        parseFloat(structure.net_salary || 0).toLocaleString()
+      ])
+
+      // Add totals row
+      const totals = [
+        '',
+        'TOTAL',
+        '',
+        '',
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.provident_fund || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.basic_salary || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.house_allowance || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.medical_allowance || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.transport_allowance || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_allowances || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.gross_salary || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.tax_deduction || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_deductions || 0), 0).toLocaleString(),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.net_salary || 0), 0).toLocaleString()
+      ]
+
+      autoTable(pdf, {
+        startY: yPos,
+        head: [['#', 'Name', 'Role', 'Emp#', 'Prov', 'Basic', 'House', 'Medical', 'Trans', 'Other', 'Gross', 'Tax', 'Ded', 'Net']],
+        body: [...tableData, totals],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [31, 78, 120],
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 15, halign: 'center' },
+          4: { cellWidth: 15, halign: 'right' },
+          5: { cellWidth: 18, halign: 'right' },
+          6: { cellWidth: 18, halign: 'right' },
+          7: { cellWidth: 18, halign: 'right' },
+          8: { cellWidth: 18, halign: 'right' },
+          9: { cellWidth: 18, halign: 'right' },
+          10: { cellWidth: 20, halign: 'right', fillColor: [227, 242, 253] },
+          11: { cellWidth: 15, halign: 'right' },
+          12: { cellWidth: 15, halign: 'right' },
+          13: { cellWidth: 22, halign: 'right', fillColor: [232, 245, 233], fontStyle: 'bold' }
+        },
+        didParseCell: function(data) {
+          // Highlight totals row
+          if (data.row.index === tableData.length && data.section === 'body') {
+            data.cell.styles.fillColor = [220, 220, 220]
+            data.cell.styles.fontStyle = 'bold'
+          }
+        }
+      })
+
+      // Footer
+      const finalY = pdf.lastAutoTable.finalY + 10
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'italic')
+      pdf.setTextColor(150, 150, 150)
+      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, pageWidth / 2, finalY, { align: 'center' })
+
+      // Download PDF
+      const fileName = `Salary-Register-${getMonthName(selectedMonth)}-${selectedYear}.pdf`
+      pdf.save(fileName)
+      toast.success('Salary register downloaded successfully!')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast.error('Failed to generate PDF: ' + error.message)
+    }
   }
 
   const handleExport = () => {
-    showToast('Export functionality coming soon!', 'success')
+    if (salaryStructures.length === 0) {
+      toast.error('No data to export')
+      return
+    }
+
+    try {
+      // Prepare CSV content with proper escaping
+      const escapeCSV = (value) => {
+        if (value === null || value === undefined) return ''
+        const stringValue = String(value)
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+          return `"${stringValue.replace(/"/g, '""')}"`
+        }
+        return stringValue
+      }
+
+      const headers = ['#', 'Name', 'Role', 'Employee No', 'Prov Fund', 'Basic', 'House', 'Medical', 'Transport', 'Other Allow', 'Gross', 'Tax', 'Other Ded', 'Net Salary']
+
+      const rows = salaryStructures.map((structure, index) => [
+        index + 1,
+        `${structure.staff?.first_name || ''} ${structure.staff?.last_name || ''}`.trim(),
+        structure.staff?.designation || 'N/A',
+        structure.staff?.employee_number || 'N/A',
+        parseFloat(structure.provident_fund || 0),
+        parseFloat(structure.basic_salary || 0),
+        parseFloat(structure.house_allowance || 0),
+        parseFloat(structure.medical_allowance || 0),
+        parseFloat(structure.transport_allowance || 0),
+        parseFloat(structure.other_allowances || 0),
+        parseFloat(structure.gross_salary || 0),
+        parseFloat(structure.tax_deduction || 0),
+        parseFloat(structure.other_deductions || 0),
+        parseFloat(structure.net_salary || 0)
+      ])
+
+      // Add totals row
+      const totals = [
+        '',
+        'TOTAL',
+        '',
+        '',
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.provident_fund || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.basic_salary || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.house_allowance || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.medical_allowance || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.transport_allowance || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_allowances || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.gross_salary || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.tax_deduction || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_deductions || 0), 0),
+        salaryStructures.reduce((sum, s) => sum + parseFloat(s.net_salary || 0), 0)
+      ]
+
+      // Create CSV string
+      let csvContent = headers.map(escapeCSV).join(',') + '\n'
+      rows.forEach(row => {
+        csvContent += row.map(escapeCSV).join(',') + '\n'
+      })
+      csvContent += totals.map(escapeCSV).join(',') + '\n'
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `Salary-Register-${getMonthName(selectedMonth)}-${selectedYear}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success('Salary register exported successfully!')
+    } catch (error) {
+      console.error('Error exporting data:', error)
+      toast.error('Failed to export data')
+    }
   }
 
   if (!currentUser) {
@@ -114,18 +335,30 @@ export default function SalaryRegisterReport() {
 
   return (
     <div className="container mx-auto p-6">
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative print:hidden">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2 print:hidden">
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
 
       {/* Header */}
       <div className="mb-6 print:mb-4">
