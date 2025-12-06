@@ -27,7 +27,7 @@ export default function FeeCreatePage() {
   const [editingChallan, setEditingChallan] = useState(null)
   const [deleteConfirmModal, setDeleteConfirmModal] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const rowsPerPage = 20
+  const rowsPerPage = 10
 
   // Form states for different categories
   const [instantChallanForm, setInstantChallanForm] = useState({
@@ -77,6 +77,7 @@ export default function FeeCreatePage() {
 
   useEffect(() => {
     fetchInitialData()
+    fetchCreatedChallans()
   }, [])
 
   const fetchInitialData = async () => {
@@ -89,64 +90,63 @@ export default function FeeCreatePage() {
         return
       }
 
-      // Fetch classes
-      const { data: classesData, error: classesError } = await supabase
-        .from('classes')
-        .select('id, class_name')
-        .eq('school_id', user.school_id)
-        .eq('status', 'active')
-        .order('order_number', { ascending: true })
+      // Fetch all data in parallel for faster loading
+      const [classesResult, sectionsResult, feeTypesResult, studentsResult] = await Promise.all([
+        supabase
+          .from('classes')
+          .select('id, class_name')
+          .eq('school_id', user.school_id)
+          .eq('status', 'active')
+          .order('order_number', { ascending: true }),
 
-      if (classesError) throw classesError
-      setClasses(classesData || [])
+        supabase
+          .from('sections')
+          .select('id, section_name')
+          .eq('school_id', user.school_id)
+          .eq('status', 'active')
+          .order('section_name', { ascending: true }),
 
-      // Fetch sections
-      const { data: sectionsData, error: sectionsError } = await supabase
-        .from('sections')
-        .select('id, section_name')
-        .eq('school_id', user.school_id)
-        .eq('status', 'active')
-        .order('section_name', { ascending: true })
+        supabase
+          .from('fee_types')
+          .select('id, fee_name, fee_code')
+          .eq('school_id', user.school_id)
+          .eq('status', 'active'),
 
-      if (sectionsError) throw sectionsError
-      setSections(sectionsData || [])
-
-      // Fetch fee types (fee heads)
-      const { data: feeTypesData, error: feeTypesError } = await supabase
-        .from('fee_types')
-        .select('id, fee_name, fee_code')
-        .eq('school_id', user.school_id)
-        .eq('status', 'active')
-
-      if (feeTypesError) throw feeTypesError
-      setFeeHeads(feeTypesData || [])
-
-      // Fetch students
-      const { data: studentsData, error: studentsError } = await supabase
-        .from('students')
-        .select(`
-          id,
-          admission_number,
-          first_name,
-          last_name,
-          father_name,
-          current_class_id,
-          current_section_id,
-          classes:current_class_id (
+        supabase
+          .from('students')
+          .select(`
             id,
-            class_name
-          ),
-          sections:current_section_id (
-            id,
-            section_name
-          )
-        `)
-        .eq('school_id', user.school_id)
-        .eq('status', 'active')
-        .order('admission_number', { ascending: true })
+            admission_number,
+            first_name,
+            last_name,
+            father_name,
+            current_class_id,
+            current_section_id,
+            classes:current_class_id (
+              id,
+              class_name
+            ),
+            sections:current_section_id (
+              id,
+              section_name
+            )
+          `)
+          .eq('school_id', user.school_id)
+          .eq('status', 'active')
+          .order('admission_number', { ascending: true })
+      ])
 
-      if (studentsError) throw studentsError
-      setStudents(studentsData || [])
+      if (classesResult.error) throw classesResult.error
+      setClasses(classesResult.data || [])
+
+      if (sectionsResult.error) throw sectionsResult.error
+      setSections(sectionsResult.data || [])
+
+      if (feeTypesResult.error) throw feeTypesResult.error
+      setFeeHeads(feeTypesResult.data || [])
+
+      if (studentsResult.error) throw studentsResult.error
+      setStudents(studentsResult.data || [])
 
       setLoading(false)
     } catch (error) {
@@ -1101,29 +1101,29 @@ export default function FeeCreatePage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-2 bg-gray-50 overflow-x-hidden">
       {/* Header */}
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="mb-1.5 flex flex-row items-center justify-between gap-2">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Create Fee Challan</h1>
-          <p className="text-gray-600">Select students and create fee challans</p>
+          <h1 className="text-lg font-bold text-gray-800 leading-tight">Create Fee Challan</h1>
+          <p className="text-xs text-gray-600 leading-tight">Select students and create fee challans</p>
         </div>
         <button
           onClick={handleCreateChallan}
-          className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 self-start md:self-auto"
+          className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-1.5 text-xs whitespace-nowrap"
         >
-          <Plus size={20} />
+          <Plus size={16} />
           Create Challan
         </button>
       </div>
 
       {/* Filter by Class */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Class</label>
+      <div className="mb-1.5">
+        <label className="block text-xs font-medium text-gray-700 mb-0.5">Filter by Class</label>
         <select
           value={selectedClass}
           onChange={(e) => setSelectedClass(e.target.value)}
-          className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+          className="w-full md:w-56 px-2.5 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
         >
           <option value="">All Classes</option>
           {classes.map((cls) => (
@@ -1135,55 +1135,55 @@ export default function FeeCreatePage() {
       </div>
 
       {/* Created Challans Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-blue-900 text-white">
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-2">
+        <div className="overflow-visible">
+          <table className="w-full table-fixed">
+            <thead className="bg-blue-900 text-white sticky top-0 z-10">
               <tr>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Sr.</th>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Student Name</th>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Father Name</th>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Class</th>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Due Date</th>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Total Fees</th>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Status</th>
-                <th className="px-3 py-4 text-left font-semibold whitespace-nowrap text-sm">Options</th>
+                <th className="w-12 px-2 py-2 text-left font-semibold text-xs">Sr.</th>
+                <th className="w-32 px-2 py-2 text-left font-semibold text-xs">Student Name</th>
+                <th className="w-32 px-2 py-2 text-left font-semibold text-xs">Father Name</th>
+                <th className="w-40 px-2 py-2 text-left font-semibold text-xs">Class</th>
+                <th className="w-24 px-2 py-2 text-left font-semibold text-xs">Due Date</th>
+                <th className="w-24 px-2 py-2 text-left font-semibold text-xs">Total Fees</th>
+                <th className="w-24 px-2 py-2 text-left font-semibold text-xs">Status</th>
+                <th className="w-32 px-2 py-2 text-left font-semibold text-xs">Options</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-3 py-12 text-center text-gray-500">
+                  <td colSpan="8" className="px-2 py-8 text-center text-sm text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : filteredChallans.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-3 py-12 text-center text-gray-500">
+                  <td colSpan="8" className="px-2 py-8 text-center text-sm text-gray-500">
                     {createdChallans.length === 0 ? 'No challans created yet. Click "Create Challan" to get started.' : 'No challans found for the selected class.'}
                   </td>
                 </tr>
               ) : (
                 paginatedChallans.map((challan, index) => (
                   <tr key={challan.id} className="hover:bg-gray-50 transition">
-                    <td className="px-3 py-3 text-gray-700 whitespace-nowrap text-sm">{startIndex + index + 1}</td>
-                    <td className="px-3 py-3 text-gray-900 font-semibold whitespace-nowrap text-sm">
+                    <td className="px-2 py-2 text-gray-700 text-xs">{startIndex + index + 1}</td>
+                    <td className="px-2 py-2 text-gray-900 font-medium text-xs truncate">
                       {challan.students?.first_name} {challan.students?.last_name}
                     </td>
-                    <td className="px-3 py-3 text-gray-700 whitespace-nowrap text-sm">
+                    <td className="px-2 py-2 text-gray-700 text-xs truncate">
                       {challan.students?.father_name || 'N/A'}
                     </td>
-                    <td className="px-3 py-3 text-gray-700 whitespace-nowrap text-sm">
+                    <td className="px-2 py-2 text-gray-700 text-xs truncate">
                       {challan.students?.classes?.class_name || 'N/A'}
                     </td>
-                    <td className="px-3 py-3 text-gray-700 whitespace-nowrap text-sm">
-                      {new Date(challan.due_date).toLocaleDateString()}
+                    <td className="px-2 py-2 text-gray-700 text-xs">
+                      {new Date(challan.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}
                     </td>
-                    <td className="px-3 py-3 text-gray-900 font-semibold whitespace-nowrap text-sm">
+                    <td className="px-2 py-2 text-gray-900 font-medium text-xs">
                       Rs. {challan.total_amount.toLocaleString()}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-block ${
+                    <td className="px-2 py-2">
+                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium inline-block ${
                         challan.status === 'paid' ? 'bg-green-100 text-green-800' :
                         challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
@@ -1191,46 +1191,46 @@ export default function FeeCreatePage() {
                         {challan.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      <div className="flex gap-1 items-center">
+                    <td className="px-2 py-2">
+                      <div className="flex gap-0.5 items-center justify-start">
                         <button
                           onClick={() => handleViewChallan(challan)}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded-lg transition-all"
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-all"
                           title="View Challan"
                         >
-                          <Eye size={16} />
+                          <Eye size={14} />
                         </button>
                         <button
                           onClick={() => handleEditChallan(challan)}
-                          className="text-green-600 hover:text-green-800 hover:bg-green-50 p-1.5 rounded-lg transition-all"
+                          className="text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-all"
                           title="Edit Challan"
                         >
-                          <Edit2 size={16} />
+                          <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => handleDeleteChallan(challan.id)}
-                          className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded-lg transition-all"
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1 rounded transition-all"
                           title="Delete Challan"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                         <button
                           onClick={() => handleStatusToggle(challan.id, challan.status)}
-                          className={`p-1.5 rounded-lg transition-all ${
+                          className={`p-1 rounded transition-all ${
                             challan.status === 'paid' ? 'text-green-600 hover:text-green-800 hover:bg-green-50' :
                             challan.status === 'overdue' ? 'text-red-600 hover:text-red-800 hover:bg-red-50' :
                             'text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50'
                           }`}
                           title="Toggle Status"
                         >
-                          <RefreshCw size={16} />
+                          <RefreshCw size={14} />
                         </button>
                         <button
                           onClick={() => handlePrintChallan(challan)}
-                          className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1.5 rounded-lg transition-all"
+                          className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1 rounded transition-all"
                           title="Print Challan"
                         >
-                          <Printer size={16} />
+                          <Printer size={14} />
                         </button>
                       </div>
                     </td>
@@ -1243,15 +1243,15 @@ export default function FeeCreatePage() {
 
         {/* Pagination Controls */}
         {filteredChallans.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-            <div className="text-sm text-gray-700">
+          <div className="px-3 py-2 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+            <div className="text-xs text-gray-700">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} entries
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Previous
               </button>
@@ -1260,7 +1260,7 @@ export default function FeeCreatePage() {
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`px-2 py-1 rounded text-xs font-medium transition ${
                       currentPage === page
                         ? 'bg-blue-600 text-white'
                         : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -1273,7 +1273,7 @@ export default function FeeCreatePage() {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Next
               </button>
@@ -1293,35 +1293,35 @@ export default function FeeCreatePage() {
             }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[9999] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+            <div className="bg-blue-900 text-white px-3 py-2">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">{editingChallan ? 'Edit Fee Challan' : 'Create Fee Challan'}</h3>
-                  <p className="text-blue-200 text-sm mt-1">{editingChallan ? 'Update challan information' : 'Select category to proceed'}</p>
+                  <h3 className="text-base font-bold leading-tight">{editingChallan ? 'Edit Fee Challan' : 'Create Fee Challan'}</h3>
+                  <p className="text-blue-200 text-xs leading-tight">{editingChallan ? 'Update challan information' : 'Select category to proceed'}</p>
                 </div>
                 <button
                   onClick={() => {
                     setShowChallanModal(false)
                     setEditingChallan(null)
                   }}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-3 bg-gray-50">
               {/* Create Instant Fee Challan Form */}
               {(
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-gray-700 font-medium mb-2">Target</label>
+                      <label className="block text-gray-700 font-medium mb-1 text-xs">Target</label>
                       <select
                         value={instantChallanForm.target}
                         onChange={(e) => setInstantChallanForm({ ...instantChallanForm, target: e.target.value, classId: '', sectionId: '', studentId: '', loadedStudent: null })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       >
                         <option value="Single Student">Single Student</option>
                         <option value="Class-Wise">Class-Wise</option>
@@ -1329,11 +1329,11 @@ export default function FeeCreatePage() {
                     </div>
 
                     <div>
-                      <label className="block text-gray-700 font-medium mb-2">Class <span className="text-red-500">*</span></label>
+                      <label className="block text-gray-700 font-medium mb-1 text-xs">Class <span className="text-red-500">*</span></label>
                       <select
                         value={instantChallanForm.classId}
                         onChange={(e) => handleClassChange(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       >
                         <option value="">Select Class</option>
                         {classes.map(cls => (
@@ -1346,11 +1346,11 @@ export default function FeeCreatePage() {
                   {/* Show section field only if class has sections */}
                   {instantChallanForm.classId && classSections.length > 0 && (
                     <div>
-                      <label className="block text-gray-700 font-medium mb-2">Section</label>
+                      <label className="block text-gray-700 font-medium mb-1 text-xs">Section</label>
                       <select
                         value={instantChallanForm.sectionId}
                         onChange={(e) => handleSectionChange(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       >
                         <option value="">All Sections</option>
                         {classSections.map(section => (
@@ -1363,11 +1363,11 @@ export default function FeeCreatePage() {
                   {/* Show student dropdown only for Single Student target */}
                   {instantChallanForm.target === 'Single Student' && instantChallanForm.classId && (
                     <div>
-                      <label className="block text-gray-700 font-medium mb-2">Student <span className="text-red-500">*</span></label>
+                      <label className="block text-gray-700 font-medium mb-1 text-xs">Student <span className="text-red-500">*</span></label>
                       <select
                         value={instantChallanForm.studentId}
                         onChange={(e) => handleStudentChange(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       >
                         <option value="">Select Student</option>
                         {classStudents.map(student => (
@@ -1381,9 +1381,9 @@ export default function FeeCreatePage() {
 
                   {/* Show student details if loaded */}
                   {instantChallanForm.loadedStudent && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-800 mb-2">Selected Student</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                      <h4 className="font-semibold text-gray-800 mb-1 text-xs">Selected Student</h4>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
                         <p><span className="font-medium">Name:</span> {instantChallanForm.loadedStudent.first_name} {instantChallanForm.loadedStudent.last_name}</p>
                         <p><span className="font-medium">Father:</span> {instantChallanForm.loadedStudent.father_name}</p>
                         <p><span className="font-medium">Admission:</span> {instantChallanForm.loadedStudent.admission_number}</p>
@@ -1393,10 +1393,10 @@ export default function FeeCreatePage() {
 
                   {/* Monthly Fee Field - Show when student is selected */}
                   {instantChallanForm.studentId && instantChallanForm.loadedStudent && (
-                    <div className={`rounded-lg p-4 border-2 ${instantChallanForm.category === 'Monthly Fee' ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-300'}`}>
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-gray-800">Monthly Fee</h4>
-                        <label className={`flex items-center space-x-2 cursor-pointer px-3 py-2 rounded-lg transition-all ${instantChallanForm.category === 'Monthly Fee' ? 'bg-green-600 text-white' : 'bg-white border-2 border-green-600 text-green-600 hover:bg-green-50'}`}>
+                    <div className={`rounded p-2 border ${instantChallanForm.category === 'Monthly Fee' ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-300'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-gray-800 text-xs">Monthly Fee</h4>
+                        <label className={`flex items-center space-x-1 cursor-pointer px-2 py-1 rounded transition-all text-xs ${instantChallanForm.category === 'Monthly Fee' ? 'bg-green-600 text-white' : 'bg-white border border-green-600 text-green-600 hover:bg-green-50'}`}>
                           <input
                             type="checkbox"
                             checked={instantChallanForm.category === 'Monthly Fee'}
@@ -1404,33 +1404,33 @@ export default function FeeCreatePage() {
                               ...instantChallanForm,
                               category: e.target.checked ? 'Monthly Fee' : 'Other Fee'
                             })}
-                            className="w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500 rounded"
+                            className="w-3 h-3 text-green-600 focus:ring-1 focus:ring-green-500 rounded"
                           />
-                          <span className="text-sm font-bold">
-                            {instantChallanForm.category === 'Monthly Fee' ? '✓ Monthly Fee Included' : 'Click to Include Monthly Fee'}
+                          <span className="text-xs font-bold">
+                            {instantChallanForm.category === 'Monthly Fee' ? '✓ Included' : 'Include'}
                           </span>
                         </label>
                       </div>
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <span className="font-medium text-gray-700">Class Fee:</span>
-                            <p className="text-lg font-bold text-gray-900">Rs. {instantChallanForm.classFee.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-gray-900">Rs. {instantChallanForm.classFee.toLocaleString()}</p>
                           </div>
                           <div>
                             <span className="font-medium text-gray-700">Class Discount:</span>
-                            <p className="text-lg font-bold text-red-600">- Rs. {instantChallanForm.classDiscount.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-red-600">- Rs. {instantChallanForm.classDiscount.toLocaleString()}</p>
                           </div>
                         </div>
                         {instantChallanForm.loadedStudent.discount_amount > 0 && (
-                          <div className="bg-orange-50 border border-orange-200 rounded p-2">
-                            <span className="text-sm font-medium text-orange-700">Additional Student Discount:</span>
-                            <p className="text-md font-bold text-orange-600">- Rs. {parseFloat(instantChallanForm.loadedStudent.discount_amount || 0).toLocaleString()}</p>
+                          <div className="bg-orange-50 border border-orange-200 rounded p-1">
+                            <span className="text-xs font-medium text-orange-700">Student Discount:</span>
+                            <p className="text-xs font-bold text-orange-600">- Rs. {parseFloat(instantChallanForm.loadedStudent.discount_amount || 0).toLocaleString()}</p>
                           </div>
                         )}
-                        <div className="pt-2 border-t border-green-300">
-                          <span className="font-medium text-gray-700">Standard Fee (Class Fee - Discounts):</span>
-                          <p className="text-2xl font-bold text-green-700">Rs. {(instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent.discount_amount || 0)).toLocaleString()}</p>
+                        <div className="pt-1 border-t border-green-300">
+                          <span className="font-medium text-gray-700 text-xs">Standard Fee:</span>
+                          <p className="text-base font-bold text-green-700">Rs. {(instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent.discount_amount || 0)).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -1438,9 +1438,9 @@ export default function FeeCreatePage() {
 
                   {/* Other Fee Field - Show dropdown when class is selected */}
                   {instantChallanForm.classId && classFeeStructures.length > 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-800 mb-3">Other Fee</h4>
-                      <label className="block text-gray-700 font-medium mb-2">Select Fee Types</label>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                      <h4 className="font-semibold text-gray-800 mb-2 text-xs">Other Fee</h4>
+                      <label className="block text-gray-700 font-medium mb-1 text-xs">Select Fee Types</label>
                       <select
                         value=""
                         onChange={(e) => {
@@ -1459,7 +1459,7 @@ export default function FeeCreatePage() {
                             }
                           }
                         }}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       >
                         <option value="">+ Add Fee Type</option>
                         {classFeeStructures.map(fee => (
@@ -1471,13 +1471,13 @@ export default function FeeCreatePage() {
 
                       {/* Display selected other fees */}
                       {instantChallanForm.selectedOtherFees.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          <p className="text-sm font-medium text-gray-700">Selected Fees:</p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs font-medium text-gray-700">Selected Fees:</p>
                           {instantChallanForm.selectedOtherFees.map((fee, index) => (
-                            <div key={fee.id} className="flex items-center justify-between bg-white border border-yellow-300 rounded-lg p-3">
+                            <div key={fee.id} className="flex items-center justify-between bg-white border border-yellow-300 rounded p-2">
                               <div>
-                                <p className="font-medium text-gray-800">{fee.name}</p>
-                                <p className="text-sm text-yellow-700 font-bold">Rs. {fee.amount.toLocaleString()}</p>
+                                <p className="font-medium text-gray-800 text-xs">{fee.name}</p>
+                                <p className="text-xs text-yellow-700 font-bold">Rs. {fee.amount.toLocaleString()}</p>
                               </div>
                               <button
                                 onClick={() => {
@@ -1488,16 +1488,16 @@ export default function FeeCreatePage() {
                                     category: newFees.length > 0 ? 'Other Fee' : instantChallanForm.category
                                   })
                                 }}
-                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-all"
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1 rounded transition-all"
                                 title="Remove"
                               >
-                                <X size={18} />
+                                <X size={14} />
                               </button>
                             </div>
                           ))}
-                          <div className="bg-white border-2 border-yellow-400 rounded-lg p-3">
-                            <p className="text-sm font-medium text-gray-700">Total Other Fees:</p>
-                            <p className="text-2xl font-bold text-yellow-700">
+                          <div className="bg-white border border-yellow-400 rounded p-2">
+                            <p className="text-xs font-medium text-gray-700">Total Other Fees:</p>
+                            <p className="text-base font-bold text-yellow-700">
                               Rs. {instantChallanForm.selectedOtherFees.reduce((sum, fee) => sum + fee.amount, 0).toLocaleString()}
                             </p>
                           </div>
@@ -1510,24 +1510,24 @@ export default function FeeCreatePage() {
                   {((instantChallanForm.target === 'Class-Wise' && instantChallanForm.classId) ||
                     (instantChallanForm.target === 'Single Student' && instantChallanForm.studentId)) &&
                    (instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0) && (
-                    <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-4 mt-4">
-                      <h4 className="font-bold text-gray-800 mb-3 text-lg">Challan Summary</h4>
-                      <div className="space-y-2">
+                    <div className="bg-blue-50 border border-blue-400 rounded p-2 mt-2">
+                      <h4 className="font-bold text-gray-800 mb-2 text-sm">Challan Summary</h4>
+                      <div className="space-y-1">
                         {instantChallanForm.category === 'Monthly Fee' && instantChallanForm.loadedStudent && (
-                          <div className="flex justify-between items-center bg-white rounded p-2 border border-green-300">
-                            <span className="font-medium text-gray-700">Monthly Fee (After Discounts)</span>
-                            <span className="font-bold text-green-700">Rs. {(instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent.discount_amount || 0)).toLocaleString()}</span>
+                          <div className="flex justify-between items-center bg-white rounded p-1.5 border border-green-300">
+                            <span className="font-medium text-gray-700 text-xs">Monthly Fee (After Discounts)</span>
+                            <span className="font-bold text-green-700 text-xs">Rs. {(instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent.discount_amount || 0)).toLocaleString()}</span>
                           </div>
                         )}
                         {instantChallanForm.selectedOtherFees.map((fee) => (
-                          <div key={fee.id} className="flex justify-between items-center bg-white rounded p-2 border border-yellow-300">
-                            <span className="font-medium text-gray-700">{fee.name}</span>
-                            <span className="font-bold text-yellow-700">Rs. {fee.amount.toLocaleString()}</span>
+                          <div key={fee.id} className="flex justify-between items-center bg-white rounded p-1.5 border border-yellow-300">
+                            <span className="font-medium text-gray-700 text-xs">{fee.name}</span>
+                            <span className="font-bold text-yellow-700 text-xs">Rs. {fee.amount.toLocaleString()}</span>
                           </div>
                         ))}
-                        <div className="flex justify-between items-center bg-blue-600 text-white rounded p-3 mt-3">
-                          <span className="font-bold text-lg">Grand Total</span>
-                          <span className="font-bold text-2xl">
+                        <div className="flex justify-between items-center bg-blue-600 text-white rounded p-2 mt-2">
+                          <span className="font-bold text-sm">Grand Total</span>
+                          <span className="font-bold text-base">
                             Rs. {(
                               (instantChallanForm.category === 'Monthly Fee' && instantChallanForm.loadedStudent
                                 ? instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent.discount_amount || 0)
@@ -1544,11 +1544,11 @@ export default function FeeCreatePage() {
                   {((instantChallanForm.target === 'Class-Wise' && instantChallanForm.classId) ||
                     (instantChallanForm.target === 'Single Student' && instantChallanForm.studentId)) &&
                    (instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0) && (
-                    <div className="flex justify-end mt-4">
+                    <div className="flex justify-end mt-2">
                       <button
                         onClick={handleCreateInstantChallan}
                         disabled={submitting}
-                        className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
                       >
                         {submitting ? (editingChallan ? 'Updating...' : 'Creating...') : (editingChallan ? 'Update Challan' : 'Create Challan')}
                       </button>
@@ -1558,14 +1558,14 @@ export default function FeeCreatePage() {
               )}
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
+            <div className="border-t border-gray-200 px-3 py-2 bg-white">
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => {
                     setShowChallanModal(false)
                     setEditingChallan(null)
                   }}
-                  className="px-6 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  className="px-4 py-1.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs"
                 >
                   Close
                 </button>
@@ -1582,32 +1582,32 @@ export default function FeeCreatePage() {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] transition-opacity"
             onClick={() => setViewChallan(null)}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white shadow-2xl z-[9999] rounded-xl border border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5 rounded-t-xl">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white shadow-2xl z-[9999] rounded-lg border border-gray-200">
+            <div className="bg-blue-900 text-white px-3 py-2 rounded-t-lg">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Challan Details</h3>
-                  <p className="text-blue-200 text-sm mt-1">View challan information</p>
+                  <h3 className="text-base font-bold leading-tight">Challan Details</h3>
+                  <p className="text-blue-200 text-xs leading-tight">View challan information</p>
                 </div>
                 <button
                   onClick={() => setViewChallan(null)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="p-6 bg-gray-50">
-              <div className="bg-white rounded-lg p-6 shadow-sm">
-                <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="p-3 bg-gray-50">
+              <div className="bg-white rounded p-3 shadow-sm">
+                <div className="grid grid-cols-2 gap-2 mb-2">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Challan Number</p>
-                    <p className="text-lg font-semibold text-gray-900">{viewChallan.challan_number}</p>
+                    <p className="text-xs text-gray-600 mb-0.5">Challan Number</p>
+                    <p className="text-sm font-semibold text-gray-900">{viewChallan.challan_number}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Status</p>
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                    <p className="text-xs text-gray-600 mb-0.5">Status</p>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                       viewChallan.status === 'paid' ? 'bg-green-100 text-green-800' :
                       viewChallan.status === 'overdue' ? 'bg-red-100 text-red-800' :
                       'bg-yellow-100 text-yellow-800'
@@ -1617,54 +1617,54 @@ export default function FeeCreatePage() {
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">Student Information</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="border-t border-gray-200 pt-2 mt-2">
+                  <h4 className="text-xs font-semibold text-gray-800 mb-2">Student Information</h4>
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <p className="text-sm text-gray-600">Name</p>
-                      <p className="text-md font-medium text-gray-900">
+                      <p className="text-xs text-gray-600">Name</p>
+                      <p className="text-xs font-medium text-gray-900">
                         {viewChallan.students?.first_name} {viewChallan.students?.last_name}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Father Name</p>
-                      <p className="text-md font-medium text-gray-900">
+                      <p className="text-xs text-gray-600">Father Name</p>
+                      <p className="text-xs font-medium text-gray-900">
                         {viewChallan.students?.father_name || 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Class</p>
-                      <p className="text-md font-medium text-gray-900">
+                      <p className="text-xs text-gray-600">Class</p>
+                      <p className="text-xs font-medium text-gray-900">
                         {viewChallan.students?.classes?.class_name || 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Admission Number</p>
-                      <p className="text-md font-medium text-gray-900">
+                      <p className="text-xs text-gray-600">Admission Number</p>
+                      <p className="text-xs font-medium text-gray-900">
                         {viewChallan.students?.admission_number || 'N/A'}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">Fee Details</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="border-t border-gray-200 pt-2 mt-2">
+                  <h4 className="text-xs font-semibold text-gray-800 mb-2">Fee Details</h4>
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <p className="text-sm text-gray-600">Issue Date</p>
-                      <p className="text-md font-medium text-gray-900">
+                      <p className="text-xs text-gray-600">Issue Date</p>
+                      <p className="text-xs font-medium text-gray-900">
                         {new Date(viewChallan.issue_date).toLocaleDateString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Due Date</p>
-                      <p className="text-md font-medium text-gray-900">
+                      <p className="text-xs text-gray-600">Due Date</p>
+                      <p className="text-xs font-medium text-gray-900">
                         {new Date(viewChallan.due_date).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-sm text-gray-600">Total Amount</p>
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-xs text-gray-600">Total Amount</p>
+                      <p className="text-lg font-bold text-blue-600">
                         Rs. {viewChallan.total_amount.toLocaleString()}
                       </p>
                     </div>
@@ -1673,17 +1673,17 @@ export default function FeeCreatePage() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-3 bg-white rounded-b-xl">
+            <div className="border-t border-gray-200 px-3 py-2 bg-white rounded-b-lg">
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => window.print()}
-                  className="px-6 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition"
+                  className="px-4 py-1.5 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition text-xs"
                 >
                   Print
                 </button>
                 <button
                   onClick={() => setViewChallan(null)}
-                  className="px-6 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  className="px-4 py-1.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs"
                 >
                   Close
                 </button>
@@ -1702,28 +1702,28 @@ export default function FeeCreatePage() {
           />
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white shadow-2xl z-[10001] rounded-lg animate-fade-in">
             {/* Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 rounded-t-lg">
-              <h3 className="text-xl font-bold text-white">Delete Fee Challan</h3>
+            <div className="bg-red-600 px-3 py-2 rounded-t-lg">
+              <h3 className="text-base font-bold text-white leading-tight">Delete Fee Challan</h3>
             </div>
 
             {/* Content */}
-            <div className="p-6 bg-white">
-              <p className="text-gray-700 text-base leading-relaxed">
+            <div className="p-3 bg-white">
+              <p className="text-gray-700 text-xs leading-relaxed">
                 Are you sure you want to delete this fee challan? This action cannot be undone.
               </p>
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-white rounded-b-lg flex gap-3 justify-end">
+            <div className="border-t border-gray-200 px-3 py-2 bg-white rounded-b-lg flex gap-2 justify-end">
               <button
                 onClick={() => setDeleteConfirmModal(null)}
-                className="px-6 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-md transition-all border border-gray-300"
+                className="px-4 py-1.5 text-gray-700 font-medium hover:bg-gray-100 rounded transition-all border border-gray-300 text-xs"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-6 py-2 bg-red-600 text-white font-medium hover:bg-red-700 rounded-md transition-all"
+                className="px-4 py-1.5 bg-red-600 text-white font-medium hover:bg-red-700 rounded transition-all text-xs"
               >
                 Confirm
               </button>
