@@ -1,10 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Image, Loader2, AlertCircle, ToggleLeft, ToggleRight, Printer } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import toast, { Toaster } from 'react-hot-toast'
 import jsPDF from 'jspdf'
+=======
+import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Image, Loader2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -45,10 +50,13 @@ export default function AdmissionRegisterPage() {
   const [showClassDropdown, setShowClassDropdown] = useState(false)
   const [showSectionDropdown, setShowSectionDropdown] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
+<<<<<<< HEAD
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage] = useState(10)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const [importData, setImportData] = useState({
     classId: '',
     className: '',
@@ -194,7 +202,10 @@ export default function AdmissionRegisterPage() {
         dateOfBirth: student.date_of_birth,
         admissionDate: student.admission_date,
         status: student.status,
+<<<<<<< HEAD
         photo_url: student.photo_url,
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         sr: index + 1
       }))
 
@@ -281,6 +292,7 @@ export default function AdmissionRegisterPage() {
     return matchesSearch && matchesClass
   })
 
+<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(filteredAdmissions.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -292,6 +304,8 @@ export default function AdmissionRegisterPage() {
     setCurrentPage(1)
   }, [searchTerm, selectedOption])
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const resetForm = () => {
     setFormData({
       id: null,
@@ -376,6 +390,7 @@ export default function AdmissionRegisterPage() {
       const firstName = nameParts[0]
       const lastName = nameParts.slice(1).join(' ') || null
 
+<<<<<<< HEAD
       // Handle image upload to Supabase bucket
       let photoUrl = formData.photoUrl || null
       if (imageFile) {
@@ -423,6 +438,8 @@ export default function AdmissionRegisterPage() {
         }
       }
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       // Fetch the first school_id if we're creating a new student
       let schoolId = null
       if (!isEditMode) {
@@ -448,7 +465,10 @@ export default function AdmissionRegisterPage() {
             first_name: firstName,
             last_name: lastName,
             father_name: formData.fatherName,
+<<<<<<< HEAD
             photo_url: photoUrl,
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             mother_name: formData.motherName || null,
             date_of_birth: formData.dateOfBirth || null,
             gender: formData.gender,
@@ -471,6 +491,7 @@ export default function AdmissionRegisterPage() {
 
         if (updateError) throw updateError
 
+<<<<<<< HEAD
         // Update state without reloading
         setAdmissions(prev => prev.map(adm =>
           adm.id === formData.id
@@ -489,6 +510,9 @@ export default function AdmissionRegisterPage() {
             fontSize: '14px'
           }
         })
+=======
+        setSuccess('Student updated successfully!')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       } else {
         // Create new student
         const { data: insertedStudent, error: insertError } = await supabase
@@ -499,7 +523,10 @@ export default function AdmissionRegisterPage() {
             first_name: firstName,
             last_name: lastName,
             father_name: formData.fatherName,
+<<<<<<< HEAD
             photo_url: photoUrl,
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             mother_name: formData.motherName || null,
             date_of_birth: formData.dateOfBirth || null,
             gender: formData.gender,
@@ -583,6 +610,7 @@ export default function AdmissionRegisterPage() {
           await supabase.from('student_contacts').insert(contacts)
         }
 
+<<<<<<< HEAD
         // Add to state without reloading
         fetchStudents()
 
@@ -597,10 +625,14 @@ export default function AdmissionRegisterPage() {
             fontSize: '14px'
           }
         })
+=======
+        setSuccess('Student created successfully!')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       }
 
       setShowRegisterSidebar(false)
       resetForm()
+<<<<<<< HEAD
       setImageFile(null)
       setImagePreview(null)
     } catch (err) {
@@ -615,6 +647,13 @@ export default function AdmissionRegisterPage() {
           fontSize: '14px'
         }
       })
+=======
+      fetchStudents() // Refresh the list
+
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message || 'Failed to save student')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       console.error('Save error:', err)
     } finally {
       setSaving(false)
@@ -631,6 +670,7 @@ export default function AdmissionRegisterPage() {
     setError(null)
 
     try {
+<<<<<<< HEAD
       const studentId = selectedStudent.id
       const studentName = selectedStudent.name
 
@@ -664,6 +704,24 @@ export default function AdmissionRegisterPage() {
       toast.error(err.message || 'Failed to delete student', {
         duration: 3000
       })
+=======
+      // Soft delete - update status to inactive
+      const { error: deleteError } = await supabase
+        .from('students')
+        .update({ status: 'inactive', updated_at: new Date().toISOString() })
+        .eq('id', selectedStudent.id)
+
+      if (deleteError) throw deleteError
+
+      setSuccess('Student deleted successfully!')
+      setShowDeleteModal(false)
+      setSelectedStudent(null)
+      fetchStudents() // Refresh the list
+
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message || 'Failed to delete student')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       console.error('Delete error:', err)
     } finally {
       setDeleting(false)
@@ -671,6 +729,12 @@ export default function AdmissionRegisterPage() {
   }
 
   const handleToggleStatus = async (student) => {
+<<<<<<< HEAD
+=======
+    setError(null)
+    setSuccess(null)
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     try {
       // Toggle between active and inactive
       const newStatus = student.status === 'active' ? 'inactive' : 'active'
@@ -682,6 +746,7 @@ export default function AdmissionRegisterPage() {
 
       if (updateError) throw updateError
 
+<<<<<<< HEAD
       // Update state without page reload
       setAdmissions(prev => prev.map(adm =>
         adm.id === student.id ? { ...adm, status: newStatus } : adm
@@ -711,6 +776,15 @@ export default function AdmissionRegisterPage() {
           fontSize: '14px'
         }
       })
+=======
+      const statusText = newStatus === 'active' ? 'activated' : 'deactivated'
+      setSuccess(`Student ${statusText} successfully!`)
+      fetchStudents() // Refresh the list
+
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message || 'Failed to update student status')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       console.error('Toggle status error:', err)
     }
   }
@@ -735,11 +809,14 @@ export default function AdmissionRegisterPage() {
         await fetchSections(fullStudent.current_class_id)
       }
 
+<<<<<<< HEAD
       // Set image preview if exists
       if (fullStudent.photo_url) {
         setImagePreview(null) // Don't set preview for existing URL, show the saved image
       }
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       setFormData({
         id: fullStudent.id,
         admissionNo: fullStudent.admission_number || '',
@@ -810,6 +887,7 @@ export default function AdmissionRegisterPage() {
     }
   }
 
+<<<<<<< HEAD
   const handleView = async (student) => {
     try {
       // Fetch complete student data from Supabase
@@ -1014,6 +1092,11 @@ export default function AdmissionRegisterPage() {
         fontSize: '14px'
       }
     })
+=======
+  const handleView = (student) => {
+    setSelectedStudent(student)
+    setShowViewModal(true)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   }
 
   const handleImportClassSelect = (classId, className) => {
@@ -1313,8 +1396,11 @@ export default function AdmissionRegisterPage() {
 
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+<<<<<<< HEAD
       <Toaster position="top-right" />
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Success/Error Messages */}
       {success && (
         <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
@@ -1369,7 +1455,11 @@ export default function AdmissionRegisterPage() {
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Admission Register</h2>
 
         {/* Search and Filter Section */}
+<<<<<<< HEAD
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+=======
+        <div className="grid grid-cols-1 md:grid-cols-10 gap-4 mb-6">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="md:col-span-3">
             <select
               value={selectedOption}
@@ -1385,7 +1475,11 @@ export default function AdmissionRegisterPage() {
             </select>
           </div>
 
+<<<<<<< HEAD
           <div className="md:col-span-9">
+=======
+          <div className="md:col-span-5">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -1397,6 +1491,19 @@ export default function AdmissionRegisterPage() {
               />
             </div>
           </div>
+<<<<<<< HEAD
+=======
+
+          <div className="md:col-span-2">
+            <button
+              onClick={() => {}}
+              className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2"
+            >
+              <Search size={20} />
+              Search
+            </button>
+          </div>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         </div>
 
         {/* Info Text */}
@@ -1413,9 +1520,14 @@ export default function AdmissionRegisterPage() {
 
         {/* Table */}
         {!loading && (
+<<<<<<< HEAD
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
+=======
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               <thead>
                 <tr className="bg-blue-900 text-white">
                   <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
@@ -1435,18 +1547,27 @@ export default function AdmissionRegisterPage() {
                     </td>
                   </tr>
                 ) : (
+<<<<<<< HEAD
                   paginatedAdmissions.map((admission, index) => (
+=======
+                  filteredAdmissions.map((admission, index) => (
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     <tr
                       key={admission.id}
                       className={`${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
+<<<<<<< HEAD
                       <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+=======
+                      <td className="px-4 py-3 border border-gray-200">{admission.sr}</td>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       <td className="px-4 py-3 border border-gray-200">{admission.session}</td>
                       <td className="px-4 py-3 border border-gray-200">{getClassName(admission.class)}</td>
                       <td className="px-4 py-3 border border-gray-200">
                         <div className="flex items-center gap-2">
+<<<<<<< HEAD
                           <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                             {admission.photo_url ? (
                               <img src={admission.photo_url} alt={admission.name} className="w-full h-full object-cover" />
@@ -1454,6 +1575,9 @@ export default function AdmissionRegisterPage() {
                               <span className="text-xl">{admission.avatar}</span>
                             )}
                           </div>
+=======
+                          <span className="text-2xl">{admission.avatar}</span>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                           <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                             {admission.name}
                           </span>
@@ -1507,6 +1631,7 @@ export default function AdmissionRegisterPage() {
               </tbody>
             </table>
           </div>
+<<<<<<< HEAD
 
           {/* Pagination Controls */}
           {filteredAdmissions.length > 0 && (
@@ -1572,6 +1697,14 @@ export default function AdmissionRegisterPage() {
           )}
         </div>
         )}
+=======
+        )}
+
+        {/* Pagination */}
+        <div className="mt-6 flex justify-between items-center">
+          <p className="text-sm text-gray-600">Showing {filteredAdmissions.length} entries</p>
+        </div>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
       )}
 
@@ -1950,6 +2083,18 @@ export default function AdmissionRegisterPage() {
                     </select>
                   </div>
                 </div>
+<<<<<<< HEAD
+=======
+                <div className="mt-4 border border-dashed border-gray-300 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">UPLOAD STUDENT PICTURE</p>
+                  <p className="text-xs text-gray-500 italic mb-2">Select image file</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="w-full text-xs"
+                  />
+                </div>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">Base Fee (Auto-filled)</label>
@@ -2017,6 +2162,7 @@ export default function AdmissionRegisterPage() {
                       required
                     />
                   </div>
+<<<<<<< HEAD
                   <div className="md:col-span-2">
                     <label className="block text-gray-700 text-sm mb-2">
                       Student Photo
@@ -2060,6 +2206,8 @@ export default function AdmissionRegisterPage() {
                       />
                     </div>
                   </div>
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">Father Mobile</label>
                     <input
@@ -2593,6 +2741,7 @@ export default function AdmissionRegisterPage() {
               <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Student Information</h3>
+<<<<<<< HEAD
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handlePrintStudent}
@@ -2608,10 +2757,19 @@ export default function AdmissionRegisterPage() {
                       <X size={20} />
                     </button>
                   </div>
+=======
+                  <button
+                    onClick={() => setShowViewModal(false)}
+                    className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  >
+                    <X size={20} />
+                  </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
+<<<<<<< HEAD
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden">
                     {selectedStudent.photo_url ? (
                       <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
@@ -2963,6 +3121,36 @@ export default function AdmissionRegisterPage() {
                   </div>
                 )}
 
+=======
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl">
+                    {selectedStudent.avatar}
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-800">{selectedStudent.name}</h4>
+                    <p className="text-gray-600">Admission No: <span className="font-semibold">{selectedStudent.admNo}</span></p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Session</p>
+                    <p className="font-semibold text-gray-800">{selectedStudent.session}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Class</p>
+                    <p className="font-semibold text-gray-800">{getClassName(selectedStudent.class)}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Father Name</p>
+                    <p className="font-semibold text-gray-800">{selectedStudent.father}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500 mb-1">Gender</p>
+                    <p className="font-semibold text-gray-800 capitalize">{selectedStudent.gender}</p>
+                  </div>
+                </div>
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <div className="mt-6 flex gap-3">
                   <button
                     onClick={() => setShowViewModal(false)}
@@ -2973,6 +3161,7 @@ export default function AdmissionRegisterPage() {
                   <button
                     onClick={() => {
                       setShowViewModal(false)
+<<<<<<< HEAD
                       handleEdit({
                         id: selectedStudent.id,
                         admNo: selectedStudent.admission_number,
@@ -2983,6 +3172,9 @@ export default function AdmissionRegisterPage() {
                         gender: selectedStudent.gender,
                         avatar: selectedStudent.avatar
                       })
+=======
+                      handleEdit(selectedStudent)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     }}
                     className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
                   >

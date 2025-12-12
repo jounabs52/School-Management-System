@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { createPortal } from 'react-dom'
 import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -73,6 +74,12 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
+=======
+import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function SubjectsPage() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [showEditSidebar, setShowEditSidebar] = useState(false)
@@ -93,6 +100,7 @@ export default function SubjectsPage() {
   const [loading, setLoading] = useState(true)
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [user, setUser] = useState(null)
+<<<<<<< HEAD
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage] = useState(10)
 
@@ -122,6 +130,8 @@ export default function SubjectsPage() {
       document.body.style.paddingRight = ''
     }
   }, [showSidebar, showEditSidebar, showDeleteModal])
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   // Fetch user and classes data on component mount
   useEffect(() => {
@@ -176,19 +186,34 @@ export default function SubjectsPage() {
         .from('classes')
         .select('id, class_name, incharge, exam_marking_system, standard_fee, order_number, status')
         .eq('school_id', user.school_id)
+<<<<<<< HEAD
         .eq('status', 'active')
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .order('class_name', { ascending: true })
 
       if (error) {
         console.error('Error fetching classes:', error)
+<<<<<<< HEAD
         setClasses([])
       } else {
         console.log('Fetched classes:', data)
+=======
+        console.error('Error details:', JSON.stringify(error, null, 2))
+        setClasses([])
+      } else {
+        console.log('Fetched classes:', data)
+        console.log('Number of classes:', data?.length || 0)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
         if (!data || data.length === 0) {
           console.warn('No classes found in database for school_id:', user.school_id)
           setClasses([])
         } else {
+<<<<<<< HEAD
+=======
+          // Transform data to have 'name' property for consistency
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           const transformedClasses = data.map(cls => ({
             id: cls.id,
             name: cls.class_name,
@@ -198,6 +223,10 @@ export default function SubjectsPage() {
             orderNumber: cls.order_number,
             status: cls.status
           }))
+<<<<<<< HEAD
+=======
+          console.log('Transformed classes:', transformedClasses)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           setClasses(transformedClasses)
         }
       }
@@ -220,6 +249,10 @@ export default function SubjectsPage() {
 
       console.log('Fetching subjects for school_id:', user.school_id)
 
+<<<<<<< HEAD
+=======
+      // Fetch from class_subjects junction table with joins
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const { data, error } = await supabase
         .from('class_subjects')
         .select(`
@@ -236,6 +269,10 @@ export default function SubjectsPage() {
         setSubjects([])
       } else {
         console.log('Fetched subjects:', data)
+<<<<<<< HEAD
+=======
+        // Transform data to match the expected format
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         const transformedData = data.map((item, index) => ({
           id: item.id,
           sr: index + 1,
@@ -244,7 +281,11 @@ export default function SubjectsPage() {
           subjectId: item.subjects?.id || '',
           subjectName: item.subjects?.subject_name || '',
           subjectCode: item.subjects?.subject_code || '',
+<<<<<<< HEAD
           teacher: '-',
+=======
+          teacher: '-', // TODO: Add teacher relationship
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           isCompulsory: item.is_compulsory
         }))
         setSubjects(transformedData)
@@ -286,6 +327,7 @@ export default function SubjectsPage() {
 
   const groupedSubjectsArray = Object.values(groupedSubjects)
 
+<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(groupedSubjectsArray.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -307,10 +349,24 @@ export default function SubjectsPage() {
       const validSubjects = formData.subjects.filter(s => s.subjectName.trim())
       if (validSubjects.length === 0) {
         showToast('Please enter at least one subject name', 'error')
+=======
+  const handleSave = async () => {
+    try {
+      if (!formData.classId) {
+        alert('Please select a class')
+        return
+      }
+
+      // Validate at least one subject has a name
+      const validSubjects = formData.subjects.filter(s => s.subjectName.trim())
+      if (validSubjects.length === 0) {
+        alert('Please enter at least one subject name')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id || !user.id) {
+<<<<<<< HEAD
         showToast('User authentication error', 'error')
         return
       }
@@ -327,6 +383,17 @@ export default function SubjectsPage() {
       for (const subject of subjectsToProcess) {
         let subjectId = null
 
+=======
+        alert('User authentication error')
+        return
+      }
+
+      // Process each subject
+      for (const subject of validSubjects) {
+        let subjectId = null
+
+        // Check if subject already exists by name only
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         const { data: existingSubject } = await supabase
           .from('subjects')
           .select('id')
@@ -337,6 +404,10 @@ export default function SubjectsPage() {
         if (existingSubject) {
           subjectId = existingSubject.id
         } else {
+<<<<<<< HEAD
+=======
+          // Create new subject
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           const { data: newSubject, error: subjectError } = await supabase
             .from('subjects')
             .insert({
@@ -350,17 +421,26 @@ export default function SubjectsPage() {
 
           if (subjectError) {
             console.error('Error creating subject:', subjectError)
+<<<<<<< HEAD
             showToast(`Failed to create subject: ${subject.subjectName}`, 'error')
+=======
+            alert(`Failed to create subject: ${subject.subjectName}`)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             continue
           }
 
           subjectId = newSubject.id
         }
 
+<<<<<<< HEAD
+=======
+        // Check if this class-subject relationship already exists
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         const { data: existingRelation } = await supabase
           .from('class_subjects')
           .select('id')
           .eq('school_id', user.school_id)
+<<<<<<< HEAD
           .eq('class_id', classId)
           .eq('subject_id', subjectId)
           .maybeSingle()
@@ -371,10 +451,24 @@ export default function SubjectsPage() {
             .insert({
               school_id: user.school_id,
               class_id: classId,
+=======
+          .eq('class_id', formData.classId)
+          .eq('subject_id', subjectId)
+          .single()
+
+        if (!existingRelation) {
+          // Create class_subject relationship
+          const { error: classSubjectError } = await supabase
+            .from('class_subjects')
+            .insert({
+              school_id: user.school_id,
+              class_id: formData.classId,
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               subject_id: subjectId,
               is_compulsory: true,
               created_by: user.id
             })
+<<<<<<< HEAD
             .select('id')
 
           if (classSubjectError) {
@@ -389,10 +483,17 @@ export default function SubjectsPage() {
               subjectName: subject.subjectName,
               subjectCode: subject.subjectCode
             })
+=======
+
+          if (classSubjectError) {
+            console.error('Error creating class-subject relationship:', classSubjectError)
+            alert(`Failed to assign subject: ${subject.subjectName}`)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           }
         }
       }
 
+<<<<<<< HEAD
       // Update subjects state in real-time
       if (newSubjectsData.length > 0) {
         setSubjects(prev => [...prev, ...newSubjectsData.map((item, idx) => ({
@@ -412,6 +513,15 @@ export default function SubjectsPage() {
     } catch (error) {
       console.error('Error saving subjects:', error)
       showToast('An error occurred while saving', 'error')
+=======
+      // Refresh subjects list
+      await fetchSubjects()
+      setShowSidebar(false)
+      setFormData({ classId: '', subjects: [{ subjectName: '', subjectCode: '' }] })
+    } catch (error) {
+      console.error('Error saving subjects:', error)
+      alert('An error occurred while saving')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -458,6 +568,7 @@ export default function SubjectsPage() {
   const handleUpdate = async () => {
     try {
       if (!editFormData.classId) {
+<<<<<<< HEAD
         showToast('Please select a class', 'error')
         return
       }
@@ -465,10 +576,21 @@ export default function SubjectsPage() {
       const validSubjects = editFormData.subjects.filter(s => s.subjectName.trim())
       if (validSubjects.length === 0) {
         showToast('Please enter at least one subject name', 'error')
+=======
+        alert('Please select a class')
+        return
+      }
+
+      // Validate at least one subject has a name
+      const validSubjects = editFormData.subjects.filter(s => s.subjectName.trim())
+      if (validSubjects.length === 0) {
+        alert('Please enter at least one subject name')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id || !user.id) {
+<<<<<<< HEAD
         showToast('User authentication error', 'error')
         return
       }
@@ -500,6 +622,25 @@ export default function SubjectsPage() {
       const newSubjectsData = []
 
       for (const subject of subjectsToProcess) {
+=======
+        alert('User authentication error')
+        return
+      }
+
+      // Delete subjects that were removed
+      const subjectsToDelete = selectedSubject.subjects
+        .filter(s => !editFormData.subjects.find(es => es.id === s.id))
+
+      for (const subject of subjectsToDelete) {
+        await supabase
+          .from('class_subjects')
+          .delete()
+          .eq('id', subject.id)
+      }
+
+      // Process each subject (update existing or create new)
+      for (const subject of validSubjects) {
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         if (subject.id && subject.subjectId) {
           // Update existing subject
           await supabase
@@ -513,6 +654,10 @@ export default function SubjectsPage() {
           // Create new subject
           let subjectId = null
 
+<<<<<<< HEAD
+=======
+          // Check if subject already exists by name only
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           const { data: existingSubject } = await supabase
             .from('subjects')
             .select('id')
@@ -523,6 +668,10 @@ export default function SubjectsPage() {
           if (existingSubject) {
             subjectId = existingSubject.id
           } else {
+<<<<<<< HEAD
+=======
+            // Create new subject
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             const { data: newSubject, error: subjectError } = await supabase
               .from('subjects')
               .insert({
@@ -536,17 +685,26 @@ export default function SubjectsPage() {
 
             if (subjectError) {
               console.error('Error creating subject:', subjectError)
+<<<<<<< HEAD
               showToast(`Failed to create subject: ${subject.subjectName}`, 'error')
+=======
+              alert(`Failed to create subject: ${subject.subjectName}`)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               continue
             }
 
             subjectId = newSubject.id
           }
 
+<<<<<<< HEAD
+=======
+          // Check if this class-subject relationship already exists
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           const { data: existingRelation } = await supabase
             .from('class_subjects')
             .select('id')
             .eq('school_id', user.school_id)
+<<<<<<< HEAD
             .eq('class_id', classId)
             .eq('subject_id', subjectId)
             .maybeSingle()
@@ -557,10 +715,24 @@ export default function SubjectsPage() {
               .insert({
                 school_id: user.school_id,
                 class_id: classId,
+=======
+            .eq('class_id', editFormData.classId)
+            .eq('subject_id', subjectId)
+            .single()
+
+          if (!existingRelation) {
+            // Create class_subject relationship
+            await supabase
+              .from('class_subjects')
+              .insert({
+                school_id: user.school_id,
+                class_id: editFormData.classId,
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 subject_id: subjectId,
                 is_compulsory: true,
                 created_by: user.id
               })
+<<<<<<< HEAD
               .select('id')
 
             if (!classSubjectError && data && data[0]) {
@@ -573,10 +745,13 @@ export default function SubjectsPage() {
                 subjectCode: subject.subjectCode
               })
             }
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           }
         }
       }
 
+<<<<<<< HEAD
       // Update subjects state in real-time
       setSubjects(prev => {
         // Remove deleted subjects
@@ -617,14 +792,28 @@ export default function SubjectsPage() {
     } catch (error) {
       console.error('Error updating subjects:', error)
       showToast('An error occurred while updating', 'error')
+=======
+      // Refresh subjects list
+      await fetchSubjects()
+      setShowEditSidebar(false)
+      setSelectedSubject(null)
+      setEditFormData({ classId: '', subjects: [] })
+    } catch (error) {
+      console.error('Error updating subjects:', error)
+      alert('An error occurred while updating')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const confirmDelete = async () => {
     try {
+<<<<<<< HEAD
       const deletedIds = []
       const deletedClassName = selectedSubject.className
 
+=======
+      // Delete all subjects for this class
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       for (const subject of selectedSubject.subjects) {
         const { error } = await supabase
           .from('class_subjects')
@@ -633,6 +822,7 @@ export default function SubjectsPage() {
 
         if (error) {
           console.error('Error deleting subject:', error)
+<<<<<<< HEAD
           showToast(`Failed to delete subject: ${subject.subjectName}`, 'error')
         } else {
           deletedIds.push(subject.id)
@@ -649,15 +839,30 @@ export default function SubjectsPage() {
     } catch (error) {
       console.error('Error deleting subjects:', error)
       showToast('An error occurred while deleting', 'error')
+=======
+        }
+      }
+
+      // Refresh subjects list
+      await fetchSubjects()
+      setShowDeleteModal(false)
+      setSelectedSubject(null)
+    } catch (error) {
+      console.error('Error deleting subjects:', error)
+      alert('An error occurred while deleting')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+<<<<<<< HEAD
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Top Button */}
       <div className="mb-6">
         <button
@@ -693,6 +898,7 @@ export default function SubjectsPage() {
 
           {/* Search Input */}
           <div className="flex-1">
+<<<<<<< HEAD
             <label className="block text-gray-600 text-sm mb-2">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -703,6 +909,24 @@ export default function SubjectsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
+=======
+            <label className="block text-gray-600 text-sm mb-2 invisible">Search</label>
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by subject name or code"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <button className="bg-[#DC2626] text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
+                <Search size={20} />
+                Search
+              </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             </div>
           </div>
         </div>
@@ -734,14 +958,22 @@ export default function SubjectsPage() {
                   </td>
                 </tr>
               ) : (
+<<<<<<< HEAD
                 paginatedSubjects.map((classGroup, index) => (
+=======
+                groupedSubjectsArray.map((classGroup, index) => (
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   <tr
                     key={classGroup.classId}
                     className={`${
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                     } hover:bg-blue-50 transition`}
                   >
+<<<<<<< HEAD
                     <td className="px-4 py-3 border border-gray-200 text-blue-600 align-top w-16">{startIndex + index + 1}</td>
+=======
+                    <td className="px-4 py-3 border border-gray-200 text-blue-600 align-top w-16">{index + 1}</td>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     <td className="px-4 py-3 border border-gray-200 font-medium align-top w-32">{classGroup.className}</td>
                     <td className="px-4 py-3 border border-gray-200">
                       <div className="flex flex-wrap gap-2">
@@ -800,6 +1032,7 @@ export default function SubjectsPage() {
             </tbody>
           </table>
         </div>
+<<<<<<< HEAD
 
         {/* Pagination Controls */}
         {groupedSubjectsArray.length > 0 && (
@@ -863,12 +1096,23 @@ export default function SubjectsPage() {
             </div>
           </div>
         )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Add Subject Sidebar */}
       {showSidebar && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowSidebar(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+=======
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowSidebar(false)}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -976,27 +1220,50 @@ export default function SubjectsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowSidebar(false)}
+<<<<<<< HEAD
                   className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+=======
+                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
+<<<<<<< HEAD
                   className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
                 >
                   <Plus size={16} />
+=======
+                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Plus size={18} />
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   Save Subjects
                 </button>
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
+=======
+        </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Edit Subject Sidebar */}
       {showEditSidebar && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowEditSidebar(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+=======
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowEditSidebar(false)}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -1034,6 +1301,18 @@ export default function SubjectsPage() {
                     </select>
                     <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                   </div>
+<<<<<<< HEAD
+=======
+                  {loadingClasses && (
+                    <p className="text-xs text-gray-500 mt-2">Loading classes...</p>
+                  )}
+                  {!loadingClasses && classes.length === 0 && (
+                    <p className="text-xs text-red-500 mt-2">⚠️ No classes found! Please add classes first in Classes section.</p>
+                  )}
+                  {!loadingClasses && classes.length > 0 && (
+                    <p className="text-xs text-green-600 mt-2">✓ {classes.length} classes loaded</p>
+                  )}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -1095,27 +1374,50 @@ export default function SubjectsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowEditSidebar(false)}
+<<<<<<< HEAD
                   className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+=======
+                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
+<<<<<<< HEAD
                   className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
                 >
                   <Edit2 size={16} />
+=======
+                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Edit2 size={18} />
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   Update Subjects
                 </button>
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
+=======
+        </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedSubject && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+=======
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowDeleteModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
@@ -1136,23 +1438,41 @@ export default function SubjectsPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
+<<<<<<< HEAD
                     className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+=======
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
+<<<<<<< HEAD
                     className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm"
                   >
                     <Trash2 size={16} />
+=======
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={18} />
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     Delete All
                   </button>
                 </div>
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
       )}
     </div>
   )
 }
+=======
+        </>
+      )}
+    </div>
+  )
+}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

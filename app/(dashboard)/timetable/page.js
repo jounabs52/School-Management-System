@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -29,6 +30,12 @@ const Toast = ({ message, type, onClose }) => {
     </div>
   )
 }
+=======
+import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
+import toast, { Toaster } from 'react-hot-toast'
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
 export default function TimetablePage() {
   const [activeTab, setActiveTab] = useState('timetable')
@@ -66,6 +73,7 @@ export default function TimetablePage() {
   })
   const [numberOfPeriods, setNumberOfPeriods] = useState(6)
 
+<<<<<<< HEAD
   // Pagination state for Periods tab
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 10
@@ -88,6 +96,8 @@ export default function TimetablePage() {
     setToast({ show: false, message: '', type: '' })
   }
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const [periodForm, setPeriodForm] = useState({
     class_id: '',
     day_of_week: '',
@@ -167,7 +177,11 @@ export default function TimetablePage() {
         if (userData) {
           if (!userData.school_id) {
             console.error('❌ User has no school_id!', userData)
+<<<<<<< HEAD
             showToast('Error: User account is not associated with a school. Please contact support.', 'error')
+=======
+            toast.error('Error: User account is not associated with a school. Please contact support.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             setLoadingClasses(false)
             return
           }
@@ -206,11 +220,14 @@ export default function TimetablePage() {
     }
   }, [selectedClass])
 
+<<<<<<< HEAD
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedClassFilter])
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const fetchClasses = async () => {
     try {
       setLoadingClasses(true)
@@ -445,7 +462,11 @@ export default function TimetablePage() {
 
   const handleLoad = async () => {
     if (!selectedClass) {
+<<<<<<< HEAD
       showToast('Please select a class first', 'error')
+=======
+      toast.error('Please select a class first')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       return
     }
     if (activeTab === 'timetable') {
@@ -517,12 +538,20 @@ export default function TimetablePage() {
   const handleSavePeriod = async () => {
     try {
       if (!periodForm.period_number || !periodForm.start_time || !periodForm.end_time) {
+<<<<<<< HEAD
         showToast('Please fill all required fields (Period Number, Start Time, End Time)', 'error')
+=======
+        toast.error('Please fill all required fields (Period Number, Start Time, End Time)')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
+<<<<<<< HEAD
         showToast('User authentication error', 'error')
+=======
+        toast.error('User authentication error')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -551,11 +580,18 @@ export default function TimetablePage() {
         if (error) {
           console.error('Error updating period:', error)
           console.error('Error details:', JSON.stringify(error, null, 2))
+<<<<<<< HEAD
           showToast(`Failed to update period: ${error.message || JSON.stringify(error)}`, 'error')
           return
         }
         console.log('Period updated successfully:', data)
         showToast('Period updated successfully!', 'success')
+=======
+          toast.error(`Failed to update period: ${error.message || JSON.stringify(error)}`)
+          return
+        }
+        console.log('Period updated successfully:', data)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       } else {
         const { data, error } = await supabase
           .from('periods')
@@ -567,11 +603,18 @@ export default function TimetablePage() {
           console.error('Error details:', JSON.stringify(error, null, 2))
           console.error('Error code:', error.code)
           console.error('Error hint:', error.hint)
+<<<<<<< HEAD
           showToast(`Failed to create period: ${error.message || 'Unknown error. Check console for details.'}`, 'error')
           return
         }
         console.log('Period created successfully:', data)
         showToast('Period created successfully!', 'success')
+=======
+          toast.error(`Failed to create period: ${error.message || 'Unknown error. Check console for details.'}`)
+          return
+        }
+        console.log('Period created successfully:', data)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       }
 
       await fetchPeriods()
@@ -588,11 +631,20 @@ export default function TimetablePage() {
       setEditingPeriod(null)
     } catch (error) {
       console.error('Error saving period:', error)
+<<<<<<< HEAD
       showToast('An error occurred while saving', 'error')
+=======
+      toast.error('An error occurred while saving')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleDeletePeriod = async (periodId) => {
+<<<<<<< HEAD
+=======
+    if (!confirm('Are you sure you want to delete this period?')) return
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     try {
       const { error } = await supabase
         .from('periods')
@@ -602,6 +654,7 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error deleting period:', error)
+<<<<<<< HEAD
         showToast('Failed to delete period', 'error')
         return
       }
@@ -614,23 +667,45 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error deleting period:', error)
       showToast('An error occurred while deleting', 'error')
+=======
+        toast.error('Failed to delete period')
+        return
+      }
+
+      await fetchPeriods()
+    } catch (error) {
+      console.error('Error deleting period:', error)
+      toast.error('An error occurred while deleting')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleSaveBulkPeriods = async () => {
     try {
       if (!bulkPeriodForm.class_ids.length || !bulkPeriodForm.day_of_weeks.length) {
+<<<<<<< HEAD
         showToast('Please select at least one class and one day', 'error')
+=======
+        toast.error('Please select at least one class and one day')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!bulkPeriodForm.start_time || !bulkPeriodForm.period_duration || !bulkPeriodForm.period_gap) {
+<<<<<<< HEAD
         showToast('Please fill all required fields (Start Time, Period Duration, Period Gap)', 'error')
+=======
+        toast.error('Please fill all required fields (Start Time, Period Duration, Period Gap)')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
+<<<<<<< HEAD
         showToast('User authentication error', 'error')
+=======
+        toast.error('User authentication error')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -682,7 +757,11 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error creating bulk periods:', error)
+<<<<<<< HEAD
         showToast('Failed to create periods: ' + error.message, 'error')
+=======
+        toast.error('Failed to create periods: ' + error.message)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -697,22 +776,37 @@ export default function TimetablePage() {
         break_period: '',
         break_duration: ''
       })
+<<<<<<< HEAD
       showToast(`Bulk periods created successfully! Created ${periodsToCreate.length} periods.`, 'success')
     } catch (error) {
       console.error('Error saving bulk periods:', error)
       showToast('An error occurred while saving', 'error')
+=======
+      toast.success(`Bulk periods created successfully! Created ${periodsToCreate.length} periods.`)
+    } catch (error) {
+      console.error('Error saving bulk periods:', error)
+      toast.error('An error occurred while saving')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleChangeTimings = async () => {
     try {
       if (!timingForm.start_time || !timingForm.period_duration) {
+<<<<<<< HEAD
         showToast('Please fill required fields (Start Time and Period Duration)', 'error')
+=======
+        toast.error('Please fill required fields (Start Time and Period Duration)')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
+<<<<<<< HEAD
         showToast('User authentication error', 'error')
+=======
+        toast.error('User authentication error')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -760,17 +854,28 @@ export default function TimetablePage() {
         period_gap: '',
         break_duration: ''
       })
+<<<<<<< HEAD
       showToast('Period timings updated successfully!', 'success')
     } catch (error) {
       console.error('Error updating timings:', error)
       showToast('An error occurred while updating', 'error')
+=======
+      toast.success('Period timings updated successfully!')
+    } catch (error) {
+      console.error('Error updating timings:', error)
+      toast.error('An error occurred while updating')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleDeleteAllPeriods = async () => {
     try {
       if (!user || !user.school_id) {
+<<<<<<< HEAD
         showToast('User authentication error', 'error')
+=======
+        toast.error('User authentication error')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -781,6 +886,7 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error deleting all periods:', error)
+<<<<<<< HEAD
         showToast('Failed to delete all periods', 'error')
         return
       }
@@ -792,23 +898,47 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error deleting all periods:', error)
       showToast('An error occurred while deleting', 'error')
+=======
+        toast.error('Failed to delete all periods')
+        return
+      }
+
+      await fetchPeriods()
+      setShowDeleteConfirm(false)
+      toast.success('All periods deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting all periods:', error)
+      toast.error('An error occurred while deleting')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleAutoGenerateTimetable = async () => {
     try {
       if (!autoGenerateForm.class_id || !autoGenerateForm.day_of_week) {
+<<<<<<< HEAD
         showToast('Please select Class and Day', 'error')
+=======
+        toast.error('Please select Class and Day')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
+<<<<<<< HEAD
         showToast('Authentication error. Please login again.', 'error')
+=======
+        toast.error('Authentication error. Please login again.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!currentSession) {
+<<<<<<< HEAD
         showToast('No active session found. Please create and activate a session first.', 'error')
+=======
+        toast.error('No active session found. Please create and activate a session first.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -825,12 +955,20 @@ export default function TimetablePage() {
 
       if (subjectsError) {
         console.error('Error fetching class subjects:', subjectsError)
+<<<<<<< HEAD
         showToast('Failed to fetch class subjects', 'error')
+=======
+        toast.error('Failed to fetch class subjects')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!classSubjectsData || classSubjectsData.length === 0) {
+<<<<<<< HEAD
         showToast('No subjects found for this class. Please add subjects first.', 'error')
+=======
+        toast.error('No subjects found for this class. Please add subjects first.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -848,7 +986,11 @@ export default function TimetablePage() {
       }).sort((a, b) => a.period_number - b.period_number)
 
       if (availablePeriods.length === 0) {
+<<<<<<< HEAD
         showToast('No periods found. Please create periods first.', 'error')
+=======
+        toast.error('No periods found. Please create periods first.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -864,7 +1006,14 @@ export default function TimetablePage() {
         .eq('day_of_week', autoGenerateForm.day_of_week)
 
       if (existingTimetable && existingTimetable.length > 0) {
+<<<<<<< HEAD
         // Delete existing timetable for this day (user already warned in the modal)
+=======
+        if (!confirm(`Timetable already exists for ${autoGenerateForm.day_of_week}. Do you want to replace it?`)) {
+          return
+        }
+        // Delete existing timetable for this day
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         await supabase
           .from('timetable')
           .delete()
@@ -907,11 +1056,19 @@ export default function TimetablePage() {
 
       if (insertError) {
         console.error('Error creating timetable:', insertError)
+<<<<<<< HEAD
         showToast('Failed to generate timetable: ' + insertError.message, 'error')
         return
       }
 
       showToast(`Timetable generated successfully for ${autoGenerateForm.day_of_week}! Created ${timetableEntries.length} entries.`, 'success')
+=======
+        toast.error('Failed to generate timetable: ' + insertError.message)
+        return
+      }
+
+      toast.success(`Timetable generated successfully for ${autoGenerateForm.day_of_week}! Created ${timetableEntries.length} entries.`)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       setShowAutoGenerateModal(false)
       setAutoGenerateForm({
         class_id: '',
@@ -924,42 +1081,70 @@ export default function TimetablePage() {
       }
     } catch (error) {
       console.error('Error auto-generating timetable:', error)
+<<<<<<< HEAD
       showToast('An error occurred while generating timetable', 'error')
+=======
+      toast.error('An error occurred while generating timetable')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleSaveTimetable = async () => {
     try {
       if (!timetableForm.day_of_week || !timetableForm.period_number) {
+<<<<<<< HEAD
         showToast('Please select Day and Period', 'error')
+=======
+        toast.error('Please select Day and Period')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       // Only validate subject and teacher for regular periods, not breaks
       if (timetableForm.entry_type === 'regular') {
         if (!timetableForm.subject_id) {
+<<<<<<< HEAD
           showToast('Please select a Subject', 'error')
+=======
+          toast.error('Please select a Subject')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           return
         }
 
         if (!timetableForm.teacher_id) {
+<<<<<<< HEAD
           showToast('Please select a Teacher', 'error')
+=======
+          toast.error('Please select a Teacher')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           return
         }
       }
 
       if (!user || !user.school_id) {
+<<<<<<< HEAD
         showToast('Authentication error. Please login again.', 'error')
+=======
+        toast.error('Authentication error. Please login again.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!selectedClass) {
+<<<<<<< HEAD
         showToast('Please select a class first', 'error')
+=======
+        toast.error('Please select a class first')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!currentSession) {
+<<<<<<< HEAD
         showToast('No active session found. Please create and activate a session first.', 'error')
+=======
+        toast.error('No active session found. Please create and activate a session first.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -988,7 +1173,11 @@ export default function TimetablePage() {
       )
 
       if (!period) {
+<<<<<<< HEAD
         showToast('Period timing not found. Please create period timings first.', 'error')
+=======
+        toast.error('Period timing not found. Please create period timings first.')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1016,10 +1205,16 @@ export default function TimetablePage() {
 
         if (error) {
           console.error('Error updating timetable:', error)
+<<<<<<< HEAD
           showToast('Failed to update timetable', 'error')
           return
         }
         showToast('Timetable updated successfully!', 'success')
+=======
+          toast.error('Failed to update timetable')
+          return
+        }
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       } else {
         const { error } = await supabase
           .from('timetable')
@@ -1027,10 +1222,16 @@ export default function TimetablePage() {
 
         if (error) {
           console.error('Error creating timetable:', error)
+<<<<<<< HEAD
           showToast('Failed to create timetable entry', 'error')
           return
         }
         showToast('Timetable entry created successfully!', 'success')
+=======
+          toast.error('Failed to create timetable entry')
+          return
+        }
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       }
 
       await fetchTimetable()
@@ -1046,11 +1247,20 @@ export default function TimetablePage() {
       setEditingTimetable(null)
     } catch (error) {
       console.error('Error saving timetable:', error)
+<<<<<<< HEAD
       showToast('An error occurred while saving', 'error')
+=======
+      toast.error('An error occurred while saving')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleDeleteTimetable = async (timetableId) => {
+<<<<<<< HEAD
+=======
+    if (!confirm('Are you sure you want to delete this timetable entry?')) return
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     try {
       const { error } = await supabase
         .from('timetable')
@@ -1060,6 +1270,7 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error deleting timetable:', error)
+<<<<<<< HEAD
         showToast('Failed to delete timetable entry', 'error')
         return
       }
@@ -1072,6 +1283,16 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error deleting timetable:', error)
       showToast('An error occurred while deleting', 'error')
+=======
+        toast.error('Failed to delete timetable entry')
+        return
+      }
+
+      await fetchTimetable()
+    } catch (error) {
+      console.error('Error deleting timetable:', error)
+      toast.error('An error occurred while deleting')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -1112,7 +1333,11 @@ export default function TimetablePage() {
       console.log('Starting Print All PDF generation...')
 
       if (classes.length === 0) {
+<<<<<<< HEAD
         showToast('No classes available', 'error')
+=======
+        toast.error('No classes available')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1120,7 +1345,11 @@ export default function TimetablePage() {
       const allTimetablesData = await fetchAllClassesTimetables()
 
       if (allTimetablesData.length === 0) {
+<<<<<<< HEAD
         showToast('No timetables found', 'error')
+=======
+        toast.error('No timetables found')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1339,7 +1568,11 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error generating All Classes PDF:', error)
       console.error('Error details:', error.message, error.stack)
+<<<<<<< HEAD
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
+=======
+      toast.error(`Failed to generate PDF: ${error.message}`)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -1349,7 +1582,11 @@ export default function TimetablePage() {
       console.log('Starting PDF generation...')
 
       if (!selectedClass) {
+<<<<<<< HEAD
         showToast('Please select a class first', 'error')
+=======
+        toast.error('Please select a class first')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1557,7 +1794,11 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error generating PDF:', error)
       console.error('Error details:', error.message, error.stack)
+<<<<<<< HEAD
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
+=======
+      toast.error(`Failed to generate PDF: ${error.message}`)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -1565,6 +1806,7 @@ export default function TimetablePage() {
     const matchesSearch = period.period_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          period.start_time?.includes(searchTerm) ||
                          period.end_time?.includes(searchTerm)
+<<<<<<< HEAD
     const matchesClass = selectedClassFilter === '' || period.class_id === selectedClassFilter
     return matchesSearch && matchesClass
   })
@@ -1613,6 +1855,14 @@ export default function TimetablePage() {
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
+=======
+    return matchesSearch
+  })
+
+  return (
+    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+      <Toaster position="top-right" />
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Tabs */}
       <div className="mb-6 flex gap-2">
         <button
@@ -1985,10 +2235,14 @@ export default function TimetablePage() {
                                     </button>
                                     {deleteMode && (
                                       <button
+<<<<<<< HEAD
                                         onClick={() => {
                                           setTimetableToDelete(cell)
                                           setShowDeleteTimetableModal(true)
                                         }}
+=======
+                                        onClick={() => handleDeleteTimetable(cell.id)}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                                         className="bg-red-500 text-white p-0.5 rounded hover:bg-red-600"
                                         title="Delete"
                                       >
@@ -2108,9 +2362,15 @@ export default function TimetablePage() {
                 Change Timing
               </button>
               <button
+<<<<<<< HEAD
                 onClick={() => setShowDeleteAllModal(true)}
                 className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
                   showDeleteAllModal
+=======
+                onClick={() => setShowDeleteConfirm(true)}
+                className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+                  showDeleteConfirm
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     ? 'bg-[#DC2626] text-white'
                     : 'bg-[#F3F4F6] text-gray-700 hover:bg-[#DC2626] hover:text-white'
                 }`}
@@ -2135,14 +2395,25 @@ export default function TimetablePage() {
               </select>
 
               <div className="flex-1 relative">
+<<<<<<< HEAD
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search"
+<<<<<<< HEAD
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
+=======
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none pr-12"
+                />
+                <button className="absolute right-0 top-0 h-full px-4 bg-[#28A745] text-white rounded-r-lg hover:bg-[#218838]">
+                  <Search size={20} />
+                </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               </div>
             </div>
 
@@ -2173,9 +2444,15 @@ export default function TimetablePage() {
                     </td>
                   </tr>
                 ) : (
+<<<<<<< HEAD
                   paginatedPeriods.map((period, index) => (
                     <tr key={period.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+=======
+                  filteredPeriods.map((period, index) => (
+                    <tr key={period.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       <td className="px-4 py-3 border border-gray-200">
                         {period.class_id ? classes.find(c => c.id === period.class_id)?.class_name || '-' : 'All Classes'}
                       </td>
@@ -2205,10 +2482,14 @@ export default function TimetablePage() {
                             <Edit2 size={18} />
                           </button>
                           <button
+<<<<<<< HEAD
                             onClick={() => {
                               setPeriodToDelete(period)
                               setShowDeletePeriodModal(true)
                             }}
+=======
+                            onClick={() => handleDeletePeriod(period.id)}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 size={18} />
@@ -2221,6 +2502,7 @@ export default function TimetablePage() {
               </tbody>
             </table>
           </div>
+<<<<<<< HEAD
 
           {/* Pagination */}
           {filteredPeriods.length > 0 && (
@@ -2270,6 +2552,8 @@ export default function TimetablePage() {
               </div>
             </div>
           )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         </div>
       )}
 
@@ -2278,7 +2562,10 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowPeriodModal(false)}
+<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
@@ -2410,7 +2697,10 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowBulkPeriodModal(false)}
+<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
@@ -2562,7 +2852,10 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowTimingModal(false)}
+<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
@@ -2646,7 +2939,11 @@ export default function TimetablePage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
+<<<<<<< HEAD
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(4px)' }}>
+=======
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="bg-[#DC2626] text-white px-6 py-4">
               <h3 className="text-xl font-bold">Confirm Delete</h3>
@@ -2680,7 +2977,10 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowTimetableModal(false)}
+<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
@@ -2850,7 +3150,10 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
           onClick={() => setShowAutoGenerateModal(false)}
+<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 overflow-hidden"
@@ -2929,6 +3232,7 @@ export default function TimetablePage() {
           </div>
         </div>
       )}
+<<<<<<< HEAD
 
       {/* Delete Period Confirmation Modal */}
       {showDeletePeriodModal && periodToDelete && (
@@ -3040,6 +3344,8 @@ export default function TimetablePage() {
           </div>
         </>
       )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     </div>
   )
 }

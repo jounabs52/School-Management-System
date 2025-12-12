@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { FileText, CreditCard, Filter, Calendar, User, Hash, Loader2, Printer, Trash2, X } from 'lucide-react'
+=======
+import { FileText, CreditCard, Filter, Download, Calendar, User, Hash, Loader2, Printer, Trash2, X } from 'lucide-react'
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 
@@ -31,10 +35,13 @@ export default function StudentReportsPage() {
   // Filtered data
   const [filteredData, setFilteredData] = useState([])
 
+<<<<<<< HEAD
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage] = useState(10)
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   // Toast notifications
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
@@ -50,7 +57,10 @@ export default function StudentReportsPage() {
 
   useEffect(() => {
     applyFilters()
+<<<<<<< HEAD
     setCurrentPage(1) // Reset to page 1 when filters change
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   }, [activeTab, selectedClass, searchName, searchAdmissionNo, certificates, idCards])
 
   const fetchClasses = async () => {
@@ -85,8 +95,12 @@ export default function StudentReportsPage() {
             last_name,
             admission_number,
             father_name,
+<<<<<<< HEAD
             current_class_id,
             photo_url
+=======
+            current_class_id
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           )
         `)
         .order('issue_date', { ascending: false })
@@ -130,8 +144,12 @@ export default function StudentReportsPage() {
         admission_number: cert.students?.admission_number || 'N/A',
         father_name: cert.students?.father_name || 'N/A',
         class_id: cert.students?.current_class_id || '',
+<<<<<<< HEAD
         class_name: classMap[cert.students?.current_class_id] || 'N/A',
         photo_url: cert.students?.photo_url || null
+=======
+        class_name: classMap[cert.students?.current_class_id] || 'N/A'
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       }))
 
       console.log('Flattened certificates:', flattenedData)
@@ -161,8 +179,12 @@ export default function StudentReportsPage() {
             last_name,
             admission_number,
             father_name,
+<<<<<<< HEAD
             current_class_id,
             photo_url
+=======
+            current_class_id
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           )
         `)
         .order('issue_date', { ascending: false })
@@ -216,8 +238,12 @@ export default function StudentReportsPage() {
           admission_number: card.students?.admission_number || 'N/A',
           father_name: card.students?.father_name || 'N/A',
           class_id: card.students?.current_class_id || '',
+<<<<<<< HEAD
           class_name: classMap[card.students?.current_class_id] || 'N/A',
           photo_url: card.students?.photo_url || null
+=======
+          class_name: classMap[card.students?.current_class_id] || 'N/A'
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         }
       })
 
@@ -259,12 +285,15 @@ export default function StudentReportsPage() {
     setFilteredData(filtered)
   }
 
+<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(filteredData.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
   const endIndex = startIndex + rowsPerPage
   const paginatedData = filteredData.slice(startIndex, endIndex)
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
     setTimeout(() => {
@@ -278,6 +307,62 @@ export default function StudentReportsPage() {
     setSearchAdmissionNo('')
   }
 
+<<<<<<< HEAD
+=======
+  const exportToCSV = () => {
+    const dataToExport = filteredData
+
+    if (dataToExport.length === 0) {
+      showToast('No data to export', 'error')
+      return
+    }
+
+    const headers = activeTab === 'certificates'
+      ? ['Student Name', 'Admission No', 'Father Name', 'Class', 'Certificate Type', 'Issue Date', 'Remarks']
+      : ['Student Name', 'Admission No', 'Father Name', 'Class', 'Card Number', 'Issue Date', 'Expiry Date', 'Status']
+
+    const rows = dataToExport.map(item => {
+      const fullName = `${item.student_first_name} ${item.student_last_name}`
+
+      if (activeTab === 'certificates') {
+        return [
+          fullName,
+          item.admission_number,
+          item.father_name,
+          item.class_name,
+          item.certificate_type,
+          item.issue_date,
+          item.remarks || ''
+        ]
+      } else {
+        return [
+          fullName,
+          item.admission_number,
+          item.father_name,
+          item.class_name,
+          item.card_number,
+          item.issue_date,
+          item.expiry_date,
+          item.status
+        ]
+      }
+    })
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `student_${activeTab}_report_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const handlePrint = async (item) => {
     try {
       if (activeTab === 'certificates') {
@@ -449,6 +534,18 @@ export default function StudentReportsPage() {
             <p className="text-sm text-gray-600">View all certificates and ID cards issued</p>
           </div>
         </div>
+<<<<<<< HEAD
+=======
+
+        <button
+          onClick={exportToCSV}
+          disabled={filteredData.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={18} />
+          Export to CSV
+        </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Main Content Card */}
@@ -590,6 +687,7 @@ export default function StudentReportsPage() {
               </p>
             </div>
           ) : (
+<<<<<<< HEAD
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
@@ -633,28 +731,113 @@ export default function StudentReportsPage() {
                             </div>
                           )}
                           <span className="text-blue-600 font-medium">
+=======
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-blue-900 text-white">
+                  <tr>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Sr.
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Student Name
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Father Name
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Class
+                    </th>
+                    {activeTab === 'certificates' ? (
+                      <>
+                        <th className="px-6 py-4 text-left font-semibold">
+                          Type
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold">
+                          Issue Date
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold">
+                          Remarks
+                        </th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="px-6 py-4 text-left font-semibold">
+                          Issue Date
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold">
+                          Expiry Date
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold">
+                          Status
+                        </th>
+                      </>
+                    )}
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Options
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredData.map((item, index) => (
+                    <tr key={item.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4 text-gray-700">
+                        {index + 1}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-semibold">
+                            {item.student_first_name.charAt(0)}
+                          </div>
+                          <span className="font-medium text-gray-800">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             {item.student_first_name} {item.student_last_name}
                           </span>
                         </div>
                       </td>
+<<<<<<< HEAD
                       <td className="px-4 py-3 border border-gray-200">{item.father_name}</td>
                       <td className="px-4 py-3 border border-gray-200">{item.class_name}</td>
                       {activeTab === 'certificates' ? (
                         <>
                           <td className="px-4 py-3 border border-gray-200">
+=======
+                      <td className="px-6 py-4 text-gray-700">
+                        {item.father_name}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                          {item.class_name}
+                        </span>
+                      </td>
+                      {activeTab === 'certificates' ? (
+                        <>
+                          <td className="px-6 py-4">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm capitalize">
                               {item.certificate_type}
                             </span>
                           </td>
+<<<<<<< HEAD
                           <td className="px-4 py-3 border border-gray-200">
                             {new Date(item.issue_date).toLocaleDateString('en-GB')}
                           </td>
                           <td className="px-4 py-3 border border-gray-200">
+=======
+                          <td className="px-6 py-4 text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <Calendar size={14} className="text-gray-400" />
+                              {new Date(item.issue_date).toLocaleDateString('en-GB')}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-600 text-sm">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             {item.remarks || '-'}
                           </td>
                         </>
                       ) : (
                         <>
+<<<<<<< HEAD
                           <td className="px-4 py-3 border border-gray-200">
                             {new Date(item.issue_date).toLocaleDateString('en-GB')}
                           </td>
@@ -662,6 +845,21 @@ export default function StudentReportsPage() {
                             {new Date(item.expiry_date).toLocaleDateString('en-GB')}
                           </td>
                           <td className="px-4 py-3 border border-gray-200">
+=======
+                          <td className="px-6 py-4 text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <Calendar size={14} className="text-gray-400" />
+                              {new Date(item.issue_date).toLocaleDateString('en-GB')}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <Calendar size={14} className="text-gray-400" />
+                              {new Date(item.expiry_date).toLocaleDateString('en-GB')}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                               item.status === 'active'
                                 ? 'bg-green-100 text-green-700'
@@ -672,18 +870,30 @@ export default function StudentReportsPage() {
                           </td>
                         </>
                       )}
+<<<<<<< HEAD
                       <td className="px-4 py-3 border border-gray-200">
                         <div className="flex gap-1">
                           <button
                             onClick={() => handlePrint(item)}
                             className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+=======
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handlePrint(item)}
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-all"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             title="Print"
                           >
                             <Printer size={18} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
+<<<<<<< HEAD
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+=======
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-all"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             title="Delete"
                           >
                             <Trash2 size={18} />
@@ -695,6 +905,7 @@ export default function StudentReportsPage() {
                 </tbody>
               </table>
             </div>
+<<<<<<< HEAD
 
             {/* Pagination Controls */}
             {filteredData.length > 0 && (
@@ -759,6 +970,8 @@ export default function StudentReportsPage() {
               </div>
             )}
           </div>
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           )}
         </div>
       </div>
@@ -789,6 +1002,7 @@ export default function StudentReportsPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && itemToDelete && (
+<<<<<<< HEAD
         <>
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
@@ -825,6 +1039,59 @@ export default function StudentReportsPage() {
             </div>
           </div>
         </>
+=======
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 relative">
+            <button
+              onClick={() => {
+                setShowDeleteModal(false)
+                setItemToDelete(null)
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+              <Trash2 className="text-red-600" size={32} />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
+              Delete {activeTab === 'certificates' ? 'Certificate' : 'ID Card'}?
+            </h2>
+
+            <p className="text-gray-600 text-center mb-6">
+              Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'}? This action cannot be undone.
+            </p>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="text-sm text-gray-700">
+                <p><strong>Student:</strong> {itemToDelete.student_first_name} {itemToDelete.student_last_name}</p>
+                <p><strong>Admission No:</strong> {itemToDelete.admission_number}</p>
+                <p><strong>Class:</strong> {itemToDelete.class_name}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setItemToDelete(null)
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
     </div>
   )

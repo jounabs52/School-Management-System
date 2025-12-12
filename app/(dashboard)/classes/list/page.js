@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { createPortal } from 'react-dom'
 import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -73,6 +74,12 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
+=======
+import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function ClassListPage() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -133,6 +140,7 @@ export default function ClassListPage() {
     classFee: '',
     markingSystem: ''
   })
+<<<<<<< HEAD
   const [inchargeSearchTerm, setInchargeSearchTerm] = useState('')
   const [showInchargeDropdown, setShowInchargeDropdown] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -148,6 +156,8 @@ export default function ClassListPage() {
   const hideToast = () => {
     setToast({ show: false, message: '', type: '' })
   }
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   // Fetch sections for a class
   const fetchClassSections = async (classId) => {
@@ -353,6 +363,7 @@ export default function ClassListPage() {
     return matchesSearch && matchesClassFilter
   })
 
+<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(filteredClasses.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -364,15 +375,25 @@ export default function ClassListPage() {
     setCurrentPage(1)
   }, [searchTerm, classFilter])
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const handleSave = async () => {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
         return
       }
 
       const { data, error } = await supabase
+=======
+        alert('Unauthorized')
+        return
+      }
+
+      const { error } = await supabase
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .from('classes')
         .insert([{
           school_id: user.school_id,
@@ -387,6 +408,7 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error creating class:', error)
+<<<<<<< HEAD
         showToast('Failed to create class: ' + error.message, 'error')
       } else {
         setShowModal(false)
@@ -409,6 +431,17 @@ export default function ClassListPage() {
     } catch (error) {
       console.error('Error saving class:', error)
       showToast('Error saving class', 'error')
+=======
+        alert('Failed to create class: ' + error.message)
+      } else {
+        setShowModal(false)
+        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
+        fetchClasses() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error saving class:', error)
+      alert('Error saving class')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -420,7 +453,10 @@ export default function ClassListPage() {
       classFee: cls.standard_fee || '',
       markingSystem: cls.exam_marking_system || ''
     })
+<<<<<<< HEAD
     setInchargeSearchTerm('')
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     setShowEditModal(true)
   }
 
@@ -428,11 +464,19 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
         return
       }
 
       const { data, error } = await supabase
+=======
+        alert('Unauthorized')
+        return
+      }
+
+      const { error } = await supabase
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .from('classes')
         .update({
           class_name: formData.className,
@@ -447,6 +491,7 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error updating class:', error)
+<<<<<<< HEAD
         showToast('Failed to update class: ' + error.message, 'error')
       } else {
         setShowEditModal(false)
@@ -466,6 +511,18 @@ export default function ClassListPage() {
     } catch (error) {
       console.error('Error updating class:', error)
       showToast('Error updating class', 'error')
+=======
+        alert('Failed to update class: ' + error.message)
+      } else {
+        setShowEditModal(false)
+        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
+        setSelectedClass(null)
+        fetchClasses() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating class:', error)
+      alert('Error updating class')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -487,7 +544,11 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -499,6 +560,7 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error deleting class:', error)
+<<<<<<< HEAD
         showToast('Failed to delete class: ' + error.message, 'error')
       } else {
         setShowDeleteModal(false)
@@ -513,6 +575,17 @@ export default function ClassListPage() {
     } catch (error) {
       console.error('Error deleting class:', error)
       showToast('Error deleting class', 'error')
+=======
+        alert('Failed to delete class: ' + error.message)
+      } else {
+        setShowDeleteModal(false)
+        setClassToDelete(null)
+        fetchClasses() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting class:', error)
+      alert('Error deleting class')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -556,7 +629,11 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -582,7 +659,11 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error updating student:', error)
+<<<<<<< HEAD
         showToast('Failed to update student', 'error')
+=======
+        alert('Failed to update student')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -591,10 +672,16 @@ export default function ClassListPage() {
       setShowStudentEditModal(false)
       setSelectedStudent(null)
       setStudentFormData({ name: '', father: '', section: '', rollNo: '', fee: '', discount: '' })
+<<<<<<< HEAD
       showToast('Student updated successfully!', 'success')
     } catch (error) {
       console.error('Error updating student:', error)
       showToast('An error occurred while updating', 'error')
+=======
+    } catch (error) {
+      console.error('Error updating student:', error)
+      alert('An error occurred while updating')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -607,7 +694,11 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -623,7 +714,11 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error deleting student:', error)
+<<<<<<< HEAD
         showToast('Failed to delete student', 'error')
+=======
+        alert('Failed to delete student')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -631,10 +726,16 @@ export default function ClassListPage() {
       await fetchStudents(selectedClass.id)
       setShowStudentDeleteModal(false)
       setSelectedStudent(null)
+<<<<<<< HEAD
       showToast('Student deleted successfully!', 'success')
     } catch (error) {
       console.error('Error deleting student:', error)
       showToast('An error occurred while deleting', 'error')
+=======
+    } catch (error) {
+      console.error('Error deleting student:', error)
+      alert('An error occurred while deleting')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -642,10 +743,13 @@ export default function ClassListPage() {
   if (viewMode && selectedClass) {
     return (
       <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+<<<<<<< HEAD
         {/* Toast Notification */}
         {toast.show && (
           <Toast message={toast.message} type={toast.type} onClose={hideToast} />
         )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         {/* Top Bar with Go Back Button */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">
@@ -690,6 +794,13 @@ export default function ClassListPage() {
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
+<<<<<<< HEAD
+=======
+                <button className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
+                  <Search size={18} />
+                  Search
+                </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               </div>
             </div>
 
@@ -776,8 +887,17 @@ export default function ClassListPage() {
 
         {/* Student Edit Sidebar */}
         {showStudentEditModal && selectedStudent && (
+<<<<<<< HEAD
           <ModalOverlay onClose={() => setShowStudentEditModal(false)}>
             <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+=======
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+              onClick={() => setShowStudentEditModal(false)}
+            />
+            <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
                 <div className="flex justify-between items-center">
                   <div>
@@ -886,13 +1006,26 @@ export default function ClassListPage() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
           </ModalOverlay>
+=======
+          </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         )}
 
         {/* Student Delete Confirmation Modal */}
         {showStudentDeleteModal && selectedStudent && (
+<<<<<<< HEAD
           <ModalOverlay onClose={() => setShowStudentDeleteModal(false)}>
             <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+=======
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+              onClick={() => setShowStudentDeleteModal(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                 <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                   <h3 className="text-lg font-bold">Confirm Delete</h3>
@@ -919,7 +1052,11 @@ export default function ClassListPage() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
           </ModalOverlay>
+=======
+          </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         )}
 
       </div>
@@ -929,10 +1066,13 @@ export default function ClassListPage() {
   // Main class list view
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+<<<<<<< HEAD
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Top Button */}
       <div className="mb-6">
         <button
@@ -968,6 +1108,7 @@ export default function ClassListPage() {
 
           {/* Search Input */}
           <div className="flex-1">
+<<<<<<< HEAD
             <label className="block text-gray-600 text-sm mb-2">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -978,6 +1119,24 @@ export default function ClassListPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
+=======
+            <label className="block text-gray-600 text-sm mb-2 invisible">Search</label>
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <button className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
+                <Search size={20} />
+                Search
+              </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             </div>
           </div>
         </div>
@@ -1013,7 +1172,11 @@ export default function ClassListPage() {
                   </td>
                 </tr>
               ) : (
+<<<<<<< HEAD
                 paginatedClasses.map((cls, index) => {
+=======
+                filteredClasses.map((cls, index) => {
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   const totalStudents = cls.total_students || 0
                   const standardFee = parseFloat(cls.standard_fee) || 0
                   const totalFee = standardFee * totalStudents
@@ -1027,7 +1190,11 @@ export default function ClassListPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
+<<<<<<< HEAD
                       <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+=======
+                      <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       <td className="px-4 py-3 border border-gray-200">
                         <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                           {cls.class_name}
@@ -1078,6 +1245,7 @@ export default function ClassListPage() {
             </tbody>
           </table>
         </div>
+<<<<<<< HEAD
 
         {/* Pagination Controls */}
         {filteredClasses.length > 0 && (
@@ -1141,12 +1309,23 @@ export default function ClassListPage() {
             </div>
           </div>
         )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Add New Class Sidebar */}
       {showModal && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowModal(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+=======
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowModal(false)}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -1167,6 +1346,7 @@ export default function ClassListPage() {
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
                     Incharge
                   </label>
+<<<<<<< HEAD
                   <div className="relative">
                     <input
                       type="text"
@@ -1212,6 +1392,20 @@ export default function ClassListPage() {
                       </div>
                     )}
                   </div>
+=======
+                  <select
+                    value={formData.incharge}
+                    onChange={(e) => setFormData({ ...formData, incharge: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="">Select Incharge</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={`${staff.first_name} ${staff.last_name || ''}`.trim()}>
+                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
+                      </option>
+                    ))}
+                  </select>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
@@ -1257,31 +1451,58 @@ export default function ClassListPage() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
             <div className="border-t border-gray-200 px-6 py-4 bg-white">
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowModal(false)}
                   className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+=======
+            <div className="border-t border-gray-200 px-6 py-5 bg-white">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
+<<<<<<< HEAD
                   className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
                 >
                   <Plus size={16} />
+=======
+                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Plus size={18} />
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   Save Class
                 </button>
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
+=======
+        </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Edit Class Sidebar */}
       {showEditModal && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowEditModal(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+=======
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowEditModal(false)}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -1302,6 +1523,7 @@ export default function ClassListPage() {
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
                     Incharge
                   </label>
+<<<<<<< HEAD
                   <div className="relative">
                     <input
                       type="text"
@@ -1347,6 +1569,20 @@ export default function ClassListPage() {
                       </div>
                     )}
                   </div>
+=======
+                  <select
+                    value={formData.incharge}
+                    onChange={(e) => setFormData({ ...formData, incharge: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="">Select Incharge</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={`${staff.first_name} ${staff.last_name || ''}`.trim()}>
+                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
+                      </option>
+                    ))}
+                  </select>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
@@ -1392,31 +1628,58 @@ export default function ClassListPage() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
             <div className="border-t border-gray-200 px-6 py-4 bg-white">
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowEditModal(false)}
                   className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+=======
+            <div className="border-t border-gray-200 px-6 py-5 bg-white">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
+<<<<<<< HEAD
                   className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
                 >
                   <Edit2 size={16} />
+=======
+                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Edit2 size={18} />
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   Update Class
                 </button>
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
+=======
+        </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && classToDelete && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+=======
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowDeleteModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
@@ -1443,9 +1706,17 @@ export default function ClassListPage() {
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
+=======
+        </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
     </div>
   )
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

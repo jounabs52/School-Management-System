@@ -2,10 +2,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import toast, { Toaster } from 'react-hot-toast'
 import jsPDF from 'jspdf'
+=======
+import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -35,8 +40,11 @@ export default function InactiveStudentsPage() {
   const [deleting, setDeleting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showOtherDetails, setShowOtherDetails] = useState(false)
+<<<<<<< HEAD
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage] = useState(10)
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const [formData, setFormData] = useState({
     id: null,
     admissionNo: '',
@@ -143,7 +151,10 @@ export default function InactiveStudentsPage() {
         dateOfBirth: student.date_of_birth,
         admissionDate: student.admission_date,
         status: student.status,
+<<<<<<< HEAD
         photo_url: student.photo_url,
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         cnic: student.admission_number // Using admission number as CNIC for search
       }))
 
@@ -174,6 +185,7 @@ export default function InactiveStudentsPage() {
     )
   })
 
+<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(filteredStudents.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -185,6 +197,8 @@ export default function InactiveStudentsPage() {
     setCurrentPage(1)
   }, [searchQuery, selectedClass])
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const handleView = async (student) => {
     setShowViewModal(true)
 
@@ -250,6 +264,7 @@ export default function InactiveStudentsPage() {
 
   const confirmDelete = async () => {
     setDeleting(true)
+<<<<<<< HEAD
 
     try {
       const studentId = selectedStudent.id
@@ -259,10 +274,16 @@ export default function InactiveStudentsPage() {
       setShowDeleteModal(false)
       setSelectedStudent(null)
 
+=======
+    setError(null)
+
+    try {
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       // Permanent delete from database
       const { error: deleteError } = await supabase
         .from('students')
         .delete()
+<<<<<<< HEAD
         .eq('id', studentId)
 
       if (deleteError) throw deleteError
@@ -293,6 +314,20 @@ export default function InactiveStudentsPage() {
           fontSize: '14px'
         }
       })
+=======
+        .eq('id', selectedStudent.id)
+
+      if (deleteError) throw deleteError
+
+      setSuccess('Student permanently deleted successfully!')
+      setShowDeleteModal(false)
+      setSelectedStudent(null)
+      fetchStudents() // Refresh the list
+
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message || 'Failed to delete student')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       console.error('Delete error:', err)
     } finally {
       setDeleting(false)
@@ -300,6 +335,12 @@ export default function InactiveStudentsPage() {
   }
 
   const handleToggleStatus = async (student) => {
+<<<<<<< HEAD
+=======
+    setError(null)
+    setSuccess(null)
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     try {
       // Toggle to active status
       const { error: updateError } = await supabase
@@ -309,6 +350,7 @@ export default function InactiveStudentsPage() {
 
       if (updateError) throw updateError
 
+<<<<<<< HEAD
       // Remove from inactive list in real-time
       setStudents(prev => prev.filter(std => std.id !== student.id))
 
@@ -335,6 +377,14 @@ export default function InactiveStudentsPage() {
           fontSize: '14px'
         }
       })
+=======
+      setSuccess('Student activated successfully!')
+      fetchStudents() // Refresh the list
+
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message || 'Failed to update student status')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       console.error('Toggle status error:', err)
     }
   }
@@ -617,6 +667,7 @@ export default function InactiveStudentsPage() {
     }
   }
 
+<<<<<<< HEAD
   const handlePrintStudent = () => {
     if (!selectedStudent) return
 
@@ -764,12 +815,20 @@ export default function InactiveStudentsPage() {
         fontSize: '14px'
       }
     })
+=======
+  const handleSearch = () => {
+    // Search is reactive, no need to do anything here
+    // The filteredStudents already handles the search
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   }
 
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+<<<<<<< HEAD
       <Toaster position="top-right" />
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Success/Error Messages */}
       {success && (
         <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
@@ -807,7 +866,11 @@ export default function InactiveStudentsPage() {
           </div>
 
           {/* Search Input */}
+<<<<<<< HEAD
           <div className="md:col-span-7 relative">
+=======
+          <div className="md:col-span-5 relative">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
@@ -817,6 +880,20 @@ export default function InactiveStudentsPage() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
+<<<<<<< HEAD
+=======
+
+          {/* Search Button */}
+          <div className="md:col-span-2">
+            <button
+              onClick={handleSearch}
+              className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2"
+            >
+              <Search size={20} />
+              Search
+            </button>
+          </div>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         </div>
 
         {/* Student Count */}
@@ -854,7 +931,11 @@ export default function InactiveStudentsPage() {
                     </td>
                   </tr>
                 ) : (
+<<<<<<< HEAD
                   paginatedStudents.map((student, index) => (
+=======
+                  filteredStudents.map((student, index) => (
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     <tr
                       key={student.id}
                       className={`${
@@ -865,6 +946,7 @@ export default function InactiveStudentsPage() {
                       <td className="px-4 py-3 border border-gray-200">{student.session}</td>
                       <td className="px-4 py-3 border border-gray-200">{getClassName(student.class)}</td>
                       <td className="px-4 py-3 border border-gray-200">
+<<<<<<< HEAD
                         <div className="flex items-center gap-3">
                           {student.photo_url ? (
                             <img
@@ -877,6 +959,10 @@ export default function InactiveStudentsPage() {
                               {student.avatar}
                             </div>
                           )}
+=======
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{student.avatar}</span>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                           <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                             {student.name}
                           </span>
@@ -894,6 +980,16 @@ export default function InactiveStudentsPage() {
                             <Eye size={18} />
                           </button>
                           <button
+<<<<<<< HEAD
+=======
+                            onClick={() => handleEdit(student)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Edit"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             onClick={() => handleToggleStatus(student)}
                             className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition"
                             title="Activate Student"
@@ -917,6 +1013,7 @@ export default function InactiveStudentsPage() {
           </div>
         )}
 
+<<<<<<< HEAD
         {/* Pagination Controls */}
         {filteredStudents.length > 0 && (
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
@@ -979,6 +1076,12 @@ export default function InactiveStudentsPage() {
             </div>
           </div>
         )}
+=======
+        {/* Pagination */}
+        <div className="mt-6 flex justify-between items-center">
+          <p className="text-sm text-gray-600">Showing {filteredStudents.length} entries</p>
+        </div>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* View Student Modal */}
@@ -989,6 +1092,7 @@ export default function InactiveStudentsPage() {
             onClick={() => setShowViewModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+<<<<<<< HEAD
             <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
                 <div className="flex justify-between items-center">
@@ -1008,11 +1112,24 @@ export default function InactiveStudentsPage() {
                       <X size={20} />
                     </button>
                   </div>
+=======
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-bold">Student Complete Information</h3>
+                  <button
+                    onClick={() => setShowViewModal(false)}
+                    className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  >
+                    <X size={20} />
+                  </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
                 {/* Student Header */}
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
+<<<<<<< HEAD
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden">
                     {selectedStudent.fullData?.photo_url || selectedStudent.photo_url ? (
                       <img
@@ -1023,10 +1140,15 @@ export default function InactiveStudentsPage() {
                     ) : (
                       selectedStudent.avatar
                     )}
+=======
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl">
+                    {selectedStudent.avatar}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   </div>
                   <div>
                     <h4 className="text-xl font-bold text-gray-800">{selectedStudent.name}</h4>
                     <p className="text-gray-600">Admission No: <span className="font-semibold">{selectedStudent.admNo}</span></p>
+<<<<<<< HEAD
                     <p className="text-sm text-gray-500">Status: <span className="font-semibold text-red-600">Inactive</span></p>
                   </div>
                 </div>
@@ -1164,10 +1286,70 @@ export default function InactiveStudentsPage() {
                           <p className="font-semibold text-gray-800">{selectedStudent.fullData.father_annual_income}</p>
                         </div>
                       )}
+=======
+                    <p className="text-red-600 text-sm font-semibold">Status: Inactive</p>
+                  </div>
+                </div>
+
+                {/* Academic Data */}
+                <div className="mb-6">
+                  <h5 className="text-sm font-bold text-green-600 mb-3">ACADEMIC DATA</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Admission/GR No</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.admNo}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Class</p>
+                      <p className="font-semibold text-gray-800">{getClassName(selectedStudent.class)}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Section</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.current_section_id || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Admission Date</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.admission_date || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Roll Number</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.roll_number || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">House</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.house || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Base Fee</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.base_fee || '0'} PKR</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Discount</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.discount_amount || '0'} PKR</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Discount Note</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.discount_note || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Student Picture */}
+                {selectedStudent.fullData?.photo_url && (
+                  <div className="mb-6">
+                    <h5 className="text-sm font-bold text-indigo-600 mb-3">STUDENT PICTURE</h5>
+                    <div className="bg-gray-50 p-4 rounded-lg flex justify-center">
+                      <img
+                        src={selectedStudent.fullData.photo_url}
+                        alt={selectedStudent.name}
+                        className="max-w-xs rounded-lg shadow-md"
+                      />
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     </div>
                   </div>
                 )}
 
+<<<<<<< HEAD
                 {/* Mother Information */}
                 {selectedStudent.fullData?.mother_name && (
                   <div className="mb-6">
@@ -1291,6 +1473,220 @@ export default function InactiveStudentsPage() {
                   </div>
                 )}
 
+=======
+                {/* Student & Father Information */}
+                <div className="mb-6">
+                  <h5 className="text-sm font-bold text-blue-600 mb-3">STUDENT & FATHER INFORMATION</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Student Name</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.name}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Father Name</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.father}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Father Mobile</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.father_mobile || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Father Email</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.father_email || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Father CNIC</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.father_cnic || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Father Occupation</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.father_occupation || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Father Annual Income</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.father_annual_income ? `${selectedStudent.fullData.father_annual_income} PKR` : 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">WhatsApp Number</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.whatsapp_number || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Date of Birth</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.date_of_birth || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Gender</p>
+                      <p className="font-semibold text-gray-800 capitalize">{selectedStudent.gender}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Student CNIC (if applicable)</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.student_cnic || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Student Mobile</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.student_mobile || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Blood Group</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.blood_group || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Caste/Race</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.caste || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Birth Place</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.birth_place || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      <p className="text-xs text-gray-500 mb-1">Current Address</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.current_address || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">City</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.city || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">State/Province</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.state || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Postal Code</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.postal_code || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mother Information */}
+                <div className="mb-6">
+                  <h5 className="text-sm font-bold text-purple-600 mb-3">MOTHER INFORMATION</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Mother Name</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.mother_name || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Mother CNIC</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.mother_cnic || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Mother Mobile</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.mother_mobile || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Mother Email</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.mother_email || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Mother Qualification</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.mother_qualification || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Mother Occupation</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.mother_occupation || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Mother Annual Income</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.mother_annual_income || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guardian Information */}
+                <div className="mb-6">
+                  <h5 className="text-sm font-bold text-orange-600 mb-3">GUARDIAN INFORMATION</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Guardian Name</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.guardian_name || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Guardian Relation</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.guardian_relation || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Guardian Mobile</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.guardian_mobile || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Guardian Email</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.guardian_email || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Emergency Contact */}
+                <div className="mb-6">
+                  <h5 className="text-sm font-bold text-red-600 mb-3">EMERGENCY CONTACT</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Emergency Contact Name</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.emergency_contact_name || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Emergency Relation</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.emergency_relation || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Emergency Phone</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.emergency_phone || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Emergency Mobile</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.emergency_mobile || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      <p className="text-xs text-gray-500 mb-1">Emergency Address</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.emergency_address || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Other Information */}
+                <div className="mb-6">
+                  <h5 className="text-sm font-bold text-teal-600 mb-3">OTHER INFORMATION</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Religion</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.religion || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Nationality</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.nationality || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Previous School</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.previous_school || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Previous Class</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.previous_class || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      <p className="text-xs text-gray-500 mb-1">Permanent Address</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.permanent_address || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      <p className="text-xs text-gray-500 mb-1">Medical Problem / Special Needs</p>
+                      <p className="font-semibold text-gray-800">{selectedStudent.fullData?.medical_problem || 'N/A'}</p>
+                    </div>
+                    {selectedStudent.fullData?.created_at && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Record Created</p>
+                        <p className="font-semibold text-gray-800">{new Date(selectedStudent.fullData.created_at).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                    {selectedStudent.fullData?.updated_at && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Last Updated</p>
+                        <p className="font-semibold text-gray-800">{new Date(selectedStudent.fullData.updated_at).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <div className="mt-6 flex gap-3">
                   <button
                     onClick={() => setShowViewModal(false)}
@@ -1298,6 +1694,19 @@ export default function InactiveStudentsPage() {
                   >
                     Close
                   </button>
+<<<<<<< HEAD
+=======
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false)
+                      handleEdit(selectedStudent)
+                    }}
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                  >
+                    <Edit2 size={18} />
+                    Edit
+                  </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
               </div>
             </div>
@@ -1315,11 +1724,19 @@ export default function InactiveStudentsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+<<<<<<< HEAD
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
               <div className="p-6">
                 <p className="text-gray-700 mb-6">
                   Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
+=======
+                <h3 className="text-lg font-bold">Confirm Permanent Delete</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to permanently delete <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -1342,7 +1759,11 @@ export default function InactiveStudentsPage() {
                     ) : (
                       <>
                         <Trash2 size={18} />
+<<<<<<< HEAD
                         Delete
+=======
+                        Delete Permanently
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       </>
                     )}
                   </button>

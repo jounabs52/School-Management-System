@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { Search, CheckCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -30,6 +31,12 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
+=======
+import { Search, DollarSign, Calendar, User, CheckCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function FeeCollectPage() {
   const [challans, setChallans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +46,7 @@ export default function FeeCollectPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [classFilter, setClassFilter] = useState('all')
   const [classes, setClasses] = useState([])
+<<<<<<< HEAD
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -54,6 +62,8 @@ export default function FeeCollectPage() {
   const hideToast = () => {
     setToast({ show: false, message: '', type: '' })
   }
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   const [paymentData, setPaymentData] = useState({
     paymentMethod: 'cash',
@@ -81,16 +91,23 @@ export default function FeeCollectPage() {
     fetchAllClasses()
   }, [])
 
+<<<<<<< HEAD
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, statusFilter, classFilter])
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const fetchAllClasses = async () => {
     try {
       const user = getUserFromCookie()
       if (!user) return
 
+<<<<<<< HEAD
+=======
+      // Fetch ALL classes for the filter dropdown
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const { data: allClasses, error } = await supabase
         .from('classes')
         .select('id, class_name')
@@ -115,6 +132,10 @@ export default function FeeCollectPage() {
         return
       }
 
+<<<<<<< HEAD
+=======
+      // Fetch all challans
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const { data: challansData, error: challansError } = await supabase
         .from('fee_challans')
         .select(`
@@ -133,6 +154,10 @@ export default function FeeCollectPage() {
 
       if (challansError) throw challansError
 
+<<<<<<< HEAD
+=======
+      // Fetch classes and sections separately (manual joining)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const classIds = [...new Set(challansData?.map(c => c.students?.current_class_id).filter(Boolean))]
       const sectionIds = [...new Set(challansData?.map(c => c.students?.current_section_id).filter(Boolean))]
 
@@ -146,12 +171,20 @@ export default function FeeCollectPage() {
         .select('id, section_name')
         .in('id', sectionIds)
 
+<<<<<<< HEAD
+=======
+      // Create lookup maps
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const classMap = {}
       classesData?.forEach(c => { classMap[c.id] = c })
 
       const sectionMap = {}
       sectionsData?.forEach(s => { sectionMap[s.id] = s })
 
+<<<<<<< HEAD
+=======
+      // Merge data
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const challansWithDetails = (challansData || []).map(challan => ({
         ...challan,
         student: {
@@ -186,20 +219,35 @@ export default function FeeCollectPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('User not found', 'error')
+=======
+        alert('User not found')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!paymentData.amountPaid || parseFloat(paymentData.amountPaid) <= 0) {
+<<<<<<< HEAD
         showToast('Please enter a valid amount', 'error')
+=======
+        alert('Please enter a valid amount')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       const amountPaid = parseFloat(paymentData.amountPaid)
       const challanAmount = parseFloat(selectedChallan.total_amount)
 
+<<<<<<< HEAD
       const receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
 
+=======
+      // Generate receipt number
+      const receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+
+      // Insert payment
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const { error: paymentError } = await supabase
         .from('fee_payments')
         .insert([{
@@ -219,6 +267,10 @@ export default function FeeCollectPage() {
 
       if (paymentError) throw paymentError
 
+<<<<<<< HEAD
+=======
+      // Update challan status
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const newStatus = amountPaid >= challanAmount ? 'paid' : 'pending'
       const { error: updateError } = await supabase
         .from('fee_challans')
@@ -227,6 +279,7 @@ export default function FeeCollectPage() {
 
       if (updateError) throw updateError
 
+<<<<<<< HEAD
       showToast('Payment collected successfully!', 'success')
       setShowPaymentModal(false)
       
@@ -244,6 +297,15 @@ export default function FeeCollectPage() {
     } catch (error) {
       console.error('Error:', error)
       showToast('Failed to process payment', 'error')
+=======
+      alert('Payment collected successfully!')
+      setShowPaymentModal(false)
+      setSelectedChallan(null)
+      fetchAllChallans()
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Failed to process payment')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -263,6 +325,7 @@ export default function FeeCollectPage() {
     return matchesSearch && matchesStatus && matchesClass
   })
 
+<<<<<<< HEAD
   // Pagination calculations
   const totalPages = Math.ceil(filteredChallans.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -308,12 +371,17 @@ export default function FeeCollectPage() {
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
+=======
+  return (
+    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Collect Fee</h1>
         <p className="text-gray-600">Search students and collect pending fees</p>
       </div>
 
+<<<<<<< HEAD
       {/* Search Section - REORDERED: Status, Classes, Search */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -343,6 +411,11 @@ export default function FeeCollectPage() {
               ))}
             </select>
           </div>
+=======
+      {/* Search Section */}
+      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
@@ -353,6 +426,31 @@ export default function FeeCollectPage() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
+<<<<<<< HEAD
+=======
+          <select
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="all">All Classes</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.class_name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+            <option value="overdue">Overdue</option>
+          </select>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         </div>
 
         <div className="flex gap-4 mt-4 text-sm">
@@ -377,6 +475,7 @@ export default function FeeCollectPage() {
           <table className="w-full">
             <thead className="bg-blue-900 text-white">
               <tr>
+<<<<<<< HEAD
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Admission No.</th>
@@ -389,19 +488,38 @@ export default function FeeCollectPage() {
               </tr>
             </thead>
             <tbody>
+=======
+                <th className="px-4 py-3 text-left font-semibold">Sr.</th>
+                <th className="px-4 py-3 text-left font-semibold">Student Name</th>
+                <th className="px-4 py-3 text-left font-semibold">Admission No.</th>
+                <th className="px-4 py-3 text-left font-semibold">Class</th>
+                <th className="px-4 py-3 text-left font-semibold">Issue Date</th>
+                <th className="px-4 py-3 text-left font-semibold">Due Date</th>
+                <th className="px-4 py-3 text-left font-semibold">Amount</th>
+                <th className="px-4 py-3 text-center font-semibold">Status</th>
+                <th className="px-4 py-3 text-center font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               {loading ? (
                 <tr>
                   <td colSpan="9" className="px-4 py-8 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
+<<<<<<< HEAD
               ) : paginatedChallans.length === 0 ? (
+=======
+              ) : filteredChallans.length === 0 ? (
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <tr>
                   <td colSpan="9" className="px-4 py-8 text-center text-gray-500">
                     No challans found
                   </td>
                 </tr>
               ) : (
+<<<<<<< HEAD
                 paginatedChallans.map((challan, index) => (
                   <tr
                     key={challan.id}
@@ -426,6 +544,32 @@ export default function FeeCollectPage() {
                       Rs. {parseFloat(challan.total_amount).toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-center border border-gray-200">
+=======
+                filteredChallans.map((challan, index) => (
+                  <tr
+                    key={challan.id}
+                    className={`hover:bg-gray-50 transition ${challan.status === 'paid' ? 'bg-green-50' : ''}`}
+                  >
+                    <td className="px-4 py-3 text-gray-700">{index + 1}</td>
+                    <td className="px-4 py-3 text-gray-900 font-semibold">
+                      {challan.student?.first_name} {challan.student?.last_name}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{challan.student?.admission_number}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {challan.student?.class?.class_name || 'N/A'}
+                      {challan.student?.section?.section_name ? ` - ${challan.student.section.section_name}` : ''}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {new Date(challan.issue_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {new Date(challan.due_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 text-gray-900 font-bold">
+                      Rs. {parseFloat(challan.total_amount).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                         challan.status === 'paid' ? 'bg-green-100 text-green-800' :
                         challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
@@ -434,7 +578,11 @@ export default function FeeCollectPage() {
                         {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                       </span>
                     </td>
+<<<<<<< HEAD
                     <td className="px-4 py-3 text-center border border-gray-200">
+=======
+                    <td className="px-4 py-3 text-center">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       {challan.status === 'pending' || challan.status === 'overdue' ? (
                         <button
                           onClick={() => handleSelectChallan(challan)}
@@ -452,6 +600,7 @@ export default function FeeCollectPage() {
             </tbody>
           </table>
         </div>
+<<<<<<< HEAD
 
         {/* Pagination */}
         {!loading && filteredChallans.length > 0 && (
@@ -501,17 +650,26 @@ export default function FeeCollectPage() {
             </div>
           </div>
         )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Payment Modal */}
       {showPaymentModal && selectedChallan && (
         <>
           <div
+<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowPaymentModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+=======
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowPaymentModal(false)}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -527,7 +685,11 @@ export default function FeeCollectPage() {
                   onClick={() => setShowPaymentModal(false)}
                   className="text-white hover:bg-white/10 p-2 rounded-full transition"
                 >
+<<<<<<< HEAD
                   <X size={24} />
+=======
+                  ×
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </button>
               </div>
             </div>
@@ -685,4 +847,8 @@ export default function FeeCollectPage() {
       )}
     </div>
   )
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

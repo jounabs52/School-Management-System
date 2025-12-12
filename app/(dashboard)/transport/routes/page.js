@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { Plus, Search, Edit2, X, Trash2, MapPin, DollarSign, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -32,6 +33,12 @@ function Toast({ message, type, onClose }) {
   )
 }
 
+=======
+import { Plus, Search, Edit2, X, Trash2, MapPin, DollarSign } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function RoutesPage() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -44,6 +51,7 @@ export default function RoutesPage() {
   const [selectedRoute, setSelectedRoute] = useState(null)
   const [routeToDelete, setRouteToDelete] = useState(null)
   const [newStationName, setNewStationName] = useState('')
+<<<<<<< HEAD
   
   // Toast state
   const [toast, setToast] = useState(null)
@@ -56,6 +64,8 @@ export default function RoutesPage() {
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
   }
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   // Lock/unlock body scroll when modals open/close
   useEffect(() => {
@@ -157,12 +167,20 @@ export default function RoutesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!formData.routeName.trim()) {
+<<<<<<< HEAD
         showToast('Please enter route name', 'error')
+=======
+        alert('Please enter route name')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -180,12 +198,19 @@ export default function RoutesPage() {
 
       if (routeError) {
         console.error('Error creating route:', routeError)
+<<<<<<< HEAD
         showToast('Failed to create route', 'error')
         return
       }
 
       let stationsCount = 0
 
+=======
+        alert('Failed to create route: ' + routeError.message)
+        return
+      }
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       // Then, create stations if any
       if (routeData && routeData.length > 0 && formData.stationsList.length > 0) {
         const newRouteId = routeData[0].id
@@ -205,6 +230,7 @@ export default function RoutesPage() {
 
         if (stationsError) {
           console.error('Error creating stations:', stationsError)
+<<<<<<< HEAD
           showToast('Route created but some stations failed to save', 'error')
         } else {
           stationsCount = stationsToInsert.length
@@ -227,13 +253,31 @@ export default function RoutesPage() {
     } catch (error) {
       console.error('Error saving route:', error)
       showToast('Error saving route', 'error')
+=======
+          // Route was created but stations failed - inform user
+          alert('Route created but some stations failed to save: ' + stationsError.message)
+        }
+      }
+
+      setShowModal(false)
+      setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+      setTempStationName('')
+      fetchRoutes()
+    } catch (error) {
+      console.error('Error saving route:', error)
+      alert('Error saving route')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   // Add station to temporary list in form
   const handleAddStationToForm = () => {
     if (!tempStationName.trim()) {
+<<<<<<< HEAD
       showToast('Please enter station name', 'error')
+=======
+      alert('Please enter station name')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       return
     }
     setFormData({
@@ -265,12 +309,20 @@ export default function RoutesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!formData.routeName.trim()) {
+<<<<<<< HEAD
         showToast('Please enter route name', 'error')
+=======
+        alert('Please enter route name')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -288,12 +340,19 @@ export default function RoutesPage() {
 
       if (error) {
         console.error('Error updating route:', error)
+<<<<<<< HEAD
         showToast('Failed to update route', 'error')
         return
       }
 
       let additionalStations = 0
 
+=======
+        alert('Failed to update route: ' + error.message)
+        return
+      }
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       // Then, add new stations if any
       if (formData.stationsList.length > 0) {
         // Get existing stations count for proper ordering
@@ -324,6 +383,7 @@ export default function RoutesPage() {
 
         if (stationsError) {
           console.error('Error adding stations:', stationsError)
+<<<<<<< HEAD
           showToast('Route updated but some stations failed to save', 'error')
         } else {
           additionalStations = stationsToInsert.length
@@ -342,14 +402,27 @@ export default function RoutesPage() {
           : route
       ))
 
+=======
+          alert('Route updated but some stations failed to save: ' + stationsError.message)
+        }
+      }
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       setShowEditModal(false)
       setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
       setTempStationName('')
       setSelectedRoute(null)
+<<<<<<< HEAD
       showToast('Route updated successfully!', 'success')
     } catch (error) {
       console.error('Error updating route:', error)
       showToast('Error updating route', 'error')
+=======
+      fetchRoutes()
+    } catch (error) {
+      console.error('Error updating route:', error)
+      alert('Error updating route')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -362,7 +435,11 @@ export default function RoutesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -374,6 +451,7 @@ export default function RoutesPage() {
 
       if (error) {
         console.error('Error deleting route:', error)
+<<<<<<< HEAD
         showToast('Failed to delete route', 'error')
       } else {
         // Remove route from state
@@ -385,6 +463,17 @@ export default function RoutesPage() {
     } catch (error) {
       console.error('Error deleting route:', error)
       showToast('Error deleting route', 'error')
+=======
+        alert('Failed to delete route: ' + error.message)
+      } else {
+        setShowDeleteModal(false)
+        setRouteToDelete(null)
+        fetchRoutes()
+      }
+    } catch (error) {
+      console.error('Error deleting route:', error)
+      alert('Error deleting route')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -423,12 +512,20 @@ export default function RoutesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!newStationName.trim()) {
+<<<<<<< HEAD
         showToast('Please enter station name', 'error')
+=======
+        alert('Please enter station name')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -437,7 +534,11 @@ export default function RoutesPage() {
         ? Math.max(...stations.map(s => s.station_order || 0))
         : 0
 
+<<<<<<< HEAD
       const { data, error } = await supabase
+=======
+      const { error } = await supabase
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .from('stations')
         .insert([{
           school_id: user.school_id,
@@ -451,6 +552,7 @@ export default function RoutesPage() {
 
       if (error) {
         console.error('Error adding station:', error)
+<<<<<<< HEAD
         showToast('Failed to add station', 'error')
       } else {
         // Add station to local state
@@ -469,6 +571,17 @@ export default function RoutesPage() {
     } catch (error) {
       console.error('Error adding station:', error)
       showToast('Error adding station', 'error')
+=======
+        alert('Failed to add station: ' + error.message)
+      } else {
+        setNewStationName('')
+        await fetchStations(selectedRoute.id)
+        await fetchRoutes() // Refresh route stats
+      }
+    } catch (error) {
+      console.error('Error adding station:', error)
+      alert('Error adding station')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -476,7 +589,15 @@ export default function RoutesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+        return
+      }
+
+      if (!confirm('Are you sure you want to delete this station?')) {
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -488,6 +609,7 @@ export default function RoutesPage() {
 
       if (error) {
         console.error('Error deleting station:', error)
+<<<<<<< HEAD
         showToast('Failed to delete station', 'error')
       } else {
         // Remove station from local state
@@ -505,6 +627,16 @@ export default function RoutesPage() {
     } catch (error) {
       console.error('Error deleting station:', error)
       showToast('Error deleting station', 'error')
+=======
+        alert('Failed to delete station: ' + error.message)
+      } else {
+        await fetchStations(selectedRoute.id)
+        await fetchRoutes() // Refresh route stats
+      }
+    } catch (error) {
+      console.error('Error deleting station:', error)
+      alert('Error deleting station')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -512,6 +644,7 @@ export default function RoutesPage() {
     return route.route_name?.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
+<<<<<<< HEAD
   // Pagination calculations
   const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -534,6 +667,10 @@ export default function RoutesPage() {
         />
       )}
 
+=======
+  return (
+    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Top Button */}
       <div className="mb-6">
         <button
@@ -560,7 +697,19 @@ export default function RoutesPage() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
+<<<<<<< HEAD
         </div>
+=======
+          <button className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2">
+            <Search size={20} />
+            Search
+          </button>
+        </div>
+
+        <p className="text-gray-600 mt-4 text-sm">
+          There are <span className="font-bold text-blue-600">{filteredRoutes.length}</span> routes registered
+        </p>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Table */}
@@ -585,21 +734,33 @@ export default function RoutesPage() {
                     Loading routes...
                   </td>
                 </tr>
+<<<<<<< HEAD
               ) : currentRoutes.length === 0 ? (
+=======
+              ) : filteredRoutes.length === 0 ? (
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <tr>
                   <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                     No routes found
                   </td>
                 </tr>
               ) : (
+<<<<<<< HEAD
                 currentRoutes.map((route, index) => (
+=======
+                filteredRoutes.map((route, index) => (
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   <tr
                     key={route.id}
                     className={`${
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                     } hover:bg-blue-50 transition`}
                   >
+<<<<<<< HEAD
                     <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+=======
+                    <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     <td className="px-4 py-3 border border-gray-200">
                       <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                         {route.route_name}
@@ -648,6 +809,7 @@ export default function RoutesPage() {
             </tbody>
           </table>
         </div>
+<<<<<<< HEAD
 
         {/* Pagination Controls */}
         {!loading && filteredRoutes.length > 0 && (
@@ -704,21 +866,32 @@ export default function RoutesPage() {
             </div>
           </div>
         )}
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Add New Route Sidebar */}
       {showModal && (
         <>
           <div
+<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
+=======
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             onClick={() => {
               setShowModal(false)
               setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
               setTempStationName('')
             }}
+<<<<<<< HEAD
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+=======
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -849,16 +1022,25 @@ export default function RoutesPage() {
       {showEditModal && (
         <>
           <div
+<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
+=======
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             onClick={() => {
               setShowEditModal(false)
               setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
               setTempStationName('')
               setSelectedRoute(null)
             }}
+<<<<<<< HEAD
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+=======
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -991,11 +1173,18 @@ export default function RoutesPage() {
       {showDeleteModal && routeToDelete && (
         <>
           <div
+<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowDeleteModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+=======
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowDeleteModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
@@ -1029,16 +1218,25 @@ export default function RoutesPage() {
       {showStationsModal && selectedRoute && (
         <>
           <div
+<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
+=======
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             onClick={() => {
               setShowStationsModal(false)
               setSelectedRoute(null)
               setStations([])
               setNewStationName('')
             }}
+<<<<<<< HEAD
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+=======
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -1139,6 +1337,7 @@ export default function RoutesPage() {
           </div>
         </>
       )}
+<<<<<<< HEAD
 
       <style jsx>{`
         @keyframes slideIn {
@@ -1158,3 +1357,8 @@ export default function RoutesPage() {
     </div>
   )
 }
+=======
+    </div>
+  )
+}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

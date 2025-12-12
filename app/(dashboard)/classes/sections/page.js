@@ -1,11 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { createPortal } from 'react-dom'
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 import { Plus, Search, Edit2, Trash2, X, CheckCircle, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 
+<<<<<<< HEAD
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose }) => {
   const [mounted, setMounted] = useState(false)
@@ -73,6 +77,8 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function SectionsPage() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [showEditSidebar, setShowEditSidebar] = useState(false)
@@ -100,6 +106,7 @@ export default function SectionsPage() {
     capacity: '',
     orderBy: ''
   })
+<<<<<<< HEAD
   const [inchargeSearchTerm, setInchargeSearchTerm] = useState('')
   const [showInchargeDropdown, setShowInchargeDropdown] = useState(false)
   const [selectedSectionFilter, setSelectedSectionFilter] = useState('')
@@ -116,6 +123,8 @@ export default function SectionsPage() {
   const hideToast = () => {
     setToast({ show: false, message: '', type: '' })
   }
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   // Fetch data on component mount
   useEffect(() => {
@@ -124,6 +133,7 @@ export default function SectionsPage() {
     fetchSections()
   }, [])
 
+<<<<<<< HEAD
   // Prevent body scroll when modals are open
   useEffect(() => {
     if (showSidebar || showEditSidebar || showDeleteModal) {
@@ -140,6 +150,8 @@ export default function SectionsPage() {
     }
   }, [showSidebar, showEditSidebar, showDeleteModal])
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const fetchClasses = async () => {
     try {
       const user = getUserFromCookie()
@@ -262,14 +274,18 @@ export default function SectionsPage() {
     }
   }
 
+<<<<<<< HEAD
   // Get unique section names for filter
   const uniqueSectionNames = [...new Set(sections.map(s => s.section_name))].sort()
 
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const filteredSections = sections
     .filter(section => {
       const matchesSearch = section.section_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            section.class_name?.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesClass = !selectedClass || section.class_id === selectedClass
+<<<<<<< HEAD
       const matchesSection = !selectedSectionFilter || section.section_name === selectedSectionFilter
       return matchesSearch && matchesClass && matchesSection
     })
@@ -286,11 +302,21 @@ export default function SectionsPage() {
     setCurrentPage(1)
   }, [searchTerm, selectedClass, selectedSectionFilter])
 
+=======
+      return matchesSearch && matchesClass
+    })
+    .sort((a, b) => a.section_name.localeCompare(b.section_name))
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const handleSave = async () => {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -310,6 +336,7 @@ export default function SectionsPage() {
 
       if (error) {
         console.error('Error creating section:', error)
+<<<<<<< HEAD
         showToast(`Failed to create section: ${error.message}`, 'error')
       } else {
         setShowSidebar(false)
@@ -337,6 +364,17 @@ export default function SectionsPage() {
     } catch (error) {
       console.error('Error saving section:', error)
       showToast('Error saving section: ' + error.message, 'error')
+=======
+        alert(`Failed to create section: ${error.message}`)
+      } else {
+        setShowSidebar(false)
+        setFormData({ class: '', section: '', incharge: '', roomNumber: '', capacity: '', orderBy: '' })
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error saving section:', error)
+      alert('Error saving section: ' + error.message)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -350,7 +388,10 @@ export default function SectionsPage() {
       capacity: section.capacity || '',
       orderBy: section.order_by || ''
     })
+<<<<<<< HEAD
     setInchargeSearchTerm('')
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     setShowEditSidebar(true)
   }
 
@@ -358,7 +399,11 @@ export default function SectionsPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -378,6 +423,7 @@ export default function SectionsPage() {
 
       if (error) {
         console.error('Error updating section:', error)
+<<<<<<< HEAD
         showToast('Failed to update section: ' + error.message, 'error')
       } else {
         setShowEditSidebar(false)
@@ -407,6 +453,18 @@ export default function SectionsPage() {
     } catch (error) {
       console.error('Error updating section:', error)
       showToast('Error updating section', 'error')
+=======
+        alert('Failed to update section: ' + error.message)
+      } else {
+        setShowEditSidebar(false)
+        setSelectedSection(null)
+        setEditFormData({ class: '', section: '', incharge: '', roomNumber: '', capacity: '', orderBy: '' })
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error updating section:', error)
+      alert('Error updating section')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -419,18 +477,27 @@ export default function SectionsPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       const { error } = await supabase
         .from('sections')
+<<<<<<< HEAD
         .delete()
+=======
+        .update({ status: 'inactive' })
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .eq('id', selectedSection.id)
         .eq('school_id', user.school_id)
 
       if (error) {
         console.error('Error deleting section:', error)
+<<<<<<< HEAD
         showToast('Failed to delete section: ' + error.message, 'error')
       } else {
         setShowDeleteModal(false)
@@ -445,6 +512,17 @@ export default function SectionsPage() {
     } catch (error) {
       console.error('Error deleting section:', error)
       showToast('Error deleting section', 'error')
+=======
+        alert('Failed to delete section: ' + error.message)
+      } else {
+        setShowDeleteModal(false)
+        setSelectedSection(null)
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error deleting section:', error)
+      alert('Error deleting section')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -452,7 +530,11 @@ export default function SectionsPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
+<<<<<<< HEAD
         showToast('Unauthorized', 'error')
+=======
+        alert('Unauthorized')
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -470,6 +552,7 @@ export default function SectionsPage() {
 
       if (error) {
         console.error('Error updating status:', error)
+<<<<<<< HEAD
         showToast('Failed to update status: ' + error.message, 'error')
       } else {
         const statusText = newStatus === 'active' ? 'activated' : 'deactivated'
@@ -492,6 +575,32 @@ export default function SectionsPage() {
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
+=======
+        alert('Failed to update status: ' + error.message)
+      } else {
+        fetchSections()
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      alert('Error updating status')
+    }
+  }
+
+  // Prevent body scroll when sidebar is open
+  useEffect(() => {
+    if (showSidebar || showEditSidebar || showDeleteModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showSidebar, showEditSidebar, showDeleteModal])
+
+  return (
+    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Top Button */}
       <div className="mb-6">
         <button
@@ -507,9 +616,15 @@ export default function SectionsPage() {
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Search Sections</h2>
 
+<<<<<<< HEAD
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Class Dropdown */}
           <div>
+=======
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Class Filter */}
+          <div className="md:w-48">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <label className="block text-gray-600 text-sm mb-2">Class</label>
             <select
               value={selectedClass}
@@ -525,6 +640,7 @@ export default function SectionsPage() {
             </select>
           </div>
 
+<<<<<<< HEAD
           {/* Section Dropdown */}
           <div>
             <label className="block text-gray-600 text-sm mb-2">Section</label>
@@ -554,6 +670,26 @@ export default function SectionsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
+=======
+          {/* Search Input */}
+          <div className="flex-1">
+            <label className="block text-gray-600 text-sm mb-2 invisible">Search</label>
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <button className="bg-[#DC2626] text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
+                <Search size={20} />
+                Search
+              </button>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             </div>
           </div>
         </div>
@@ -586,14 +722,22 @@ export default function SectionsPage() {
                   </td>
                 </tr>
               ) : (
+<<<<<<< HEAD
                 paginatedSections.map((section, index) => (
+=======
+                filteredSections.map((section, index) => (
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   <tr
                     key={section.id}
                     className={`${
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                     } hover:bg-blue-50 transition`}
                   >
+<<<<<<< HEAD
                     <td className="px-4 py-3 border border-gray-200 text-blue-600">{startIndex + index + 1}</td>
+=======
+                    <td className="px-4 py-3 border border-gray-200 text-blue-600">{index + 1}</td>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     <td className="px-4 py-3 border border-gray-200 font-medium">{section.class_name}</td>
                     <td className="px-4 py-3 border border-gray-200">{section.section_name}</td>
                     <td className="px-4 py-3 border border-gray-200">{section.teacher_name || '-'}</td>
@@ -634,6 +778,7 @@ export default function SectionsPage() {
             </tbody>
           </table>
         </div>
+<<<<<<< HEAD
 
         {/* Pagination Controls */}
         {filteredSections.length > 0 && (
@@ -703,6 +848,21 @@ export default function SectionsPage() {
       {showSidebar && (
         <ModalOverlay onClose={() => setShowSidebar(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+=======
+      </div>
+
+      {/* Right Sidebar */}
+      {showSidebar && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+            onClick={() => setShowSidebar(false)}
+          />
+
+          {/* Sidebar */}
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             {/* Sidebar Header */}
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
@@ -733,6 +893,10 @@ export default function SectionsPage() {
                       const selectedClassId = e.target.value
                       const selectedClass = classList.find(cls => cls.id === selectedClassId)
 
+<<<<<<< HEAD
+=======
+                      // Auto-fill incharge if class has one
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       if (selectedClass && selectedClass.incharge) {
                         const matchingStaff = staffList.find(staff =>
                           `${staff.first_name} ${staff.last_name || ''}`.trim() === selectedClass.incharge
@@ -776,6 +940,7 @@ export default function SectionsPage() {
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
                     Section Incharge
                   </label>
+<<<<<<< HEAD
                   <div className="relative">
                     <input
                       type="text"
@@ -821,6 +986,20 @@ export default function SectionsPage() {
                       </div>
                     )}
                   </div>
+=======
+                  <select
+                    value={formData.incharge}
+                    onChange={(e) => setFormData({ ...formData, incharge: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="">Select Teacher</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
+                      </option>
+                    ))}
+                  </select>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
 
                 {/* Room Number */}
@@ -850,6 +1029,10 @@ export default function SectionsPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               </div>
             </div>
 
@@ -872,13 +1055,29 @@ export default function SectionsPage() {
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
+=======
+        </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Edit Section Sidebar */}
       {showEditSidebar && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowEditSidebar(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+=======
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+            onClick={() => setShowEditSidebar(false)}
+          />
+
+          {/* Sidebar */}
+          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             {/* Sidebar Header */}
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
@@ -909,6 +1108,10 @@ export default function SectionsPage() {
                       const selectedClassId = e.target.value
                       const selectedClass = classList.find(cls => cls.id === selectedClassId)
 
+<<<<<<< HEAD
+=======
+                      // Auto-fill incharge if class has one
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       if (selectedClass && selectedClass.incharge) {
                         const matchingStaff = staffList.find(staff =>
                           `${staff.first_name} ${staff.last_name || ''}`.trim() === selectedClass.incharge
@@ -954,9 +1157,13 @@ export default function SectionsPage() {
                   </label>
                   <select
                     value={editFormData.incharge}
+<<<<<<< HEAD
                     onChange={(e) => {
                       setEditFormData({ ...editFormData, incharge: e.target.value })
                     }}
+=======
+                    onChange={(e) => setEditFormData({ ...editFormData, incharge: e.target.value })}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Teacher</option>
@@ -1011,20 +1218,34 @@ export default function SectionsPage() {
                   onClick={handleUpdate}
                   className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center gap-2 shadow-md hover:shadow-lg"
                 >
+<<<<<<< HEAD
                   <Edit2 size={16} />
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   Update
                 </button>
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
+=======
+        </>
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedSection && (
+<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full my-8" onClick={(e) => e.stopPropagation()}>
+=======
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full my-8">
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
@@ -1050,8 +1271,16 @@ export default function SectionsPage() {
               </div>
             </div>
           </div>
+<<<<<<< HEAD
         </ModalOverlay>
       )}
     </div>
   )
 }
+=======
+        </>
+      )}
+    </div>
+  )
+}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

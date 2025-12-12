@@ -31,7 +31,10 @@ export default function StudentIDCardsPage() {
   const [schoolData, setSchoolData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+<<<<<<< HEAD
   const [printingStudentId, setPrintingStudentId] = useState(null)
+=======
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   useEffect(() => {
     fetchClasses()
@@ -212,7 +215,11 @@ export default function StudentIDCardsPage() {
     }
 
     try {
+<<<<<<< HEAD
       setPrintingStudentId(student.id)
+=======
+      setSaving(true)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
       // Fetch school_id
       const { data: schools, error: schoolError } = await supabase
@@ -281,12 +288,20 @@ export default function StudentIDCardsPage() {
       console.error('Error saving ID card:', error)
       alert('Error saving ID card: ' + error.message)
     } finally {
+<<<<<<< HEAD
       setPrintingStudentId(null)
+=======
+      setSaving(false)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   // Print ID card using jsPDF
+<<<<<<< HEAD
   const printIDCard = async (student) => {
+=======
+  const printIDCard = (student) => {
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -326,6 +341,7 @@ export default function StudentIDCardsPage() {
     const photoY = 18
     const photoSize = 20
 
+<<<<<<< HEAD
     // Add student photo as background layer (rectangular/square)
     if (student.photo_url && student.photo_url.trim() !== '') {
       try {
@@ -402,6 +418,45 @@ export default function StudentIDCardsPage() {
     // Add second circle for extra thickness effect
     doc.setLineWidth(1.2)
     doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2 - 0.3, 'S')
+=======
+    // Gold circular border (solid)
+    doc.setDrawColor(184, 134, 11)
+    doc.setLineWidth(0.8)
+    doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
+
+    // White circular background for photo
+    doc.setFillColor(240, 240, 240)
+    doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2 - 0.5, 'F')
+
+    // Add student photo if available
+    if (student.photo_url && student.photo_url.trim() !== '') {
+      try {
+        // Determine image format from URL
+        const photoUrl = student.photo_url
+        let imageFormat = 'JPEG'
+
+        if (photoUrl.toLowerCase().includes('.png')) {
+          imageFormat = 'PNG'
+        } else if (photoUrl.toLowerCase().includes('.jpg') || photoUrl.toLowerCase().includes('.jpeg')) {
+          imageFormat = 'JPEG'
+        }
+
+        // Add image inside the circle with proper clipping
+        doc.addImage(photoUrl, imageFormat, photoX + 2, photoY + 2, photoSize - 4, photoSize - 4)
+      } catch (error) {
+        console.error('Error adding photo:', error)
+        // Show placeholder if image fails
+        doc.setFontSize(6)
+        doc.setTextColor(150, 150, 150)
+        doc.text('PHOTO', photoX + photoSize/2, photoY + photoSize/2, { align: 'center' })
+      }
+    } else {
+      // Photo placeholder text
+      doc.setFontSize(6)
+      doc.setTextColor(150, 150, 150)
+      doc.text('PHOTO', photoX + photoSize/2, photoY + photoSize/2, { align: 'center' })
+    }
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
     // Student name below photo in gold
     doc.setFontSize(7)
@@ -410,6 +465,7 @@ export default function StudentIDCardsPage() {
     const studentFullName = `${student.first_name || ''} ${student.last_name || ''}`.trim().toUpperCase()
     doc.text(studentFullName, photoX + photoSize/2, photoY + photoSize + 4, { align: 'center' })
 
+<<<<<<< HEAD
     // Barcode area below student name
     const barcodeY = photoY + photoSize + 7
     const barcodeWidth = photoSize + 2
@@ -443,6 +499,28 @@ export default function StudentIDCardsPage() {
     doc.setTextColor(0, 0, 0)
     doc.setFont('courier', 'bold')
     doc.text(studentIDNumber, photoX + photoSize/2, barcodeY + barcodeHeight + 1.5, { align: 'center' })
+=======
+    // Barcode area below student name label
+    const barcodeY = photoY + photoSize + 7
+    doc.setFillColor(255, 255, 255)
+    doc.rect(photoX - 1, barcodeY, photoSize + 2, 6, 'F')
+
+    // Barcode lines
+    doc.setLineWidth(0.3)
+    doc.setDrawColor(0, 0, 0)
+    for (let i = 0; i < 15; i++) {
+      const x = photoX + (i * 1.5)
+      const height = Math.random() > 0.5 ? 4 : 5
+      doc.line(x, barcodeY + 0.5, x, barcodeY + height)
+    }
+
+    // Barcode number
+    doc.setFontSize(5)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('courier', 'normal')
+    const cardNumber = `NWH-2023-${student.admission_number}`
+    doc.text(cardNumber, photoX + photoSize/2, barcodeY + 6.5, { align: 'center' })
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
     // Right section - Student details
     const detailsX = 32
@@ -456,7 +534,11 @@ export default function StudentIDCardsPage() {
     doc.setFontSize(7)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(31, 58, 96)
+<<<<<<< HEAD
     doc.text(studentIDNumber, detailsX + 18, detailsY)
+=======
+    doc.text(cardNumber, detailsX + 18, detailsY)
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
     detailsY += 6
 
@@ -706,14 +788,22 @@ export default function StudentIDCardsPage() {
                       {printFor === 'individual' && (
                         <button
                           onClick={() => handlePrint(student)}
+<<<<<<< HEAD
                           disabled={printingStudentId === student.id}
+=======
+                          disabled={saving}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                           className="w-full text-white py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           style={{ backgroundColor: '#1E3A8A', '&:hover': { backgroundColor: '#1e40af' } }}
                           onMouseEnter={(e) => e.target.style.backgroundColor = '#1e40af'}
                           onMouseLeave={(e) => e.target.style.backgroundColor = '#1E3A8A'}
                         >
                           <CreditCard className="w-4 h-4" />
+<<<<<<< HEAD
                           {printingStudentId === student.id ? 'Printing...' : 'Print Card'}
+=======
+                          {saving ? 'Printing...' : 'Print Card'}
+>>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                         </button>
                       )}
                     </div>
