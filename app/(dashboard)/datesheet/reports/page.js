@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { X, Printer, FileText, Settings } from 'lucide-react'
+import { X, Printer, FileText, Settings, Download } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -16,33 +16,35 @@ export default function DatesheetReportsPage() {
   const [subjects, setSubjects] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [session, setSession] = useState(null)
+  const [schoolInfo, setSchoolInfo] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [toasts, setToasts] = useState([])
 
   // Configuration Modal State
   const [showConfigModal, setShowConfigModal] = useState(false)
-  const [configType, setConfigType] = useState('datesheet') // 'datesheet' or 'rollno'
+  const [configType, setConfigType] = useState('datesheet')
 
   // New state for datesheet type selection
   const [showClassSelectionModal, setShowClassSelectionModal] = useState(false)
   const [selectedClassForDatesheet, setSelectedClassForDatesheet] = useState('')
 
+  // Roll No Slip State - Updated with dropdown student selection
+  const [showRollNoSlipModal, setShowRollNoSlipModal] = useState(false)
+  const [selectedClassForSlip, setSelectedClassForSlip] = useState('')
+  const [filteredStudentsForSlip, setFilteredStudentsForSlip] = useState([])
+  const [selectedStudentForSlip, setSelectedStudentForSlip] = useState('')
+
   // Configuration Form State
   const [config, setConfig] = useState({
-    // Visible Items
     showRoomNumber: true,
     showSyllabus: true,
     showExamTime: true,
     showPrincipalSignature: true,
     printDate: new Date().toISOString().split('T')[0],
-
-    // Data Filters
     selectedDatesheet: '',
     template: 'default',
     feeStatus: 'all',
     selectedClass: 'all',
-
-    // Printer Parameters
     textFontSize: '12',
     extraColumns: '2',
     logoHeight: '48',
@@ -53,10 +55,6 @@ export default function DatesheetReportsPage() {
     hideReportCriteria: false
   })
 
-  // Roll No Slip State
-  const [showRollNoSlip, setShowRollNoSlip] = useState(false)
-  const [selectedStudent, setSelectedStudent] = useState(null)
-  const [selectedDatesheetForSlip, setSelectedDatesheetForSlip] = useState(null)
   const printRef = useRef(null)
 
   // Toast notification
@@ -71,6 +69,18 @@ export default function DatesheetReportsPage() {
   const removeToast = (id) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
+
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (showConfigModal || showClassSelectionModal || showRollNoSlipModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showConfigModal, showClassSelectionModal, showRollNoSlipModal])
 
   // Get current user from cookie
   useEffect(() => {
@@ -87,14 +97,36 @@ export default function DatesheetReportsPage() {
       try {
         const user = JSON.parse(decodeURIComponent(userData))
         setCurrentUser(user)
-        console.log('👤 User loaded:', user)
       } catch (e) {
         console.error('Error parsing user data:', e)
       }
     }
   }, [])
 
-  // Fetch current session from database
+  // Fetch school info
+  useEffect(() => {
+    const fetchSchoolInfo = async () => {
+      if (!currentUser?.school_id) return
+
+      try {
+        const { data, error } = await supabase
+          .from('schools')
+          .select('*')
+          .eq('id', currentUser.school_id)
+          .single()
+
+        if (error) throw error
+        setSchoolInfo(data)
+        console.log('🏫 School info loaded:', data)
+      } catch (error) {
+        console.error('Error fetching school info:', error)
+      }
+    }
+
+    fetchSchoolInfo()
+  }, [currentUser])
+
+  // Fetch current session
   useEffect(() => {
     const fetchCurrentSession = async () => {
       if (!currentUser?.school_id) return
@@ -108,8 +140,6 @@ export default function DatesheetReportsPage() {
           .single()
 
         if (error) {
-          console.error('Error fetching session:', error)
-          // Fallback to most recent session
           const { data: recentSession, error: recentError } = await supabase
             .from('sessions')
             .select('*')
@@ -123,10 +153,8 @@ export default function DatesheetReportsPage() {
             return
           }
           setSession(recentSession)
-          console.log('📅 Recent session loaded:', recentSession)
         } else {
           setSession(data)
-          console.log('📅 Current session loaded:', data)
         }
       } catch (error) {
         console.error('Error fetching session:', error)
@@ -148,18 +176,7 @@ export default function DatesheetReportsPage() {
   }, [currentUser, session])
 
   const fetchDatesheets = async () => {
-    if (!currentUser?.school_id || !session?.name) {
-      console.log('⚠️ fetchDatesheets skipped - missing data:', {
-        school_id: currentUser?.school_id,
-        session_name: session?.name
-      })
-      return
-    }
-
-    console.log('📥 Fetching datesheets with:', {
-      school_id: currentUser.school_id,
-      session: session.name
-    })
+    if (!currentUser?.school_id || !session?.name) return
 
     try {
       const { data, error } = await supabase
@@ -170,12 +187,9 @@ export default function DatesheetReportsPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-
-      console.log('✅ Fetched datesheets:', data)
-      console.log(`Found ${data?.length || 0} datesheets for reports`)
       setDatesheets(data || [])
     } catch (error) {
-      console.error('❌ Error fetching datesheets:', error)
+      console.error('Error fetching datesheets:', error)
       showToast('Error fetching datesheets', 'error')
     }
   }
@@ -237,8 +251,6 @@ export default function DatesheetReportsPage() {
   const fetchSchedules = async (datesheetId) => {
     if (!currentUser?.school_id) return
 
-    console.log('📅 Fetching schedules for datesheet:', datesheetId)
-
     try {
       const { data, error } = await supabase
         .from('datesheet_schedules')
@@ -252,12 +264,12 @@ export default function DatesheetReportsPage() {
         .order('start_time')
 
       if (error) throw error
-
-      console.log('✅ Fetched schedules:', data)
       setSchedules(data || [])
+      return data || []
     } catch (error) {
-      console.error('❌ Error fetching schedules:', error)
+      console.error('Error fetching schedules:', error)
       showToast('Error fetching schedules', 'error')
+      return []
     }
   }
 
@@ -275,40 +287,183 @@ export default function DatesheetReportsPage() {
       showToast('Please select a datesheet first', 'warning')
       return
     }
-    setShowConfigModal(true)
-    setConfigType('rollno')
+    setShowRollNoSlipModal(true)
   }
 
-  const handlePrintIndividualSlip = async () => {
-    if (!config.selectedDatesheet) {
-      showToast('Please select a datesheet', 'warning')
+  const handleClassChangeForSlip = (classId) => {
+    setSelectedClassForSlip(classId)
+    setSelectedStudentForSlip('')
+    
+    if (classId) {
+      const filtered = students.filter(s => s.current_class_id === classId)
+      setFilteredStudentsForSlip(filtered)
+    } else {
+      setFilteredStudentsForSlip([])
+    }
+  }
+
+  const handleGenerateRollNoSlip = async () => {
+    if (!selectedStudentForSlip) {
+      showToast('Please select a student', 'warning')
       return
     }
 
-    // Get first student for demo or you can add a student selector
-    if (students.length === 0) {
-      showToast('No students found', 'error')
+    const student = students.find(s => s.id === selectedStudentForSlip)
+    if (!student) {
+      showToast('Student not found', 'error')
       return
     }
 
     const datesheet = datesheets.find(d => d.id === config.selectedDatesheet)
-    if (!datesheet) return
+    if (!datesheet) {
+      showToast('Datesheet not found', 'error')
+      return
+    }
 
-    await fetchSchedules(config.selectedDatesheet)
+    const scheduleData = await fetchSchedules(config.selectedDatesheet)
+    await generateRollNoSlipPDF(student, datesheet, scheduleData)
+    
+    setShowRollNoSlipModal(false)
+    setSelectedClassForSlip('')
+    setSelectedStudentForSlip('')
+    setFilteredStudentsForSlip([])
+  }
 
-    const filteredStudents = config.selectedClass !== 'all'
-      ? students.filter(s => s.current_class_id === config.selectedClass)
-      : students
+  const generateRollNoSlipPDF = async (student, datesheet, scheduleData) => {
+    try {
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
 
-    if (filteredStudents.length > 0) {
-      setSelectedStudent(filteredStudents[0])
-      setSelectedDatesheetForSlip(datesheet)
-      setShowRollNoSlip(true)
+      let yPos = 20
 
-      // Trigger print after a short delay to ensure rendering
-      setTimeout(() => {
-        window.print()
-      }, 500)
+      // School name and details
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text(schoolInfo?.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 7
+
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      if (schoolInfo?.address) {
+        doc.text(schoolInfo.address, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 5
+      }
+      if (schoolInfo?.phone) {
+        doc.text(`Ph: ${schoolInfo.phone}`, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 5
+      }
+
+      yPos += 5
+
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('ROLL NUMBER SLIP', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 7
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
+
+      // Student Info
+      const leftMargin = 20
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      
+      const infoData = [
+        ['Student Name', student.first_name + ' ' + (student.last_name || ''), 'Adm#', student.admission_number],
+        ['Father Name', student.father_name || 'N/A', 'Roll#', student.roll_number || 'N/A'],
+        ['Class', getClassName(student.current_class_id), 'Section', student.current_section_id ? 'A' : '-'],
+        ['Session', session?.session_name || session?.name || datesheet.session, 'Group', 'GENERAL'],
+        ['Exam Center', datesheet.exam_center || schoolInfo?.address || 'Main Campus', '', '']
+      ]
+
+      infoData.forEach((row) => {
+        doc.setFont('helvetica', 'bold')
+        doc.text(row[0] + ':', leftMargin, yPos)
+        doc.setFont('helvetica', 'normal')
+        doc.text(row[1], leftMargin + 35, yPos)
+        
+        if (row[2]) {
+          doc.setFont('helvetica', 'bold')
+          doc.text(row[2] + ':', leftMargin + 105, yPos)
+          doc.setFont('helvetica', 'normal')
+          doc.text(row[3], leftMargin + 125, yPos)
+        }
+        yPos += 6
+      })
+
+      yPos += 5
+
+      // Schedule Table
+      const classSchedules = scheduleData.filter(s => 
+        s.class_id === student.current_class_id && s.subject_id
+      )
+
+      const tableHead = [['#', 'Subject', 'Exam Date', 'Start Time', 'End Time', 'Room No']]
+      const tableBody = classSchedules.map((schedule, index) => {
+        const date = new Date(schedule.exam_date)
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const formattedDate = `${dayNames[date.getDay()]}, ${date.getDate().toString().padStart(2, '0')}-${monthNames[date.getMonth()]}-${date.getFullYear()}`
+
+        return [
+          (index + 1).toString(),
+          getSubjectName(schedule.subject_id),
+          formattedDate,
+          formatTime(schedule.start_time),
+          formatTime(schedule.end_time),
+          schedule.room_number || 'N/A'
+        ]
+      })
+
+      autoTable(doc, {
+        startY: yPos,
+        head: tableHead,
+        body: tableBody,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [25, 49, 83],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 55 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 22 },
+          5: { cellWidth: 18 }
+        }
+      })
+
+      const finalY = doc.lastAutoTable.finalY + 10
+
+      if (config.showSyllabus) {
+        doc.setFontSize(8)
+        doc.text('Syllabus: ____________________________________________', leftMargin, finalY)
+      }
+
+      const footerY = pageHeight - 20
+      doc.setFontSize(8)
+      doc.text(`Dated: ${new Date(config.printDate).toLocaleDateString('en-GB')}`, leftMargin, footerY)
+      
+      if (config.showPrincipalSignature) {
+        doc.text('_____________________', pageWidth - 60, footerY - 5)
+        doc.text('Controller Examination', pageWidth - 60, footerY)
+      }
+
+      const fileName = `RollNoSlip_${student.admission_number}_${datesheet.title}.pdf`
+      doc.save(fileName)
+
+      showToast('Roll No Slip generated successfully', 'success')
+    } catch (error) {
+      console.error('Error generating roll no slip:', error)
+      showToast(`Error generating slip: ${error.message}`, 'error')
     }
   }
 
@@ -319,21 +474,15 @@ export default function DatesheetReportsPage() {
     }
 
     try {
-      // Get the selected datesheet details
       const selectedDatesheet = datesheets.find(d => d.id === config.selectedDatesheet)
       if (!selectedDatesheet) {
         showToast('Selected datesheet not found', 'error')
         return
       }
 
-      // Fetch schedules first
       await fetchSchedules(config.selectedDatesheet)
 
-      let data, error
-
-      // Save to appropriate table based on config type
       if (configType === 'datesheet') {
-        // Save to datesheet_reports table
         const result = await supabase
           .from('datesheet_reports')
           .insert({
@@ -350,59 +499,13 @@ export default function DatesheetReportsPage() {
           })
           .select()
 
-        data = result.data
-        error = result.error
-
-        if (!error) {
-          showToast('Date Sheet Report generated and saved successfully', 'success')
-          setShowConfigModal(false)
-        }
-      } else {
-        // For roll no slips
-        const studentsToProcess = config.selectedClass !== 'all'
-          ? students.filter(s => s.current_class_id === config.selectedClass)
-          : students
-
-        if (studentsToProcess.length === 0) {
-          showToast('No students found with the selected filters', 'warning')
-          return
-        }
-
-        // Create roll no slips for all students
-        const slips = studentsToProcess.map(student => ({
-          school_id: currentUser.school_id,
-          datesheet_id: config.selectedDatesheet,
-          student_id: student.id,
-          slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
-          slip_type: 'roll_no_slip',
-          gender: student.gender,
-          file_url: `/reports/rollno/${config.selectedDatesheet}/${student.id}`,
-          generated_by: currentUser.id,
-          configuration: config,
-          status: 'generated'
-        }))
-
-        const result = await supabase
-          .from('roll_no_slips')
-          .insert(slips)
-          .select()
-
-        data = result.data
-        error = result.error
-
-        if (!error) {
-          showToast(`Roll No Slips generated for ${studentsToProcess.length} students and saved successfully`, 'success')
-          // Still show the print preview for the first student
-          handlePrintIndividualSlip()
+        if (!result.error) {
+          showToast('Date Sheet Report saved successfully', 'success')
           setShowConfigModal(false)
         }
       }
-
-      if (error) throw error
-
-      console.log('✅ Report saved to database:', data)
     } catch (error) {
-      console.error('❌ Error saving report:', error)
+      console.error('Error saving report:', error)
       showToast(`Failed to save report: ${error.message}`, 'error')
     }
   }
@@ -438,7 +541,6 @@ export default function DatesheetReportsPage() {
     }
   }
 
-  // Generate Single Class Datesheet PDF
   const generateSingleClassDatesheetPDF = async (classId) => {
     if (!config.selectedDatesheet || !classId) {
       showToast('Please select both datesheet and class', 'warning')
@@ -452,7 +554,6 @@ export default function DatesheetReportsPage() {
         return
       }
 
-      // Fetch schedules for this class
       const { data: classSchedules, error } = await supabase
         .from('datesheet_schedules')
         .select(`
@@ -470,53 +571,62 @@ export default function DatesheetReportsPage() {
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
 
-      // Header
-      doc.setFontSize(20)
+      let yPos = 20
+      
+      doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
-      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 20, { align: 'center' })
+      doc.text(schoolInfo?.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 7
 
-      doc.setFontSize(10)
+      doc.setFontSize(9)
       doc.setFont('helvetica', 'normal')
-      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 27, { align: 'center' })
-      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 32, { align: 'center' })
+      if (schoolInfo?.address) {
+        doc.text(schoolInfo.address, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 5
+      }
+      if (schoolInfo?.phone) {
+        doc.text(`Ph: ${schoolInfo.phone}`, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 5
+      }
 
-      // Title
+      yPos += 5
+
       doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
-      doc.text('DATE SHEET SCHEDULE', pageWidth / 2, 45, { align: 'center' })
-      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 52, { align: 'center' })
+      doc.text('DATE SHEET SCHEDULE', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 7
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
 
-      // Info Box
       const leftMargin = 20
-      const boxTop = 60
 
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Class: ${getClassName(classId)}`, leftMargin, boxTop)
-      doc.text(`Session: ${datesheet.session}`, leftMargin, boxTop + 7)
-      doc.text(`Exam Center: ${datesheet.exam_center || 'skoolzoom demo software, BLOCK D STREET 29 ISLAMABAD'}`, leftMargin, boxTop + 14)
+      doc.text(`Class: ${getClassName(classId)}`, leftMargin, yPos)
+      yPos += 6
+      doc.text(`Session: ${datesheet.session}`, leftMargin, yPos)
+      yPos += 6
+      doc.text(`Exam Center: ${datesheet.exam_center || schoolInfo?.address || 'Main Campus'}`, leftMargin, yPos)
+      yPos += 10
 
-      // Schedule Table
-      const tableTop = boxTop + 25
       const tableData = classSchedules?.map((schedule, index) => {
         const date = new Date(schedule.exam_date)
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
         const formattedDate = `${dayNames[date.getDay()]}, ${date.getDate().toString().padStart(2, '0')}-${monthNames[date.getMonth()]}-${date.getFullYear()}`
 
         return [
           (index + 1).toString(),
           schedule.subjects?.subject_name || 'N/A',
           formattedDate,
-          schedule.start_time || 'N/A',
-          schedule.end_time || 'N/A',
+          formatTime(schedule.start_time) || 'N/A',
+          formatTime(schedule.end_time) || 'N/A',
           schedule.room_number || 'N/A'
         ]
       }) || []
 
       autoTable(doc, {
-        startY: tableTop,
+        startY: yPos,
         head: [['#', 'Subject', 'Exam Date', 'Start Time', 'End Time', 'Room No']],
         body: tableData,
         theme: 'grid',
@@ -540,15 +650,11 @@ export default function DatesheetReportsPage() {
         }
       })
 
-      const finalY = doc.lastAutoTable.finalY + 15
-
-      // Footer
       const footerY = pageHeight - 20
       doc.setFontSize(8)
       doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, leftMargin, footerY)
       doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
 
-      // Save PDF
       const fileName = `${getClassName(classId)}_${datesheet.title}_Datesheet.pdf`
       doc.save(fileName)
 
@@ -559,7 +665,17 @@ export default function DatesheetReportsPage() {
     }
   }
 
-  // Generate All Classes Datesheet PDF
+  // ===================================================================
+// PROFESSIONAL PDF GENERATION FUNCTION - REPLACE IN BOTH FILES
+// ===================================================================
+// 
+// This fixes the terrible PDF formatting you showed in the screenshot.
+// Replace the ENTIRE generateAllClassesDatesheetPDF function with this.
+//
+// Location in Reports Page: Around line 668
+// Location in Management Page: Search for "generateAllClassesDatesheetPDF"
+// ===================================================================
+
   const generateAllClassesDatesheetPDF = async () => {
     if (!config.selectedDatesheet) {
       showToast('Please select a datesheet', 'warning')
@@ -573,7 +689,6 @@ export default function DatesheetReportsPage() {
         return
       }
 
-      // Fetch all schedules for this datesheet
       const { data: allSchedules, error } = await supabase
         .from('datesheet_schedules')
         .select(`
@@ -585,99 +700,149 @@ export default function DatesheetReportsPage() {
 
       if (error) throw error
 
-      // Get unique dates
       const uniqueDates = [...new Set(allSchedules.map(s => s.exam_date))].sort()
-
-      // Get classes that have schedules
       const classesInDatesheet = datesheet.class_ids || []
       const filteredClasses = classes.filter(c => classesInDatesheet.includes(c.id))
 
-      const doc = new jsPDF('l') // Landscape mode
+      const doc = new jsPDF('l') // Landscape
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
 
-      // Header
+      let yPos = 15
+
+      // === HEADER SECTION ===
       doc.setFontSize(20)
       doc.setFont('helvetica', 'bold')
-      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 15, { align: 'center' })
+      doc.text(schoolInfo?.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
 
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 22, { align: 'center' })
-      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 27, { align: 'center' })
+      if (schoolInfo?.address) {
+        doc.text(schoolInfo.address, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 5
+      }
+      if (schoolInfo?.phone) {
+        doc.text(`Phone: ${schoolInfo.phone}`, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 5
+      }
 
-      // Title
-      doc.setFontSize(14)
+      yPos += 3
+
+      // === TITLE ===
+      doc.setFontSize(16)
       doc.setFont('helvetica', 'bold')
-      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 37, { align: 'center' })
+      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
 
-      // Build table data
-      const tableHead = [
-        ['#', 'Class Name', ...uniqueDates.map(date => {
-          const d = new Date(date)
-          return `${d.getDate().toString().padStart(2, '0')}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`
-        })]
-      ]
+      // === SESSION ===
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Academic Session: ${datesheet.session}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
+
+      // === PROFESSIONAL DATE HEADERS ===
+      // This is the KEY FIX - formats dates properly
+      const dateHeaders = uniqueDates.map(dateStr => {
+        const date = new Date(dateStr)
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        
+        const dayName = dayNames[date.getDay()]
+        const day = date.getDate().toString().padStart(2, '0')
+        const month = monthNames[date.getMonth()]
+        
+        // Two-line format: Day name on top, date below
+        return `${dayName}\n${day}-${month}`
+      })
+
+      // === TABLE STRUCTURE ===
+      const tableHead = [['#', 'Class', ...dateHeaders]]
 
       const tableBody = filteredClasses.map((cls, index) => {
-        const row = [
-          (index + 1).toString(),
-          cls.class_name
-        ]
+        const row = [(index + 1).toString(), cls.class_name]
 
         uniqueDates.forEach(date => {
           const schedule = allSchedules.find(s => s.class_id === cls.id && s.exam_date === date)
-          if (schedule && schedule.subjects) {
-            row.push(schedule.subjects.subject_name)
-          } else {
-            row.push('-')
-          }
+          row.push(schedule && schedule.subjects ? schedule.subjects.subject_name : '-')
         })
 
         return row
       })
 
-      const tableTop = 45
+      // === DYNAMIC COLUMN WIDTHS ===
+      // Calculates optimal width based on number of date columns
+      const numDates = uniqueDates.length
+      const fixedWidth = 12 + 30 // # + Class columns
+      const availableWidth = pageWidth - 30 // minus margins
+      const dateColWidth = Math.max(25, Math.min(35, (availableWidth - fixedWidth) / numDates))
 
+      const columnStyles = {
+        0: { cellWidth: 12, halign: 'center', valign: 'middle' },
+        1: { cellWidth: 30, halign: 'left', valign: 'middle', fontStyle: 'bold' }
+      }
+
+      // Apply same width to all date columns
+      for (let i = 0; i < numDates; i++) {
+        columnStyles[i + 2] = { 
+          cellWidth: dateColWidth, 
+          halign: 'center', 
+          valign: 'middle', 
+          fontSize: 8 
+        }
+      }
+
+      // === GENERATE TABLE ===
       autoTable(doc, {
-        startY: tableTop,
+        startY: yPos,
         head: tableHead,
         body: tableBody,
         theme: 'grid',
         headStyles: {
-          fillColor: [25, 49, 83],
+          fillColor: [25, 49, 83], // Dark blue header
           textColor: 255,
           fontStyle: 'bold',
-          fontSize: 8
+          fontSize: 9,
+          halign: 'center',
+          valign: 'middle',
+          cellPadding: 4,
+          lineWidth: 0.5,
+          lineColor: [255, 255, 255]
         },
-        styles: {
-          fontSize: 7,
-          cellPadding: 2
+        bodyStyles: {
+          fontSize: 9,
+          cellPadding: 3,
+          lineWidth: 0.1,
+          lineColor: [200, 200, 200]
         },
-        columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 30 }
-        }
+        alternateRowStyles: {
+          fillColor: [245, 245, 245] // Light gray alternate rows
+        },
+        columnStyles: columnStyles,
+        margin: { left: 15, right: 15 }
       })
 
-      const finalY = doc.lastAutoTable.finalY + 10
-
-      // Footer
-      const footerY = pageHeight - 15
+      // === FOOTER ===
+      const footerY = pageHeight - 10
       doc.setFontSize(8)
-      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, 20, footerY)
-      doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
+      doc.setTextColor(100)
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, 15, footerY)
+      doc.text('Controller of Examinations', pageWidth - 15, footerY, { align: 'right' })
 
-      // Save PDF
-      const fileName = `All_Classes_${datesheet.title}_Datesheet.pdf`
+      // === SAVE PDF ===
+      const fileName = `DateSheet_${datesheet.title.replace(/\s+/g, '_')}.pdf`
       doc.save(fileName)
 
-      showToast('All classes datesheet generated successfully', 'success')
+      showToast('Datesheet generated successfully!', 'success')
     } catch (error) {
-      console.error('Error generating all classes datesheet:', error)
-      showToast(`Error generating datesheet: ${error.message}`, 'error')
+      console.error('Error generating datesheet:', error)
+      showToast(`Error: ${error.message}`, 'error')
     }
   }
+
+// ===================================================================
+// END OF REPLACEMENT FUNCTION
+// ===================================================================
 
   const handleSingleClassDatesheet = () => {
     if (!config.selectedDatesheet) {
@@ -702,125 +867,133 @@ export default function DatesheetReportsPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Datesheet Reports</h1>
-        <button
-          onClick={() => router.push('/datesheet')}
-          className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
-        >
-          Back to Datesheets
-        </button>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-4 mb-6">
-        <button
-          onClick={handleViewDateSheet}
-          className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 flex items-center gap-2"
-        >
-          <FileText className="w-5 h-5" />
-          Reports
-        </button>
-        <button
-          onClick={handlePrintIndividualSlip}
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
-        >
-          <Printer className="w-5 h-5" />
-          Print Individual Roll No Slip
-        </button>
-      </div>
-
-      {/* Search and Datesheet Selection */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="Write search text here..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full border border-gray-300 rounded px-4 py-2"
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Select Datesheet / Exam</label>
-          <select
-            value={config.selectedDatesheet}
-            onChange={(e) => setConfig({ ...config, selectedDatesheet: e.target.value })}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Datesheet Reports</h1>
+          <button
+            onClick={() => router.push('/datesheet')}
+            className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
           >
-            <option value="">Select a datesheet</option>
-            {datesheets.map(ds => (
-              <option key={ds.id} value={ds.id}>{ds.title}</option>
-            ))}
-          </select>
-          {datesheets.length === 0 && (
-            <p className="text-sm text-red-500 mt-1">No datesheets found for current session</p>
-          )}
+            Back to Datesheets
+          </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4 mb-6">
+          <button
+            onClick={handleViewDateSheet}
+            className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 flex items-center gap-2"
+          >
+            <FileText className="w-5 h-5" />
+            Reports
+          </button>
+          <button
+            onClick={handleViewRollNoSlips}
+            className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 flex items-center gap-2"
+          >
+            <Printer className="w-5 h-5" />
+            Print Roll No Slip
+          </button>
+        </div>
+
+        {/* Search and Datesheet Selection */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Write search text here..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border border-gray-300 rounded px-4 py-2"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Datesheet / Exam</label>
+            <select
+              value={config.selectedDatesheet}
+              onChange={(e) => setConfig({ ...config, selectedDatesheet: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            >
+              <option value="">Select a datesheet</option>
+              {datesheets.map(ds => (
+                <option key={ds.id} value={ds.id}>{ds.title}</option>
+              ))}
+            </select>
+            {datesheets.length === 0 && (
+              <p className="text-sm text-red-500 mt-1">No datesheets found for current session</p>
+            )}
+          </div>
+        </div>
+
+        {/* Reports Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-blue-900 text-white">
+              <tr>
+                <th className="px-6 py-3 text-left text-sm font-semibold">Sr.</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold">Date Sheet Reports</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              <tr className="hover:bg-gray-50">
+                <td className="px-6 py-4 text-sm">1</td>
+                <td className="px-6 py-4 text-sm font-medium">Single Class Datesheet</td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={handleSingleClassDatesheet}
+                    className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+                  >
+                    Generate
+                  </button>
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50">
+                <td className="px-6 py-4 text-sm">2</td>
+                <td className="px-6 py-4 text-sm font-medium">All Classes Datesheet</td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={handleAllClassesDatesheet}
+                    className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+                  >
+                    Generate
+                  </button>
+                </td>
+              </tr>
+              <tr className="bg-gray-300">
+                <td colSpan="3" className="px-6 py-2 text-sm font-semibold text-gray-700">
+                  Roll No Slips
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50">
+                <td className="px-6 py-4 text-sm">3</td>
+                <td className="px-6 py-4 text-sm font-medium">Roll No Slips</td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={handleViewRollNoSlips}
+                    className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Reports Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-teal-600 text-white">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Date Sheet Reports</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            <tr className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm">1</td>
-              <td className="px-4 py-3 text-sm font-medium">Single Class Datesheet</td>
-              <td className="px-4 py-3 text-right">
-                <button
-                  onClick={handleSingleClassDatesheet}
-                  className="bg-teal-600 text-white px-6 py-1 rounded hover:bg-teal-700"
-                >
-                  Generate
-                </button>
-              </td>
-            </tr>
-            <tr className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm">2</td>
-              <td className="px-4 py-3 text-sm font-medium">All Classes Datesheet</td>
-              <td className="px-4 py-3 text-right">
-                <button
-                  onClick={handleAllClassesDatesheet}
-                  className="bg-teal-600 text-white px-6 py-1 rounded hover:bg-teal-700"
-                >
-                  Generate
-                </button>
-              </td>
-            </tr>
-            <tr className="bg-gray-300">
-              <td colSpan="3" className="px-4 py-2 text-sm font-semibold text-gray-700">
-                Roll No Slips
-              </td>
-            </tr>
-            <tr className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm">3</td>
-              <td className="px-4 py-3 text-sm font-medium">Roll No Slips</td>
-              <td className="px-4 py-3 text-right">
-                <button
-                  onClick={handleViewRollNoSlips}
-                  className="bg-teal-600 text-white px-6 py-1 rounded hover:bg-teal-700"
-                >
-                  View
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {/* Blur overlay when modal is open */}
+      {(showConfigModal || showClassSelectionModal || showRollNoSlipModal) && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+      )}
 
       {/* Configuration Modal */}
       {showConfigModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="bg-green-500 text-white px-6 py-4 flex justify-between items-center">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0">
               <h2 className="text-xl font-bold">Configure Visible Parameters</h2>
               <button onClick={() => setShowConfigModal(false)} className="text-white hover:text-gray-200">
                 <X className="w-6 h-6" />
@@ -1051,7 +1224,7 @@ export default function DatesheetReportsPage() {
               </button>
               <button
                 onClick={handleProcessConfig}
-                className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600"
+                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
               >
                 Process
               </button>
@@ -1060,144 +1233,78 @@ export default function DatesheetReportsPage() {
         </div>
       )}
 
-      {/* Roll No Slip Print View */}
-      {showRollNoSlip && selectedStudent && selectedDatesheetForSlip && (
-        <div className="fixed inset-0 bg-white z-[100] overflow-auto print:relative print:z-auto">
-          <div className="max-w-4xl mx-auto p-8" ref={printRef}>
-            {/* Print Header */}
-            <div className="text-center mb-6 border-b-2 border-red-600 pb-4">
-              <div className="flex items-center justify-center gap-4 mb-2">
-                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                  S
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold">SCHOOL MANAGEMENT SYSTEM</h1>
-                  <p className="text-sm">Your School Address Here</p>
-                  <p className="text-sm">Ph: Your Phone Number</p>
-                </div>
-              </div>
+      {/* Roll No Slip Modal with Dropdown Student Selection */}
+      {showRollNoSlipModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold">Generate Roll No Slip</h2>
+              <button onClick={() => {
+                setShowRollNoSlipModal(false)
+                setSelectedClassForSlip('')
+                setSelectedStudentForSlip('')
+                setFilteredStudentsForSlip([])
+              }} className="text-white hover:text-gray-200">
+                <X className="w-6 h-6" />
+              </button>
             </div>
 
-            <h2 className="text-xl font-bold text-center mb-2">EXAM ENTRANCE SLIP</h2>
-            <h3 className="text-lg font-bold text-center mb-6">{selectedDatesheetForSlip.title?.toUpperCase()}</h3>
-
-            {/* Student Details */}
-            <div className="border-2 border-red-600 rounded p-4 mb-6 relative">
-              <div className="absolute right-4 top-4 w-20 h-24 border border-gray-300 flex items-center justify-center">
-                <div className="text-center text-xs text-gray-400">Photo</div>
-              </div>
-              <table className="w-full text-sm">
-                <tbody>
-                  <tr className="border-b">
-                    <td className="py-2 font-semibold w-1/3">Student's Name</td>
-                    <td className="py-2">{selectedStudent.first_name} {selectedStudent.last_name}</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 font-semibold">Father's Name</td>
-                    <td className="py-2">{selectedStudent.father_name}</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 font-semibold">Class</td>
-                    <td className="py-2">
-                      {getClassName(selectedStudent.current_class_id)}
-                      <span className="ml-8 font-semibold">Adm#</span> {selectedStudent.admission_number}
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 font-semibold">Section</td>
-                    <td className="py-2">
-                      {selectedStudent.current_section_id ? 'A' : '-'}
-                      <span className="ml-8 font-semibold">Group</span> GENERAL
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 font-semibold">Session</td>
-                    <td className="py-2">
-                      {session?.session_name || session?.name || '2024-2025'}
-                      <span className="ml-8 font-semibold">Roll#</span> {selectedStudent.roll_number}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-semibold">Exam Center</td>
-                    <td className="py-2">{selectedDatesheetForSlip.exam_center || 'Main Campus'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Exam Schedule Table */}
-            <table className="w-full border-2 border-black text-sm mb-6">
-              <thead>
-                <tr className="bg-white border-b-2 border-black">
-                  <th className="border-r-2 border-black px-2 py-2 text-left">#</th>
-                  <th className="border-r-2 border-black px-2 py-2 text-left">Subject</th>
-                  <th className="border-r-2 border-black px-2 py-2 text-left">Exam Date</th>
-                  {config.showExamTime && (
-                    <>
-                      <th className="border-r-2 border-black px-2 py-2 text-left">Start Time</th>
-                      <th className="border-r-2 border-black px-2 py-2 text-left">End Time</th>
-                    </>
-                  )}
-                  {config.showRoomNumber && (
-                    <th className="px-2 py-2 text-left">Room No</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {schedules
-                  .filter(s => s.class_id === selectedStudent.current_class_id && s.subject_id)
-                  .map((schedule, index) => (
-                    <tr key={schedule.id} className="border-b border-black">
-                      <td className="border-r-2 border-black px-2 py-2">{index + 1}</td>
-                      <td className="border-r-2 border-black px-2 py-2">{getSubjectName(schedule.subject_id)}</td>
-                      <td className="border-r-2 border-black px-2 py-2">{formatDate(schedule.exam_date)}</td>
-                      {config.showExamTime && (
-                        <>
-                          <td className="border-r-2 border-black px-2 py-2">{formatTime(schedule.start_time)}</td>
-                          <td className="border-r-2 border-black px-2 py-2">{formatTime(schedule.end_time)}</td>
-                        </>
-                      )}
-                      {config.showRoomNumber && (
-                        <td className="px-2 py-2">{schedule.room_number || '-'}</td>
-                      )}
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-
-            {/* Syllabus Section */}
-            {config.showSyllabus && (
-              <div className="mb-6">
-                <p className="text-center text-sm">Syllabus: <span className="border-b border-dotted border-black inline-block w-96"></span></p>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex justify-between items-end text-sm">
+            <div className="p-6 space-y-4">
               <div>
-                <p>Dated: <span className="font-semibold">{formatDate(config.printDate)}</span></p>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
+                <select
+                  value={selectedClassForSlip}
+                  onChange={(e) => handleClassChangeForSlip(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                >
+                  <option value="">Select a class</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                  ))}
+                </select>
               </div>
-              {config.showPrincipalSignature && (
-                <div className="text-right">
-                  <p className="border-b border-black inline-block px-12 mb-1"></p>
-                  <p>Controller Examination</p>
+
+              {selectedClassForSlip && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Student</label>
+                  <select
+                    value={selectedStudentForSlip}
+                    onChange={(e) => setSelectedStudentForSlip(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    <option value="">Select a student</option>
+                    {filteredStudentsForSlip.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.first_name} {student.last_name} - Roll: {student.roll_number} - Adm: {student.admission_number}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {filteredStudentsForSlip.length} student(s) found
+                  </p>
                 </div>
               )}
             </div>
 
-            {/* Print Button (hide when printing) */}
-            <div className="mt-8 text-center print:hidden">
+            <div className="bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
               <button
-                onClick={() => setShowRollNoSlip(false)}
-                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 mr-4"
+                onClick={() => {
+                  setShowRollNoSlipModal(false)
+                  setSelectedClassForSlip('')
+                  setSelectedStudentForSlip('')
+                  setFilteredStudentsForSlip([])
+                }}
+                className="px-6 py-2 text-gray-700 hover:text-gray-900"
               >
-                Close
+                Cancel
               </button>
               <button
-                onClick={() => window.print()}
-                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+                onClick={handleGenerateRollNoSlip}
+                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 flex items-center gap-2"
+                disabled={!selectedStudentForSlip}
               >
-                Print
+                <Download className="w-5 h-5" />
+                Generate PDF
               </button>
             </div>
           </div>
@@ -1206,9 +1313,9 @@ export default function DatesheetReportsPage() {
 
       {/* Class Selection Modal */}
       {showClassSelectionModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-            <div className="bg-teal-600 text-white px-6 py-4 flex justify-between items-center">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
               <h2 className="text-xl font-bold">Select Class</h2>
               <button onClick={() => setShowClassSelectionModal(false)} className="text-white hover:text-gray-200">
                 <X className="w-6 h-6" />
@@ -1220,7 +1327,7 @@ export default function DatesheetReportsPage() {
               <select
                 value={selectedClassForDatesheet}
                 onChange={(e) => setSelectedClassForDatesheet(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
               >
                 <option value="">Select a class</option>
                 {classes.map(cls => (
@@ -1238,7 +1345,7 @@ export default function DatesheetReportsPage() {
               </button>
               <button
                 onClick={handleGenerateSingleClassPDF}
-                className="bg-teal-600 text-white px-6 py-2 rounded hover:bg-teal-700"
+                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
               >
                 Generate PDF
               </button>
@@ -1252,7 +1359,7 @@ export default function DatesheetReportsPage() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[300px] ${
+            className={`flex items-center gap-3 px-6 py-3 rounded-lg shadow-lg min-w-[300px] ${
               toast.type === 'success' ? 'bg-green-500 text-white' :
               toast.type === 'error' ? 'bg-red-500 text-white' :
               toast.type === 'warning' ? 'bg-yellow-500 text-white' :
@@ -1264,7 +1371,7 @@ export default function DatesheetReportsPage() {
               onClick={() => removeToast(toast.id)}
               className="text-white hover:text-gray-200"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         ))}

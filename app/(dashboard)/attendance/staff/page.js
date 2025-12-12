@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { X } from 'lucide-react'
 
 export default function StaffAttendancePage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -13,6 +14,48 @@ export default function StaffAttendancePage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [toasts, setToasts] = useState([])
+
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  })
+
+  // Toast notification function
+  const showToast = (message, type = 'info') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }, 5000)
+  }
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
+
+  const showConfirmDialog = (title, message, onConfirm) => {
+    setConfirmDialog({
+      show: true,
+      title,
+      message,
+      onConfirm
+    })
+  }
+
+  const handleConfirm = () => {
+    if (confirmDialog.onConfirm) {
+      confirmDialog.onConfirm()
+    }
+    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
+  }
+
+  const handleCancel = () => {
+    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
+  }
 
   // Get current user from cookie
   useEffect(() => {
@@ -70,10 +113,11 @@ export default function StaffAttendancePage() {
         })
       }
       setAttendanceRecords(attendanceMap)
+      showToast(`Loaded ${staff?.length || 0} staff members successfully`, 'success')
 
     } catch (error) {
       console.error('Error loading attendance:', error)
-      alert('Failed to load attendance data')
+      showToast('Failed to load attendance data', 'error')
     } finally {
       setLoading(false)
     }
@@ -153,7 +197,7 @@ export default function StaffAttendancePage() {
 
     } catch (error) {
       console.error('Error marking attendance:', error)
-      alert('Failed to mark attendance')
+      showToast('Failed to mark attendance', 'error')
     } finally {
       setSaving(false)
     }
@@ -164,42 +208,45 @@ export default function StaffAttendancePage() {
     if (!status || status === '') return
     if (!currentUser?.school_id) return
     if (filteredStaff.length === 0) {
-      alert('Please load staff list first')
+      showToast('Please load staff list first', 'warning')
       return
     }
 
-    const confirmed = confirm(`Mark all ${filteredStaff.length} staff members as ${status}?`)
-    if (!confirmed) return
-
-    setSaving(true)
-    try {
-      for (const staff of filteredStaff) {
-        await markAttendance(staff.id, status)
+    showConfirmDialog(
+      'Mark All Attendance',
+      `Are you sure you want to mark all ${filteredStaff.length} staff members as ${status}?`,
+      async () => {
+        setSaving(true)
+        try {
+          for (const staff of filteredStaff) {
+            await markAttendance(staff.id, status)
+          }
+          showToast('Attendance marked for all staff successfully', 'success')
+        } catch (error) {
+          console.error('Error marking all attendance:', error)
+          showToast('Failed to mark all attendance', 'error')
+        } finally {
+          setSaving(false)
+        }
       }
-      alert('Attendance marked for all staff successfully')
-    } catch (error) {
-      console.error('Error marking all attendance:', error)
-      alert('Failed to mark all attendance')
-    } finally {
-      setSaving(false)
-    }
+    )
   }
 
   // Get unique departments for filter
   const departments = ['all', ...new Set(staffList.map(s => s.department).filter(d => d))]
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Staff Attendance</h1>
+    <div className="p-3">
+      <h1 className="text-2xl font-bold mb-4">Staff Attendance</h1>
 
       {/* Date Picker and Load Button */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex items-center gap-4">
+      <div className="bg-white rounded-lg shadow p-3 mb-4">
+        <div className="flex items-center gap-3">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Fetch Staff List for Attendance
             </label>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <input
                 type="date"
                 value={selectedDate}
@@ -209,7 +256,7 @@ export default function StaffAttendancePage() {
               <button
                 onClick={handleLoadAttendance}
                 disabled={loading}
-                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 disabled:bg-gray-400"
               >
                 {loading ? 'Loading...' : 'Load Attendance'}
               </button>
@@ -220,8 +267,8 @@ export default function StaffAttendancePage() {
 
       {/* Filters and Search */}
       {staffList.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex items-center gap-4">
+        <div className="bg-white rounded-lg shadow p-3 mb-4">
+          <div className="flex items-center gap-3">
             <div className="flex-1">
               <select
                 value={filterType}
@@ -267,13 +314,13 @@ export default function StaffAttendancePage() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-100">
+              <thead className="bg-blue-600">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Sr.</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Father Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Comp.</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Status</th>
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Sr.</th>
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Name</th>
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Father Name</th>
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Comp.</th>
+                  <th className="px-3 py-2 text-center text-sm font-semibold text-white">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -282,24 +329,39 @@ export default function StaffAttendancePage() {
                     const currentStatus = attendanceRecords[staff.id]
                     return (
                       <tr key={staff.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-700">{index + 1}</td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-900">
-                            {staff.first_name} {staff.last_name}
+                        <td className="px-3 py-2 text-sm text-gray-700">{index + 1}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            {staff.photo_url ? (
+                              <img 
+                                src={staff.photo_url} 
+                                alt={staff.first_name}
+                                className="w-8 h-8 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                                {staff.first_name?.charAt(0)}{staff.last_name?.charAt(0)}
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {staff.first_name} {staff.last_name}
+                              </div>
+                              <div className="text-xs text-gray-500">{staff.employee_number}</div>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">{staff.employee_number}</div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{staff.father_name || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{staff.department || '-'}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-center gap-2 flex-wrap">
+                        <td className="px-3 py-2 text-sm text-gray-700">{staff.father_name || '-'}</td>
+                        <td className="px-3 py-2 text-sm text-gray-700">{staff.department || '-'}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex justify-center gap-1 flex-wrap">
                             <button
                               onClick={() => markAttendance(staff.id, 'present')}
                               disabled={saving}
-                              className={`px-3 py-1 text-xs rounded ${
+                              className={`px-2 py-1 text-xs rounded ${
                                 currentStatus === 'present'
                                   ? 'bg-green-600 text-white'
-                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
                               }`}
                             >
                               Present
@@ -307,10 +369,10 @@ export default function StaffAttendancePage() {
                             <button
                               onClick={() => markAttendance(staff.id, 'absent')}
                               disabled={saving}
-                              className={`px-3 py-1 text-xs rounded ${
+                              className={`px-2 py-1 text-xs rounded ${
                                 currentStatus === 'absent'
                                   ? 'bg-red-600 text-white'
-                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                  : 'bg-white text-red-600 border border-red-600 hover:bg-red-50'
                               }`}
                             >
                               Absent
@@ -318,10 +380,10 @@ export default function StaffAttendancePage() {
                             <button
                               onClick={() => markAttendance(staff.id, 'half-day')}
                               disabled={saving}
-                              className={`px-3 py-1 text-xs rounded ${
+                              className={`px-2 py-1 text-xs rounded ${
                                 currentStatus === 'half-day'
                                   ? 'bg-blue-600 text-white'
-                                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                  : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
                               }`}
                             >
                               Short Leave
@@ -329,10 +391,10 @@ export default function StaffAttendancePage() {
                             <button
                               onClick={() => markAttendance(staff.id, 'on-leave')}
                               disabled={saving}
-                              className={`px-3 py-1 text-xs rounded ${
+                              className={`px-2 py-1 text-xs rounded ${
                                 currentStatus === 'on-leave'
                                   ? 'bg-blue-600 text-white'
-                                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                  : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
                               }`}
                             >
                               Leave
@@ -340,10 +402,10 @@ export default function StaffAttendancePage() {
                             <button
                               onClick={() => markAttendance(staff.id, 'late')}
                               disabled={saving}
-                              className={`px-3 py-1 text-xs rounded ${
+                              className={`px-2 py-1 text-xs rounded ${
                                 currentStatus === 'late'
                                   ? 'bg-orange-600 text-white'
-                                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                  : 'bg-white text-orange-600 border border-orange-600 hover:bg-orange-50'
                               }`}
                             >
                               Late
@@ -355,7 +417,7 @@ export default function StaffAttendancePage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan="5" className="px-3 py-6 text-center text-gray-500">
                       No staff members found matching your search criteria
                     </td>
                   </tr>
@@ -365,13 +427,72 @@ export default function StaffAttendancePage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+        <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
           Please select a date and click "Load Attendance" to view staff list
         </div>
       )}
 
+      {/* Confirmation Dialog */}
+      {confirmDialog.show && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancel}>
+            <div
+              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">{confirmDialog.title}</h3>
+                <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-600">{confirmDialog.message}</p>
+              </div>
+              <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+                <button
+                  onClick={handleCancel}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[300px] ${
+              toast.type === 'success' ? 'bg-green-500 text-white' :
+              toast.type === 'error' ? 'bg-red-500 text-white' :
+              toast.type === 'warning' ? 'bg-yellow-500 text-white' :
+              'bg-blue-500 text-white'
+            }`}
+          >
+            <span className="flex-1">{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="text-white hover:text-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
       {saving && (
-        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg">
+        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50">
           Saving attendance...
         </div>
       )}

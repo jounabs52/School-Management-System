@@ -6,6 +6,8 @@ import {
   Edit, Trash2, ChevronDown, X, User, Upload as UploadIcon, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function ActiveStaffPage() {
   const [searchType, setSearchType] = useState('Via General Data')
@@ -26,6 +28,14 @@ export default function ActiveStaffPage() {
   const [toasts, setToasts] = useState([])
   const [showCustomDepartment, setShowCustomDepartment] = useState(false)
   const [customDepartment, setCustomDepartment] = useState('')
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
+
+  // Photo upload state
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
 
   // Form state matching Supabase staff table fields
   const [formData, setFormData] = useState({
@@ -52,7 +62,8 @@ export default function ActiveStaffPage() {
     employmentType: 'permanent',
     maritalStatus: '',
     emergencyContactName: '',
-    emergencyContactPhone: ''
+    emergencyContactPhone: '',
+    photoUrl: ''
   })
 
   // Filter states
@@ -177,6 +188,28 @@ export default function ActiveStaffPage() {
     }
   }, [statusDropdownId])
 
+  // Prevent body scroll when modals are open
+  useEffect(() => {
+    if (showAddModal || showEditModal || showImportModal || showAdvanceSearch) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showAddModal, showEditModal, showImportModal, showAdvanceSearch])
+
+  // Auto search when query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch()
+    }, 300) // Debounce search by 300ms
+
+    return () => clearTimeout(timer)
+  }, [searchQuery, searchType, filters])
+
   const fetchStaffData = async () => {
     if (!currentUser?.school_id) return
 
@@ -199,9 +232,11 @@ export default function ActiveStaffPage() {
         phone: staff.phone || 'N/A',
         department: staff.department || 'N/A',
         status: staff.status?.toUpperCase() || 'ACTIVE',
+        photoUrl: staff.photo_url || null,
         originalData: staff
       }))
 
+      console.log('Fetched staff data:', formattedData.map(s => ({ name: s.name, photoUrl: s.photoUrl })))
       setStaffData(formattedData)
       setFilteredStaffData(formattedData)
     } catch (error) {
@@ -256,6 +291,9 @@ export default function ActiveStaffPage() {
       emergencyContactName: original.emergency_contact_name || '',
       emergencyContactPhone: original.emergency_contact_phone || ''
     })
+    // Reset photo states
+    setPhotoFile(null)
+    setPhotoPreview(null)
     setShowEditModal(true)
   }
 
@@ -308,7 +346,9 @@ export default function ActiveStaffPage() {
 
   // Search functionality
   const handleSearch = () => {
-    if (!searchQuery.trim()) {
+    setCurrentPage(1) // Reset to first page on new search
+
+    if (!searchQuery.trim() && !filters.employmentType && !filters.designation && !filters.department && !filters.gender) {
       setFilteredStaffData(staffData)
       return
     }
@@ -316,39 +356,70 @@ export default function ActiveStaffPage() {
     const query = searchQuery.toLowerCase().trim()
     let filtered = staffData
 
-    switch (searchType) {
-      case 'Via Name':
-        filtered = staffData.filter(s => s.name.toLowerCase().includes(query))
-        break
-      case 'Via Email':
-        filtered = staffData.filter(s =>
-          s.originalData?.email?.toLowerCase().includes(query)
-        )
-        break
-      case 'Via Mobile':
-        filtered = staffData.filter(s =>
-          s.phone?.toLowerCase().includes(query)
-        )
-        break
-      case 'Via Staff ID':
-        filtered = staffData.filter(s =>
-          s.employeeNumber?.toLowerCase().includes(query)
-        )
-        break
-      case 'Via General Data':
-      default:
-        filtered = staffData.filter(s =>
-          s.name.toLowerCase().includes(query) ||
-          s.employeeNumber?.toLowerCase().includes(query) ||
-          s.designation?.toLowerCase().includes(query) ||
-          s.department?.toLowerCase().includes(query) ||
-          s.phone?.toLowerCase().includes(query) ||
-          s.originalData?.email?.toLowerCase().includes(query)
-        )
-        break
+    // Apply search filter
+    if (searchQuery.trim()) {
+      switch (searchType) {
+        case 'Via Name':
+          filtered = filtered.filter(s => s.name.toLowerCase().includes(query))
+          break
+        case 'Via Email':
+          filtered = filtered.filter(s =>
+            s.originalData?.email?.toLowerCase().includes(query)
+          )
+          break
+        case 'Via Mobile':
+          filtered = filtered.filter(s =>
+            s.phone?.toLowerCase().includes(query)
+          )
+          break
+        case 'Via Staff ID':
+          filtered = filtered.filter(s =>
+            s.employeeNumber?.toLowerCase().includes(query)
+          )
+          break
+        case 'Via General Data':
+        default:
+          filtered = filtered.filter(s =>
+            s.name.toLowerCase().includes(query) ||
+            s.employeeNumber?.toLowerCase().includes(query) ||
+            s.designation?.toLowerCase().includes(query) ||
+            s.department?.toLowerCase().includes(query) ||
+            s.phone?.toLowerCase().includes(query) ||
+            s.originalData?.email?.toLowerCase().includes(query)
+          )
+          break
+      }
+    }
+
+    // Apply additional filters
+    if (filters.employmentType) {
+      filtered = filtered.filter(s => s.originalData?.employment_type === filters.employmentType)
+    }
+    if (filters.designation) {
+      filtered = filtered.filter(s => s.designation === filters.designation)
+    }
+    if (filters.department) {
+      filtered = filtered.filter(s => s.department === filters.department)
+    }
+    if (filters.gender) {
+      filtered = filtered.filter(s => s.originalData?.gender === filters.gender)
     }
 
     setFilteredStaffData(filtered)
+  }
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = filteredStaffData.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(filteredStaffData.length / itemsPerPage)
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber)
+  const nextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+  }
+  const prevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1)
   }
 
   // Export to Excel (CSV)
@@ -377,59 +448,60 @@ export default function ActiveStaffPage() {
     link.click()
   }
 
-  // Export to PDF (prints the table)
+  // Export to PDF using jsPDF
   const exportToPDF = () => {
-    const printContent = `
-      <html>
-        <head>
-          <title>Staff Data Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { text-align: center; color: #1e40af; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background-color: #475569; color: white; padding: 10px; text-align: left; }
-            td { padding: 8px; border-bottom: 1px solid #ddd; }
-            tr:hover { background-color: #f5f5f5; }
-            .date { text-align: right; color: #666; margin-bottom: 10px; }
-          </style>
-        </head>
-        <body>
-          <h1>Active Staff Report</h1>
-          <p class="date">Generated: ${new Date().toLocaleDateString()}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Sr.</th>
-                <th>Name</th>
-                <th>Employee #</th>
-                <th>Designation</th>
-                <th>Phone</th>
-                <th>Department</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredStaffData.map((staff, index) => `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${staff.name}</td>
-                  <td>${staff.employeeNumber || ''}</td>
-                  <td>${staff.designation || ''}</td>
-                  <td>${staff.phone || ''}</td>
-                  <td>${staff.department || ''}</td>
-                  <td>${staff.status || ''}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <p style="margin-top: 20px; color: #666;">Total Staff: ${filteredStaffData.length}</p>
-        </body>
-      </html>
-    `
-    const printWindow = window.open('', '_blank')
-    printWindow.document.write(printContent)
-    printWindow.document.close()
-    printWindow.print()
+    const doc = new jsPDF()
+
+    // Add title
+    doc.setFontSize(18)
+    doc.setTextColor(30, 64, 175)
+    doc.text('Active Staff Report', 105, 15, { align: 'center' })
+
+    // Add date
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 200, 15, { align: 'right' })
+
+    // Prepare table data
+    const tableData = filteredStaffData.map((staff, index) => [
+      index + 1,
+      staff.name || '',
+      staff.employeeNumber || '',
+      staff.designation || '',
+      staff.phone || '',
+      staff.department || '',
+      staff.status || ''
+    ])
+
+    // Add table
+    autoTable(doc, {
+      head: [['Sr.', 'Name', 'Employee #', 'Designation', 'Phone', 'Department', 'Status']],
+      body: tableData,
+      startY: 25,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 64, 175],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        fontSize: 9
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      margin: { top: 25 }
+    })
+
+    // Add footer
+    const finalY = doc.lastAutoTable.finalY || 25
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Total Staff: ${filteredStaffData.length}`, 14, finalY + 10)
+
+    // Save the PDF
+    doc.save(`Active_Staff_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`)
   }
 
   // Download sample Excel template
@@ -590,6 +662,31 @@ export default function ActiveStaffPage() {
     try {
       setSaving(true)
 
+      let photoUrl = null
+
+      // Upload photo if selected
+      if (photoFile) {
+        const fileExt = photoFile.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = fileName
+
+        const { error: uploadError } = await supabase.storage
+          .from('staff-photos')
+          .upload(filePath, photoFile)
+
+        if (uploadError) {
+          console.error('Photo upload error:', uploadError)
+          showToast('Failed to upload photo: ' + uploadError.message, 'error')
+        } else {
+          const { data } = supabase.storage
+            .from('staff-photos')
+            .getPublicUrl(filePath)
+
+          photoUrl = data.publicUrl
+          console.log('Photo uploaded successfully:', photoUrl)
+        }
+      }
+
       // Determine final department value
       const finalDepartment = formData.department === 'Other' ? customDepartment : formData.department
 
@@ -622,7 +719,8 @@ export default function ActiveStaffPage() {
         marital_status: formData.maritalStatus || null,
         emergency_contact_name: formData.emergencyContactName || null,
         emergency_contact_phone: formData.emergencyContactPhone || null,
-        status: 'active'
+        status: 'active',
+        photo_url: photoUrl
       }
 
       const { error } = await supabase
@@ -635,6 +733,8 @@ export default function ActiveStaffPage() {
       showToast('Staff member added successfully!', 'success')
       setShowAddModal(false)
       resetForm()
+      setPhotoFile(null)
+      setPhotoPreview(null)
       fetchStaffData()
     } catch (error) {
       console.error('Error saving staff:', error)
@@ -649,6 +749,41 @@ export default function ActiveStaffPage() {
 
     try {
       setSaving(true)
+
+      let photoUrl = editingStaff.photoUrl // Keep existing photo URL
+
+      // Upload new photo if selected
+      if (photoFile) {
+        const fileExt = photoFile.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = fileName
+
+        const { error: uploadError } = await supabase.storage
+          .from('staff-photos')
+          .upload(filePath, photoFile)
+
+        if (uploadError) {
+          console.error('Photo upload error:', uploadError)
+          showToast('Failed to upload photo: ' + uploadError.message, 'error')
+        } else {
+          const { data } = supabase.storage
+            .from('staff-photos')
+            .getPublicUrl(filePath)
+
+          photoUrl = data.publicUrl
+          console.log('Photo updated successfully:', photoUrl)
+
+          // Delete old photo if exists
+          if (editingStaff.photoUrl) {
+            const oldPath = editingStaff.photoUrl.split('/staff-photos/')[1]
+            if (oldPath) {
+              await supabase.storage
+                .from('staff-photos')
+                .remove([oldPath])
+            }
+          }
+        }
+      }
 
       // Only send fields that exist in Supabase staff table
       const staffRecord = {
@@ -675,7 +810,9 @@ export default function ActiveStaffPage() {
         employment_type: formData.employmentType || 'permanent',
         marital_status: formData.maritalStatus || null,
         emergency_contact_name: formData.emergencyContactName || null,
-        emergency_contact_phone: formData.emergencyContactPhone || null
+        emergency_contact_phone: formData.emergencyContactPhone || null,
+        status: 'active', // Ensure status remains active
+        photo_url: photoUrl
       }
 
       const { error } = await supabase
@@ -689,6 +826,8 @@ export default function ActiveStaffPage() {
       setShowEditModal(false)
       setEditingStaff(null)
       resetForm()
+      setPhotoFile(null)
+      setPhotoPreview(null)
       fetchStaffData()
     } catch (error) {
       console.error('Error updating staff:', error)
@@ -699,226 +838,244 @@ export default function ActiveStaffPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="h-full">
+      <h1 className="text-2xl font-bold text-gray-800 mb-4 p-4">Active Staff</h1>
+
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 mb-4 px-4">
         <button
-          onClick={() => { resetForm(); setShowAddModal(true); }}
-          className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded font-medium transition"
+          onClick={() => { resetForm(); setPhotoFile(null); setPhotoPreview(null); setShowAddModal(true); }}
+          className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           Add New Staff
         </button>
         <button
-          onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded font-medium transition"
-        >
-          <Upload className="w-5 h-5" />
-          Import Data
-        </button>
-        <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
         >
-          <FileSpreadsheet className="w-5 h-5" />
+          <FileSpreadsheet className="w-4 h-4" />
           Export Excel
         </button>
         <button
           onClick={exportToPDF}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
         >
-          <Download className="w-5 h-5" />
+          <Download className="w-4 h-4" />
           Export PDF
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="bg-white shadow-sm p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-3 px-4">
           {/* Search Type Dropdown */}
           <div className="relative min-w-[180px]">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="w-full appearance-none border border-gray-300 rounded px-4 py-2.5 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white"
+              className="w-full appearance-none border border-gray-300 rounded px-4 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white text-sm"
             >
               {searchOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
 
           {/* Search Input */}
           <div className="flex-1 min-w-[250px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search"
+                placeholder="Auto search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full border border-gray-300 rounded pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded pl-10 pr-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
               />
             </div>
           </div>
 
-          {/* Search Button */}
-          <button
-            onClick={handleSearch}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2.5 rounded font-medium transition"
-          >
-            Search
-            <Search className="w-5 h-5" />
-          </button>
-
           {/* Advance Search Button */}
           <button
             onClick={() => setShowAdvanceSearch(true)}
-            className="flex items-center gap-2 border-2 border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2.5 rounded font-medium transition"
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
           >
-            <Filter className="w-5 h-5" />
+            <Filter className="w-4 h-4" />
             Advance Search
           </button>
         </div>
 
         {/* Staff Count */}
-        <p className="mt-4 text-gray-600">
+        <p className="mt-3 text-gray-600 text-sm px-4">
           Showing <span className="text-blue-600 font-semibold">{filteredStaffData.length}</span> of <span className="text-blue-600 font-semibold">{staffData.length}</span> staff members
         </p>
       </div>
 
       {/* Staff Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative overflow-visible">
+      <div className="bg-white shadow-sm border-t border-gray-200 relative overflow-visible">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading staff data...</div>
         ) : filteredStaffData.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No staff members found</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-            <thead>
-              <tr className="bg-slate-600 text-white text-sm">
-                <th className="px-4 py-3 text-left font-medium">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      onChange={handleSelectAll}
-                      checked={selectedStaff.length === filteredStaffData.length && filteredStaffData.length > 0}
-                      className="w-4 h-4 rounded"
-                    />
-                    <span>Sr.</span>
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Employee #</th>
-                <th className="px-4 py-3 text-left font-medium">Designation</th>
-                <th className="px-4 py-3 text-left font-medium">Phone</th>
-                <th className="px-4 py-3 text-left font-medium">Department</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Options</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStaffData.map((staff, index) => (
-                <tr key={staff.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedStaff.includes(staff.id)}
-                        onChange={() => handleSelectStaff(staff.id)}
-                        className="w-4 h-4 rounded"
-                      />
-                      <span>{index + 1}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
-                        <User className="w-5 h-5 text-gray-400" />
-                      </div>
-                      <span className="text-blue-500 hover:underline cursor-pointer">
-                        {staff.name}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-blue-500">{staff.employeeNumber}</td>
-                  <td className="px-4 py-3 text-gray-700">{staff.designation}</td>
-                  <td className="px-4 py-3 text-gray-700">{staff.phone}</td>
-                  <td className="px-4 py-3 text-gray-700">{staff.department}</td>
-                  <td className="px-4 py-3">
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          // Check if dropdown should open upward
-                          const rect = e.currentTarget.getBoundingClientRect()
-                          const spaceBelow = window.innerHeight - rect.bottom
-                          const shouldOpenUp = spaceBelow < 200 // If less than 200px space below, open upward
-                          setDropdownOpenUp(shouldOpenUp)
-                          setStatusDropdownId(statusDropdownId === staff.id ? null : staff.id)
-                        }}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded text-sm font-medium text-white bg-green-500"
-                      >
-                        {staff.status}
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
-
-                      {statusDropdownId === staff.id && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          className={`absolute left-0 ${dropdownOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'} min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[9999]`}
-                        >
-                          {statusOptions.map((option) => (
-                            <button
-                              key={option.value}
-                              onClick={() => handleStatusChange(staff.id, option.value)}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors first:rounded-t-md last:rounded-b-md"
-                            >
-                              <span className={`w-2.5 h-2.5 rounded-full ${option.color}`} />
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(staff)}
-                        className="text-blue-500 hover:text-blue-600 p-1"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(staff.id)}
-                        className="text-red-500 hover:text-red-600 p-1"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+              <thead>
+                <tr className="bg-blue-900 text-white text-sm">
+                  <th className="px-4 py-3 text-left font-medium">Sr.</th>
+                  <th className="px-4 py-3 text-left font-medium">Name</th>
+                  <th className="px-4 py-3 text-left font-medium">Employee #</th>
+                  <th className="px-4 py-3 text-left font-medium">Designation</th>
+                  <th className="px-4 py-3 text-left font-medium">Phone</th>
+                  <th className="px-4 py-3 text-left font-medium">Department</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Options</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+              </thead>
+              <tbody>
+                {currentItems.map((staff, index) => (
+                  <tr key={staff.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {indexOfFirstItem + index + 1}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                          {staff.photoUrl ? (
+                            <img
+                              src={staff.photoUrl}
+                              alt={staff.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none'
+                                e.target.parentElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'
+                              }}
+                            />
+                          ) : (
+                            <User className="w-5 h-5 text-gray-400" />
+                          )}
+                        </div>
+                        <span className="text-blue-600 hover:underline cursor-pointer font-medium text-sm">
+                          {staff.name}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-blue-600 text-sm">{staff.employeeNumber}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{staff.designation}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{staff.phone}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{staff.department}</td>
+                    <td className="px-4 py-3">
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const spaceBelow = window.innerHeight - rect.bottom
+                            const shouldOpenUp = spaceBelow < 200
+                            setDropdownOpenUp(shouldOpenUp)
+                            setStatusDropdownId(statusDropdownId === staff.id ? null : staff.id)
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-medium text-white bg-blue-600"
+                        >
+                          {staff.status}
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+
+                        {statusDropdownId === staff.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className={`absolute left-0 ${dropdownOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'} min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[9999]`}
+                          >
+                            {statusOptions.map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => handleStatusChange(staff.id, option.value)}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors first:rounded-t-md last:rounded-b-md"
+                              >
+                                <span className={`w-2.5 h-2.5 rounded-full ${option.color}`} />
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(staff)}
+                          className="text-blue-500 hover:text-blue-600 p-1"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(staff.id)}
+                          className="text-red-500 hover:text-red-600 p-1"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                <div className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={prevPage}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => paginate(i + 1)}
+                      className={`px-3 py-1 rounded text-sm font-medium ${
+                        currentPage === i + 1
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={nextPage}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Import Staff Data Modal */}
       {showImportModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowImportModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50" onClick={() => setShowImportModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
+            <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Import Staff Data</h2>
-              <button onClick={() => setShowImportModal(false)} className="hover:bg-blue-800 p-1 rounded">
+              <button onClick={() => setShowImportModal(false)} className="hover:bg-blue-700 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -968,7 +1125,7 @@ export default function ActiveStaffPage() {
                 <button
                   onClick={handleImport}
                   disabled={!importFile || importing}
-                  className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   <UploadIcon className="w-4 h-4" />
                   {importing ? 'Importing...' : 'Upload & Save'}
@@ -976,7 +1133,7 @@ export default function ActiveStaffPage() {
               </div>
             </div>
             <div className="p-6 border-t flex justify-end">
-              <button onClick={() => { setShowImportModal(false); setImportFile(null); }} className="text-blue-500 hover:text-blue-600 font-medium">
+              <button onClick={() => { setShowImportModal(false); setImportFile(null); }} className="text-blue-600 hover:text-blue-700 font-medium">
                 Close
               </button>
             </div>
@@ -987,19 +1144,75 @@ export default function ActiveStaffPage() {
       {/* Add New Staff Modal */}
       {showAddModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowAddModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50" onClick={() => setShowAddModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between sticky top-0 z-10">
+            <div className="bg-blue-600 text-white p-4 flex items-center justify-between sticky top-0 z-10">
               <h2 className="text-lg font-semibold">Add New Staff</h2>
-              <button onClick={() => setShowAddModal(false)} className="hover:bg-blue-800 p-1 rounded">
+              <button onClick={() => setShowAddModal(false)} className="hover:bg-blue-700 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6">
+              {/* Photo Upload Section */}
+              <div className="mb-6">
+                <div className="bg-blue-600 text-white px-4 py-2 rounded-t flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  EMPLOYEE PHOTO
+                </div>
+                <div className="border border-t-0 border-gray-200 rounded-b p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-300">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-12 h-12 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            setPhotoFile(file)
+                            const reader = new FileReader()
+                            reader.onloadend = () => {
+                              setPhotoPreview(reader.result)
+                            }
+                            reader.readAsDataURL(file)
+                          }
+                        }}
+                        className="hidden"
+                        id="photo-upload"
+                      />
+                      <label
+                        htmlFor="photo-upload"
+                        className="inline-block px-4 py-2 bg-blue-600 text-white rounded cursor-pointer text-sm hover:bg-blue-700"
+                      >
+                        Choose Photo
+                      </label>
+                      {photoFile && (
+                        <button
+                          onClick={() => {
+                            setPhotoFile(null)
+                            setPhotoPreview(null)
+                          }}
+                          className="ml-2 px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Remove
+                        </button>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">Recommended: Square image, max 2MB</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Personal Information */}
               <div className="mb-6">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-t flex items-center gap-2">
+                <div className="bg-blue-600 text-white px-4 py-2 rounded-t flex items-center gap-2">
                   <User className="w-4 h-4" />
                   PERSONAL INFORMATION
                 </div>
@@ -1194,13 +1407,13 @@ export default function ActiveStaffPage() {
 
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
-              <button onClick={() => setShowAddModal(false)} className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2">
+              <button onClick={() => setShowAddModal(false)} className="text-blue-600 hover:text-blue-700 font-medium px-4 py-2">
                 Close
               </button>
               <button
                 onClick={handleSaveStaff}
                 disabled={saving}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50"
+                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-medium flex items-center gap-2 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -1212,19 +1425,77 @@ export default function ActiveStaffPage() {
       {/* Edit Staff Modal */}
       {showEditModal && editingStaff && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowEditModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50" onClick={() => setShowEditModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between sticky top-0 z-10">
+            <div className="bg-blue-600 text-white p-4 flex items-center justify-between sticky top-0 z-10">
               <h2 className="text-lg font-semibold">Update Staff ({editingStaff.name})</h2>
-              <button onClick={() => setShowEditModal(false)} className="hover:bg-blue-800 p-1 rounded">
+              <button onClick={() => setShowEditModal(false)} className="hover:bg-blue-700 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6">
+              {/* Photo Upload Section */}
+              <div className="mb-6">
+                <div className="bg-blue-600 text-white px-4 py-2 rounded-t flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  EMPLOYEE PHOTO
+                </div>
+                <div className="border border-t-0 border-gray-200 rounded-b p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-300">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : editingStaff?.photoUrl ? (
+                        <img src={editingStaff.photoUrl} alt={editingStaff.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-12 h-12 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            setPhotoFile(file)
+                            const reader = new FileReader()
+                            reader.onloadend = () => {
+                              setPhotoPreview(reader.result)
+                            }
+                            reader.readAsDataURL(file)
+                          }
+                        }}
+                        className="hidden"
+                        id="photo-upload-edit"
+                      />
+                      <label
+                        htmlFor="photo-upload-edit"
+                        className="inline-block px-4 py-2 bg-blue-600 text-white rounded cursor-pointer text-sm hover:bg-blue-700"
+                      >
+                        Change Photo
+                      </label>
+                      {(photoFile || editingStaff?.photoUrl) && (
+                        <button
+                          onClick={() => {
+                            setPhotoFile(null)
+                            setPhotoPreview(null)
+                          }}
+                          className="ml-2 px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Remove
+                        </button>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">Recommended: Square image, max 2MB</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Personal Information */}
               <div className="mb-6">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-t flex items-center gap-2">
+                <div className="bg-blue-600 text-white px-4 py-2 rounded-t flex items-center gap-2">
                   <User className="w-4 h-4" />
                   PERSONAL INFORMATION
                 </div>
@@ -1380,13 +1651,13 @@ export default function ActiveStaffPage() {
 
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
-              <button onClick={() => setShowEditModal(false)} className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2">
+              <button onClick={() => setShowEditModal(false)} className="text-blue-600 hover:text-blue-700 font-medium px-4 py-2">
                 Close
               </button>
               <button
                 onClick={handleUpdateStaff}
                 disabled={saving}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50"
+                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-medium flex items-center gap-2 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Update'}
               </button>
@@ -1398,11 +1669,11 @@ export default function ActiveStaffPage() {
       {/* Advance Search Modal */}
       {showAdvanceSearch && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowAdvanceSearch(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50" onClick={() => setShowAdvanceSearch(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
+            <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Refine Your Search</h2>
-              <button onClick={() => setShowAdvanceSearch(false)} className="hover:bg-blue-800 p-1 rounded">
+              <button onClick={() => setShowAdvanceSearch(false)} className="hover:bg-blue-700 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1453,8 +1724,8 @@ export default function ActiveStaffPage() {
               </div>
             </div>
             <div className="p-6 border-t flex justify-end gap-3">
-              <button onClick={() => setShowAdvanceSearch(false)} className="text-blue-500 font-medium">Close</button>
-              <button className="bg-blue-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2">
+              <button onClick={() => setShowAdvanceSearch(false)} className="text-blue-600 hover:text-blue-700 font-medium">Close</button>
+              <button className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-medium flex items-center gap-2">
                 Filter
               </button>
             </div>
@@ -1465,12 +1736,12 @@ export default function ActiveStaffPage() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
             <div
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+              <div className="bg-blue-600 text-white px-6 py-4 rounded-t-lg">
                 <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
               <div className="p-6">
@@ -1479,13 +1750,13 @@ export default function ActiveStaffPage() {
               <div className="px-6 pb-6 flex justify-end gap-3">
                 <button
                   onClick={handleCancelConfirm}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded font-medium hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                  className="px-6 py-2 bg-red-600 text-white rounded font-medium transition hover:bg-red-700"
                 >
                   Confirm
                 </button>
@@ -1501,9 +1772,9 @@ export default function ActiveStaffPage() {
           <div
             key={toast.id}
             className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-blue-500' :
-              toast.type === 'error' ? 'bg-blue-600' :
-              toast.type === 'warning' ? 'bg-blue-500' :
+              toast.type === 'success' ? 'bg-green-500' :
+              toast.type === 'error' ? 'bg-red-600' :
+              toast.type === 'warning' ? 'bg-yellow-500' :
               'bg-blue-500'
             }`}
           >

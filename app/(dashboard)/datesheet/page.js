@@ -18,6 +18,7 @@ export default function DatesheetPage() {
   const [currentUser, setCurrentUser] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [session, setSession] = useState(null)
+  const [schoolInfo, setSchoolInfo] = useState(null)
   const [toasts, setToasts] = useState([])
 
   // Section State (now using tabs like HR)
@@ -99,6 +100,19 @@ export default function DatesheetPage() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    const anyModalOpen = showCreateModal || showScheduleModal || showEditExamModal || showEditScheduleModal || showReportConfigModal || showGeneratedSlipsModal || showDatesheetClassModal || confirmDialog.show
+    if (anyModalOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showCreateModal, showScheduleModal, showEditExamModal, showEditScheduleModal, showReportConfigModal, showGeneratedSlipsModal, showDatesheetClassModal, confirmDialog.show])
+
   const showConfirmDialog = (title, message, onConfirm) => {
     setConfirmDialog({ show: true, title, message, onConfirm })
   }
@@ -177,6 +191,29 @@ export default function DatesheetPage() {
     }
 
     fetchCurrentSession()
+  }, [currentUser])
+
+  // Fetch school info
+  useEffect(() => {
+    const fetchSchoolInfo = async () => {
+      if (!currentUser?.school_id) return
+
+      try {
+        const { data, error } = await supabase
+          .from('schools')
+          .select('*')
+          .eq('id', currentUser.school_id)
+          .single()
+
+        if (error) throw error
+        setSchoolInfo(data)
+        console.log('🏫 School info loaded:', data)
+      } catch (error) {
+        console.error('Error fetching school info:', error)
+      }
+    }
+
+    fetchSchoolInfo()
   }, [currentUser])
 
   // Fetch data
@@ -1480,7 +1517,7 @@ export default function DatesheetPage() {
           <div className="flex justify-between items-center mb-4">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
             >
               <Plus className="w-4 h-4" />
               Create New Datesheet
@@ -1544,20 +1581,20 @@ export default function DatesheetPage() {
                       </button>
                       <button
                         onClick={() => handleGeneratePDF(datesheet)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-red-700"
                         title="Download PDF"
                       >
                         <Download className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleOpenEditDatesheet(datesheet)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-red-700"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteDatesheet(datesheet.id)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1581,7 +1618,7 @@ export default function DatesheetPage() {
       {/* Create Exam Modal */}
       {showCreateModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreateModal(false); resetForm(); }} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => { setShowCreateModal(false); resetForm(); }} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
               <h2 className="text-xl font-semibold">Create New Datesheet</h2>
@@ -1739,7 +1776,7 @@ export default function DatesheetPage() {
               <button
                 onClick={handleCreateDatesheet}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Creating...' : 'Save'} <span className="text-xl">→</span>
               </button>
@@ -1751,7 +1788,7 @@ export default function DatesheetPage() {
       {/* Schedule Modal */}
       {showScheduleModal && currentDatesheet && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowScheduleModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowScheduleModal(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
@@ -1837,7 +1874,7 @@ export default function DatesheetPage() {
       {/* Edit Datesheet Modal */}
       {showEditExamModal && currentDatesheet && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowEditExamModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowEditExamModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
               <h2 className="text-xl font-semibold">Update Date Sheet ({currentDatesheet.title})</h2>
@@ -1926,7 +1963,7 @@ export default function DatesheetPage() {
               <button
                 onClick={handleUpdateDatesheet}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Updating...' : 'Save'} <span className="text-xl">→</span>
               </button>
@@ -1938,7 +1975,7 @@ export default function DatesheetPage() {
       {/* Edit Schedule Modal */}
       {showEditScheduleModal && editingSchedule && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowEditScheduleModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowEditScheduleModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
               <div>
@@ -2025,7 +2062,7 @@ export default function DatesheetPage() {
               <button
                 onClick={handleUpdateSchedule}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Saving...' : 'Save'} <span className="text-xl">→</span>
               </button>
@@ -2079,7 +2116,7 @@ export default function DatesheetPage() {
                   <td className="border border-gray-300 px-4 py-3 text-center">
                     <button
                       onClick={handleSingleClassDatesheet}
-                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                      className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
                     >
                       Generate
                     </button>
@@ -2091,7 +2128,7 @@ export default function DatesheetPage() {
                   <td className="border border-gray-300 px-4 py-3 text-center">
                     <button
                       onClick={handleAllClassesDatesheet}
-                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                      className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
                     >
                       Generate
                     </button>
@@ -2109,13 +2146,13 @@ export default function DatesheetPage() {
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => handleViewGeneratedSlips('rollno')}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
                       >
                         View Generated
                       </button>
                       <button
                         onClick={() => handleOpenReportConfig('rollno')}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
                       >
                         Generate New
                       </button>
@@ -2214,7 +2251,7 @@ export default function DatesheetPage() {
       {/* Report Configuration Modal (matching payroll design) */}
       {showReportConfigModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowReportConfigModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowReportConfigModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
               <h2 className="text-xl font-semibold">
@@ -2268,7 +2305,7 @@ export default function DatesheetPage() {
                         value={reportConfig.selectedStudent}
                         onChange={(e) => setReportConfig({ ...reportConfig, selectedStudent: e.target.value })}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                        size="5"
+                        
                       >
                         <option value="all">All Students</option>
                         {filteredStudents
@@ -2360,7 +2397,7 @@ export default function DatesheetPage() {
               <button
                 onClick={handleGenerateReport}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Generating...' : 'Generate Report'} <span className="text-xl">→</span>
               </button>
@@ -2372,7 +2409,7 @@ export default function DatesheetPage() {
       {/* Class Selection Modal for Datesheet */}
       {showDatesheetClassModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowDatesheetClassModal(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowDatesheetClassModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
               <h2 className="text-xl font-semibold">Select Class</h2>
@@ -2407,7 +2444,7 @@ export default function DatesheetPage() {
               <button
                 onClick={handleGenerateSingleClassPDF}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Generating...' : 'Generate PDF'} <span className="text-xl">→</span>
               </button>
@@ -2419,12 +2456,12 @@ export default function DatesheetPage() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancel}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancel}>
             <div
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-lg">
                 <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
               <div className="p-6">
@@ -2439,7 +2476,7 @@ export default function DatesheetPage() {
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
                 >
                   Confirm
                 </button>
@@ -2455,9 +2492,9 @@ export default function DatesheetPage() {
           <div
             key={toast.id}
             className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-blue-500' :
-              toast.type === 'error' ? 'bg-blue-600' :
-              toast.type === 'warning' ? 'bg-blue-500' :
+              toast.type === 'success' ? 'bg-green-500' :
+              toast.type === 'error' ? 'bg-red-500' :
+              toast.type === 'warning' ? 'bg-yellow-500' :
               'bg-blue-500'
             }`}
           >
