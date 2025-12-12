@@ -49,7 +49,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       { title: "Certificates", href: "/hr/certificates" },
       { title: "ID Cards", href: "/hr/cards" },
       { title: "Recruitment", href: "/hr/recruitment" },
-      { title: "HR Settings", href: "/hr/settings" },
     ]},
     { title: "Attendance", icon: CalendarCheck, key: "attendance", submenus: [
       { title: "Staff Attendance", href: "/attendance/staff" },

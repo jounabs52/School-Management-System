@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Briefcase, Plus, Edit, Trash2, Search, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function RecruitmentPage() {
-  const [activeTab, setActiveTab] = useState('subjects')
+  const [activeTab, setActiveTab] = useState('jobs')
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(false)
   const [toasts, setToasts] = useState([])
@@ -43,7 +43,8 @@ export default function RecruitmentPage() {
     fatherName: '',
     email: '',
     mobileNumber: '',
-    subjects: '',
+    department: '',
+    photo_url: '',
     experienceLevel: ''
   })
   const [editingApplication, setEditingApplication] = useState(null)
@@ -137,7 +138,6 @@ export default function RecruitmentPage() {
 
   const fetchAllData = async () => {
     await Promise.all([
-      fetchSubjects(),
       fetchDepartments(),
       fetchJobs(),
       fetchApplications(),
@@ -185,21 +185,18 @@ export default function RecruitmentPage() {
         .from('jobs')
         .select(`
           *,
-          department:departments(department_name)
+          department:departments(department_name),
+          job_applications(count)
         `)
         .eq('school_id', currentUser.school_id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      // Get applicant counts for each job
-      const jobsWithCounts = await Promise.all(data.map(async (job) => {
-        const { count } = await supabase
-          .from('job_applications')
-          .select('*', { count: 'exact', head: true })
-          .eq('job_id', job.id)
-
-        return { ...job, applicant_count: count || 0 }
+      // Map the aggregated count to applicant_count
+      const jobsWithCounts = data.map(job => ({
+        ...job,
+        applicant_count: job.job_applications?.[0]?.count || 0
       }))
 
       setJobs(jobsWithCounts)
@@ -222,6 +219,7 @@ export default function RecruitmentPage() {
         `)
         .eq('school_id', currentUser.school_id)
         .order('created_at', { ascending: false })
+        .limit(500) // Limit for performance
 
       if (error) throw error
       setApplications(data || [])
@@ -421,8 +419,9 @@ export default function RecruitmentPage() {
             email: applicationForm.email,
             mobile_number: applicationForm.mobileNumber,
             cnic_number: applicationForm.cnicNumber,
-            subjects: applicationForm.subjects,
-            experience_level: applicationForm.experienceLevel
+            subjects: applicationForm.department,
+            experience_level: applicationForm.experienceLevel,
+            photo_url: applicationForm.photo_url || null
           })
           .eq('id', editingApplication.id)
 
@@ -440,9 +439,10 @@ export default function RecruitmentPage() {
             email: applicationForm.email,
             mobile_number: applicationForm.mobileNumber,
             cnic_number: applicationForm.cnicNumber,
-            subjects: applicationForm.subjects,
+            subjects: applicationForm.department,
             experience_level: applicationForm.experienceLevel,
-            created_by: currentUser.id
+            created_by: currentUser.id,
+            photo_url: applicationForm.photo_url || null
           })
 
         if (error) throw error
@@ -456,7 +456,8 @@ export default function RecruitmentPage() {
         fatherName: '',
         email: '',
         mobileNumber: '',
-        subjects: '',
+        department: '',
+        photo_url: '',
         experienceLevel: ''
       })
       setEditingApplication(null)
@@ -479,8 +480,9 @@ export default function RecruitmentPage() {
       fatherName: app.father_name || '',
       email: app.email || '',
       mobileNumber: app.mobile_number || '',
-      subjects: app.subjects || '',
-      experienceLevel: app.experience_level || ''
+      department: app.subjects || '',
+      experienceLevel: app.experience_level || '',
+      photo_url: app.photo_url || ''
     })
     setShowApplicationModal(true)
   }
@@ -583,6 +585,72 @@ export default function RecruitmentPage() {
     )
   }
 
+  // Hire candidate from interview
+  const handleHireFromInterview = async (interviewId) => {
+    showConfirmDialog(
+      'Hire Candidate',
+      'Are you sure you want to hire this candidate? This will create an active staff record.',
+      async () => {
+        try {
+          // Get the interview and application details
+          const { data: interview, error: interviewError } = await supabase
+            .from('job_interviews')
+            .select(`
+              *,
+              application:job_applications(*)
+            `)
+            .eq('id', interviewId)
+            .single()
+
+          if (interviewError) throw interviewError
+
+          const application = interview.application
+
+          // Create staff record
+          const { error: staffError } = await supabase
+            .from('staff')
+            .insert({
+              school_id: currentUser.school_id,
+              created_by: currentUser.id,
+              employee_number: `EMP-${Date.now()}`,
+              first_name: application.candidate_name,
+              father_name: application.father_name || null,
+              phone: application.mobile_number || null,
+              email: application.email || null,
+              joining_date: new Date().toISOString().split('T')[0],
+              department: application.subjects || null,
+              status: 'active'
+            })
+
+          if (staffError) throw staffError
+
+          // Update interview status to 'completed'
+          const { error: updateInterviewError } = await supabase
+            .from('job_interviews')
+            .update({ status: 'completed' })
+            .eq('id', interviewId)
+
+          if (updateInterviewError) throw updateInterviewError
+
+          // Update application status to 'hired'
+          const { error: updateAppError } = await supabase
+            .from('job_applications')
+            .update({ status: 'hired' })
+            .eq('id', application.id)
+
+          if (updateAppError) throw updateAppError
+
+          showToast('Candidate hired and added to staff successfully!', 'success')
+          fetchInterviews()
+          fetchApplications()
+        } catch (error) {
+          console.error('Error hiring candidate:', error)
+          showToast('Error hiring candidate: ' + error.message, 'error')
+        }
+      }
+    )
+  }
+
   // Delete Subject
   const handleDeleteSubject = (id) => {
     showConfirmDialog(
@@ -655,17 +723,13 @@ export default function RecruitmentPage() {
 
   // Update Application Status
   const handleStatusChange = async (id, newStatus) => {
+    // Optimistic update - update UI immediately
+    setApplications(prevApps => 
+      prevApps.map(app => app.id === id ? { ...app, status: newStatus } : app)
+    )
+
     try {
-      // Get the application details first
-      const { data: application, error: fetchError } = await supabase
-        .from('job_applications')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (fetchError) throw fetchError
-
-      // Update application status
+      // Update application status in database
       const { error: updateError } = await supabase
         .from('job_applications')
         .update({ status: newStatus })
@@ -690,85 +754,87 @@ export default function RecruitmentPage() {
 
         if (interviewError) throw interviewError
 
-        // Delete application after moving to qualified
-        const { error: deleteError } = await supabase
-          .from('job_applications')
-          .delete()
-          .eq('id', id)
-
-        if (deleteError) throw deleteError
-
         showToast('Application qualified and moved to interviews!', 'success')
         fetchInterviews()
-      } else if (newStatus === 'hired') {
-        // Create staff record when hired
-        const { error: staffError } = await supabase
-          .from('staff')
-          .insert({
-            school_id: currentUser.school_id,
-            created_by: currentUser.id,
-            employee_number: `EMP-${Date.now()}`,
-            first_name: application.candidate_name,
-            father_name: application.father_name || null,
-            phone: application.mobile_number || null,
-            email: application.email || null,
-            joining_date: new Date().toISOString().split('T')[0],
-            status: 'active'
-          })
-
-        if (staffError) throw staffError
-        showToast('Candidate hired and added to staff!', 'success')
+        setActiveTab('interviews')
       } else {
         showToast('Status updated successfully!', 'success')
       }
 
-      fetchApplications()
-      fetchJobs()
+      // Only fetch applications if needed (not jobs - too slow)
+      if (newStatus === 'qualified') {
+        fetchApplications() // Refresh to get full data with relations
+      }
     } catch (error) {
       console.error('Error updating status:', error)
       showToast('Error updating status: ' + error.message, 'error')
+      // Revert optimistic update on error
+      fetchApplications()
     }
   }
 
   // Filtered Subjects
-  const filteredSubjects = subjects.filter(subject =>
-    subject.subject_name?.toLowerCase().includes(subjectSearchQuery.toLowerCase())
+  // Memoized Filtered Subjects (only recalculate when dependencies change)
+  const filteredSubjects = useMemo(() => 
+    subjects.filter(subject =>
+      subject.subject_name?.toLowerCase().includes(subjectSearchQuery.toLowerCase())
+    ),
+    [subjects, subjectSearchQuery]
   )
 
-  // Filtered Jobs
-  const filteredJobs = jobs.filter(job =>
-    job.title?.toLowerCase().includes(jobSearchQuery.toLowerCase()) ||
-    job.department?.department_name?.toLowerCase().includes(jobSearchQuery.toLowerCase())
+  // Memoized Filtered Jobs
+  const filteredJobs = useMemo(() =>
+    jobs.filter(job =>
+      job.title?.toLowerCase().includes(jobSearchQuery.toLowerCase()) ||
+      job.department?.department_name?.toLowerCase().includes(jobSearchQuery.toLowerCase())
+    ),
+    [jobs, jobSearchQuery]
   )
 
-  // Filtered Applications with sorting
-  const filteredApplications = applications
-    .filter(app =>
-      app.candidate_name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
-      app.job?.title?.toLowerCase().includes(appSearchQuery.toLowerCase())
-    )
-    .sort((a, b) => {
-      // Priority order: short-listed > qualified > schedule > rejected
-      const statusPriority = {
-        'short-listed': 1,
-        'qualified': 2,
-        'schedule': 3,
-        'rejected': 4,
-        'hired': 5 // hired at the bottom or could be filtered out
-      }
-      return (statusPriority[a.status] || 0) - (statusPriority[b.status] || 0)
-    })
+  // Memoized Filtered Applications with sorting
+  const filteredApplications = useMemo(() =>
+    applications
+      .filter(app =>
+        app.candidate_name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
+        app.job?.title?.toLowerCase().includes(appSearchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        // Priority order: short-listed > qualified > schedule > rejected
+        const statusPriority = {
+          'short-listed': 1,
+          'qualified': 2,
+          'schedule': 3,
+          'rejected': 4,
+          'hired': 5
+        }
+        return (statusPriority[a.status] || 0) - (statusPriority[b.status] || 0)
+      }),
+    [applications, appSearchQuery]
+  )
 
-  // Filtered Interviews
-  const filteredInterviews = interviews.filter(interview =>
-    interview.application?.candidate_name?.toLowerCase().includes(interviewSearchQuery.toLowerCase()) ||
-    interview.application?.job?.title?.toLowerCase().includes(interviewSearchQuery.toLowerCase())
+  // Memoized Filtered Interviews
+  const filteredInterviews = useMemo(() =>
+    interviews.filter(interview =>
+      interview.application?.candidate_name?.toLowerCase().includes(interviewSearchQuery.toLowerCase()) ||
+      interview.application?.job?.title?.toLowerCase().includes(interviewSearchQuery.toLowerCase())
+    ),
+    [interviews, interviewSearchQuery]
   )
 
   return (
-    <div className="p-6">
+    <div className="p-2">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9997] flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-700 font-medium">Loading...</p>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-purple-600 rounded-lg">
             <Briefcase className="w-6 h-6 text-white" />
@@ -778,15 +844,15 @@ export default function RecruitmentPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
-        {['subjects', 'jobs', 'applications', 'interviews'].map(tab => (
+      <div className="flex gap-2 mb-2">
+        {['jobs', 'applications', 'interviews'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 font-medium transition-colors capitalize ${
+            className={`px-6 py-3 font-medium transition-all capitalize rounded-lg ${
               activeTab === tab
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-red-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
             {tab}
@@ -794,73 +860,20 @@ export default function RecruitmentPage() {
         ))}
       </div>
 
-      {/* SUBJECTS TAB */}
-      {activeTab === 'subjects' && (
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <button
-              onClick={() => setShowSubjectModal(true)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
-            >
-              <Plus className="w-4 h-4" />
-              Add New Subject
-            </button>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                value={subjectSearchQuery}
-                onChange={(e) => setSubjectSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 pr-10"
-              />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="px-4 py-3 text-left">Sr.</th>
-                  <th className="px-4 py-3 text-left">Subject Name</th>
-                  <th className="px-4 py-3 text-center">Options</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSubjects.map((subject, index) => (
-                  <tr key={subject.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3">{index + 1}</td>
-                    <td className="px-4 py-3">{subject.subject_name}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => handleEditSubject(subject)}
-                          className="text-blue-500 hover:text-blue-600 p-1"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSubject(subject.id)}
-                          className="text-red-500 hover:text-red-600 p-1"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* JOBS TAB */}
       {activeTab === 'jobs' && (
         <div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-end items-center gap-4 mb-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search jobs..."
+                value={jobSearchQuery}
+                onChange={(e) => setJobSearchQuery(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-64"
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
             <button
               onClick={() => setShowJobModal(true)}
               className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
@@ -868,22 +881,6 @@ export default function RecruitmentPage() {
               <Plus className="w-4 h-4" />
               Add New Job
             </button>
-
-            <div className="flex gap-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={jobSearchQuery}
-                  onChange={(e) => setJobSearchQuery(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-4 py-2 pr-10"
-                />
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </div>
-              <button className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition">
-                Search
-              </button>
-            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -943,33 +940,24 @@ export default function RecruitmentPage() {
       {/* APPLICATIONS TAB */}
       {activeTab === 'applications' && (
         <div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-end items-center gap-4 mb-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search applications..."
+                value={appSearchQuery}
+                onChange={(e) => setAppSearchQuery(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-64"
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
             <button
               onClick={() => setShowApplicationModal(true)}
               className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
             >
               <Plus className="w-4 h-4" />
-              Add New Applications
+              Add New Application
             </button>
-
-            <div className="flex gap-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={appSearchQuery}
-                  onChange={(e) => setAppSearchQuery(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-4 py-2 pr-10"
-                />
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </div>
-              <button className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition">
-                Search
-              </button>
-              <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg transition">
-                Advance Search
-              </button>
-            </div>
           </div>
 
           <p className="text-gray-600 mb-4">
@@ -986,7 +974,6 @@ export default function RecruitmentPage() {
                   <th className="px-4 py-3 text-left">Applicant</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-center">Docs</th>
                   <th className="px-4 py-3 text-center">Options</th>
                 </tr>
               </thead>
@@ -1002,7 +989,7 @@ export default function RecruitmentPage() {
                         value={app.status}
                         onChange={(e) => handleStatusChange(app.id, e.target.value)}
                         className={`px-3 py-1 rounded text-xs font-medium text-white ${
-                          app.status === 'hired' ? 'bg-green-500' :
+                          app.status === 'hired' ? 'bg-red-500' :
                           app.status === 'qualified' ? 'bg-orange-500' :
                           app.status === 'schedule' ? 'bg-blue-500' :
                           'bg-orange-500'
@@ -1021,13 +1008,6 @@ export default function RecruitmentPage() {
                         month: 'short',
                         year: 'numeric'
                       })}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {app.cv_url ? (
-                        <span className="inline-block px-3 py-1 bg-green-500 text-white text-xs rounded">CV</span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">No CV</span>
-                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center gap-2">
@@ -1058,7 +1038,17 @@ export default function RecruitmentPage() {
       {/* INTERVIEWS TAB */}
       {activeTab === 'interviews' && (
         <div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-end items-center gap-4 mb-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search interviews..."
+                value={interviewSearchQuery}
+                onChange={(e) => setInterviewSearchQuery(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-64"
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
             <button
               onClick={() => setShowInterviewModal(true)}
               className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
@@ -1066,16 +1056,6 @@ export default function RecruitmentPage() {
               <Plus className="w-4 h-4" />
               Schedule Interview
             </button>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                value={interviewSearchQuery}
-                onChange={(e) => setInterviewSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 pr-10"
-              />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -1117,6 +1097,15 @@ export default function RecruitmentPage() {
                       <td className="px-4 py-3 capitalize">{interview.status}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2">
+                          {interview.status === 'scheduled' && (
+                            <button
+                              onClick={() => handleHireFromInterview(interview.id)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium"
+                              title="Hire Candidate"
+                            >
+                              Hire
+                            </button>
+                          )}
                           <button
                             onClick={() => handleEditInterview(interview)}
                             className="text-blue-500 hover:text-blue-600 p-1"
@@ -1145,7 +1134,7 @@ export default function RecruitmentPage() {
       {/* ADD/EDIT SUBJECT MODAL */}
       {showSubjectModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
             setShowSubjectModal(false)
             setEditingSubject(null)
             setSubjectName('')
@@ -1161,7 +1150,7 @@ export default function RecruitmentPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-2">
               <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Subject Name <span className="text-red-500">*</span>
@@ -1187,7 +1176,7 @@ export default function RecruitmentPage() {
               </button>
               <button
                 onClick={handleAddSubject}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1199,7 +1188,7 @@ export default function RecruitmentPage() {
       {/* ADD/EDIT JOB MODAL */}
       {showJobModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
             setShowJobModal(false)
             setShowCustomDepartment(false)
             setCustomDepartmentName('')
@@ -1219,7 +1208,7 @@ export default function RecruitmentPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-2">
               <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -1318,7 +1307,7 @@ export default function RecruitmentPage() {
               </button>
               <button
                 onClick={handleAddJob}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1330,10 +1319,10 @@ export default function RecruitmentPage() {
       {/* ADD/EDIT APPLICATION MODAL */}
       {showApplicationModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
             setShowApplicationModal(false)
             setEditingApplication(null)
-            setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', subjects: '', experienceLevel: '' })
+            setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', department: '', photo_url: '', experienceLevel: '' })
           }} />
           <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
@@ -1341,12 +1330,12 @@ export default function RecruitmentPage() {
               <button onClick={() => {
                 setShowApplicationModal(false)
                 setEditingApplication(null)
-                setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', subjects: '', experienceLevel: '' })
+                setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', department: '', photo_url: '', experienceLevel: '' })
               }} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-2">
               <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
@@ -1419,20 +1408,38 @@ export default function RecruitmentPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Subjects</label>
-                  <select
-                    value={applicationForm.subjects}
-                    onChange={(e) => setApplicationForm({...applicationForm, subjects: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setApplicationForm({...applicationForm, photo_url: reader.result})
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  >
-                    <option value="">Select subject</option>
-                    {subjects.map(subject => (
-                      <option key={subject.id} value={subject.subject_name}>{subject.subject_name}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                  <select
+                    value={applicationForm.department}
+                    onChange={(e) => setApplicationForm({...applicationForm, department: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  >
+                    <option value="">Select department</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.department_name}>{dept.department_name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
                   <select
@@ -1454,7 +1461,7 @@ export default function RecruitmentPage() {
                 onClick={() => {
                   setShowApplicationModal(false)
                   setEditingApplication(null)
-                  setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', subjects: '', experienceLevel: '' })
+                  setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', department: '', photo_url: '', experienceLevel: '' })
                 }}
                 className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
@@ -1462,7 +1469,7 @@ export default function RecruitmentPage() {
               </button>
               <button
                 onClick={handleAddApplication}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1474,7 +1481,7 @@ export default function RecruitmentPage() {
       {/* ADD/EDIT INTERVIEW MODAL */}
       {showInterviewModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
             setShowInterviewModal(false)
             setEditingInterview(null)
             setInterviewForm({ applicationId: '', interviewDate: '', interviewTime: '', interviewType: '', location: '', notes: '' })
@@ -1490,7 +1497,7 @@ export default function RecruitmentPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-2">
               <h3 className="text-sm font-semibold mb-4 text-gray-700">INTERVIEW DETAILS</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -1504,7 +1511,7 @@ export default function RecruitmentPage() {
                     disabled={editingInterview}
                   >
                     <option value="">Select application</option>
-                    {applications.filter(app => app.status === 'qualified').map(app => (
+                    {applications.filter(app => app.status !== 'rejected').map(app => (
                       <option key={app.id} value={app.id}>
                         {app.candidate_name} - {app.job?.title || 'N/A'}
                       </option>
@@ -1586,7 +1593,7 @@ export default function RecruitmentPage() {
               </button>
               <button
                 onClick={handleAddInterview}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1598,15 +1605,15 @@ export default function RecruitmentPage() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancel}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancel}>
             <div
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-lg">
                 <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-6">
+              <div className="p-2">
                 <p className="text-gray-700">{confirmDialog.message}</p>
               </div>
               <div className="px-6 pb-6 flex justify-end gap-3">
@@ -1618,7 +1625,7 @@ export default function RecruitmentPage() {
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                  className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
                 >
                   Confirm
                 </button>

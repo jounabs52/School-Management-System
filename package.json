@@ -12,9 +12,11 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",
     "@tailwindcss/postcss": "^4.1.14",
+    "barcode": "^0.1.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "install": "^0.13.0",
+    "jsbarcode": "^3.12.1",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.554.0",

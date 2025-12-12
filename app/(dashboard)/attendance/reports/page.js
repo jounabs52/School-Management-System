@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { X, Printer, FileDown } from 'lucide-react'
+import { X, FileDown } from 'lucide-react'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function AttendanceReportsPage() {
   const [activeTab, setActiveTab] = useState('student')
   const [currentUser, setCurrentUser] = useState(null)
+  const [schoolData, setSchoolData] = useState(null)
   const [toasts, setToasts] = useState([])
   const [activeReport, setActiveReport] = useState(null)
   const [reportData, setReportData] = useState(null)
@@ -40,12 +43,30 @@ export default function AttendanceReportsPage() {
     }
   }, [])
 
-  // Load classes
+  // Load classes and fetch school data
   useEffect(() => {
     if (currentUser?.school_id) {
+      fetchSchoolData()
       loadClasses()
     }
   }, [currentUser])
+
+  const fetchSchoolData = async () => {
+    if (!currentUser?.school_id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('*')
+        .eq('id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+      setSchoolData(data)
+    } catch (error) {
+      console.error('Error fetching school data:', error)
+    }
+  }
 
   // Load sections when class is selected
   useEffect(() => {
@@ -56,6 +77,18 @@ export default function AttendanceReportsPage() {
       setSelectedSection('')
     }
   }, [selectedClass])
+
+  // Prevent body scrolling when modal is open
+  useEffect(() => {
+    if (activeReport) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [activeReport])
 
   const loadClasses = async () => {
     if (!currentUser?.school_id) {
@@ -120,7 +153,6 @@ export default function AttendanceReportsPage() {
     { id: 'daily-attendance', name: 'Daily Attendance Report', description: 'View attendance summary by class for a specific date' },
     { id: 'monthly-summary', name: 'Monthly Attendance Summary', description: 'Individual student attendance summary for the month' },
     { id: 'attendance-register', name: 'Attendance Register', description: 'Day-by-day attendance grid for the month' },
-    { id: 'attendance-sheet', name: 'Attendance Sheet', description: 'Simplified attendance sheet for the month' },
     { id: 'today-present', name: 'Today Present Students', description: 'List of all present students today' },
     { id: 'today-absent', name: 'Today Absent Students', description: 'List of all absent students today' },
     { id: 'today-late', name: 'Today Late Comers', description: 'List of all late students today' },
@@ -132,7 +164,6 @@ export default function AttendanceReportsPage() {
     { id: 'staff-daily-attendance', name: 'Daily Attendance Report', description: 'View staff attendance summary for a specific date' },
     { id: 'staff-monthly-summary', name: 'Monthly Attendance Summary', description: 'Individual staff attendance summary for the month' },
     { id: 'staff-attendance-register', name: 'Attendance Register', description: 'Day-by-day staff attendance grid for the month' },
-    { id: 'staff-attendance-sheet', name: 'Attendance Sheet', description: 'Simplified staff attendance sheet for the month' },
     { id: 'staff-today-present', name: 'Today Present Staff', description: 'List of all present staff today' },
     { id: 'staff-today-absent', name: 'Today Absent Staff', description: 'List of all absent staff today' },
     { id: 'staff-today-late', name: 'Today Late Comers', description: 'List of all late staff today' },
@@ -149,8 +180,174 @@ export default function AttendanceReportsPage() {
     setReportData(null)
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handleDownloadPDF = () => {
+    try {
+      showToast('Generating PDF...', 'info')
+
+      const reportElement = document.getElementById('report-content')
+      if (!reportElement) {
+        console.error('Report content element not found')
+        showToast('Report content not found', 'error')
+        return
+      }
+
+      console.log('Report element found, searching for table...')
+
+      // Search for table inside the report-content element
+      const table = reportElement.querySelector('table')
+
+      if (!table) {
+        console.error('No table found in report content')
+        console.error('reportElement children:', reportElement.children)
+        const allTables = document.querySelectorAll('table')
+        console.error('All tables on page:', allTables.length, allTables)
+        showToast('No data table found. Please try generating the report again.', 'warning')
+        return
+      }
+
+      console.log('Table found!')
+
+      // Validate that table has actual data rows (not empty state)
+      const tbody = table.querySelector('tbody')
+      const rows = tbody ? tbody.querySelectorAll('tr') : []
+
+      if (rows.length === 0) {
+        console.error('Table found but has no data rows')
+        showToast('No data in the report. Please generate the report with valid data.', 'warning')
+        return
+      }
+
+      console.log('Found table with', rows.length, 'rows')
+
+        const doc = new jsPDF('p', 'mm', 'a4')
+        const pageWidth = doc.internal.pageSize.width
+        const pageHeight = doc.internal.pageSize.height
+        
+        // Colors
+        const primaryColor = [41, 128, 185]
+        const secondaryColor = [52, 73, 94]
+        
+        let yPosition = 20
+
+        // Add School Header
+        if (schoolData) {
+          // Logo
+          if (schoolData.logo_url) {
+            try {
+              doc.addImage(schoolData.logo_url, 'PNG', 15, yPosition, 25, 25)
+            } catch (e) {
+              console.log('Could not load logo')
+            }
+          }
+
+          // School Name
+          doc.setFontSize(20)
+          doc.setTextColor(...primaryColor)
+          doc.setFont('helvetica', 'bold')
+          doc.text(schoolData.name || 'School Name', pageWidth / 2, yPosition + 5, { align: 'center' })
+
+          yPosition += 13
+          doc.setFontSize(10)
+          doc.setTextColor(...secondaryColor)
+          doc.setFont('helvetica', 'normal')
+
+          // Address
+          if (schoolData.address) {
+            doc.text(schoolData.address, pageWidth / 2, yPosition, { align: 'center' })
+            yPosition += 5
+          }
+
+          // Contact Info
+          const contactInfo = []
+          if (schoolData.phone) contactInfo.push(`Phone: ${schoolData.phone}`)
+          if (schoolData.email) contactInfo.push(`Email: ${schoolData.email}`)
+          if (contactInfo.length > 0) {
+            doc.text(contactInfo.join(' | '), pageWidth / 2, yPosition, { align: 'center' })
+            yPosition += 5
+          }
+
+          // Website
+          if (schoolData.website) {
+            doc.text(schoolData.website, pageWidth / 2, yPosition, { align: 'center' })
+            yPosition += 8
+          } else {
+            yPosition += 3
+          }
+
+          // Divider Line
+          doc.setDrawColor(...primaryColor)
+          doc.setLineWidth(0.5)
+          doc.line(15, yPosition, pageWidth - 15, yPosition)
+          yPosition += 8
+        }
+
+        // Report Title
+        const reportName = activeTab === 'student'
+          ? studentReports.find(r => r.id === activeReport)?.name
+          : staffReports.find(r => r.id === activeReport)?.name
+
+        doc.setFontSize(16)
+        doc.setTextColor(...primaryColor)
+        doc.setFont('helvetica', 'bold')
+        doc.text(reportName || 'Report', pageWidth / 2, yPosition, { align: 'center' })
+        yPosition += 10
+
+        // Extract table data from DOM
+        // table variable already defined above
+        if (table) {
+        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim())
+        const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+          Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim())
+        )
+
+        autoTable(doc, {
+          startY: yPosition,
+          head: [headers],
+          body: rows,
+          theme: 'grid',
+          headStyles: {
+            fillColor: primaryColor,
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          styles: {
+            fontSize: 9,
+            cellPadding: 3
+          },
+          margin: { left: 15, right: 15 }
+        })
+      }
+
+      // Footer
+      const pageCount = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(...secondaryColor)
+        doc.text(
+          `Page ${i} of ${pageCount}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        )
+        doc.text(
+          'Generated by Smart School Pro',
+          pageWidth - 15,
+          pageHeight - 10,
+          { align: 'right' }
+        )
+      }
+
+      // Save PDF
+      const fileName = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+      doc.save(fileName)
+      showToast('PDF downloaded successfully', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      console.error('Error details:', error.message, error.stack)
+      showToast('Failed to generate PDF: ' + error.message, 'error')
+    }
   }
 
   return (
@@ -182,11 +379,11 @@ export default function AttendanceReportsPage() {
 
       {/* Report Modal */}
       {activeReport && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b print:hidden">
-              <h2 className="text-xl font-semibold text-gray-900">
+            <div className="bg-blue-600 text-white p-4 flex items-center justify-between rounded-t-lg print:hidden">
+              <h2 className="text-xl font-semibold">
                 {activeTab === 'student'
                   ? studentReports.find(r => r.id === activeReport)?.name
                   : staffReports.find(r => r.id === activeReport)?.name
@@ -194,15 +391,8 @@ export default function AttendanceReportsPage() {
               </h2>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handlePrint}
-                  className="flex items-center gap-2 px-4 py-2 text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print
-                </button>
-                <button
                   onClick={handleCloseReport}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-white hover:bg-blue-700 p-1 rounded"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -210,7 +400,7 @@ export default function AttendanceReportsPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-auto p-6">
+            <div id="report-content" className="flex-1 overflow-auto p-6">
               {renderReportContent()}
             </div>
           </div>
@@ -221,29 +411,27 @@ export default function AttendanceReportsPage() {
       {!activeReport && (
         <>
           <div className="bg-white rounded-lg shadow mb-6">
-            <div className="border-b">
-              <div className="flex">
-                <button
-                  onClick={() => setActiveTab('student')}
-                  className={`px-6 py-3 font-medium ${
-                    activeTab === 'student'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  Student Reports
-                </button>
-                <button
-                  onClick={() => setActiveTab('staff')}
-                  className={`px-6 py-3 font-medium ${
-                    activeTab === 'staff'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  Staff Reports
-                </button>
-              </div>
+            <div className="flex gap-2 p-2">
+              <button
+                onClick={() => setActiveTab('student')}
+                className={`px-6 py-3 font-medium rounded ${
+                  activeTab === 'student'
+                    ? 'bg-red-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Student Reports
+              </button>
+              <button
+                onClick={() => setActiveTab('staff')}
+                className={`px-6 py-3 font-medium rounded ${
+                  activeTab === 'staff'
+                    ? 'bg-red-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Staff Reports
+              </button>
             </div>
           </div>
 
@@ -251,12 +439,12 @@ export default function AttendanceReportsPage() {
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-100">
+                <thead className="bg-blue-900 text-white">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Sr.</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Report Name</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Description</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Action</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Report Name</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Description</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -290,61 +478,61 @@ export default function AttendanceReportsPage() {
 
     // Student Reports
     if (activeReport === 'daily-attendance') {
-      return <DailyAttendanceReport />
+      return <DailyAttendanceReport onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'monthly-summary') {
-      return <MonthlyAttendanceSummary />
+      return <MonthlyAttendanceSummary onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'attendance-register') {
-      return <AttendanceRegister />
+      return <AttendanceRegister onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'attendance-sheet') {
-      return <AttendanceSheet />
+      return <AttendanceSheet onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'today-present') {
-      return <TodayStudentsList status="present" />
+      return <TodayStudentsList status="present" onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'today-absent') {
-      return <TodayStudentsList status="absent" />
+      return <TodayStudentsList status="absent" onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'today-late') {
-      return <TodayStudentsList status="late" />
+      return <TodayStudentsList status="late" onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'today-leave') {
-      return <TodayStudentsList status="on-leave" />
+      return <TodayStudentsList status="on-leave" onDownloadPDF={handleDownloadPDF} />
     }
 
     // Staff Reports
     if (activeReport === 'staff-daily-attendance') {
-      return <StaffDailyAttendanceReport />
+      return <StaffDailyAttendanceReport onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'staff-monthly-summary') {
-      return <StaffMonthlyAttendanceSummary />
+      return <StaffMonthlyAttendanceSummary onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'staff-attendance-register') {
-      return <StaffAttendanceRegister />
+      return <StaffAttendanceRegister onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'staff-attendance-sheet') {
-      return <StaffAttendanceSheet />
+      return <StaffAttendanceSheet onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'staff-today-present') {
-      return <TodayStaffList status="present" />
+      return <TodayStaffList status="present" onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'staff-today-absent') {
-      return <TodayStaffList status="absent" />
+      return <TodayStaffList status="absent" onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'staff-today-late') {
-      return <TodayStaffList status="late" />
+      return <TodayStaffList status="late" onDownloadPDF={handleDownloadPDF} />
     }
     if (activeReport === 'staff-today-leave') {
-      return <TodayStaffList status="on-leave" />
+      return <TodayStaffList status="on-leave" onDownloadPDF={handleDownloadPDF} />
     }
 
     return <div className="text-center text-gray-500">Report not implemented yet</div>
   }
 
   // Daily Attendance Report Component
-  function DailyAttendanceReport() {
+  function DailyAttendanceReport({ onDownloadPDF }) {
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0])
     const [data, setData] = useState([])
     const [loading, setLoading] = useState(false)
@@ -440,25 +628,30 @@ export default function AttendanceReportsPage() {
     return (
       <div>
         {/* Filters */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-              <input
-                type="date"
-                value={reportDate}
-                onChange={(e) => setReportDate(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={loadReport}
-                disabled={loading}
-                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+                <input
+                  type="date"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={loadReport}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -469,6 +662,19 @@ export default function AttendanceReportsPage() {
           <p className="text-gray-600">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.length > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {/* Report Table */}
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
@@ -476,7 +682,7 @@ export default function AttendanceReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Class</th>
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Present</th>
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">P/Late</th>
@@ -511,7 +717,7 @@ export default function AttendanceReportsPage() {
   }
 
   // Monthly Attendance Summary Component
-  function MonthlyAttendanceSummary() {
+  function MonthlyAttendanceSummary({ onDownloadPDF }) {
     const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7))
     const [reportClass, setReportClass] = useState('')
     const [reportSection, setReportSection] = useState('')
@@ -653,52 +859,57 @@ export default function AttendanceReportsPage() {
     return (
       <div>
         {/* Filters */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-              <input
-                type="month"
-                value={reportMonth}
-                onChange={(e) => setReportMonth(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
-              <select
-                value={reportClass}
-                onChange={(e) => setReportClass(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              >
-                <option value="">Select Class</option>
-                {localClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
-              <select
-                value={reportSection}
-                onChange={(e) => setReportSection(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                disabled={!reportClass}
-              >
-                <option value="">All Sections</option>
-                {localSections.map(section => (
-                  <option key={section.id} value={section.id}>{section.section_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={loadReport}
-                disabled={loading || !reportClass}
-                className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <input
+                  type="month"
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
+                <select
+                  value={reportClass}
+                  onChange={(e) => setReportClass(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">Select Class</option>
+                  {localClasses.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
+                <select
+                  value={reportSection}
+                  onChange={(e) => setReportSection(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  disabled={!reportClass}
+                >
+                  <option value="">All Sections</option>
+                  {localSections.map(section => (
+                    <option key={section.id} value={section.id}>{section.section_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={loadReport}
+                  disabled={loading || !reportClass}
+                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -713,6 +924,19 @@ export default function AttendanceReportsPage() {
           </p>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.length > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {/* Report Table */}
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
@@ -720,7 +944,7 @@ export default function AttendanceReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Student Name</th>
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Roll No</th>
@@ -763,7 +987,7 @@ export default function AttendanceReportsPage() {
   }
 
   // Attendance Register Component
-  function AttendanceRegister() {
+  function AttendanceRegister({ onDownloadPDF }) {
     const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7))
     const [reportClass, setReportClass] = useState('')
     const [reportSection, setReportSection] = useState('')
@@ -925,52 +1149,57 @@ export default function AttendanceReportsPage() {
     return (
       <div>
         {/* Filters */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-              <input
-                type="month"
-                value={reportMonth}
-                onChange={(e) => setReportMonth(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
-              <select
-                value={reportClass}
-                onChange={(e) => setReportClass(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              >
-                <option value="">Select Class</option>
-                {localClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
-              <select
-                value={reportSection}
-                onChange={(e) => setReportSection(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                disabled={!reportClass}
-              >
-                <option value="">All Sections</option>
-                {localSections.map(section => (
-                  <option key={section.id} value={section.id}>{section.section_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={loadReport}
-                disabled={loading || !reportClass}
-                className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <input
+                  type="month"
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
+                <select
+                  value={reportClass}
+                  onChange={(e) => setReportClass(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">Select Class</option>
+                  {localClasses.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
+                <select
+                  value={reportSection}
+                  onChange={(e) => setReportSection(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  disabled={!reportClass}
+                >
+                  <option value="">All Sections</option>
+                  {localSections.map(section => (
+                    <option key={section.id} value={section.id}>{section.section_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={loadReport}
+                  disabled={loading || !reportClass}
+                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -992,6 +1221,19 @@ export default function AttendanceReportsPage() {
           </div>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.length > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {/* Report Table */}
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
@@ -999,10 +1241,10 @@ export default function AttendanceReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-0 bg-gray-100 z-10">Sr.</th>
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-10 bg-gray-100 z-10">Student Name</th>
-                  <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold sticky left-40 bg-gray-100 z-10">Roll</th>
+                <tr className="bg-blue-900 text-white">
+                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-0 bg-blue-900 text-white z-10">Sr.</th>
+                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-10 bg-blue-900 text-white z-10">Student Name</th>
+                  <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold sticky left-40 bg-blue-900 text-white z-10">Roll</th>
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
                     <th key={day} className="border border-gray-300 px-1 py-2 text-center text-xs font-semibold min-w-[30px]">
                       {day}
@@ -1148,52 +1390,57 @@ export default function AttendanceReportsPage() {
     return (
       <div>
         {/* Filters */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-              <input
-                type="month"
-                value={reportMonth}
-                onChange={(e) => setReportMonth(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
-              <select
-                value={reportClass}
-                onChange={(e) => setReportClass(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              >
-                <option value="">Select Class</option>
-                {localClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
-              <select
-                value={reportSection}
-                onChange={(e) => setReportSection(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                disabled={!reportClass}
-              >
-                <option value="">All Sections</option>
-                {localSections.map(section => (
-                  <option key={section.id} value={section.id}>{section.section_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={loadReport}
-                disabled={loading || !reportClass}
-                className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? 'Loading...' : 'Generate Sheet'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <input
+                  type="month"
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
+                <select
+                  value={reportClass}
+                  onChange={(e) => setReportClass(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">Select Class</option>
+                  {localClasses.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
+                <select
+                  value={reportSection}
+                  onChange={(e) => setReportSection(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  disabled={!reportClass}
+                >
+                  <option value="">All Sections</option>
+                  {localSections.map(section => (
+                    <option key={section.id} value={section.id}>{section.section_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={loadReport}
+                  disabled={loading || !reportClass}
+                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {loading ? 'Loading...' : 'Generate Sheet'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1216,7 +1463,7 @@ export default function AttendanceReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border-2 border-gray-400 text-xs">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold w-12">Sr.</th>
                   <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold min-w-[150px]">Student Name</th>
                   <th className="border-2 border-gray-400 px-2 py-2 text-center text-xs font-semibold w-16">Roll</th>
@@ -1253,7 +1500,7 @@ export default function AttendanceReportsPage() {
   }
 
   // Today Students List Component (filtered by status)
-  function TodayStudentsList({ status }) {
+  function TodayStudentsList({ status, onDownloadPDF }) {
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0])
     const [reportClass, setReportClass] = useState('')
     const [reportSection, setReportSection] = useState('')
@@ -1412,52 +1659,57 @@ export default function AttendanceReportsPage() {
     return (
       <div>
         {/* Filters */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-              <input
-                type="date"
-                value={reportDate}
-                onChange={(e) => setReportDate(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Class (Optional)</label>
-              <select
-                value={reportClass}
-                onChange={(e) => setReportClass(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              >
-                <option value="">All Classes</option>
-                {localClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Section (Optional)</label>
-              <select
-                value={reportSection}
-                onChange={(e) => setReportSection(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                disabled={!reportClass}
-              >
-                <option value="">All Sections</option>
-                {localSections.map(section => (
-                  <option key={section.id} value={section.id}>{section.section_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={loadReport}
-                disabled={loading}
-                className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+                <input
+                  type="date"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Class (Optional)</label>
+                <select
+                  value={reportClass}
+                  onChange={(e) => setReportClass(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">All Classes</option>
+                  {localClasses.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Section (Optional)</label>
+                <select
+                  value={reportSection}
+                  onChange={(e) => setReportSection(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  disabled={!reportClass}
+                >
+                  <option value="">All Sections</option>
+                  {localSections.map(section => (
+                    <option key={section.id} value={section.id}>{section.section_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={loadReport}
+                  disabled={loading}
+                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1473,6 +1725,19 @@ export default function AttendanceReportsPage() {
           <p className="text-sm text-gray-600 mt-1">Total: {data.length} student{data.length !== 1 ? 's' : ''}</p>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.length > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {/* Report Table */}
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
@@ -1480,7 +1745,7 @@ export default function AttendanceReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Name</th>
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Father Name</th>
@@ -1515,7 +1780,7 @@ export default function AttendanceReportsPage() {
   }
 
   // Staff Daily Attendance Report
-  function StaffDailyAttendanceReport() {
+  function StaffDailyAttendanceReport({ onDownloadPDF }) {
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0])
     const [data, setData] = useState({ present: 0, late: 0, halfDay: 0, leave: 0, absent: 0, notMarked: 0, total: 0 })
     const [loading, setLoading] = useState(false)
@@ -1576,16 +1841,21 @@ export default function AttendanceReportsPage() {
 
     return (
       <div>
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-              <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
-            </div>
-            <div className="flex items-end">
-              <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+                <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+              <div className="flex items-end">
+                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1595,13 +1865,26 @@ export default function AttendanceReportsPage() {
           <p className="text-gray-600">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.total > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Present</th>
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">P/Late</th>
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Half Day</th>
@@ -1630,7 +1913,7 @@ export default function AttendanceReportsPage() {
   }
 
   // Staff Monthly Attendance Summary
-  function StaffMonthlyAttendanceSummary() {
+  function StaffMonthlyAttendanceSummary({ onDownloadPDF }) {
     const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7))
     const [data, setData] = useState([])
     const [loading, setLoading] = useState(false)
@@ -1723,16 +2006,21 @@ export default function AttendanceReportsPage() {
 
     return (
       <div>
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-              <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
-            </div>
-            <div className="flex items-end">
-              <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+              <div className="flex items-end">
+                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1742,13 +2030,26 @@ export default function AttendanceReportsPage() {
           <p className="text-gray-600">Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.length > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Staff Name</th>
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Employee ID</th>
@@ -1791,7 +2092,7 @@ export default function AttendanceReportsPage() {
   }
 
   // Staff Attendance Register
-  function StaffAttendanceRegister() {
+  function StaffAttendanceRegister({ onDownloadPDF }) {
     const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7))
     const [data, setData] = useState([])
     const [daysInMonth, setDaysInMonth] = useState(0)
@@ -1904,16 +2205,21 @@ export default function AttendanceReportsPage() {
 
     return (
       <div>
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-              <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
-            </div>
-            <div className="flex items-end">
-              <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+              <div className="flex items-end">
+                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1930,16 +2236,29 @@ export default function AttendanceReportsPage() {
           </div>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.length > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-0 bg-gray-100 z-10">Sr.</th>
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-10 bg-gray-100 z-10">Staff Name</th>
-                  <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold sticky left-40 bg-gray-100 z-10">Emp ID</th>
+                <tr className="bg-blue-900 text-white">
+                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-0 bg-blue-900 text-white z-10">Sr.</th>
+                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-10 bg-blue-900 text-white z-10">Staff Name</th>
+                  <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold sticky left-40 bg-blue-900 text-white z-10">Emp ID</th>
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
                     <th key={day} className="border border-gray-300 px-1 py-2 text-center text-xs font-semibold min-w-[30px]">{day}</th>
                   ))}
@@ -2030,16 +2349,21 @@ export default function AttendanceReportsPage() {
 
     return (
       <div>
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-              <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
-            </div>
-            <div className="flex items-end">
-              <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
-                {loading ? 'Loading...' : 'Generate Sheet'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+              <div className="flex items-end">
+                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                  {loading ? 'Loading...' : 'Generate Sheet'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2056,7 +2380,7 @@ export default function AttendanceReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border-2 border-gray-400 text-xs">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold w-12">Sr.</th>
                   <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold min-w-[150px]">Staff Name</th>
                   <th className="border-2 border-gray-400 px-2 py-2 text-center text-xs font-semibold w-20">Emp ID</th>
@@ -2087,7 +2411,7 @@ export default function AttendanceReportsPage() {
   }
 
   // Today Staff List (filtered by status)
-  function TodayStaffList({ status }) {
+  function TodayStaffList({ status, onDownloadPDF }) {
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0])
     const [data, setData] = useState([])
     const [loading, setLoading] = useState(false)
@@ -2160,16 +2484,21 @@ export default function AttendanceReportsPage() {
 
     return (
       <div>
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 print:hidden">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-              <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
-            </div>
-            <div className="flex items-end">
-              <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
-                {loading ? 'Loading...' : 'Generate Report'}
-              </button>
+        <div className="mb-6 print:hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+            <h3 className="font-medium">Report Filters</h3>
+          </div>
+          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+                <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+              </div>
+              <div className="flex items-end">
+                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2180,13 +2509,26 @@ export default function AttendanceReportsPage() {
           <p className="text-sm text-gray-600 mt-1">Total: {data.length} staff member{data.length !== 1 ? 's' : ''}</p>
         </div>
 
+        {/* Download Button - Only shown when data is loaded */}
+        {!loading && data.length > 0 && (
+          <div className="flex justify-end mb-4 print:hidden">
+            <button
+              onClick={onDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Name</th>
                   <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Employee ID</th>
