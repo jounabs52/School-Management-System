@@ -6,13 +6,13 @@ import {
   Edit, Trash2, ChevronDown, X, User, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import jsPDF from 'jspdf'
 
 export default function OldStaffPage() {
   const [searchType, setSearchType] = useState('Via General Data')
   const [searchQuery, setSearchQuery] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAdvanceSearch, setShowAdvanceSearch] = useState(false)
-  const [selectedStaff, setSelectedStaff] = useState([])
   const [editingStaff, setEditingStaff] = useState(null)
   const [statusDropdownId, setStatusDropdownId] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -172,6 +172,44 @@ export default function OldStaffPage() {
     }
   }, [statusDropdownId])
 
+  // Auto search when query changes
+  useEffect(() => {
+    handleSearch()
+  }, [searchQuery, searchType])
+
+  // Apply blur effect to sidebar and disable background scrolling when modals are open
+  useEffect(() => {
+    const isModalOpen = showEditModal || showAdvanceSearch || confirmDialog.show
+    if (isModalOpen) {
+      // Disable body scrolling
+      document.body.style.overflow = 'hidden'
+
+      // Blur only the sidebar
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      // Remove blur and enable interactions
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showEditModal, showAdvanceSearch, confirmDialog.show])
+
   const fetchStaffData = async () => {
     if (!currentUser?.school_id) return
 
@@ -207,21 +245,6 @@ export default function OldStaffPage() {
     }
   }
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedStaff(filteredStaffData.map(s => s.id))
-    } else {
-      setSelectedStaff([])
-    }
-  }
-
-  const handleSelectStaff = (id) => {
-    setSelectedStaff(prev =>
-      prev.includes(id)
-        ? prev.filter(i => i !== id)
-        : [...prev, id]
-    )
-  }
 
   const handleEdit = (staff) => {
     setEditingStaff(staff)
@@ -390,59 +413,111 @@ export default function OldStaffPage() {
     link.click()
   }
 
-  // Export to PDF (prints the table)
+  // Export to PDF using jsPDF
   const exportToPDF = () => {
-    const printContent = `
-      <html>
-        <head>
-          <title>Old Staff Data Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { text-align: center; color: #dc2626; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background-color: #475569; color: white; padding: 10px; text-align: left; }
-            td { padding: 8px; border-bottom: 1px solid #ddd; }
-            tr:hover { background-color: #f5f5f5; }
-            .date { text-align: right; color: #666; margin-bottom: 10px; }
-          </style>
-        </head>
-        <body>
-          <h1>Old / Disabled Staff Report</h1>
-          <p class="date">Generated: ${new Date().toLocaleDateString()}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Sr.</th>
-                <th>Name</th>
-                <th>Employee #</th>
-                <th>Designation</th>
-                <th>Phone</th>
-                <th>Department</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredStaffData.map((staff, index) => `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${staff.name}</td>
-                  <td>${staff.employeeNumber || ''}</td>
-                  <td>${staff.designation || ''}</td>
-                  <td>${staff.phone || ''}</td>
-                  <td>${staff.department || ''}</td>
-                  <td>${staff.status || ''}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <p style="margin-top: 20px; color: #666;">Total Old Staff: ${filteredStaffData.length}</p>
-        </body>
-      </html>
-    `
-    const printWindow = window.open('', '_blank')
-    printWindow.document.write(printContent)
-    printWindow.document.close()
-    printWindow.print()
+    const doc = new jsPDF('p', 'mm', 'a4')
+
+    // Add title
+    doc.setFontSize(16)
+    doc.setTextColor(37, 99, 235)
+    doc.text('Old / Disabled Staff Report', 105, 15, { align: 'center' })
+
+    // Add date
+    doc.setFontSize(9)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 22, { align: 'center' })
+
+    // Table headers
+    const headers = ['Sr.', 'Name', 'Employee #', 'Designation', 'Phone', 'Department', 'Status']
+    const colWidths = [12, 35, 25, 30, 25, 30, 30]
+    let startX = 10
+    let startY = 35
+
+    // Draw header background
+    doc.setFillColor(37, 99, 235)
+    doc.rect(startX, startY - 6, 190, 8, 'F')
+
+    // Draw headers
+    doc.setFontSize(9)
+    doc.setTextColor(255, 255, 255)
+    doc.setFont(undefined, 'bold')
+    let xPos = startX + 2
+    headers.forEach((header, i) => {
+      doc.text(header, xPos, startY, { maxWidth: colWidths[i] - 4 })
+      xPos += colWidths[i]
+    })
+
+    // Draw table rows
+    doc.setTextColor(0, 0, 0)
+    doc.setFont(undefined, 'normal')
+    doc.setFontSize(8)
+
+    let yPos = startY + 6
+    const rowHeight = 8
+    const maxRowsPerPage = 30
+    let rowCount = 0
+
+    filteredStaffData.forEach((staff, index) => {
+      // Check if we need a new page
+      if (rowCount >= maxRowsPerPage) {
+        doc.addPage()
+        yPos = 20
+        rowCount = 0
+
+        // Redraw headers on new page
+        doc.setFillColor(37, 99, 235)
+        doc.rect(startX, yPos - 6, 190, 8, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFont(undefined, 'bold')
+        xPos = startX + 2
+        headers.forEach((header, i) => {
+          doc.text(header, xPos, yPos, { maxWidth: colWidths[i] - 4 })
+          xPos += colWidths[i]
+        })
+        doc.setTextColor(0, 0, 0)
+        doc.setFont(undefined, 'normal')
+        yPos += 6
+      }
+
+      // Alternate row colors
+      if (index % 2 === 0) {
+        doc.setFillColor(248, 250, 252)
+        doc.rect(startX, yPos - 5, 190, rowHeight, 'F')
+      }
+
+      // Draw row data
+      const rowData = [
+        String(index + 1),
+        staff.name || 'N/A',
+        staff.employeeNumber || 'N/A',
+        staff.designation || 'N/A',
+        staff.phone || 'N/A',
+        staff.department || 'N/A',
+        staff.status || 'N/A'
+      ]
+
+      xPos = startX + 2
+      rowData.forEach((data, i) => {
+        doc.text(String(data), xPos, yPos, { maxWidth: colWidths[i] - 4 })
+        xPos += colWidths[i]
+      })
+
+      yPos += rowHeight
+      rowCount++
+    })
+
+    // Add footer
+    yPos += 5
+    if (yPos > 270) {
+      doc.addPage()
+      yPos = 20
+    }
+    doc.setFontSize(9)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Total Old Staff: ${filteredStaffData.length}`, startX, yPos)
+
+    // Save PDF
+    doc.save(`old_staff_report_${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   const resetForm = () => {
@@ -531,81 +606,69 @@ export default function OldStaffPage() {
   }
 
   return (
-    <div className="p-6">
-
-
+    <div className="p-3">
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 mb-3">
         <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition"
         >
-          <FileSpreadsheet className="w-5 h-5" />
+          <FileSpreadsheet className="w-4 h-4" />
           Export Excel
         </button>
         <button
           onClick={exportToPDF}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-medium transition"
         >
-          <Download className="w-5 h-5" />
+          <Download className="w-4 h-4" />
           Export PDF
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search Type Dropdown */}
           <div className="relative min-w-[180px]">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="w-full appearance-none border border-gray-300 rounded px-4 py-2.5 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white"
+              className="w-full appearance-none border border-gray-300 rounded px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white"
             >
               {searchOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
 
           {/* Search Input */}
           <div className="flex-1 min-w-[250px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search old staff..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full border border-gray-300 rounded pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
           </div>
 
-          {/* Search Button */}
-          <button
-            onClick={handleSearch}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2.5 rounded font-medium transition"
-          >
-            Search
-            <Search className="w-5 h-5" />
-          </button>
-
           {/* Advance Search Button */}
           <button
             onClick={() => setShowAdvanceSearch(true)}
-            className="flex items-center gap-2 border-2 border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2.5 rounded font-medium transition"
+            className="flex items-center gap-2 border-2 border-blue-500 text-blue-500 hover:bg-blue-50 px-3 py-2 rounded text-sm font-medium transition"
           >
-            <Filter className="w-5 h-5" />
+            <Filter className="w-4 h-4" />
             Advance Search
           </button>
         </div>
 
         {/* Staff Count */}
-        <p className="mt-4 text-gray-600">
-          Showing <span className="text-red-600 font-semibold">{filteredStaffData.length}</span> of <span className="text-red-600 font-semibold">{staffData.length}</span> old/disabled staff members
+        <p className="mt-2 text-sm text-gray-600">
+          Showing <span className="text-blue-600 font-semibold">{filteredStaffData.length}</span> of <span className="text-blue-600 font-semibold">{staffData.length}</span> old/disabled staff members
         </p>
       </div>
 
@@ -619,56 +682,36 @@ export default function OldStaffPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
             <thead>
-              <tr className="bg-slate-600 text-white text-sm">
-                <th className="px-4 py-3 text-left font-medium">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      onChange={handleSelectAll}
-                      checked={selectedStaff.length === filteredStaffData.length && filteredStaffData.length > 0}
-                      className="w-4 h-4 rounded"
-                    />
-                    <span>Sr.</span>
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Employee #</th>
-                <th className="px-4 py-3 text-left font-medium">Designation</th>
-                <th className="px-4 py-3 text-left font-medium">Phone</th>
-                <th className="px-4 py-3 text-left font-medium">Department</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Options</th>
+              <tr className="bg-blue-600 text-white text-sm">
+                <th className="px-3 py-2 text-left font-medium">Sr.</th>
+                <th className="px-3 py-2 text-left font-medium">Name</th>
+                <th className="px-3 py-2 text-left font-medium">Employee #</th>
+                <th className="px-3 py-2 text-left font-medium">Designation</th>
+                <th className="px-3 py-2 text-left font-medium">Phone</th>
+                <th className="px-3 py-2 text-left font-medium">Department</th>
+                <th className="px-3 py-2 text-left font-medium">Status</th>
+                <th className="px-3 py-2 text-left font-medium">Options</th>
               </tr>
             </thead>
             <tbody>
               {filteredStaffData.map((staff, index) => (
                 <tr key={staff.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2 text-sm text-gray-700">{index + 1}</td>
+                  <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedStaff.includes(staff.id)}
-                        onChange={() => handleSelectStaff(staff.id)}
-                        className="w-4 h-4 rounded"
-                      />
-                      <span>{index + 1}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
-                        <User className="w-5 h-5 text-gray-400" />
+                      <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                        <User className="w-4 h-4 text-gray-400" />
                       </div>
-                      <span className="text-gray-700">
+                      <span className="text-sm text-gray-700">
                         {staff.name}
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{staff.employeeNumber}</td>
-                  <td className="px-4 py-3 text-gray-700">{staff.designation}</td>
-                  <td className="px-4 py-3 text-gray-700">{staff.phone}</td>
-                  <td className="px-4 py-3 text-gray-700">{staff.department}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2 text-sm text-gray-600">{staff.employeeNumber}</td>
+                  <td className="px-3 py-2 text-sm text-gray-700">{staff.designation}</td>
+                  <td className="px-3 py-2 text-sm text-gray-700">{staff.phone}</td>
+                  <td className="px-3 py-2 text-sm text-gray-700">{staff.department}</td>
+                  <td className="px-3 py-2">
                     <div className="relative">
                       <button
                         onClick={(e) => {
@@ -700,8 +743,8 @@ export default function OldStaffPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEdit(staff)}
                         className="text-blue-500 hover:text-blue-600 p-1"
@@ -729,19 +772,19 @@ export default function OldStaffPage() {
       {/* Edit Staff Modal */}
       {showEditModal && editingStaff && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowEditModal(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between sticky top-0 z-10">
-              <h2 className="text-lg font-semibold">Update Staff ({editingStaff.name})</h2>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998]" onClick={() => setShowEditModal(false)} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-[9999] overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 flex items-center justify-between sticky top-0 z-10">
+              <h2 className="text-base font-semibold">Update Staff ({editingStaff.name})</h2>
               <button onClick={() => setShowEditModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-4">
               {/* Personal Information */}
-              <div className="mb-6">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-t flex items-center gap-2">
+              <div className="mb-4">
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 text-sm rounded-t flex items-center gap-2">
                   <User className="w-4 h-4" />
                   PERSONAL INFORMATION
                 </div>
@@ -780,8 +823,8 @@ export default function OldStaffPage() {
               </div>
 
               {/* Contact Information */}
-              <div className="mb-6">
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-t flex items-center gap-2">
+              <div className="mb-4">
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 text-sm rounded-t flex items-center gap-2">
                   <span>📱</span>
                   CONTACT INFORMATION
                 </div>
@@ -808,8 +851,8 @@ export default function OldStaffPage() {
               </div>
 
               {/* Professional Information */}
-              <div className="mb-6">
-                <div className="bg-gradient-to-r from-blue-700 to-blue-800 text-white px-4 py-2 rounded-t flex items-center gap-2">
+              <div className="mb-4">
+                <div className="bg-gradient-to-r from-blue-700 to-blue-800 text-white px-3 py-2 text-sm rounded-t flex items-center gap-2">
                   <span>💼</span>
                   PROFESSIONAL INFORMATION
                 </div>
@@ -876,14 +919,14 @@ export default function OldStaffPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
-              <button onClick={() => setShowEditModal(false)} className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2">
+            <div className="p-3 border-t border-gray-200 flex items-center justify-end gap-2 sticky bottom-0 bg-white">
+              <button onClick={() => setShowEditModal(false)} className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2 text-sm">
                 Close
               </button>
               <button
                 onClick={handleUpdateStaff}
                 disabled={saving}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50"
+                className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded text-sm font-medium flex items-center gap-2 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Update'}
               </button>
@@ -895,15 +938,15 @@ export default function OldStaffPage() {
       {/* Advance Search Modal */}
       {showAdvanceSearch && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowAdvanceSearch(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Refine Your Search</h2>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998]" onClick={() => setShowAdvanceSearch(false)} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[9999] overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold">Refine Your Search</h2>
               <button onClick={() => setShowAdvanceSearch(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 space-y-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Employment Type</label>
                 <select value={filters.employmentType} onChange={(e) => setFilters({...filters, employmentType: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
@@ -949,9 +992,9 @@ export default function OldStaffPage() {
                 </select>
               </div>
             </div>
-            <div className="p-6 border-t flex justify-end gap-3">
-              <button onClick={() => setShowAdvanceSearch(false)} className="text-blue-500 font-medium">Close</button>
-              <button className="bg-blue-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2">
+            <div className="p-3 border-t flex justify-end gap-2">
+              <button onClick={() => setShowAdvanceSearch(false)} className="text-blue-500 font-medium text-sm px-4 py-2">Close</button>
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded text-sm font-medium flex items-center gap-2">
                 Filter
               </button>
             </div>
@@ -962,27 +1005,27 @@ export default function OldStaffPage() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
             <div
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
-                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-lg">
+                <h3 className="text-base font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700">{confirmDialog.message}</p>
+              <div className="p-4">
+                <p className="text-sm text-gray-700">{confirmDialog.message}</p>
               </div>
-              <div className="px-6 pb-6 flex justify-end gap-3">
+              <div className="px-4 pb-4 flex justify-end gap-2">
                 <button
                   onClick={handleCancelConfirm}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                  className="px-5 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                  className="px-5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
                 >
                   Confirm
                 </button>
@@ -993,26 +1036,26 @@ export default function OldStaffPage() {
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-4 right-4 z-[10000] space-y-2">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+            className={`flex items-center gap-2 min-w-[280px] max-w-md px-3 py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               toast.type === 'success' ? 'bg-blue-500' :
               toast.type === 'error' ? 'bg-blue-600' :
               toast.type === 'warning' ? 'bg-blue-500' :
               'bg-blue-500'
             }`}
           >
-            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            {toast.type === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-4 h-4 flex-shrink-0" />}
+            {toast.type === 'warning' && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+            <span className="flex-1 text-xs font-medium">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
               className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3" />
             </button>
           </div>
         ))}

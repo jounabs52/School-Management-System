@@ -655,28 +655,24 @@ export default function ExamReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="bg-gray-50 p-1">
       <Toaster position="top-right" />
 
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
               className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">Exam Reports</h1>
-              <p className="text-gray-600">Comprehensive test performance analysis</p>
-            </div>
           </div>
           {reportData && (
             <button
               onClick={exportToPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
             >
               <FileText className="w-4 h-4" />
               Export PDF
@@ -686,8 +682,8 @@ export default function ExamReportsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="bg-white rounded-lg shadow-md p-3 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <button
             onClick={() => {
               setActiveTab('test-results')
@@ -754,9 +750,9 @@ export default function ExamReportsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-lg shadow-md p-3 mb-4">
+        <h2 className="text-sm font-semibold mb-3">Filters</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {activeTab === 'test-results' && (
             <div className="md:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">

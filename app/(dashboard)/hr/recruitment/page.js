@@ -76,6 +76,41 @@ export default function RecruitmentPage() {
     onConfirm: null
   })
 
+  // Check if any modal is open
+  const isAnyModalOpen = showJobModal || showApplicationModal || showInterviewModal || confirmDialog.show
+
+  // Apply blur effect to sidebar and disable background scrolling when modals are open
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      // Disable body scrolling
+      document.body.style.overflow = 'hidden'
+
+      // Blur only the sidebar
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      // Remove blur and enable interactions
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [isAnyModalOpen])
+
   const showConfirmDialog = (title, message, onConfirm) => {
     setConfirmDialog({
       show: true,
@@ -822,8 +857,10 @@ export default function RecruitmentPage() {
   )
 
   return (
-    <div className="p-2">
-      {/* Loading Overlay */}
+    <div className="p-1">
+      {/* Main Content */}
+      <div id="main-content">
+        {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9997] flex items-center justify-center">
           <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center gap-4">
@@ -833,23 +870,23 @@ export default function RecruitmentPage() {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-600 rounded-lg">
-            <Briefcase className="w-6 h-6 text-white" />
+      {/* Page Header - Compact */}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-purple-600 rounded-lg">
+            <Briefcase className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Recruitment</h1>
+          <h1 className="text-xl font-bold text-gray-800">Recruitment</h1>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-2">
+      {/* Tabs - Compact */}
+      <div className="flex gap-1 mb-1">
         {['jobs', 'applications', 'interviews'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 font-medium transition-all capitalize rounded-lg ${
+            className={`px-4 py-2 text-sm font-medium transition-all capitalize rounded-lg ${
               activeTab === tab
                 ? 'bg-red-500 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -863,20 +900,20 @@ export default function RecruitmentPage() {
       {/* JOBS TAB */}
       {activeTab === 'jobs' && (
         <div>
-          <div className="flex justify-end items-center gap-4 mb-4">
+          <div className="flex justify-end items-center gap-2 mb-2">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search jobs..."
                 value={jobSearchQuery}
                 onChange={(e) => setJobSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-64"
+                className="border border-gray-300 rounded-lg px text-sm-3 py-1.5 pr-9 w-56"
               />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
             <button
               onClick={() => setShowJobModal(true)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition text-sm"
             >
               <Plus className="w-4 h-4" />
               Add New Job
@@ -887,31 +924,31 @@ export default function RecruitmentPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="px-4 py-3 text-left">Sr.</th>
-                  <th className="px-4 py-3 text-left">Department</th>
-                  <th className="px-4 py-3 text-left">Job Title</th>
-                  <th className="px-4 py-3 text-left">Salary</th>
-                  <th className="px-4 py-3 text-left">Deadline</th>
-                  <th className="px-4 py-3 text-center">Applicants</th>
-                  <th className="px-4 py-3 text-center">Options</th>
+                  <th className="px-3 py-2 text-left text-sm">Sr.</th>
+                  <th className="px-3 py-2 text-left text-sm">Department</th>
+                  <th className="px-3 py-2 text-left text-sm">Job Title</th>
+                  <th className="px-3 py-2 text-left text-sm">Salary</th>
+                  <th className="px-3 py-2 text-left text-sm">Deadline</th>
+                  <th className="px-3 py-2 text-center text-sm">Applicants</th>
+                  <th className="px-3 py-2 text-center text-sm">Options</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredJobs.map((job, index) => (
                   <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3">{index + 1}</td>
-                    <td className="px-4 py-3">{job.department?.department_name || 'N/A'}</td>
-                    <td className="px-4 py-3">{job.title}</td>
-                    <td className="px-4 py-3">{job.salary ? `${job.salary}` : 'N/A'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-sm">{index + 1}</td>
+                    <td className="px-3 py-2 text-sm">{job.department?.department_name || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm">{job.title}</td>
+                    <td className="px-3 py-2 text-sm">{job.salary ? `${job.salary}` : 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm">
                       {job.deadline ? new Date(job.deadline).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric'
                       }) : 'N/A'}
                     </td>
-                    <td className="px-4 py-3 text-center">{job.applicant_count || 0}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-center text-sm">{job.applicant_count || 0}</td>
+                    <td className="px-3 py-2 text-sm">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => handleEditJob(job)}
@@ -940,20 +977,20 @@ export default function RecruitmentPage() {
       {/* APPLICATIONS TAB */}
       {activeTab === 'applications' && (
         <div>
-          <div className="flex justify-end items-center gap-4 mb-4">
+          <div className="flex justify-end items-center gap-2 mb-2">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search applications..."
                 value={appSearchQuery}
                 onChange={(e) => setAppSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-64"
+                className="border border-gray-300 rounded-lg px text-sm-3 py-1.5 pr-9 w-56"
               />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
             <button
               onClick={() => setShowApplicationModal(true)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition text-sm"
             >
               <Plus className="w-4 h-4" />
               Add New Application
@@ -968,23 +1005,23 @@ export default function RecruitmentPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-blue-900 text-white text-sm">
-                  <th className="px-4 py-3 text-left">Sr.</th>
-                  <th className="px-4 py-3 text-left">Department</th>
-                  <th className="px-4 py-3 text-left">Job</th>
-                  <th className="px-4 py-3 text-left">Applicant</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-center">Options</th>
+                  <th className="px-3 py-2 text-left text-sm">Sr.</th>
+                  <th className="px-3 py-2 text-left text-sm">Department</th>
+                  <th className="px-3 py-2 text-left text-sm">Job</th>
+                  <th className="px-3 py-2 text-left text-sm">Applicant</th>
+                  <th className="px-3 py-2 text-left text-sm">Status</th>
+                  <th className="px-3 py-2 text-left text-sm">Date</th>
+                  <th className="px-3 py-2 text-center text-sm">Options</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredApplications.map((app, index) => (
                   <tr key={app.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3">{index + 1}</td>
-                    <td className="px-4 py-3">{app.job?.department?.department_name || 'N/A'}</td>
-                    <td className="px-4 py-3">{app.job?.title || 'N/A'}</td>
-                    <td className="px-4 py-3">{app.candidate_name}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-sm">{index + 1}</td>
+                    <td className="px-3 py-2 text-sm">{app.job?.department?.department_name || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm">{app.job?.title || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm">{app.candidate_name}</td>
+                    <td className="px-3 py-2 text-sm">
                       <select
                         value={app.status}
                         onChange={(e) => handleStatusChange(app.id, e.target.value)}
@@ -1002,14 +1039,14 @@ export default function RecruitmentPage() {
                         <option value="rejected">Rejected</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-sm">
                       {new Date(app.application_date).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric'
                       })}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-sm">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => handleEditApplication(app)}
@@ -1038,20 +1075,20 @@ export default function RecruitmentPage() {
       {/* INTERVIEWS TAB */}
       {activeTab === 'interviews' && (
         <div>
-          <div className="flex justify-end items-center gap-4 mb-4">
+          <div className="flex justify-end items-center gap-2 mb-2">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search interviews..."
                 value={interviewSearchQuery}
                 onChange={(e) => setInterviewSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-64"
+                className="border border-gray-300 rounded-lg px text-sm-3 py-1.5 pr-9 w-56"
               />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
             <button
               onClick={() => setShowInterviewModal(true)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition text-sm"
             >
               <Plus className="w-4 h-4" />
               Schedule Interview
@@ -1062,14 +1099,14 @@ export default function RecruitmentPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="px-4 py-3 text-left">Sr.</th>
-                  <th className="px-4 py-3 text-left">Candidate</th>
-                  <th className="px-4 py-3 text-left">Job</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Time</th>
-                  <th className="px-4 py-3 text-left">Type</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-center">Options</th>
+                  <th className="px-3 py-2 text-left text-sm">Sr.</th>
+                  <th className="px-3 py-2 text-left text-sm">Candidate</th>
+                  <th className="px-3 py-2 text-left text-sm">Job</th>
+                  <th className="px-3 py-2 text-left text-sm">Date</th>
+                  <th className="px-3 py-2 text-left text-sm">Time</th>
+                  <th className="px-3 py-2 text-left text-sm">Type</th>
+                  <th className="px-3 py-2 text-left text-sm">Status</th>
+                  <th className="px-3 py-2 text-center text-sm">Options</th>
                 </tr>
               </thead>
               <tbody>
@@ -1082,20 +1119,20 @@ export default function RecruitmentPage() {
                 ) : (
                   filteredInterviews.map((interview, index) => (
                     <tr key={interview.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="px-4 py-3">{index + 1}</td>
-                      <td className="px-4 py-3">{interview.application?.candidate_name || 'N/A'}</td>
-                      <td className="px-4 py-3">{interview.application?.job?.title || 'N/A'}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 text-sm">{index + 1}</td>
+                      <td className="px-3 py-2 text-sm">{interview.application?.candidate_name || 'N/A'}</td>
+                      <td className="px-3 py-2 text-sm">{interview.application?.job?.title || 'N/A'}</td>
+                      <td className="px-3 py-2 text-sm">
                         {new Date(interview.interview_date).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: 'short',
                           year: 'numeric'
                         })}
                       </td>
-                      <td className="px-4 py-3">{interview.interview_time}</td>
-                      <td className="px-4 py-3 capitalize">{interview.interview_type || 'N/A'}</td>
-                      <td className="px-4 py-3 capitalize">{interview.status}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 text-sm">{interview.interview_time}</td>
+                      <td className="px-3 py-2 capitalize">{interview.interview_type || 'N/A'}</td>
+                      <td className="px-3 py-2 capitalize">{interview.status}</td>
+                      <td className="px-3 py-2 text-sm">
                         <div className="flex justify-center gap-2">
                           {interview.status === 'scheduled' && (
                             <button
@@ -1130,6 +1167,8 @@ export default function RecruitmentPage() {
           </div>
         </div>
       )}
+      </div>
+      {/* End of main-content div - Modals below won't be blurred */}
 
       {/* ADD/EDIT SUBJECT MODAL */}
       {showSubjectModal && (
@@ -1160,7 +1199,7 @@ export default function RecruitmentPage() {
                 placeholder="Subject Name"
                 value={subjectName}
                 onChange={(e) => setSubjectName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
@@ -1210,7 +1249,7 @@ export default function RecruitmentPage() {
             </div>
             <div className="p-2">
               <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select department <span className="text-red-500">*</span>
@@ -1224,7 +1263,7 @@ export default function RecruitmentPage() {
                         setCustomDepartmentName('')
                       }
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
                     <option value="">Select an option</option>
                     {departments.map(dept => (
@@ -1243,7 +1282,7 @@ export default function RecruitmentPage() {
                       placeholder="Enter department name"
                       value={customDepartmentName}
                       onChange={(e) => setCustomDepartmentName(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     />
                   </div>
                 )}
@@ -1256,11 +1295,11 @@ export default function RecruitmentPage() {
                     placeholder="Job title"
                     value={jobForm.title}
                     onChange={(e) => setJobForm({...jobForm, title: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Salary</label>
                   <input
@@ -1268,7 +1307,7 @@ export default function RecruitmentPage() {
                     placeholder="Salary"
                     value={jobForm.salary}
                     onChange={(e) => setJobForm({...jobForm, salary: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1277,7 +1316,7 @@ export default function RecruitmentPage() {
                     type="date"
                     value={jobForm.deadline}
                     onChange={(e) => setJobForm({...jobForm, deadline: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
@@ -1288,7 +1327,7 @@ export default function RecruitmentPage() {
                   value={jobForm.description}
                   onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
                   rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
             </div>
@@ -1337,7 +1376,7 @@ export default function RecruitmentPage() {
             </div>
             <div className="p-2">
               <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Job <span className="text-red-500">*</span>
@@ -1345,7 +1384,7 @@ export default function RecruitmentPage() {
                   <select
                     value={applicationForm.jobId}
                     onChange={(e) => setApplicationForm({...applicationForm, jobId: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
                     <option value="">Select job</option>
                     {jobs.map(job => (
@@ -1362,7 +1401,7 @@ export default function RecruitmentPage() {
                     placeholder="Candidate Name"
                     value={applicationForm.candidateName}
                     onChange={(e) => setApplicationForm({...applicationForm, candidateName: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1372,11 +1411,11 @@ export default function RecruitmentPage() {
                     placeholder="CNIC Number"
                     value={applicationForm.cnicNumber}
                     onChange={(e) => setApplicationForm({...applicationForm, cnicNumber: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Father Name</label>
                   <input
@@ -1384,7 +1423,7 @@ export default function RecruitmentPage() {
                     placeholder="Father Name"
                     value={applicationForm.fatherName}
                     onChange={(e) => setApplicationForm({...applicationForm, fatherName: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1394,7 +1433,7 @@ export default function RecruitmentPage() {
                     placeholder="Email Address"
                     value={applicationForm.email}
                     onChange={(e) => setApplicationForm({...applicationForm, email: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1404,7 +1443,7 @@ export default function RecruitmentPage() {
                     placeholder="Mobile Number"
                     value={applicationForm.mobileNumber}
                     onChange={(e) => setApplicationForm({...applicationForm, mobileNumber: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1422,17 +1461,17 @@ export default function RecruitmentPage() {
                         reader.readAsDataURL(file)
                       }
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
                   <select
                     value={applicationForm.department}
                     onChange={(e) => setApplicationForm({...applicationForm, department: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
                     <option value="">Select department</option>
                     {departments.map(dept => (
@@ -1445,7 +1484,7 @@ export default function RecruitmentPage() {
                   <select
                     value={applicationForm.experienceLevel}
                     onChange={(e) => setApplicationForm({...applicationForm, experienceLevel: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
                     <option value="">Select experience level</option>
                     <option value="fresher">Fresher</option>
@@ -1499,7 +1538,7 @@ export default function RecruitmentPage() {
             </div>
             <div className="p-2">
               <h3 className="text-sm font-semibold mb-4 text-gray-700">INTERVIEW DETAILS</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Application <span className="text-red-500">*</span>
@@ -1507,7 +1546,7 @@ export default function RecruitmentPage() {
                   <select
                     value={interviewForm.applicationId}
                     onChange={(e) => setInterviewForm({...interviewForm, applicationId: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     disabled={editingInterview}
                   >
                     <option value="">Select application</option>
@@ -1525,7 +1564,7 @@ export default function RecruitmentPage() {
                   <select
                     value={interviewForm.interviewType}
                     onChange={(e) => setInterviewForm({...interviewForm, interviewType: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
                     <option value="">Select type</option>
                     <option value="phone">Phone</option>
@@ -1535,7 +1574,7 @@ export default function RecruitmentPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Interview Date <span className="text-red-500">*</span>
@@ -1544,7 +1583,7 @@ export default function RecruitmentPage() {
                     type="date"
                     value={interviewForm.interviewDate}
                     onChange={(e) => setInterviewForm({...interviewForm, interviewDate: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1555,7 +1594,7 @@ export default function RecruitmentPage() {
                     type="time"
                     value={interviewForm.interviewTime}
                     onChange={(e) => setInterviewForm({...interviewForm, interviewTime: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
@@ -1566,7 +1605,7 @@ export default function RecruitmentPage() {
                   placeholder="Interview location"
                   value={interviewForm.location}
                   onChange={(e) => setInterviewForm({...interviewForm, location: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
               <div className="mb-4">
@@ -1576,7 +1615,7 @@ export default function RecruitmentPage() {
                   value={interviewForm.notes}
                   onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
             </div>
@@ -1640,7 +1679,7 @@ export default function RecruitmentPage() {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+            className={`flex items-center gap-3 min-w-[320px] max-w-md px-3 py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               toast.type === 'success' ? 'bg-blue-500' :
               toast.type === 'error' ? 'bg-blue-600' :
               toast.type === 'warning' ? 'bg-blue-500' :

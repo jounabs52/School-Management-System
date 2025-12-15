@@ -324,7 +324,7 @@ export default function SalaryPaidReport() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-1">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -351,8 +351,8 @@ export default function SalaryPaidReport() {
       />
 
       {/* Header */}
-      <div className="mb-6 print:mb-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="mb-2 print:mb-2">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/payroll/reports')}
@@ -362,7 +362,7 @@ export default function SalaryPaidReport() {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 print:text-2xl">Salary Payment Report</h1>
+              <h1 className="text-base font-bold text-gray-800 print:text-lg">Salary Payment Report</h1>
               <p className="text-gray-600 text-sm mt-1">
                 Report for {getMonthName(selectedMonth)} {selectedYear}
                 {statusFilter !== 'all' && ` - Status: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`}
@@ -372,21 +372,21 @@ export default function SalaryPaidReport() {
           <div className="flex gap-2 print:hidden">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Filter size={16} />
               Filters
             </button>
             <button
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
@@ -396,14 +396,14 @@ export default function SalaryPaidReport() {
 
         {/* Filters */}
         {showFilters && (
-          <div className="bg-white rounded-lg shadow-md p-4 mb-4 print:hidden">
+          <div className="bg-white rounded-lg shadow-md p-4 mb-2 print:hidden">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                     <option key={month} value={month}>{getMonthName(month)}</option>
@@ -415,7 +415,7 @@ export default function SalaryPaidReport() {
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                     <option key={year} value={year}>{year}</option>
@@ -427,7 +427,7 @@ export default function SalaryPaidReport() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Status</option>
                   <option value="paid">Paid</option>
@@ -461,24 +461,24 @@ export default function SalaryPaidReport() {
               <tbody>
                 {filteredPayments.map((payment, index) => (
                   <tr key={payment.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{index + 1}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm font-medium">
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm">{index + 1}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm font-medium">
                       {payment.staff?.first_name} {payment.staff?.last_name}
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm">
                       {payment.staff?.employee_number || 'N/A'}
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm">
                       Salary {payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : 'Partial'} for {getMonthName(payment.payment_month)} {payment.payment_year}
                       {payment.remarks && ` - ${payment.remarks}`}
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-right font-semibold">
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm text-right font-semibold">
                       {parseFloat(payment.net_salary || 0).toLocaleString()}
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-center">
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm text-center">
                       {new Date(payment.payment_date).toLocaleDateString('en-GB')}
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-center print:hidden">
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm text-center print:hidden">
                       {payment.paid_by_user?.username || 'N/A'}
                     </td>
                   </tr>
@@ -500,7 +500,7 @@ export default function SalaryPaidReport() {
         ) : (
           <div className="text-center py-12 text-gray-500 border border-gray-300">
             <div className="mb-2">Grand Total</div>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-lg font-bold">0</div>
             <div className="mt-4 text-sm">No salary payments found for the selected period.</div>
           </div>
         )}
@@ -512,15 +512,15 @@ export default function SalaryPaidReport() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Payments</p>
-              <p className="text-2xl font-bold text-blue-600">{filteredPayments.length}</p>
+              <p className="text-lg font-bold text-blue-600">{filteredPayments.length}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Amount Paid</p>
-              <p className="text-2xl font-bold text-green-600">Rs {calculateGrandTotal().toLocaleString()}</p>
+              <p className="text-lg font-bold text-green-600">Rs {calculateGrandTotal().toLocaleString()}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">Average Salary</p>
-              <p className="text-2xl font-bold text-purple-600">
+              <p className="text-lg font-bold text-purple-600">
                 Rs {filteredPayments.length > 0 ? (calculateGrandTotal() / filteredPayments.length).toFixed(0).toLocaleString() : 0}
               </p>
             </div>

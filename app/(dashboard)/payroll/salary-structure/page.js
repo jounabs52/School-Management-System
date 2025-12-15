@@ -63,6 +63,36 @@ export default function SalaryStructurePage() {
     }
   }, [currentUser, searchEmployeeNumber, searchGeneralData])
 
+  // Apply blur effect to sidebar when modals are open
+  useEffect(() => {
+    const anyModalOpen = showDeleteModal
+
+    if (anyModalOpen) {
+      document.body.style.overflow = 'hidden'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showDeleteModal])
+
   const loadStaffList = async () => {
     if (!currentUser?.school_id) return
 
@@ -370,81 +400,76 @@ export default function SalaryStructurePage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-1">
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+        <div className="mb-2 bg-green-100 border border-green-400 text-green-700 px-3 py-2 text-sm rounded relative">
           {success}
         </div>
       )}
       {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
+        <div className="mb-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 text-sm rounded relative flex items-center gap-2">
           <AlertCircle size={20} />
           {error}
         </div>
       )}
 
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Salary Structure Management</h1>
-        <p className="text-gray-600 mt-1">Set and manage staff salary structures, allowances, and deductions</p>
-      </div>
-
-      {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Employee Number</label>
-            <input
-              type="text"
-              placeholder="Employee Number"
-              value={searchEmployeeNumber}
-              onChange={(e) => setSearchEmployeeNumber(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      {/* Search Section - Only show when no staff is selected */}
+      {!selectedStaff && (
+        <div className="bg-white rounded-lg shadow-md p-3 mb-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Employee Number</label>
+              <input
+                type="text"
+                placeholder="Employee Number"
+                value={searchEmployeeNumber}
+                onChange={(e) => setSearchEmployeeNumber(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">OR General Data</label>
+              <input
+                type="text"
+                placeholder="Search by name, father name or employee number"
+                value={searchGeneralData}
+                onChange={(e) => setSearchGeneralData(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">OR General Data</label>
-            <input
-              type="text"
-              placeholder="Search by name, father name or employee number"
-              value={searchGeneralData}
-              onChange={(e) => setSearchGeneralData(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+          <p className="text-sm text-gray-500">
+            Click on <span className="text-blue-600 font-medium underline cursor-pointer" onClick={clearScreen}>clear screen</span> or press <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Shift+Esc</kbd> to clear the screen.
+          </p>
         </div>
-        <p className="text-sm text-gray-500">
-          Click on <span className="text-blue-600 font-medium underline cursor-pointer" onClick={clearScreen}>clear screen</span> or press <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Shift+Esc</kbd> to clear the screen.
-        </p>
-      </div>
+      )}
 
       {/* Staff List */}
       {!selectedStaff && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">Active Staff Members</h2>
-
+        <div className="bg-white rounded-lg shadow-md p-3">
           {loading ? (
             <div className="text-center py-8 text-gray-500">Loading staff...</div>
           ) : staffList.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Staff Name</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Employee Number</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Designation</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Department</th>
-                    <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Options</th>
+                  <tr className="bg-blue-600 text-white">
+                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Staff Name</th>
+                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Employee Number</th>
+                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Designation</th>
+                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Department</th>
+                    <th className="border border-gray-300 px-3 py-2 text-sm text-center font-semibold">Options</th>
                   </tr>
                 </thead>
                 <tbody>
                   {staffList.map((staff, index) => (
                     <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.first_name} {staff.last_name}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.employee_number || 'N/A'}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.designation || 'N/A'}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.department || 'N/A'}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-center">
+                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.first_name} {staff.last_name}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.employee_number || 'N/A'}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.designation || 'N/A'}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.department || 'N/A'}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-sm text-center">
                         <button
                           onClick={() => loadStaffSalaryStructure(staff)}
                           className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-1 rounded font-medium transition-colors"
@@ -465,17 +490,17 @@ export default function SalaryStructurePage() {
 
       {/* Salary Structure Form */}
       {selectedStaff && (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-2">
           {/* Staff Info Header */}
-          <div className="flex items-center gap-4 mb-6 pb-6 border-b">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-3xl">👨‍💼</span>
+          <div className="flex items-center gap-2 mb-1 pb-2 border-b">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-sm">👨‍💼</span>
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-blue-600">
+              <h2 className="text-sm font-bold text-blue-600">
                 {selectedStaff.first_name} {selectedStaff.last_name}
               </h2>
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-1">
+              <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
                 <span>Employee No: {selectedStaff.employee_number || 'N/A'}</span>
                 <span>Designation: {selectedStaff.designation || 'N/A'}</span>
                 <span>Department: {selectedStaff.department || 'N/A'}</span>
@@ -493,78 +518,78 @@ export default function SalaryStructurePage() {
 
           {/* Status Badge */}
           {existingStructure && (
-            <div className="mb-6">
+            <div className="mb-1">
               <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
                 ✓ Salary Structure Exists
               </span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             {/* Basic Salary & Allowances */}
-            <div className="bg-green-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
+            <div className="bg-green-50 rounded-lg p-2">
+              <h3 className="text-sm font-semibold text-green-700 mb-1 flex items-center gap-2">
                 <span>💰</span> Basic Salary & Allowances
               </h3>
 
-              <div className="space-y-4">
+              <div className="space-y-1">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700">
                     Basic Salary <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
                     value={basicSalary}
                     onChange={(e) => setBasicSalary(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">House Allowance</label>
+                  <label className="block text-xs font-medium text-gray-700">House Allowance</label>
                   <input
                     type="number"
                     value={houseAllowance}
                     onChange={(e) => setHouseAllowance(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Medical Allowance</label>
+                  <label className="block text-xs font-medium text-gray-700">Medical Allowance</label>
                   <input
                     type="number"
                     value={medicalAllowance}
                     onChange={(e) => setMedicalAllowance(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Transport Allowance</label>
+                  <label className="block text-xs font-medium text-gray-700">Transport Allowance</label>
                   <input
                     type="number"
                     value={transportAllowance}
                     onChange={(e) => setTransportAllowance(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Other Allowances</label>
+                  <label className="block text-xs font-medium text-gray-700">Other Allowances</label>
                   <input
                     type="number"
                     value={otherAllowances}
                     onChange={(e) => setOtherAllowances(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
@@ -573,100 +598,100 @@ export default function SalaryStructurePage() {
             </div>
 
             {/* Deductions */}
-            <div className="bg-red-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-red-700 mb-4 flex items-center gap-2">
+            <div className="bg-red-50 rounded-lg p-2">
+              <h3 className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-2">
                 <span>➖</span> Deductions
               </h3>
 
-              <div className="space-y-4">
+              <div className="space-y-1">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Provident Fund</label>
+                  <label className="block text-xs font-medium text-gray-700">Provident Fund</label>
                   <input
                     type="number"
                     value={providentFund}
                     onChange={(e) => setProvidentFund(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax Deduction</label>
+                  <label className="block text-xs font-medium text-gray-700">Tax Deduction</label>
                   <input
                     type="number"
                     value={taxDeduction}
                     onChange={(e) => setTaxDeduction(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Other Deductions</label>
+                  <label className="block text-xs font-medium text-gray-700">Other Deductions</label>
                   <input
                     type="number"
                     value={otherDeductions}
                     onChange={(e) => setOtherDeductions(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
-                <div className="pt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Effective From</label>
+                <div className="pt-1">
+                  <label className="block text-xs font-medium text-gray-700">Effective From</label>
                   <input
                     type="date"
                     value={effectiveFrom}
                     onChange={(e) => setEffectiveFrom(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Effective To (Optional)</label>
+                  <label className="block text-xs font-medium text-gray-700">Effective To (Optional)</label>
                   <input
                     type="date"
                     value={effectiveTo}
                     onChange={(e) => setEffectiveTo(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   />
                 </div>
               </div>
             </div>
 
             {/* Summary */}
-            <div className="bg-blue-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-blue-700 mb-4 flex items-center gap-2">
+            <div className="bg-blue-50 rounded-lg p-2">
+              <h3 className="text-sm font-semibold text-blue-700 mb-1 flex items-center gap-2">
                 <span>📊</span> Salary Summary
               </h3>
 
-              <div className="space-y-4">
-                <div className="p-4 bg-white rounded-lg border border-blue-200">
-                  <div className="text-sm text-gray-600">Gross Salary</div>
-                  <div className="text-2xl font-bold text-blue-600">{calculateGrossSalary().toLocaleString()} PKR</div>
-                  <div className="text-xs text-gray-500 mt-1">Basic + All Allowances</div>
+              <div className="space-y-1">
+                <div className="p-2 bg-white rounded-lg border border-blue-200">
+                  <div className="text-xs text-gray-600">Gross Salary</div>
+                  <div className="text-sm font-bold text-blue-600">{calculateGrossSalary().toLocaleString()} PKR</div>
+                  <div className="text-xs text-gray-500">Basic + All Allowances</div>
                 </div>
 
-                <div className="p-4 bg-white rounded-lg border border-red-200">
-                  <div className="text-sm text-gray-600">Total Deductions</div>
-                  <div className="text-2xl font-bold text-red-600">{calculateTotalDeductions().toLocaleString()} PKR</div>
-                  <div className="text-xs text-gray-500 mt-1">All Deductions</div>
+                <div className="p-2 bg-white rounded-lg border border-red-200">
+                  <div className="text-xs text-gray-600">Total Deductions</div>
+                  <div className="text-sm font-bold text-red-600">{calculateTotalDeductions().toLocaleString()} PKR</div>
+                  <div className="text-xs text-gray-500">All Deductions</div>
                 </div>
 
-                <div className="p-4 bg-green-100 rounded-lg border-2 border-green-400">
-                  <div className="text-sm text-gray-700 font-medium">Net Salary (Take Home)</div>
-                  <div className="text-3xl font-bold text-green-700">{calculateNetSalary().toLocaleString()} PKR</div>
-                  <div className="text-xs text-gray-600 mt-1">Gross - Deductions</div>
+                <div className="p-2 bg-green-100 rounded-lg border-2 border-green-400">
+                  <div className="text-xs text-gray-700 font-medium">Net Salary (Take Home)</div>
+                  <div className="text-sm font-bold text-green-700">{calculateNetSalary().toLocaleString()} PKR</div>
+                  <div className="text-xs text-gray-600">Gross - Deductions</div>
                 </div>
 
-                <div className="pt-4 space-y-2">
+                <div className="pt-1 space-y-1">
                   <button
                     onClick={handleSaveSalaryStructure}
                     disabled={saving || basicSalary <= 0}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {saving ? 'Saving...' : existingStructure ? 'Update Salary Structure' : 'Create Salary Structure'}
                   </button>
@@ -674,7 +699,7 @@ export default function SalaryStructurePage() {
                   {existingStructure && (
                     <button
                       onClick={() => setShowDeleteModal(true)}
-                      className="w-full bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                      className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors"
                     >
                       Delete Salary Structure
                     </button>
@@ -682,7 +707,7 @@ export default function SalaryStructurePage() {
 
                   <button
                     onClick={() => setSelectedStaff(null)}
-                    className="w-full bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                    className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors"
                   >
                     Back to Staff List
                   </button>
@@ -692,54 +717,54 @@ export default function SalaryStructurePage() {
           </div>
 
           {/* Breakdown Table */}
-          <div className="mt-6 overflow-x-auto">
+          <div className="mt-2 overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Component</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right font-semibold">Amount (PKR)</th>
+                  <th className="border border-gray-300 px-2 py-1 text-xs text-left font-semibold">Component</th>
+                  <th className="border border-gray-300 px-2 py-1 text-xs text-right font-semibold">Amount (PKR)</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border border-gray-300 px-4 py-2 font-medium">Basic Salary</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right">{parseFloat(basicSalary || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs font-medium">Basic Salary</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right">{parseFloat(basicSalary || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ House Allowance</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(houseAllowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ House Allowance</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(houseAllowance || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ Medical Allowance</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(medicalAllowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ Medical Allowance</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(medicalAllowance || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ Transport Allowance</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(transportAllowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ Transport Allowance</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(transportAllowance || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-4 py-2 pl-8 text-green-700">+ Other Allowances</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right text-green-700">{parseFloat(otherAllowances || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ Other Allowances</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(otherAllowances || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-blue-100 font-bold">
-                  <td className="border border-gray-300 px-4 py-3">= Gross Salary</td>
-                  <td className="border border-gray-300 px-4 py-3 text-right text-blue-700">{calculateGrossSalary().toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs">= Gross Salary</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-blue-700">{calculateGrossSalary().toLocaleString()}</td>
                 </tr>
                 <tr className="bg-red-50">
-                  <td className="border border-gray-300 px-4 py-2 pl-8 text-red-700">- Provident Fund</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right text-red-700">{parseFloat(providentFund || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-red-700">- Provident Fund</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-red-700">{parseFloat(providentFund || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-red-50">
-                  <td className="border border-gray-300 px-4 py-2 pl-8 text-red-700">- Tax Deduction</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right text-red-700">{parseFloat(taxDeduction || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-red-700">- Tax Deduction</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-red-700">{parseFloat(taxDeduction || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-red-50">
-                  <td className="border border-gray-300 px-4 py-2 pl-8 text-red-700">- Other Deductions</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right text-red-700">{parseFloat(otherDeductions || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-red-700">- Other Deductions</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-red-700">{parseFloat(otherDeductions || 0).toLocaleString()}</td>
                 </tr>
-                <tr className="bg-green-200 font-bold text-lg">
-                  <td className="border border-gray-300 px-4 py-3">= Net Salary</td>
-                  <td className="border border-gray-300 px-4 py-3 text-right text-green-800">{calculateNetSalary().toLocaleString()}</td>
+                <tr className="bg-green-200 font-bold">
+                  <td className="border border-gray-300 px-2 py-1 text-xs">= Net Salary</td>
+                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-800">{calculateNetSalary().toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
@@ -757,10 +782,10 @@ export default function SalaryStructurePage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+                <h3 className="text-base font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
+              <div className="p-3">
+                <p className="text-gray-700 mb-2">
                   Are you sure you want to delete the salary structure for <span className="font-bold text-red-600">{selectedStaff.first_name} {selectedStaff.last_name}</span>? This action cannot be undone.
                 </p>
                 <div className="flex gap-3">

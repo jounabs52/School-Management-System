@@ -334,7 +334,7 @@ export default function SalaryRegisterReport() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-1">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -361,8 +361,8 @@ export default function SalaryRegisterReport() {
       />
 
       {/* Header */}
-      <div className="mb-6 print:mb-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="mb-2 print:mb-2">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/payroll/reports')}
@@ -372,7 +372,7 @@ export default function SalaryRegisterReport() {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 print:text-2xl">Staff Salary Register</h1>
+              <h1 className="text-base font-bold text-gray-800 print:text-lg">Staff Salary Register</h1>
               <p className="text-gray-600 text-sm mt-1">
                 Report Criteria [Month: {getMonthName(selectedMonth)} | Year: {selectedYear}]
               </p>
@@ -381,14 +381,14 @@ export default function SalaryRegisterReport() {
           <div className="flex gap-2 print:hidden">
             <button
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
@@ -397,13 +397,13 @@ export default function SalaryRegisterReport() {
         </div>
 
         {/* Month/Year Filter */}
-        <div className="flex gap-4 mb-4 print:hidden">
+        <div className="flex gap-4 mb-2 print:hidden">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                 <option key={month} value={month}>{getMonthName(month)}</option>
@@ -415,7 +415,7 @@ export default function SalaryRegisterReport() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                 <option key={year} value={year}>{year}</option>

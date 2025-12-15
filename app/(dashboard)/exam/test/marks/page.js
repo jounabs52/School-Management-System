@@ -540,7 +540,7 @@ export default function TestMarksPage() {
   const viewSubjectData = subjects.find(s => s.id === viewSubject)
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
+    <div className="p-1">
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map(toast => (
           <div
@@ -562,30 +562,30 @@ export default function TestMarksPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Test Marks Management</h1>
-          <div className="flex gap-3">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold text-gray-800">Test Marks Management</h1>
+          <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('enter')}
-              className={`px-6 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
                 activeTab === 'enter'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <FileText className="w-5 h-5" />
+              <FileText className="w-4 h-4" />
               Enter Marks
             </button>
             <button
               onClick={() => setActiveTab('view')}
-              className={`px-6 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
                 activeTab === 'view'
-                  ? 'bg-green-600 text-white'
+                  ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <Eye className="w-5 h-5" />
+              <Eye className="w-4 h-4" />
               View Results
             </button>
           </div>
@@ -593,7 +593,7 @@ export default function TestMarksPage() {
 
         {activeTab === 'enter' && (
           <div>
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-4 gap-3 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Test <span className="text-red-500">*</span>
@@ -601,7 +601,7 @@ export default function TestMarksPage() {
                 <select
                   value={selectedTest}
                   onChange={(e) => handleTestChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 >
                   <option value="">Select Test</option>
                   {tests.map(test => (
@@ -618,7 +618,7 @@ export default function TestMarksPage() {
                   type="text"
                   value={selectedTestData?.classes?.class_name || ''}
                   disabled
-                  className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-100"
                 />
               </div>
 
@@ -628,7 +628,7 @@ export default function TestMarksPage() {
                   type="text"
                   value={selectedTestData?.sections?.section_name || 'All Sections'}
                   disabled
-                  className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-100"
                 />
               </div>
 
@@ -640,7 +640,7 @@ export default function TestMarksPage() {
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value)}
                   disabled={!selectedTest}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 >
                   <option value="">Select Subject</option>
                   {subjects.map(subject => (
@@ -653,7 +653,7 @@ export default function TestMarksPage() {
             </div>
 
             {selectedTestData && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="font-semibold text-gray-700">Total Marks:</span>
@@ -685,7 +685,7 @@ export default function TestMarksPage() {
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto" style={{ maxHeight: '600px', overflowY: 'auto' }}>
                   <table className="w-full">
-                    <thead className="bg-blue-900 text-white sticky top-0 z-10">
+                    <thead className="bg-blue-600 text-white sticky top-0 z-10">
                       <tr>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Admission No</th>
@@ -703,12 +703,12 @@ export default function TestMarksPage() {
                         const marks = marksData[student.id] || {}
                         return (
                           <tr key={student.id} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm">{student.roll_number || 'N/A'}</td>
-                            <td className="px-4 py-3 text-sm">{student.admission_number}</td>
-                            <td className="px-4 py-3 text-sm font-medium">
+                            <td className="px-3 py-2 text-sm">{student.roll_number || 'N/A'}</td>
+                            <td className="px-3 py-2 text-sm">{student.admission_number}</td>
+                            <td className="px-3 py-2 text-sm font-medium">
                               {student.first_name} {student.last_name}
                             </td>
-                            <td className="px-4 py-3 text-sm">{student.father_name}</td>
+                            <td className="px-3 py-2 text-sm">{student.father_name}</td>
                             <td className="px-4 py-3">
                               <input
                                 type="number"
@@ -746,22 +746,22 @@ export default function TestMarksPage() {
                   </table>
                 </div>
 
-                <div className="bg-gray-50 px-4 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
                   <button
                     onClick={() => {
                       setMarksData(existingMarks)
                       showToast('Changes reset', 'info')
                     }}
-                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium"
                   >
                     Reset
                   </button>
                   <button
                     onClick={handleSaveMarks}
                     disabled={loading}
-                    className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-8 py-2 rounded-lg flex items-center gap-2 font-medium"
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
                   >
-                    <Save className="w-5 h-5" />
+                    <Save className="w-4 h-4" />
                     {loading ? 'Saving...' : 'Save Marks'}
                   </button>
                 </div>
@@ -786,7 +786,7 @@ export default function TestMarksPage() {
 
         {activeTab === 'view' && (
           <div>
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-3 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Test <span className="text-red-500">*</span>
@@ -794,7 +794,7 @@ export default function TestMarksPage() {
                 <select
                   value={viewTest}
                   onChange={(e) => handleViewTestChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 >
                   <option value="">Select Test</option>
                   {completedTests.map(test => (
@@ -813,7 +813,7 @@ export default function TestMarksPage() {
                   value={viewSubject}
                   onChange={(e) => setViewSubject(e.target.value)}
                   disabled={!viewTest}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 >
                   <option value="">Select Subject</option>
                   {subjects.map(subject => (
@@ -828,16 +828,16 @@ export default function TestMarksPage() {
                 <button
                   onClick={generatePDF}
                   disabled={!viewTest || !viewSubject || viewMarks.length === 0}
-                  className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center justify-center gap-2 font-medium"
+                  className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
                 >
-                  <Printer className="w-5 h-5" />
+                  <Printer className="w-4 h-4" />
                   Print PDF
                 </button>
               </div>
             </div>
 
             {viewTestData && viewSubject && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="font-semibold text-gray-700">Test Name:</span>
@@ -863,7 +863,7 @@ export default function TestMarksPage() {
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto" style={{ maxHeight: '600px', overflowY: 'auto' }}>
                   <table className="w-full">
-                    <thead className="bg-blue-900 text-white sticky top-0 z-10">
+                    <thead className="bg-blue-600 text-white sticky top-0 z-10">
                       <tr>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
@@ -884,25 +884,25 @@ export default function TestMarksPage() {
 
                         return (
                           <tr key={mark.id} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm">{index + 1}</td>
-                            <td className="px-4 py-3 text-sm">{student.roll_number || 'N/A'}</td>
-                            <td className="px-4 py-3 text-sm">{student.admission_number}</td>
-                            <td className="px-4 py-3 text-sm font-medium">
+                            <td className="px-3 py-2 text-sm">{index + 1}</td>
+                            <td className="px-3 py-2 text-sm">{student.roll_number || 'N/A'}</td>
+                            <td className="px-3 py-2 text-sm">{student.admission_number}</td>
+                            <td className="px-3 py-2 text-sm font-medium">
                               {student.first_name} {student.last_name}
                             </td>
-                            <td className="px-4 py-3 text-sm">{student.father_name}</td>
-                            <td className="px-4 py-3 text-sm text-center">{viewTestData.total_marks}</td>
-                            <td className="px-4 py-3 text-sm text-center font-medium">
+                            <td className="px-3 py-2 text-sm">{student.father_name}</td>
+                            <td className="px-3 py-2 text-sm text-center">{viewTestData.total_marks}</td>
+                            <td className="px-3 py-2 text-sm text-center font-medium">
                               {mark.is_absent ? (
                                 <span className="text-red-600">Absent</span>
                               ) : (
                                 mark.obtained_marks || 0
                               )}
                             </td>
-                            <td className="px-4 py-3 text-sm text-center">
+                            <td className="px-3 py-2 text-sm text-center">
                               {mark.is_absent ? '-' : `${percentage}%`}
                             </td>
-                            <td className="px-4 py-3 text-sm">
+                            <td className="px-3 py-2 text-sm">
                               {mark.is_absent ? (
                                 <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                   Absent

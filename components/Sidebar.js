@@ -73,7 +73,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       { title: "Pay Salary", href: "/payroll/pay" },
       { title: "Salary Slips", href: "/payroll/slips" },
       { title: "Reports", href: "/payroll/reports" },
-      { title: "Expenses", href: "/payroll/expenses" },
+      { title: "Other Expenses", href: "/payroll/expenses" },
     ]},
     { title: "Examination", icon: Award, key: "exam", submenus: [
       { title: "Exams", href: "/exam/exams" },

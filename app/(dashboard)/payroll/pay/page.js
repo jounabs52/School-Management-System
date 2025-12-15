@@ -68,6 +68,36 @@ export default function StaffPayrollPage() {
     }
   }, [currentUser, searchEmployeeNumber, searchGeneralData])
 
+  // Apply blur effect to sidebar when modals are open
+  useEffect(() => {
+    const anyModalOpen = showPaymentHistoryModal || showSalaryStructureModal || showConfirmPaymentModal || showDeletePaymentModal
+
+    if (anyModalOpen) {
+      document.body.style.overflow = 'hidden'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showPaymentHistoryModal, showSalaryStructureModal, showConfirmPaymentModal, showDeletePaymentModal])
+
   const loadStaffList = async () => {
     if (!currentUser?.school_id) return
 
@@ -315,43 +345,41 @@ export default function StaffPayrollPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-1">
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+        <div className="mb-2 bg-green-100 border border-green-400 text-green-700 px-3 py-2 rounded relative text-sm">
           {success}
         </div>
       )}
       {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <AlertCircle size={20} />
+        <div className="mb-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded relative flex items-center gap-2 text-sm">
+          <AlertCircle size={16} />
           {error}
         </div>
       )}
 
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Staff Payroll - Pay Salary</h1>
-
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="bg-white rounded-lg shadow-md p-3 mb-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Employee Number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Employee Number</label>
             <input
               type="text"
               placeholder="Employee Number"
               value={searchEmployeeNumber}
               onChange={(e) => setSearchEmployeeNumber(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">OR General Data</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">OR General Data</label>
             <input
               type="text"
               placeholder="Search by name, father name or employee number"
               value={searchGeneralData}
               onChange={(e) => setSearchGeneralData(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -362,34 +390,32 @@ export default function StaffPayrollPage() {
 
       {/* Staff List */}
       {!selectedStaff && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">Active Staff Members</h2>
-
+        <div className="bg-white rounded-lg shadow-md p-3">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">Loading staff...</div>
+            <div className="text-center py-4 text-gray-500 text-sm">Loading staff...</div>
           ) : staffList.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Staff Name</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Father Name</th>
-                    <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Employee Number</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Designation</th>
-                    <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Options</th>
+                  <tr className="bg-blue-600 text-white text-sm">
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Staff Name</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Father Name</th>
+                    <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Employee Number</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Designation</th>
+                    <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Options</th>
                   </tr>
                 </thead>
                 <tbody>
                   {staffList.map((staff, index) => (
                     <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.first_name} {staff.last_name}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.father_name || ''}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-center text-gray-800">{staff.employee_number || 'N/A'}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-gray-800">{staff.designation || 'N/A'}</td>
-                      <td className="border border-gray-300 px-4 py-2 text-center">
+                      <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.first_name} {staff.last_name}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.father_name || ''}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-center text-gray-800 text-sm">{staff.employee_number || 'N/A'}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.designation || 'N/A'}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-center">
                         <button
                           onClick={() => loadStaffDetails(staff)}
-                          className="bg-green-500 hover:bg-green-600 text-white px-6 py-1 rounded font-medium transition-colors"
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded text-sm font-medium transition-colors"
                         >
                           Load
                         </button>
@@ -400,24 +426,24 @@ export default function StaffPayrollPage() {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">No active staff found. Please adjust your search criteria.</div>
+            <div className="text-center py-4 text-gray-500 text-sm">No active staff found. Please adjust your search criteria.</div>
           )}
         </div>
       )}
 
       {/* Staff Salary Details */}
       {selectedStaff && (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-3">
           {/* Staff Info Header */}
-          <div className="flex items-center gap-4 mb-6 pb-6 border-b">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-3xl">👨‍💼</span>
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-lg">👨‍💼</span>
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-blue-600">
+              <h2 className="text-lg font-bold text-blue-600">
                 {selectedStaff.first_name} {selectedStaff.last_name}
               </h2>
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-1">
+              <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
                 <span>Father: {selectedStaff.father_name || 'N/A'}</span>
                 <span>Employee No: {selectedStaff.employee_number || 'N/A'}</span>
                 <span>Designation: {selectedStaff.designation || 'N/A'}</span>
@@ -428,7 +454,7 @@ export default function StaffPayrollPage() {
               onClick={() => setSelectedStaff(null)}
               className="text-gray-500 hover:text-gray-700"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -436,13 +462,13 @@ export default function StaffPayrollPage() {
 
           {/* Summary Cards */}
           {salaryStructure && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{salaryStructure.basic_salary?.toLocaleString() || 0}</div>
-                <div className="text-sm text-gray-600">Basic Salary</div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
+              <div className="text-center p-2 bg-blue-50 rounded-lg">
+                <div className="text-lg font-bold text-blue-600">{salaryStructure.basic_salary?.toLocaleString() || 0}</div>
+                <div className="text-xs text-gray-600">Basic Salary</div>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
+              <div className="text-center p-2 bg-green-50 rounded-lg">
+                <div className="text-lg font-bold text-green-600">
                   {(
                     (salaryStructure.house_allowance || 0) +
                     (salaryStructure.medical_allowance || 0) +
@@ -450,47 +476,47 @@ export default function StaffPayrollPage() {
                     (salaryStructure.other_allowances || 0)
                   ).toLocaleString()}
                 </div>
-                <div className="text-sm text-gray-600">Total Allowances</div>
+                <div className="text-xs text-gray-600">Total Allowances</div>
               </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <div className="text-2xl font-bold text-red-600">
+              <div className="text-center p-2 bg-red-50 rounded-lg">
+                <div className="text-lg font-bold text-red-600">
                   {(
                     (salaryStructure.provident_fund || 0) +
                     (salaryStructure.tax_deduction || 0) +
                     (salaryStructure.other_deductions || 0)
                   ).toLocaleString()}
                 </div>
-                <div className="text-sm text-gray-600">Total Deductions</div>
+                <div className="text-xs text-gray-600">Total Deductions</div>
               </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">{salaryStructure.net_salary?.toLocaleString() || 0}</div>
-                <div className="text-sm text-gray-600">Net Salary</div>
+              <div className="text-center p-2 bg-purple-50 rounded-lg">
+                <div className="text-lg font-bold text-purple-600">{salaryStructure.net_salary?.toLocaleString() || 0}</div>
+                <div className="text-xs text-gray-600">Net Salary</div>
               </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">{getCurrentYearPaid().toLocaleString()}</div>
-                <div className="text-sm text-gray-600">Paid This Year</div>
+              <div className="text-center p-2 bg-orange-50 rounded-lg">
+                <div className="text-lg font-bold text-orange-600">{getCurrentYearPaid().toLocaleString()}</div>
+                <div className="text-xs text-gray-600">Paid This Year</div>
               </div>
             </div>
           )}
 
           {!salaryStructure && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-              <p className="text-yellow-800 font-medium">⚠️ No salary structure defined for this staff member.</p>
-              <p className="text-yellow-700 text-sm mt-1">Please create a salary structure before processing payments.</p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-2">
+              <p className="text-yellow-800 font-medium text-sm">⚠️ No salary structure defined for this staff member.</p>
+              <p className="text-yellow-700 text-xs mt-1">Please create a salary structure before processing payments.</p>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-2">
             <button
               onClick={() => setShowSalaryStructureModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
               <span>💰</span> View Salary Structure
             </button>
             <button
               onClick={() => setShowPaymentHistoryModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-green-500 text-white hover:bg-green-600 transition-colors"
+              className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors"
             >
               <span>📋</span> Payment History ({paymentHistory.length})
             </button>
@@ -498,16 +524,16 @@ export default function StaffPayrollPage() {
 
           {/* Payment Form */}
           {salaryStructure && (
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Process Monthly Salary Payment</h3>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h3 className="text-base font-semibold text-gray-800 mb-2">Process Monthly Salary Payment</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Month</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Month</label>
                   <select
                     value={paymentMonth}
                     onChange={(e) => setPaymentMonth(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                       <option key={month} value={month}>{getMonthName(month)}</option>
@@ -515,11 +541,11 @@ export default function StaffPayrollPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Year</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Year</label>
                   <select
                     value={paymentYear}
                     onChange={(e) => setPaymentYear(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   >
                     {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                       <option key={year} value={year}>{year}</option>
@@ -527,23 +553,23 @@ export default function StaffPayrollPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
                   <input
                     type="date"
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   >
                     <option value="cash">Cash</option>
                     <option value="cheque">Cheque</option>
@@ -551,11 +577,11 @@ export default function StaffPayrollPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
                   <select
                     value={paymentStatus}
                     onChange={(e) => setPaymentStatus(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   >
                     <option value="paid">Paid (Completed)</option>
                     <option value="pending">Pending (Unpaid)</option>
@@ -563,32 +589,32 @@ export default function StaffPayrollPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID (Optional)</label>
                   <input
                     type="text"
                     placeholder="Transaction ID / Cheque Number"
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   />
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks (Optional)</label>
+              <div className="mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Remarks (Optional)</label>
                 <textarea
                   placeholder="Enter any remarks or notes"
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   rows={2}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg mb-4">
+              <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg mb-2">
                 <div>
-                  <p className="text-sm text-gray-600">Net Salary to be Paid</p>
-                  <p className="text-3xl font-bold text-blue-600">{salaryStructure.net_salary?.toLocaleString()} PKR</p>
+                  <p className="text-xs text-gray-600">Net Salary to be Paid</p>
+                  <p className="text-base font-bold text-blue-600">{salaryStructure.net_salary?.toLocaleString()} PKR</p>
                 </div>
                 <button
                   onClick={checkAndShowPaymentConfirmation}
@@ -599,7 +625,7 @@ export default function StaffPayrollPage() {
                       : paymentStatus === 'pending'
                       ? 'bg-orange-500 hover:bg-orange-600'
                       : 'bg-yellow-500 hover:bg-yellow-600'
-                  } text-white px-8 py-3 rounded-lg font-semibold text-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                  } text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed`}
                 >
                   {processingPayment
                     ? 'Processing...'
@@ -620,61 +646,61 @@ export default function StaffPayrollPage() {
       {showSalaryStructureModal && salaryStructure && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            <div className="bg-blue-500 text-white px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold">Salary Structure - {selectedStaff.first_name} {selectedStaff.last_name}</h3>
+            <div className="bg-blue-500 text-white px-3 py-2 flex justify-between items-center">
+              <h3 className="text-base font-bold">Salary Structure - {selectedStaff.first_name} {selectedStaff.last_name}</h3>
               <button
                 onClick={() => setShowSalaryStructureModal(false)}
-                className="text-white hover:text-gray-200 text-2xl"
+                className="text-white hover:text-gray-200 text-lg"
               >
                 ×
               </button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-3 overflow-y-auto max-h-[calc(90vh-120px)]">
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Component</th>
-                    <th className="border border-gray-300 px-4 py-2 text-right font-semibold">Amount (PKR)</th>
+                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Component</th>
+                    <th className="border border-gray-300 px-3 py-2 text-sm text-right font-semibold">Amount (PKR)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 font-medium">Basic Salary</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right">{salaryStructure.basic_salary?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm font-medium">Basic Salary</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right">{salaryStructure.basic_salary?.toLocaleString() || 0}</td>
                   </tr>
                   <tr className="bg-green-50">
-                    <td className="border border-gray-300 px-4 py-2 font-semibold" colSpan="2">Allowances</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm font-semibold" colSpan="2">Allowances</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 pl-8">House Allowance</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right text-green-600">{salaryStructure.house_allowance?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm pl-8">House Allowance</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right text-green-600">{salaryStructure.house_allowance?.toLocaleString() || 0}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 pl-8">Medical Allowance</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right text-green-600">{salaryStructure.medical_allowance?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm pl-8">Medical Allowance</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right text-green-600">{salaryStructure.medical_allowance?.toLocaleString() || 0}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 pl-8">Transport Allowance</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right text-green-600">{salaryStructure.transport_allowance?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm pl-8">Transport Allowance</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right text-green-600">{salaryStructure.transport_allowance?.toLocaleString() || 0}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 pl-8">Other Allowances</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right text-green-600">{salaryStructure.other_allowances?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm pl-8">Other Allowances</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right text-green-600">{salaryStructure.other_allowances?.toLocaleString() || 0}</td>
                   </tr>
                   <tr className="bg-red-50">
-                    <td className="border border-gray-300 px-4 py-2 font-semibold" colSpan="2">Deductions</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm font-semibold" colSpan="2">Deductions</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 pl-8">Provident Fund</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right text-red-600">{salaryStructure.provident_fund?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm pl-8">Provident Fund</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right text-red-600">{salaryStructure.provident_fund?.toLocaleString() || 0}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 pl-8">Tax Deduction</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right text-red-600">{salaryStructure.tax_deduction?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm pl-8">Tax Deduction</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right text-red-600">{salaryStructure.tax_deduction?.toLocaleString() || 0}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2 pl-8">Other Deductions</td>
-                    <td className="border border-gray-300 px-4 py-2 text-right text-red-600">{salaryStructure.other_deductions?.toLocaleString() || 0}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm pl-8">Other Deductions</td>
+                    <td className="border border-gray-300 px-3 py-2 text-sm text-right text-red-600">{salaryStructure.other_deductions?.toLocaleString() || 0}</td>
                   </tr>
                   <tr className="bg-blue-50 font-bold">
                     <td className="border border-gray-300 px-4 py-3">Gross Salary</td>
@@ -693,7 +719,7 @@ export default function StaffPayrollPage() {
                 )}
               </div>
             </div>
-            <div className="bg-gray-50 px-6 py-4 flex justify-end">
+            <div className="bg-gray-50 px-3 py-2 flex justify-end">
               <button
                 onClick={() => setShowSalaryStructureModal(false)}
                 className="text-blue-600 hover:text-blue-700 font-medium"
@@ -709,16 +735,16 @@ export default function StaffPayrollPage() {
       {showPaymentHistoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
-            <div className="bg-green-500 text-white px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold">Payment History - {selectedStaff.first_name} {selectedStaff.last_name}</h3>
+            <div className="bg-green-500 text-white px-3 py-2 flex justify-between items-center">
+              <h3 className="text-base font-bold">Payment History - {selectedStaff.first_name} {selectedStaff.last_name}</h3>
               <button
                 onClick={() => setShowPaymentHistoryModal(false)}
-                className="text-white hover:text-gray-200 text-2xl"
+                className="text-white hover:text-gray-200 text-lg"
               >
                 ×
               </button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-3 overflow-y-auto max-h-[calc(90vh-120px)]">
               {paymentHistory.length > 0 ? (
                 <>
                   <table className="w-full border-collapse border border-gray-300 text-sm">
@@ -786,7 +812,7 @@ export default function StaffPayrollPage() {
                 </div>
               )}
             </div>
-            <div className="bg-gray-50 px-6 py-4 flex justify-end">
+            <div className="bg-gray-50 px-3 py-2 flex justify-end">
               <button
                 onClick={() => setShowPaymentHistoryModal(false)}
                 className="text-blue-600 hover:text-blue-700 font-medium"
@@ -807,10 +833,10 @@ export default function StaffPayrollPage() {
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-yellow-600 to-yellow-700 text-white px-6 py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-yellow-600 to-yellow-700 text-white px-3 py-2 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Duplicate Payment</h3>
               </div>
-              <div className="p-6">
+              <div className="p-3">
                 <p className="text-gray-700 mb-6">
                   Salary for <span className="font-bold text-blue-600">{getMonthName(paymentMonth)} {paymentYear}</span> has already been paid. Do you want to create another payment?
                 </p>
@@ -845,10 +871,10 @@ export default function StaffPayrollPage() {
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-2 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
+              <div className="p-3">
                 <p className="text-gray-700 mb-6">
                   Are you sure you want to delete this payment record? This action cannot be undone.
                 </p>

@@ -100,16 +100,37 @@ export default function DatesheetPage() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
-  // Prevent background scroll when modal is open
+  // Apply blur effect to sidebar and disable background scrolling when modals are open
   useEffect(() => {
     const anyModalOpen = showCreateModal || showScheduleModal || showEditExamModal || showEditScheduleModal || showReportConfigModal || showGeneratedSlipsModal || showDatesheetClassModal || confirmDialog.show
+
     if (anyModalOpen) {
+      // Disable body scrolling
       document.body.style.overflow = 'hidden'
+
+      // Blur only the sidebar
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
     } else {
+      // Remove blur and enable interactions
       document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
     }
+
     return () => {
       document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
     }
   }, [showCreateModal, showScheduleModal, showEditExamModal, showEditScheduleModal, showReportConfigModal, showGeneratedSlipsModal, showDatesheetClassModal, confirmDialog.show])
 
@@ -1483,27 +1504,17 @@ export default function DatesheetPage() {
   }
 
   return (
-    <div className="p-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-600 rounded-lg">
-            <Calendar className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">Exam Datesheets</h1>
-        </div>
-      </div>
-
+    <div className="p-1">
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
+      <div className="flex gap-2 mb-2">
         {['datesheets', 'reports'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 font-medium transition-colors capitalize ${
+            className={`px-4 py-2 text-sm font-medium transition-colors capitalize rounded-lg ${
               activeTab === tab
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
             {tab === 'datesheets' ? 'Datesheets Management' : 'Reports & Slips'}
@@ -1514,7 +1525,16 @@ export default function DatesheetPage() {
       {/* DATESHEETS TAB */}
       {activeTab === 'datesheets' && (
         <div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search datesheets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-2 pr-10 w-80 text-sm"
+              />
+            </div>
             <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
@@ -1522,23 +1542,14 @@ export default function DatesheetPage() {
               <Plus className="w-4 h-4" />
               Create New Datesheet
             </button>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search datesheets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 pr-10 w-80"
-              />
-            </div>
           </div>
 
           {!session && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mb-2">
               <div className="flex">
-                <AlertCircle className="h-5 w-5 text-yellow-400" />
-                <div className="ml-3">
-                  <p className="text-sm text-yellow-700">
+                <AlertCircle className="h-4 w-4 text-yellow-400" />
+                <div className="ml-2">
+                  <p className="text-xs text-yellow-700">
                     <strong>No Active Session:</strong> Please create an academic session and mark it as current before creating datesheets.
                   </p>
                 </div>
@@ -1546,31 +1557,31 @@ export default function DatesheetPage() {
             </div>
           )}
 
-          <div className="mb-4 text-sm text-gray-600">
-            There are <span className="font-semibold text-blue-600">{filteredDatesheets.length}</span> records for session
+          <div className="mb-2 text-xs text-gray-600">
+            There are <span className="font-semibold text-red-600">{filteredDatesheets.length}</span> records for session
             <span className="font-semibold"> {session?.name || 'Loading...'}</span>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-blue-900 text-white">
+          <thead className="bg-blue-600 text-white">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Datesheet Title</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Start Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Exam Center</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Options</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Datesheet Title</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Start Date</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Exam Center</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold">Options</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {filteredDatesheets.length > 0 ? (
               filteredDatesheets.map((datesheet, index) => (
                 <tr key={datesheet.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm">{index + 1}</td>
-                  <td className="px-4 py-3 text-sm font-medium">{datesheet.title}</td>
-                  <td className="px-4 py-3 text-sm">{datesheet.start_date || '-'}</td>
-                  <td className="px-4 py-3 text-sm">{datesheet.exam_center || '-'}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2 text-sm">{index + 1}</td>
+                  <td className="px-3 py-2 text-sm font-medium">{datesheet.title}</td>
+                  <td className="px-3 py-2 text-sm">{datesheet.start_date || '-'}</td>
+                  <td className="px-3 py-2 text-sm">{datesheet.exam_center || '-'}</td>
+                  <td className="px-3 py-2">
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleOpenSchedule(datesheet)}
@@ -1581,20 +1592,20 @@ export default function DatesheetPage() {
                       </button>
                       <button
                         onClick={() => handleGeneratePDF(datesheet)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-red-700"
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
                         title="Download PDF"
                       >
                         <Download className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleOpenEditDatesheet(datesheet)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-red-700"
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteDatesheet(datesheet.id)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-red-700"
+                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1604,7 +1615,7 @@ export default function DatesheetPage() {
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                <td colSpan="5" className="px-3 py-4 text-center text-gray-500 text-sm">
                   {loading ? 'Loading...' : 'No datesheets found'}
                 </td>
               </tr>
@@ -1802,7 +1813,7 @@ export default function DatesheetPage() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300">
                   <thead>
-                    <tr className="bg-blue-900 text-white">
+                    <tr className="bg-blue-600 text-white">
                       <th className="border border-gray-300 px-3 py-2 text-sm">Sr.</th>
                       <th className="border border-gray-300 px-3 py-2 text-sm">Class Name</th>
                       {scheduleDates.map(date => (
@@ -2073,16 +2084,14 @@ export default function DatesheetPage() {
 
       {/* REPORTS TAB */}
       {activeTab === 'reports' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-6">Datesheet Reports & Roll No Slips</h2>
-
+        <div className="bg-white rounded-lg shadow-md p-2">
           {/* Datesheet Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Datesheet</label>
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Select Datesheet</label>
             <select
               value={selectedExamForReport}
               onChange={(e) => setSelectedExamForReport(e.target.value)}
-              className="w-full md:w-1/2 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full md:w-1/2 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
             >
               <option value="">Select a datesheet</option>
               {datesheets.map(datesheet => (
@@ -2090,7 +2099,7 @@ export default function DatesheetPage() {
               ))}
             </select>
             {datesheets.length === 0 && (
-              <p className="text-sm text-red-500 mt-1">No datesheets found for current session</p>
+              <p className="text-xs text-red-500 mt-1">No datesheets found for current session</p>
             )}
           </div>
 
@@ -2098,61 +2107,61 @@ export default function DatesheetPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Sr.</th>
-                  <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Report Type</th>
-                  <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Actions</th>
+                <tr className="bg-blue-600 text-white">
+                  <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold">Sr.</th>
+                  <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold">Report Type</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="bg-gray-200">
-                  <td colSpan="3" className="border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+                  <td colSpan="3" className="border border-gray-300 px-3 py-1 text-sm font-semibold text-gray-700">
                     Date Sheet Reports
                   </td>
                 </tr>
                 <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3">1</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Single Class Datesheet</td>
-                  <td className="border border-gray-300 px-4 py-3 text-center">
+                  <td className="border border-gray-300 px-3 py-2 text-sm">1</td>
+                  <td className="border border-gray-300 px-3 py-2 text-sm font-medium">Single Class Datesheet</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">
                     <button
                       onClick={handleSingleClassDatesheet}
-                      className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
+                      className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
                     >
                       Generate
                     </button>
                   </td>
                 </tr>
                 <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3">2</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">All Classes Datesheet</td>
-                  <td className="border border-gray-300 px-4 py-3 text-center">
+                  <td className="border border-gray-300 px-3 py-2 text-sm">2</td>
+                  <td className="border border-gray-300 px-3 py-2 text-sm font-medium">All Classes Datesheet</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">
                     <button
                       onClick={handleAllClassesDatesheet}
-                      className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
+                      className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
                     >
                       Generate
                     </button>
                   </td>
                 </tr>
                 <tr className="bg-gray-200">
-                  <td colSpan="3" className="border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+                  <td colSpan="3" className="border border-gray-300 px-3 py-1 text-sm font-semibold text-gray-700">
                     Roll No Slips
                   </td>
                 </tr>
                 <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3">3</td>
-                  <td className="border border-gray-300 px-4 py-3 font-medium">Roll No Slips</td>
-                  <td className="border border-gray-300 px-4 py-3 text-center">
+                  <td className="border border-gray-300 px-3 py-2 text-sm">3</td>
+                  <td className="border border-gray-300 px-3 py-2 text-sm font-medium">Roll No Slips</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => handleViewGeneratedSlips('rollno')}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
+                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
                       >
                         View Generated
                       </button>
                       <button
                         onClick={() => handleOpenReportConfig('rollno')}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
+                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
                       >
                         Generate New
                       </button>

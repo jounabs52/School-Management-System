@@ -69,6 +69,36 @@ export default function ExpensesPage() {
     filterExpenses()
   }, [expenses, searchQuery, categoryFilter, statusFilter, paymentMethodFilter, startDate, endDate])
 
+  // Apply blur effect to sidebar when modals are open
+  useEffect(() => {
+    const anyModalOpen = showAddModal || showEditModal || showDeleteModal
+
+    if (anyModalOpen) {
+      document.body.style.overflow = 'hidden'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showAddModal, showEditModal, showDeleteModal])
+
   const fetchSchoolDetails = async () => {
     try {
       const { data, error } = await supabase
@@ -464,7 +494,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-1">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -490,49 +520,43 @@ export default function ExpensesPage() {
         }}
       />
 
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Expense Management</h1>
-        <p className="text-gray-600 mt-1">Track and manage school expenses</p>
-      </div>
-
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm mb-1">Total Expenses</p>
-              <p className="text-3xl font-bold">Rs {stats.total.toLocaleString()}</p>
+              <p className="text-base font-bold">Rs {stats.total.toLocaleString()}</p>
             </div>
             <DollarSign size={40} className="opacity-80" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-3 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm mb-1">Pending</p>
-              <p className="text-3xl font-bold">{stats.pending}</p>
+              <p className="text-base font-bold">{stats.pending}</p>
             </div>
             <Clock size={40} className="opacity-80" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-3 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm mb-1">Approved</p>
-              <p className="text-3xl font-bold">{stats.approved}</p>
+              <p className="text-base font-bold">{stats.approved}</p>
             </div>
             <CheckCircle size={40} className="opacity-80" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-3 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm mb-1">Paid</p>
-              <p className="text-3xl font-bold">{stats.paid}</p>
+              <p className="text-base font-bold">{stats.paid}</p>
             </div>
             <TrendingUp size={40} className="opacity-80" />
           </div>
@@ -540,7 +564,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* Search and Actions */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <div className="bg-white rounded-lg shadow-md p-4 mb-2">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -556,28 +580,28 @@ export default function ExpensesPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Filter size={16} />
               Filters
             </button>
             <button
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Plus size={16} />
               Add Expense
@@ -663,40 +687,40 @@ export default function ExpensesPage() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-sm">#</th>
-                  <th className="px-4 py-3 text-left font-semibold text-sm">Date</th>
-                  <th className="px-4 py-3 text-left font-semibold text-sm">Category</th>
-                  <th className="px-4 py-3 text-left font-semibold text-sm">Vendor</th>
-                  <th className="px-4 py-3 text-left font-semibold text-sm">Invoice#</th>
-                  <th className="px-4 py-3 text-right font-semibold text-sm">Amount</th>
-                  <th className="px-4 py-3 text-center font-semibold text-sm">Payment</th>
-                  <th className="px-4 py-3 text-center font-semibold text-sm">Status</th>
-                  <th className="px-4 py-3 text-center font-semibold text-sm">Actions</th>
+                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">#</th>
+                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Date</th>
+                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Category</th>
+                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Vendor</th>
+                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Invoice#</th>
+                  <th className="px-3 py-2 text-sm text-right font-semibold text-sm">Amount</th>
+                  <th className="px-3 py-2 text-sm text-center font-semibold text-sm">Payment</th>
+                  <th className="px-3 py-2 text-sm text-center font-semibold text-sm">Status</th>
+                  <th className="px-3 py-2 text-sm text-center font-semibold text-sm">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredExpenses.map((expense, index) => (
                   <tr key={expense.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-4 py-3 text-sm text-gray-700">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className="px-3 py-2 text-sm text-sm text-gray-700">{index + 1}</td>
+                    <td className="px-3 py-2 text-sm text-sm text-gray-700">
                       {new Date(expense.expense_date).toLocaleDateString('en-GB')}
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm text-sm">
                       <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
                         {expense.category?.category_name || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{expense.vendor_name || 'N/A'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{expense.invoice_number || 'N/A'}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                    <td className="px-3 py-2 text-sm text-sm text-gray-700">{expense.vendor_name || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm text-sm text-gray-700">{expense.invoice_number || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm text-sm text-right font-semibold text-gray-900">
                       Rs {parseFloat(expense.amount || 0).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-center">
+                    <td className="px-3 py-2 text-sm text-sm text-center">
                       <span className="text-gray-600 text-xs">
                         {expense.payment_method?.toUpperCase() || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-2 text-sm text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         expense.status === 'paid' ? 'bg-green-100 text-green-700' :
                         expense.status === 'approved' ? 'bg-blue-100 text-blue-700' :
@@ -705,7 +729,7 @@ export default function ExpensesPage() {
                         {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-sm">
                       <div className="flex items-center justify-center gap-2">
                         {expense.status === 'pending' && (
                           <button
@@ -752,13 +776,13 @@ export default function ExpensesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-800">Add New Expense</h2>
+              <h2 className="text-base font-bold text-gray-800">Add New Expense</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
                 <select
@@ -851,7 +875,7 @@ export default function ExpensesPage() {
                   setShowAddModal(false)
                   resetForm()
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
@@ -871,13 +895,13 @@ export default function ExpensesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-800">Edit Expense</h2>
+              <h2 className="text-base font-bold text-gray-800">Edit Expense</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
                 <select
@@ -984,7 +1008,7 @@ export default function ExpensesPage() {
                   setSelectedExpense(null)
                   resetForm()
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
@@ -1003,9 +1027,9 @@ export default function ExpensesPage() {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Delete Expense</h3>
-              <p className="text-gray-600 mb-6">
+            <div className="p-3">
+              <h3 className="text-base font-bold text-gray-900 mb-2">Delete Expense</h3>
+              <p className="text-gray-600 mb-2">
                 Are you sure you want to delete this expense? This action cannot be undone.
               </p>
               <div className="flex items-center justify-end gap-3">
@@ -1014,7 +1038,7 @@ export default function ExpensesPage() {
                     setShowDeleteModal(false)
                     setSelectedExpense(null)
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   Cancel
                 </button>

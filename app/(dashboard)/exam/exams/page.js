@@ -53,6 +53,34 @@ export default function ExamsPage() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  // Apply blur effect to sidebar and disable background scrolling when modal is open
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showModal])
+
   useEffect(() => {
     const getCookie = (name) => {
       const value = `; ${document.cookie}`
@@ -664,13 +692,13 @@ export default function ExamsPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="p-1">
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg ${
               toast.type === 'success' ? 'bg-green-500' :
               toast.type === 'error' ? 'bg-red-500' :
               'bg-blue-500'
@@ -678,7 +706,7 @@ export default function ExamsPage() {
           >
             {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
             {toast.type === 'error' && <AlertCircle className="w-5 h-5" />}
-            <span>{toast.message}</span>
+            <span className="text-sm">{toast.message}</span>
             <button onClick={() => removeToast(toast.id)} className="ml-2">
               <X className="w-4 h-4" />
             </button>
@@ -686,20 +714,19 @@ export default function ExamsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Examination Management</h1>
-          <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+          <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('list')}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition ${
                 activeTab === 'list'
-                  ? 'bg-red-600 text-white'
+                  ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <FileText className="w-5 h-5" />
+              <FileText className="w-4 h-4" />
               Exams List
             </button>
             <button
@@ -707,9 +734,9 @@ export default function ExamsPage() {
                 resetForm()
                 setShowModal(true)
               }}
-              className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm transition"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               Add New Exam
             </button>
           </div>
@@ -717,11 +744,11 @@ export default function ExamsPage() {
 
         {activeTab === 'list' && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <select
                 value={filterExam}
                 onChange={(e) => setFilterExam(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               >
                 <option value="">Select Exam</option>
                 {exams.map(exam => (
@@ -733,7 +760,7 @@ export default function ExamsPage() {
                 value={filterClass}
                 onChange={(e) => setFilterClass(e.target.value)}
                 disabled={!filterExam}
-                className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm disabled:bg-gray-100"
               >
                 <option value="">Select Class</option>
                 {filterClasses.map(cls => (
@@ -745,7 +772,7 @@ export default function ExamsPage() {
                 value={filterSection}
                 onChange={(e) => setFilterSection(e.target.value)}
                 disabled={!filterClass}
-                className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm disabled:bg-gray-100"
               >
                 <option value="">All Sections</option>
                 {filterSections.map(section => (
@@ -759,9 +786,9 @@ export default function ExamsPage() {
                   placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 border border-gray-300 rounded px-3 py-2 w-full"
+                  className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm w-full"
                 />
-                <button className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg whitespace-nowrap">
+                <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm whitespace-nowrap">
                   Search
                 </button>
               </div>
@@ -769,7 +796,7 @@ export default function ExamsPage() {
 
             {/* Subjects list for selected class */}
             {filterClass && filterSubjects.length > 0 && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <h3 className="text-sm font-semibold text-blue-900 mb-2">Subjects for Selected Class:</h3>
                 <div className="flex flex-wrap gap-2">
                   {filterSubjects.map(subject => (
@@ -787,37 +814,37 @@ export default function ExamsPage() {
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-blue-900 text-white">
+                  <thead className="bg-blue-600 text-white">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Exam Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Class</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Section</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Subjects</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Total Marks</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Exam Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Result Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Exam Name</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Class</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Section</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Subjects</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Total Marks</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Exam Date</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Result Date</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Status</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredExams.length === 0 ? (
                       <tr>
-                        <td colSpan="10" className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan="10" className="px-3 py-6 text-center text-gray-500 text-sm">
                           No exams found
                         </td>
                       </tr>
                     ) : (
                       filteredExams.map((exam, index) => (
                         <tr key={exam.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm">{index + 1}</td>
-                          <td className="px-4 py-3 text-sm font-medium">{exam.exam_name}</td>
-                          <td className="px-4 py-3 text-sm">{exam.classes?.class_name || 'N/A'}</td>
-                          <td className="px-4 py-3 text-sm">{exam.sections?.section_name || 'All'}</td>
-                          <td className="px-4 py-3 text-sm max-w-xs truncate">{exam.subjects}</td>
-                          <td className="px-4 py-3 text-sm">{exam.total_marks || 'N/A'}</td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-3 py-2 text-sm">{index + 1}</td>
+                          <td className="px-3 py-2 text-sm font-medium">{exam.exam_name}</td>
+                          <td className="px-3 py-2 text-sm">{exam.classes?.class_name || 'N/A'}</td>
+                          <td className="px-3 py-2 text-sm">{exam.sections?.section_name || 'All'}</td>
+                          <td className="px-3 py-2 text-sm max-w-xs truncate">{exam.subjects}</td>
+                          <td className="px-3 py-2 text-sm">{exam.total_marks || 'N/A'}</td>
+                          <td className="px-3 py-2 text-sm">
                             {exam.start_date
                               ? new Date(exam.start_date).toLocaleDateString('en-GB', {
                                   day: '2-digit',
@@ -827,7 +854,7 @@ export default function ExamsPage() {
                               : 'N/A'
                             }
                           </td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-3 py-2 text-sm">
                             {exam.result_declaration_date
                               ? new Date(exam.result_declaration_date).toLocaleDateString('en-GB', {
                                   day: '2-digit',
@@ -837,7 +864,7 @@ export default function ExamsPage() {
                               : 'N/A'
                             }
                           </td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-3 py-2 text-sm">
                             <select
                               value={exam.status}
                               onChange={(e) => handleStatusChange(exam.id, e.target.value)}
@@ -856,7 +883,7 @@ export default function ExamsPage() {
                               <option value="cancelled">Cancelled</option>
                             </select>
                           </td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-3 py-2 text-sm">
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleEditExam(exam)}
@@ -885,7 +912,7 @@ export default function ExamsPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">
@@ -1063,7 +1090,7 @@ export default function ExamsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg disabled:opacity-50"
               >
                 <Save className="w-5 h-5" />
                 {loading ? 'Saving...' : (editMode ? 'Update Exam' : 'Create Exam')}

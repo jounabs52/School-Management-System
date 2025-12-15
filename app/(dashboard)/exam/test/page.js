@@ -48,6 +48,34 @@ export default function TestsPage() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  // Apply blur effect to sidebar when delete modal is open
+  useEffect(() => {
+    if (showDeleteModal) {
+      document.body.style.overflow = 'hidden'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showDeleteModal])
+
   useEffect(() => {
     const getCookie = (name) => {
       const value = `; ${document.cookie}`
@@ -370,7 +398,7 @@ export default function TestsPage() {
   })
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
+    <div className="p-1">
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map(toast => (
           <div
@@ -392,22 +420,22 @@ export default function TestsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">Exam Tests</h1>
-          <div className="flex gap-3">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-bold text-gray-800">Exam Tests</h1>
+          <div className="flex gap-2">
             <button
               onClick={() => {
                 setActiveTab('list')
                 resetForm()
               }}
-              className={`px-6 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
                 activeTab === 'list'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <FileText className="w-5 h-5" />
+              <FileText className="w-4 h-4" />
               Tests List
             </button>
             <button
@@ -415,13 +443,13 @@ export default function TestsPage() {
                 setActiveTab('add')
                 resetForm()
               }}
-              className={`px-6 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
                 activeTab === 'add'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               Add New Test
             </button>
           </div>
@@ -429,11 +457,11 @@ export default function TestsPage() {
 
         {activeTab === 'list' && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <select
                 value={filterClass}
                 onChange={(e) => setFilterClass(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               >
                 <option value="">All Classes</option>
                 {classes.map(cls => (
@@ -444,7 +472,7 @@ export default function TestsPage() {
               <select
                 value={filterSection}
                 onChange={(e) => setFilterSection(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               >
                 <option value="">All Sections</option>
                 {sections.map(section => (
@@ -455,7 +483,7 @@ export default function TestsPage() {
               <select
                 value={filterSubject}
                 onChange={(e) => setFilterSubject(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               >
                 <option value="">All Subjects</option>
                 {allSubjects.map(subject => (
@@ -469,9 +497,9 @@ export default function TestsPage() {
                   placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 border border-gray-300 rounded px-3 py-2 w-full"
+                  className="flex-1 border border-gray-300 rounded px-3 py-2 w-full text-sm"
                 />
-                <button className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg whitespace-nowrap">
+                <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm whitespace-nowrap">
                   Search
                 </button>
               </div>
@@ -480,39 +508,39 @@ export default function TestsPage() {
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-blue-900 text-white">
+                  <thead className="bg-blue-600 text-white">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Class</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Test Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Total Marks</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Students</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Result Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Options</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Class</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Subject</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Test Name</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Date</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Total Marks</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Students</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Result Date</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Status</th>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Options</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTests.map((test, index) => (
                       <tr key={test.id} className="border-t border-gray-200 hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">{index + 1}</td>
-                        <td className="px-4 py-3 text-sm">{test.classes?.class_name || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 text-sm">{index + 1}</td>
+                        <td className="px-3 py-2 text-sm">{test.classes?.class_name || 'N/A'}</td>
+                        <td className="px-3 py-2 text-sm">
                           {test.test_subjects?.map(ts => ts.subjects?.subject_name).join(', ') || 'N/A'}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium">{test.test_name}</td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 text-sm font-medium">{test.test_name}</td>
+                        <td className="px-3 py-2 text-sm">
                           {new Date(test.test_date).toLocaleDateString('en-GB', {
                             day: '2-digit',
                             month: 'short',
                             year: 'numeric'
                           })}
                         </td>
-                        <td className="px-4 py-3 text-sm">{test.total_marks}</td>
-                        <td className="px-4 py-3 text-sm">0</td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 text-sm">{test.total_marks}</td>
+                        <td className="px-3 py-2 text-sm">0</td>
+                        <td className="px-3 py-2 text-sm">
                           {test.result_date
                             ? new Date(test.result_date).toLocaleDateString('en-GB', {
                                 day: '2-digit',
@@ -522,7 +550,7 @@ export default function TestsPage() {
                             : 'N/A'
                           }
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 text-sm">
                           <select
                             value={test.status}
                             onChange={(e) => handleStatusChange(test.id, e.target.value)}
@@ -537,7 +565,7 @@ export default function TestsPage() {
                             <option value="closed">closed</option>
                           </select>
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 text-sm">
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleEditTest(test)}
@@ -695,9 +723,9 @@ export default function TestsPage() {
               <button
                 onClick={handleSaveTest}
                 disabled={loading}
-                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-8 py-3 rounded-lg flex items-center gap-2 font-medium"
+                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
               >
-                <CheckCircle className="w-5 h-5" />
+                <CheckCircle className="w-4 h-4" />
                 Save
               </button>
             </div>
@@ -707,7 +735,7 @@ export default function TestsPage() {
 
       {showDeleteModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowDeleteModal(false)} />
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowDeleteModal(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
               <h3 className="text-lg font-semibold mb-4">Delete Test</h3>
@@ -720,14 +748,14 @@ export default function TestsPage() {
                     setShowDeleteModal(false)
                     setTestToDelete(null)
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteTest}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
                 >
                   Delete
                 </button>
