@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-<<<<<<< HEAD
 import { createPortal } from 'react-dom'
 import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -44,7 +43,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -52,11 +51,11 @@ const Toast = ({ message, type, onClose }) => {
     style={{
       animation: 'slideIn 0.3s ease-out'
     }}>
-      {type === 'success' && <CheckCircle size={20} strokeWidth={2.5} />}
-      {type === 'error' && <X size={20} strokeWidth={2.5} />}
-      <span className="font-medium text-sm">{message}</span>
+      {type === 'success' && <CheckCircle size={16} strokeWidth={2.5} />}
+      {type === 'error' && <X size={16} strokeWidth={2.5} />}
+      <span className="font-medium text-xs">{message}</span>
       <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity">
-        <X size={18} strokeWidth={2.5} />
+        <X size={14} strokeWidth={2.5} />
       </button>
       <style jsx>{`
         @keyframes slideIn {
@@ -74,12 +73,6 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-=======
-import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { getUserFromCookie } from '@/lib/clientAuth'
-
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function ClassListPage() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -138,9 +131,9 @@ export default function ClassListPage() {
     incharge: '',
     className: '',
     classFee: '',
-    markingSystem: ''
+    markingSystem: '',
+    feePlan: 'monthly'
   })
-<<<<<<< HEAD
   const [inchargeSearchTerm, setInchargeSearchTerm] = useState('')
   const [showInchargeDropdown, setShowInchargeDropdown] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -156,8 +149,6 @@ export default function ClassListPage() {
   const hideToast = () => {
     setToast({ show: false, message: '', type: '' })
   }
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   // Fetch sections for a class
   const fetchClassSections = async (classId) => {
@@ -307,7 +298,7 @@ export default function ClassListPage() {
       // Get classes with student count and total discount
       const { data: classes, error } = await supabase
         .from('classes')
-        .select('id, class_name, standard_fee, incharge, exam_marking_system')
+        .select('id, class_name, standard_fee, incharge, exam_marking_system, fee_plan')
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
@@ -363,7 +354,6 @@ export default function ClassListPage() {
     return matchesSearch && matchesClassFilter
   })
 
-<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(filteredClasses.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -375,25 +365,15 @@ export default function ClassListPage() {
     setCurrentPage(1)
   }, [searchTerm, classFilter])
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const handleSave = async () => {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
         return
       }
 
       const { data, error } = await supabase
-=======
-        alert('Unauthorized')
-        return
-      }
-
-      const { error } = await supabase
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .from('classes')
         .insert([{
           school_id: user.school_id,
@@ -402,17 +382,17 @@ export default function ClassListPage() {
           standard_fee: parseFloat(formData.classFee) || 0,
           incharge: formData.incharge,
           exam_marking_system: formData.markingSystem,
+          fee_plan: formData.feePlan || 'monthly',
           status: 'active'
         }])
         .select()
 
       if (error) {
         console.error('Error creating class:', error)
-<<<<<<< HEAD
         showToast('Failed to create class: ' + error.message, 'error')
       } else {
         setShowModal(false)
-        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
+        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '', feePlan: 'monthly' })
         setInchargeSearchTerm('')
         setShowInchargeDropdown(false)
         showToast('Class created successfully!', 'success')
@@ -431,17 +411,6 @@ export default function ClassListPage() {
     } catch (error) {
       console.error('Error saving class:', error)
       showToast('Error saving class', 'error')
-=======
-        alert('Failed to create class: ' + error.message)
-      } else {
-        setShowModal(false)
-        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
-        fetchClasses() // Refresh the list
-      }
-    } catch (error) {
-      console.error('Error saving class:', error)
-      alert('Error saving class')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -451,12 +420,10 @@ export default function ClassListPage() {
       incharge: cls.incharge || '',
       className: cls.class_name,
       classFee: cls.standard_fee || '',
-      markingSystem: cls.exam_marking_system || ''
+      markingSystem: cls.exam_marking_system || '',
+      feePlan: cls.fee_plan || 'monthly'
     })
-<<<<<<< HEAD
-    setInchargeSearchTerm('')
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+    setInchargeSearchTerm(cls.incharge || '')
     setShowEditModal(true)
   }
 
@@ -464,25 +431,18 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
         return
       }
 
       const { data, error } = await supabase
-=======
-        alert('Unauthorized')
-        return
-      }
-
-      const { error } = await supabase
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .from('classes')
         .update({
           class_name: formData.className,
           standard_fee: parseFloat(formData.classFee) || 0,
           incharge: formData.incharge,
           exam_marking_system: formData.markingSystem,
+          fee_plan: formData.feePlan || 'monthly',
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedClass.id)
@@ -491,11 +451,10 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error updating class:', error)
-<<<<<<< HEAD
         showToast('Failed to update class: ' + error.message, 'error')
       } else {
         setShowEditModal(false)
-        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
+        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '', feePlan: 'monthly' })
         setInchargeSearchTerm('')
         setShowInchargeDropdown(false)
         setSelectedClass(null)
@@ -511,18 +470,6 @@ export default function ClassListPage() {
     } catch (error) {
       console.error('Error updating class:', error)
       showToast('Error updating class', 'error')
-=======
-        alert('Failed to update class: ' + error.message)
-      } else {
-        setShowEditModal(false)
-        setFormData({ incharge: '', className: '', classFee: '', markingSystem: '' })
-        setSelectedClass(null)
-        fetchClasses() // Refresh the list
-      }
-    } catch (error) {
-      console.error('Error updating class:', error)
-      alert('Error updating class')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -544,11 +491,7 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -560,7 +503,6 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error deleting class:', error)
-<<<<<<< HEAD
         showToast('Failed to delete class: ' + error.message, 'error')
       } else {
         setShowDeleteModal(false)
@@ -575,17 +517,6 @@ export default function ClassListPage() {
     } catch (error) {
       console.error('Error deleting class:', error)
       showToast('Error deleting class', 'error')
-=======
-        alert('Failed to delete class: ' + error.message)
-      } else {
-        setShowDeleteModal(false)
-        setClassToDelete(null)
-        fetchClasses() // Refresh the list
-      }
-    } catch (error) {
-      console.error('Error deleting class:', error)
-      alert('Error deleting class')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -629,11 +560,7 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -659,11 +586,7 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error updating student:', error)
-<<<<<<< HEAD
         showToast('Failed to update student', 'error')
-=======
-        alert('Failed to update student')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -672,16 +595,10 @@ export default function ClassListPage() {
       setShowStudentEditModal(false)
       setSelectedStudent(null)
       setStudentFormData({ name: '', father: '', section: '', rollNo: '', fee: '', discount: '' })
-<<<<<<< HEAD
       showToast('Student updated successfully!', 'success')
     } catch (error) {
       console.error('Error updating student:', error)
       showToast('An error occurred while updating', 'error')
-=======
-    } catch (error) {
-      console.error('Error updating student:', error)
-      alert('An error occurred while updating')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -694,11 +611,7 @@ export default function ClassListPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -714,11 +627,7 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error deleting student:', error)
-<<<<<<< HEAD
         showToast('Failed to delete student', 'error')
-=======
-        alert('Failed to delete student')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -726,56 +635,47 @@ export default function ClassListPage() {
       await fetchStudents(selectedClass.id)
       setShowStudentDeleteModal(false)
       setSelectedStudent(null)
-<<<<<<< HEAD
       showToast('Student deleted successfully!', 'success')
     } catch (error) {
       console.error('Error deleting student:', error)
       showToast('An error occurred while deleting', 'error')
-=======
-    } catch (error) {
-      console.error('Error deleting student:', error)
-      alert('An error occurred while deleting')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   // If in view mode, show the class details page
   if (viewMode && selectedClass) {
     return (
-      <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
-<<<<<<< HEAD
+      <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
         {/* Toast Notification */}
         {toast.show && (
           <Toast message={toast.message} type={toast.type} onClose={hideToast} />
         )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         {/* Top Bar with Go Back Button */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">
             Class: <span className="text-blue-600">{selectedClass.class_name}</span>
           </h2>
           <button
             onClick={handleGoBack}
-            className="px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 bg-red-600 text-white hover:bg-red-700 transition"
+            className="px-3 py-2 rounded-lg font-medium text-sm flex items-center gap-1.5 bg-red-600 text-white hover:bg-red-700 transition"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={14} />
             Go Back
           </button>
         </div>
 
         {/* Class Students Section */}
         <div>
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-              <h2 className="text-lg font-bold text-gray-800 mb-4">
+            <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
+              <h2 className="text-base font-bold text-gray-800 mb-3">
                 Students enrolled in the <span className="text-blue-600">{selectedClass.class_name}</span> session <span className="font-bold">2024-2025</span>
               </h2>
 
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col md:flex-row gap-3">
                 <select
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white md:w-48"
+                  className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white md:w-40"
                 >
                   <option value="">All Sections</option>
                   {sections.map((section) => (
@@ -785,50 +685,43 @@ export default function ClassListPage() {
                   ))}
                 </select>
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                   <input
                     type="text"
                     placeholder="Search by name or roll number"
                     value={studentSearchTerm}
                     onChange={(e) => setStudentSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
-<<<<<<< HEAD
-=======
-                <button className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
-                  <Search size={18} />
-                  Search
-                </button>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="bg-blue-900 text-white">
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Father Name</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Section</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Discount</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Father Name</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Section</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Roll No</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fee</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Discount</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loadingStudents ? (
                       <tr>
-                        <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
                           Loading students...
                         </td>
                       </tr>
                     ) : filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
                           No students found
                         </td>
                       </tr>
@@ -843,34 +736,34 @@ export default function ClassListPage() {
 
                         return (
                           <tr key={student.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-4 py-3 border border-gray-200 text-blue-600">
+                            <td className="px-3 py-2.5 border border-gray-200 text-blue-600">
                               {index + 1}
                             </td>
-                            <td className="px-4 py-3 border border-gray-200">
+                            <td className="px-3 py-2.5 border border-gray-200">
                               <span className="text-blue-600 font-medium">{studentName}</span>
                             </td>
-                            <td className="px-4 py-3 border border-gray-200">{student.father_name || '-'}</td>
-                            <td className="px-4 py-3 border border-gray-200">{sectionName}</td>
-                            <td className="px-4 py-3 border border-gray-200 text-blue-600">{student.roll_number || '-'}</td>
-                            <td className="px-4 py-3 border border-gray-200 text-blue-600">
+                            <td className="px-3 py-2.5 border border-gray-200">{student.father_name || '-'}</td>
+                            <td className="px-3 py-2.5 border border-gray-200">{sectionName}</td>
+                            <td className="px-3 py-2.5 border border-gray-200 text-blue-600">{student.roll_number || '-'}</td>
+                            <td className="px-3 py-2.5 border border-gray-200 text-blue-600">
                               {feeAmount > 0 ? feeAmount.toLocaleString() : 'Free'}
                             </td>
-                            <td className="px-4 py-3 border border-gray-200">
+                            <td className="px-3 py-2.5 border border-gray-200">
                               {discount > 0 ? discount.toLocaleString() : '-'}
                             </td>
-                            <td className="px-4 py-3 border border-gray-200">
+                            <td className="px-3 py-2.5 border border-gray-200">
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => handleStudentEdit(student)}
-                                  className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                                  className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                                 >
-                                  <Edit2 size={18} />
+                                  <Edit2 size={16} />
                                 </button>
                                 <button
                                   onClick={() => handleStudentDelete(student)}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                                 >
-                                  <Trash2 size={18} />
+                                  <Trash2 size={16} />
                                 </button>
                               </div>
                             </td>
@@ -887,63 +780,54 @@ export default function ClassListPage() {
 
         {/* Student Edit Sidebar */}
         {showStudentEditModal && selectedStudent && (
-<<<<<<< HEAD
           <ModalOverlay onClose={() => setShowStudentEditModal(false)}>
-            <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-=======
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-              onClick={() => setShowStudentEditModal(false)}
-            />
-            <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+            <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-xl font-bold">Edit Student</h3>
-                    <p className="text-blue-200 text-sm mt-1">Update student details</p>
+                    <h3 className="text-base font-bold">Edit Student</h3>
+                    <p className="text-blue-200 text-xs mt-0.5">Update student details</p>
                   </div>
                   <button
                     onClick={() => setShowStudentEditModal(false)}
-                    className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                    className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                   >
-                    <X size={22} />
+                    <X size={18} />
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                <div className="space-y-6">
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                <div className="space-y-4">
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Student Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={studentFormData.name}
                       onChange={(e) => setStudentFormData({ ...studentFormData, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Father Name
                     </label>
                     <input
                       type="text"
                       value={studentFormData.father}
                       onChange={(e) => setStudentFormData({ ...studentFormData, father: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Section
                     </label>
                     <select
                       value={studentFormData.section}
                       onChange={(e) => setStudentFormData({ ...studentFormData, section: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     >
                       <option value="">Select Section</option>
                       {classSections.map((section) => (
@@ -953,110 +837,93 @@ export default function ClassListPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Roll No
                     </label>
                     <input
                       type="text"
                       value={studentFormData.rollNo}
                       onChange={(e) => setStudentFormData({ ...studentFormData, rollNo: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Fee
                     </label>
                     <input
                       type="text"
                       value={studentFormData.fee}
                       onChange={(e) => setStudentFormData({ ...studentFormData, fee: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Discount
                     </label>
                     <input
                       type="text"
                       value={studentFormData.discount}
                       onChange={(e) => setStudentFormData({ ...studentFormData, discount: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
                 </div>
               </div>
-              <div className="border-t border-gray-200 px-6 py-5 bg-white">
-                <div className="flex gap-3">
+              <div className="border-t border-gray-200 px-4 py-3 bg-white">
+                <div className="flex gap-2">
                   <button
                     onClick={() => setShowStudentEditModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleStudentUpdate}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                    className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
                   >
-                    <Edit2 size={18} />
-                    Update Student
+                    <Edit2 size={14} />
+                    Update
                   </button>
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
           </ModalOverlay>
-=======
-          </>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         )}
 
         {/* Student Delete Confirmation Modal */}
         {showStudentDeleteModal && selectedStudent && (
-<<<<<<< HEAD
           <ModalOverlay onClose={() => setShowStudentDeleteModal(false)}>
             <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-=======
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-              onClick={() => setShowStudentDeleteModal(false)}
-            />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                  <h3 className="text-lg font-bold">Confirm Delete</h3>
+              <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-xl">
+                  <h3 className="text-base font-bold">Confirm Delete</h3>
                 </div>
-                <div className="p-6">
-                  <p className="text-gray-700 mb-6">
+                <div className="p-4">
+                  <p className="text-gray-700 text-sm mb-4">
                     Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <button
                       onClick={() => setShowStudentDeleteModal(false)}
-                      className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                      className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={confirmStudentDelete}
-                      className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                      className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={14} />
                       Delete
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
           </ModalOverlay>
-=======
-          </>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         )}
 
       </div>
@@ -1065,37 +932,34 @@ export default function ClassListPage() {
 
   // Main class list view
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
-<<<<<<< HEAD
+    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Top Button */}
-      <div className="mb-6">
+      <div className="mb-4">
         <button
           onClick={() => setShowModal(true)}
-          className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-lg"
+          className="bg-red-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-red-700 transition flex items-center gap-1.5 shadow-lg"
         >
-          <Plus size={20} />
+          <Plus size={16} />
           Add New Class
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Search Classes</h2>
+      <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
+        <h2 className="text-base font-bold text-gray-800 mb-3">Search Classes</h2>
 
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col md:flex-row gap-3">
           {/* Class Filter */}
-          <div className="md:w-48">
-            <label className="block text-gray-600 text-sm mb-2">Class</label>
+          <div className="md:w-40">
+            <label className="block text-gray-600 text-xs mb-1.5">Class</label>
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Classes</option>
               {classes.map((cls) => (
@@ -1108,35 +972,16 @@ export default function ClassListPage() {
 
           {/* Search Input */}
           <div className="flex-1">
-<<<<<<< HEAD
-            <label className="block text-gray-600 text-sm mb-2">Search</label>
+            <label className="block text-gray-600 text-xs mb-1.5">Search</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
-=======
-            <label className="block text-gray-600 text-sm mb-2 invisible">Search</label>
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
-              <button className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
-                <Search size={20} />
-                Search
-              </button>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             </div>
           </div>
         </div>
@@ -1145,38 +990,35 @@ export default function ClassListPage() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-blue-900 text-white">
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class Name</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Standard Fee</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Students</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Total Fee</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Discount</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Budget</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Standard Fee</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fee Plan</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Students</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total Fee</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Discount</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Budget</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
                     Loading classes...
                   </td>
                 </tr>
               ) : filteredClasses.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
                     No classes found
                   </td>
                 </tr>
               ) : (
-<<<<<<< HEAD
                 paginatedClasses.map((cls, index) => {
-=======
-                filteredClasses.map((cls, index) => {
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   const totalStudents = cls.total_students || 0
                   const standardFee = parseFloat(cls.standard_fee) || 0
                   const totalFee = standardFee * totalStudents
@@ -1190,51 +1032,59 @@ export default function ClassListPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-<<<<<<< HEAD
-                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
-=======
-                      <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                           {cls.class_name}
                         </span>
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {standardFee.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">{totalStudents}</td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          cls.fee_plan === 'quarterly' ? 'bg-purple-100 text-purple-800' :
+                          cls.fee_plan === 'semi-annual' ? 'bg-orange-100 text-orange-800' :
+                          cls.fee_plan === 'annual' ? 'bg-green-100 text-green-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {cls.fee_plan === 'quarterly' ? 'Quarterly' :
+                           cls.fee_plan === 'semi-annual' ? 'Semi-Annual' :
+                           cls.fee_plan === 'annual' ? 'Annual' : 'Monthly'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 border border-gray-200">{totalStudents}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {totalFee.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {discount > 0 ? discount.toLocaleString() : ''}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {budget.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(cls)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                             title="View"
                           >
-                            <Eye size={18} />
+                            <Eye size={16} />
                           </button>
                           <button
                             onClick={() => handleEdit(cls)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                             title="Edit"
                           >
-                            <Edit2 size={18} />
+                            <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => handleDelete(cls)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>
@@ -1245,19 +1095,18 @@ export default function ClassListPage() {
             </tbody>
           </table>
         </div>
-<<<<<<< HEAD
 
         {/* Pagination Controls */}
         {filteredClasses.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-            <div className="text-sm text-gray-600">
+          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+            <div className="text-xs text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredClasses.length)} of {filteredClasses.length} classes
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
                   currentPage === 1
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1265,7 +1114,7 @@ export default function ClassListPage() {
               >
                 Previous
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {(() => {
                   const pages = []
                   const maxVisiblePages = 4
@@ -1282,7 +1131,7 @@ export default function ClassListPage() {
                       <button
                         key={i}
                         onClick={() => setCurrentPage(i)}
-                        className={`w-10 h-10 rounded-lg font-medium transition ${
+                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${
                           currentPage === i
                             ? 'bg-[#1E3A8A] text-white'
                             : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
@@ -1298,7 +1147,7 @@ export default function ClassListPage() {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
                   currentPage === totalPages
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1309,44 +1158,32 @@ export default function ClassListPage() {
             </div>
           </div>
         )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Add New Class Sidebar */}
       {showModal && (
-<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowModal(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-=======
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowModal(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Create New Class</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                  <h3 className="text-base font-bold">Create New Class</h3>
+                  <p className="text-blue-200 text-xs mt-0.5">Fill in the details below</p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              <div className="space-y-4">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Incharge
                   </label>
-<<<<<<< HEAD
                   <div className="relative">
                     <input
                       type="text"
@@ -1365,10 +1202,10 @@ export default function ClassListPage() {
                       onBlur={() => {
                         setTimeout(() => setShowInchargeDropdown(false), 200)
                       }}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                     {showInchargeDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                         {staffList
                           .filter(staff => {
                             if (!inchargeSearchTerm) return true
@@ -1384,7 +1221,7 @@ export default function ClassListPage() {
                                 setInchargeSearchTerm(fullName)
                                 setShowInchargeDropdown(false)
                               }}
-                              className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                              className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
                             >
                               {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
                             </div>
@@ -1392,23 +1229,9 @@ export default function ClassListPage() {
                       </div>
                     )}
                   </div>
-=======
-                  <select
-                    value={formData.incharge}
-                    onChange={(e) => setFormData({ ...formData, incharge: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  >
-                    <option value="">Select Incharge</option>
-                    {staffList.map((staff) => (
-                      <option key={staff.id} value={`${staff.first_name} ${staff.last_name || ''}`.trim()}>
-                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
-                      </option>
-                    ))}
-                  </select>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1416,34 +1239,50 @@ export default function ClassListPage() {
                     placeholder="e.g., Grade 5, Nursery A"
                     value={formData.className}
                     onChange={(e) => setFormData({ ...formData, className: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class Fee
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rs.</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">Rs.</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formData.classFee}
                       onChange={(e) => setFormData({ ...formData, classFee: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                    Fee Plan <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.feePlan}
+                    onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly (3 months)</option>
+                    <option value="semi-annual">Semi-Annual (6 months)</option>
+                    <option value="annual">Annual (12 months)</option>
+                  </select>
+                </div>
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Exam Marking System
                   </label>
                   <select
                     value={formData.markingSystem}
                     onChange={(e) => setFormData({ ...formData, markingSystem: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Marking System</option>
+                    <option value="marks">Marks</option>
                     <option value="percentage">Percentage</option>
                     <option value="grade">Grade</option>
                     <option value="cgpa">CGPA</option>
@@ -1451,79 +1290,51 @@ export default function ClassListPage() {
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
-            <div className="border-t border-gray-200 px-6 py-4 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-4 py-3 bg-white">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
-=======
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+                  className="flex-1 px-3 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-<<<<<<< HEAD
-                  className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
+                  className="flex-1 px-3 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-sm"
                 >
-                  <Plus size={16} />
-=======
-                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                >
-                  <Plus size={18} />
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+                  <Plus size={14} />
                   Save Class
                 </button>
               </div>
             </div>
           </div>
-<<<<<<< HEAD
         </ModalOverlay>
-=======
-        </>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Edit Class Sidebar */}
       {showEditModal && (
-<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowEditModal(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-=======
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowEditModal(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Edit Class</h3>
-                  <p className="text-blue-200 text-sm mt-1">Update class details</p>
+                  <h3 className="text-base font-bold">Edit Class</h3>
+                  <p className="text-blue-200 text-xs mt-0.5">Update class details</p>
                 </div>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              <div className="space-y-4">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Incharge
                   </label>
-<<<<<<< HEAD
                   <div className="relative">
                     <input
                       type="text"
@@ -1542,10 +1353,10 @@ export default function ClassListPage() {
                       onBlur={() => {
                         setTimeout(() => setShowInchargeDropdown(false), 200)
                       }}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                     {showInchargeDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                         {staffList
                           .filter(staff => {
                             if (!inchargeSearchTerm) return true
@@ -1561,7 +1372,7 @@ export default function ClassListPage() {
                                 setInchargeSearchTerm(fullName)
                                 setShowInchargeDropdown(false)
                               }}
-                              className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                              className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
                             >
                               {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
                             </div>
@@ -1569,23 +1380,9 @@ export default function ClassListPage() {
                       </div>
                     )}
                   </div>
-=======
-                  <select
-                    value={formData.incharge}
-                    onChange={(e) => setFormData({ ...formData, incharge: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  >
-                    <option value="">Select Incharge</option>
-                    {staffList.map((staff) => (
-                      <option key={staff.id} value={`${staff.first_name} ${staff.last_name || ''}`.trim()}>
-                        {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
-                      </option>
-                    ))}
-                  </select>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1593,34 +1390,50 @@ export default function ClassListPage() {
                     placeholder="e.g., Grade 5, Nursery A"
                     value={formData.className}
                     onChange={(e) => setFormData({ ...formData, className: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class Fee
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rs.</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">Rs.</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formData.classFee}
                       onChange={(e) => setFormData({ ...formData, classFee: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                    Fee Plan <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.feePlan}
+                    onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly (3 months)</option>
+                    <option value="semi-annual">Semi-Annual (6 months)</option>
+                    <option value="annual">Annual (12 months)</option>
+                  </select>
+                </div>
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Exam Marking System
                   </label>
                   <select
                     value={formData.markingSystem}
                     onChange={(e) => setFormData({ ...formData, markingSystem: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Marking System</option>
+                    <option value="marks">Marks</option>
                     <option value="percentage">Percentage</option>
                     <option value="grade">Grade</option>
                     <option value="cgpa">CGPA</option>
@@ -1628,95 +1441,60 @@ export default function ClassListPage() {
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
-            <div className="border-t border-gray-200 px-6 py-4 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-4 py-3 bg-white">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
-=======
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+                  className="flex-1 px-3 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-<<<<<<< HEAD
-                  className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
+                  className="flex-1 px-3 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-sm"
                 >
-                  <Edit2 size={16} />
-=======
-                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                >
-                  <Edit2 size={18} />
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                  Update Class
+                  <Edit2 size={14} />
+                  Update
                 </button>
               </div>
             </div>
           </div>
-<<<<<<< HEAD
         </ModalOverlay>
-=======
-        </>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && classToDelete && (
-<<<<<<< HEAD
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-=======
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowDeleteModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-xl">
+                <h3 className="text-base font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
+              <div className="p-4">
+                <p className="text-gray-700 text-sm mb-4">
                   Are you sure you want to delete <span className="font-bold text-red-600">{classToDelete.class_name}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={14} />
                     Delete
                   </button>
                 </div>
               </div>
             </div>
           </div>
-<<<<<<< HEAD
         </ModalOverlay>
-=======
-        </>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
 
     </div>
   )
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

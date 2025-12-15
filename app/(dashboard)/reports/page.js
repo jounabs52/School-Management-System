@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   BarChart3,
   CreditCard,
@@ -13,7 +13,12 @@ import {
   Calendar,
   Filter,
   Users,
-  GraduationCap
+  GraduationCap,
+  Activity,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  XCircle
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -161,9 +166,49 @@ export default function ReportsPage() {
       )
       .subscribe()
 
+    const studentSubscription = supabase
+      .channel('students_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'students',
+          filter: `school_id=eq.${currentUser.school_id}`
+        },
+        () => {
+          setIsRealTimeActive(true)
+          setLastUpdated(new Date())
+          fetchStudentDataRealtime()
+          setTimeout(() => setIsRealTimeActive(false), 2000)
+        }
+      )
+      .subscribe()
+
+    const teacherSubscription = supabase
+      .channel('staff_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'staff',
+          filter: `school_id=eq.${currentUser.school_id}`
+        },
+        () => {
+          setIsRealTimeActive(true)
+          setLastUpdated(new Date())
+          fetchTeacherDataRealtime()
+          setTimeout(() => setIsRealTimeActive(false), 2000)
+        }
+      )
+      .subscribe()
+
     return () => {
       supabase.removeChannel(salarySubscription)
       supabase.removeChannel(feeSubscription)
+      supabase.removeChannel(studentSubscription)
+      supabase.removeChannel(teacherSubscription)
     }
   }, [currentUser])
 
@@ -177,65 +222,65 @@ export default function ReportsPage() {
     }
   }, [selectedMonth, selectedYear, allYearData, allPayrollData])
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async (showLoader = true) => {
     if (!currentUser?.school_id || !supabase) return
 
-    setLoading(true)
+    if (showLoader) {
+      setLoading(true)
+    }
 
     try {
-      // Fetch fee challans
-      const { data: feeChallans, error: feeError } = await supabase
-        .from('fee_challans')
-        .select('total_amount, status, created_at')
-        .eq('school_id', currentUser.school_id)
+      // Parallel fetch for better performance
+      const [feeResult, salaryResult, studentResult, teacherResult] = await Promise.all([
+        supabase
+          .from('fee_challans')
+          .select('total_amount, status, created_at')
+          .eq('school_id', currentUser.school_id),
+        supabase
+          .from('salary_payments')
+          .select('net_salary, status, created_at')
+          .eq('school_id', currentUser.school_id),
+        supabase
+          .from('students')
+          .select('status')
+          .eq('school_id', currentUser.school_id),
+        supabase
+          .from('staff')
+          .select('status')
+          .eq('school_id', currentUser.school_id)
+      ])
 
-      if (!feeError && feeChallans) {
-        setAllYearData(feeChallans)
+      if (!feeResult.error && feeResult.data) {
+        setAllYearData(feeResult.data)
       }
 
-      // Fetch salary payments
-      const { data: salaries, error: payrollError } = await supabase
-        .from('salary_payments')
-        .select('net_salary, status, created_at')
-        .eq('school_id', currentUser.school_id)
-
-      if (!payrollError && salaries) {
-        setAllPayrollData(salaries)
+      if (!salaryResult.error && salaryResult.data) {
+        setAllPayrollData(salaryResult.data)
       }
 
-      // Fetch student stats
-      const { data: students, error: studentError } = await supabase
-        .from('students')
-        .select('status')
-        .eq('school_id', currentUser.school_id)
-
-      if (!studentError && students) {
+      if (!studentResult.error && studentResult.data) {
         setStudentStats({
-          total: students.length,
-          active: students.filter(s => s.status === 'active').length,
-          inactive: students.filter(s => s.status === 'inactive').length
+          total: studentResult.data.length,
+          active: studentResult.data.filter(s => s.status === 'active').length,
+          inactive: studentResult.data.filter(s => s.status === 'inactive').length
         })
       }
 
-      // Fetch teacher stats
-      const { data: teachers, error: teacherError } = await supabase
-        .from('teachers')
-        .select('status')
-        .eq('school_id', currentUser.school_id)
-
-      if (!teacherError && teachers) {
+      if (!teacherResult.error && teacherResult.data) {
         setTeacherStats({
-          total: teachers.length,
-          active: teachers.filter(t => t.status === 'active').length,
-          inactive: teachers.filter(t => t.status === 'inactive').length
+          total: teacherResult.data.length,
+          active: teacherResult.data.filter(t => t.status === 'active').length,
+          inactive: teacherResult.data.filter(t => t.status === 'inactive').length
         })
       }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
-      setLoading(false)
+      if (showLoader) {
+        setLoading(false)
+      }
     }
-  }
+  }, [currentUser])
 
   const fetchPayrollDataRealtime = async () => {
     if (!currentUser?.school_id || !supabase) return
@@ -268,6 +313,48 @@ export default function ReportsPage() {
       }
     } catch (error) {
       console.error('Error fetching fee data:', error)
+    }
+  }
+
+  const fetchStudentDataRealtime = async () => {
+    if (!currentUser?.school_id || !supabase) return
+
+    try {
+      const { data: students, error } = await supabase
+        .from('students')
+        .select('status')
+        .eq('school_id', currentUser.school_id)
+
+      if (!error && students) {
+        setStudentStats({
+          total: students.length,
+          active: students.filter(s => s.status === 'active').length,
+          inactive: students.filter(s => s.status === 'inactive').length
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching student data:', error)
+    }
+  }
+
+  const fetchTeacherDataRealtime = async () => {
+    if (!currentUser?.school_id || !supabase) return
+
+    try {
+      const { data: teachers, error } = await supabase
+        .from('staff')
+        .select('status')
+        .eq('school_id', currentUser.school_id)
+
+      if (!error && teachers) {
+        setTeacherStats({
+          total: teachers.length,
+          active: teachers.filter(t => t.status === 'active').length,
+          inactive: teachers.filter(t => t.status === 'inactive').length
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching teacher data:', error)
     }
   }
 
@@ -475,8 +562,8 @@ export default function ReportsPage() {
   const handleManualRefresh = async () => {
     setIsRealTimeActive(true)
     setLastUpdated(new Date())
-    await fetchAllData()
-    setTimeout(() => setIsRealTimeActive(false), 2000)
+    await fetchAllData(false) // Don't show full page loader
+    setTimeout(() => setIsRealTimeActive(false), 1000)
   }
 
   const toggleBarVisibility = (barType) => {
@@ -516,276 +603,338 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading reports data...</p>
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-6"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <BarChart3 className="w-8 h-8 text-blue-600 animate-pulse" />
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Loading Analytics</h3>
+          <p className="text-sm text-gray-600">Preparing your comprehensive reports...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-2 bg-gray-50 min-h-screen overflow-x-hidden">
-      {/* Header */}
-      <div className="mb-2">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
-          <div>
-            <h1 className="text-lg font-bold text-gray-800 mb-0.5 leading-tight">Reports & Analytics</h1>
-            <p className="text-xs text-gray-600 leading-tight">Comprehensive financial insights and operational data</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleManualRefresh}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors shadow-sm text-xs"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRealTimeActive ? 'animate-spin text-blue-500' : 'text-gray-600'}`} />
-              <span className="font-medium text-gray-700">Refresh</span>
-            </button>
-            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-300 rounded shadow-sm">
-              <Calendar className="w-3.5 h-3.5 text-gray-600" />
-              <span className="text-[10px] text-gray-600">
-                {lastUpdated.toLocaleTimeString()}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        <button
-          onClick={() => setActiveSection('overview')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded font-semibold text-xs transition-all ${
-            activeSection === 'overview'
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-indigo-300 shadow-sm'
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5" />
-          <span>Overview</span>
-        </button>
-        <button
-          onClick={() => setActiveSection('fee-analytics')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded font-semibold text-xs transition-all ${
-            activeSection === 'fee-analytics'
-              ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-blue-300 shadow-sm'
-          }`}
-        >
-          <DollarSign className="w-3.5 h-3.5" />
-          <span>Fee Analytics</span>
-        </button>
-        <button
-          onClick={() => setActiveSection('payroll-analytics')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded font-semibold text-xs transition-all ${
-            activeSection === 'payroll-analytics'
-              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-green-300 shadow-sm'
-          }`}
-        >
-          <CreditCard className="w-3.5 h-3.5" />
-          <span>Payroll Analytics</span>
-        </button>
-        <button
-          onClick={() => setActiveSection('earning-report')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded font-semibold text-xs transition-all ${
-            activeSection === 'earning-report'
-              ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-purple-300 shadow-sm'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Earning Report</span>
-        </button>
-      </div>
-
-      {/* Overview Section */}
-      {activeSection === 'overview' && (
-        <div className="space-y-2">
-          {/* Financial Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between mb-1.5">
-                <DollarSign className="w-5 h-5" />
-                <div className="bg-white/20 rounded p-1">
-                  <TrendingUp className="w-3 h-3" />
-                </div>
-              </div>
-              <p className="text-blue-100 text-[10px] font-medium mb-0.5">Total Revenue</p>
-              <p className="text-xl font-bold">PKR {feeData.totalAmount.toLocaleString()}</p>
-              <p className="text-blue-100 text-[10px] mt-0.5">From fee collections</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between mb-1.5">
-                <CreditCard className="w-5 h-5" />
-                <div className="bg-white/20 rounded p-1">
-                  <TrendingDown className="w-3 h-3" />
-                </div>
-              </div>
-              <p className="text-red-100 text-[10px] font-medium mb-0.5">Total Expenses</p>
-              <p className="text-xl font-bold">PKR {payrollData.totalAmount.toLocaleString()}</p>
-              <p className="text-red-100 text-[10px] mt-0.5">From payroll</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between mb-1.5">
-                <BarChart3 className="w-5 h-5" />
-                <div className="bg-white/20 rounded p-1">
-                  <TrendingUp className="w-3 h-3" />
-                </div>
-              </div>
-              <p className="text-green-100 text-[10px] font-medium mb-0.5">Net Profit</p>
-              <p className="text-xl font-bold">
-                PKR {(feeData.paidAmount - payrollData.paidAmount).toLocaleString()}
-              </p>
-              <p className="text-green-100 text-[10px] mt-0.5">Revenue - Expenses</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between mb-1.5">
-                <FileText className="w-5 h-5" />
-                <div className="bg-white/20 rounded p-1">
-                  <BarChart3 className="w-3 h-3" />
-                </div>
-              </div>
-              <p className="text-purple-100 text-[10px] font-medium mb-0.5">Profit Margin</p>
-              <p className="text-xl font-bold">
-                {feeData.paidAmount > 0
-                  ? (((feeData.paidAmount - payrollData.paidAmount) / feeData.paidAmount) * 100).toFixed(1)
-                  : 0}%
-              </p>
-              <p className="text-purple-100 text-[10px] mt-0.5">Of total revenue</p>
-            </div>
-          </div>
-
-          {/* Students & Teachers Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <GraduationCap className="w-6 h-6 text-blue-600" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <div className="p-2 md:p-4 lg:p-4 max-w-[1800px] mx-auto">
+        {/* Enhanced Header */}
+        <div className="mb-3">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-3">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-sm">
+                  <BarChart3 className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">Students</h3>
-                  <p className="text-sm text-gray-600">Total enrollment statistics</p>
+                  <h1 className="text-lg font-bold text-gray-900">Reports & Analytics</h1>
+                  <p className="text-xs text-gray-600 flex items-center gap-1">
+                    <Activity className="w-3 h-3" />
+                    Real-time insights
+                  </p>
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                  <span className="text-gray-700 font-medium">Total Students</span>
-                  <span className="text-2xl font-bold text-blue-600">{studentStats.total}</span>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-                  <span className="text-gray-700 font-medium">Active Students</span>
-                  <span className="text-2xl font-bold text-green-600">{studentStats.active}</span>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <span className="text-gray-700 font-medium">Inactive Students</span>
-                  <span className="text-2xl font-bold text-gray-600">{studentStats.inactive}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <Users className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">Teachers</h3>
-                  <p className="text-sm text-gray-600">Faculty members overview</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-                  <span className="text-gray-700 font-medium">Total Teachers</span>
-                  <span className="text-2xl font-bold text-purple-600">{teacherStats.total}</span>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-                  <span className="text-gray-700 font-medium">Active Teachers</span>
-                  <span className="text-2xl font-bold text-green-600">{teacherStats.active}</span>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <span className="text-gray-700 font-medium">Inactive Teachers</span>
-                  <span className="text-2xl font-bold text-gray-600">{teacherStats.inactive}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Fee & Payroll Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-blue-600" />
-                Fee Collection Summary
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                  <span className="text-sm text-gray-700">Total Challans</span>
-                  <span className="font-bold text-blue-600">{feeData.total}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-                  <span className="text-sm text-gray-700">Paid Challans</span>
-                  <span className="font-bold text-green-600">{feeData.paid}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
-                  <span className="text-sm text-gray-700">Pending Challans</span>
-                  <span className="font-bold text-yellow-600">{feeData.pending}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                  <span className="text-sm text-gray-700">Overdue Challans</span>
-                  <span className="font-bold text-red-600">{feeData.overdue}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-green-600" />
-                Payroll Summary
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                  <span className="text-sm text-gray-700">Total Payments</span>
-                  <span className="font-bold text-blue-600">{payrollData.total}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-                  <span className="text-sm text-gray-700">Paid Salaries</span>
-                  <span className="font-bold text-green-600">{payrollData.paid}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
-                  <span className="text-sm text-gray-700">Pending Salaries</span>
-                  <span className="font-bold text-yellow-600">{payrollData.pending}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                  <span className="text-sm text-gray-700">Cancelled Payments</span>
-                  <span className="font-bold text-red-600">{payrollData.cancelled}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={isRealTimeActive}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm ${
+                    isRealTimeActive
+                      ? 'bg-blue-50 text-blue-600 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700'
+                  }`}
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRealTimeActive ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline text-xs">{isRealTimeActive ? 'Updating...' : 'Refresh'}</span>
+                </button>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${isRealTimeActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                  <span className="text-xs font-medium text-gray-700">
+                    {lastUpdated.toLocaleTimeString()}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Fee Analytics Section */}
-      {activeSection === 'fee-analytics' && (
-        <div className="space-y-3">
+        {/* Modern Navigation Tabs */}
+        <div className="mb-4">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-1.5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
+              <button
+                onClick={() => setActiveSection('overview')}
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-xs transition-all ${
+                  activeSection === 'overview'
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-sm'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Overview</span>
+              </button>
+              <button
+                onClick={() => setActiveSection('fee-analytics')}
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-xs transition-all ${
+                  activeSection === 'fee-analytics'
+                    ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-sm'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <DollarSign className="w-4 h-4" />
+                <span>Fee Analytics</span>
+              </button>
+              <button
+                onClick={() => setActiveSection('payroll-analytics')}
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-xs transition-all ${
+                  activeSection === 'payroll-analytics'
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Payroll</span>
+              </button>
+              <button
+                onClick={() => setActiveSection('earning-report')}
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-xs transition-all ${
+                  activeSection === 'earning-report'
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Earnings</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Overview Section */}
+        {activeSection === 'overview' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Financial Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-blue-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  <p className="text-xs text-gray-600 font-medium">Total Revenue</p>
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {feeData.totalAmount.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-red-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <CreditCard className="w-5 h-5 text-red-600" />
+                  <p className="text-xs text-gray-600 font-medium">Total Expenses</p>
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {payrollData.totalAmount.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-green-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                  <p className="text-xs text-gray-600 font-medium">Net Profit</p>
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {(feeData.paidAmount - payrollData.paidAmount).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-purple-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-5 h-5 text-purple-600" />
+                  <p className="text-xs text-gray-600 font-medium">Profit Margin</p>
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  {feeData.paidAmount > 0
+                    ? (((feeData.paidAmount - payrollData.paidAmount) / feeData.paidAmount) * 100).toFixed(1)
+                    : 0}%
+                </p>
+              </div>
+            </div>
+
+            {/* Students & Teachers Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md">
+                    <GraduationCap className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">Students</h3>
+                    <p className="text-sm text-gray-600">Total enrollment statistics</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition-all border border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      <span className="text-gray-700 font-semibold">Total Students</span>
+                    </div>
+                    <span className="text-2xl font-bold text-blue-600">{studentStats.total}</span>
+                  </div>
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl hover:shadow-md transition-all border border-green-200">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700 font-semibold">Active Students</span>
+                    </div>
+                    <span className="text-2xl font-bold text-green-600">{studentStats.active}</span>
+                  </div>
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:shadow-md transition-all border border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-5 h-5 text-gray-600" />
+                      <span className="text-gray-700 font-semibold">Inactive Students</span>
+                    </div>
+                    <span className="text-2xl font-bold text-gray-600">{studentStats.inactive}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md">
+                    <Users className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">Teachers</h3>
+                    <p className="text-sm text-gray-600">Faculty members overview</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl hover:shadow-md transition-all border border-purple-200">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-purple-600" />
+                      <span className="text-gray-700 font-semibold">Total Teachers</span>
+                    </div>
+                    <span className="text-2xl font-bold text-purple-600">{teacherStats.total}</span>
+                  </div>
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl hover:shadow-md transition-all border border-green-200">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700 font-semibold">Active Teachers</span>
+                    </div>
+                    <span className="text-2xl font-bold text-green-600">{teacherStats.active}</span>
+                  </div>
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:shadow-md transition-all border border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-5 h-5 text-gray-600" />
+                      <span className="text-gray-700 font-semibold">Inactive Teachers</span>
+                    </div>
+                    <span className="text-2xl font-bold text-gray-600">{teacherStats.inactive}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fee & Payroll Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow">
+                <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <DollarSign className="w-6 h-6 text-blue-600" />
+                  </div>
+                  Fee Collection Summary
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition-all border border-blue-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-600" />
+                      Total Challans
+                    </span>
+                    <span className="text-lg font-bold text-blue-600">{feeData.total}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl hover:shadow-md transition-all border border-green-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      Paid Challans
+                    </span>
+                    <span className="text-lg font-bold text-green-600">{feeData.paid}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl hover:shadow-md transition-all border border-yellow-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-yellow-600" />
+                      Pending Challans
+                    </span>
+                    <span className="text-lg font-bold text-yellow-600">{feeData.pending}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-red-100 rounded-xl hover:shadow-md transition-all border border-red-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-600" />
+                      Overdue Challans
+                    </span>
+                    <span className="text-lg font-bold text-red-600">{feeData.overdue}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow">
+                <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CreditCard className="w-6 h-6 text-green-600" />
+                  </div>
+                  Payroll Summary
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition-all border border-blue-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-600" />
+                      Total Payments
+                    </span>
+                    <span className="text-lg font-bold text-blue-600">{payrollData.total}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl hover:shadow-md transition-all border border-green-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      Paid Salaries
+                    </span>
+                    <span className="text-lg font-bold text-green-600">{payrollData.paid}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl hover:shadow-md transition-all border border-yellow-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-yellow-600" />
+                      Pending Salaries
+                    </span>
+                    <span className="text-lg font-bold text-yellow-600">{payrollData.pending}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-red-100 rounded-xl hover:shadow-md transition-all border border-red-200">
+                    <span className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-red-600" />
+                      Cancelled Payments
+                    </span>
+                    <span className="text-lg font-bold text-red-600">{payrollData.cancelled}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fee Analytics Section */}
+        {activeSection === 'fee-analytics' && (
+          <div className="space-y-6 animate-fadeIn">
             {/* Filters */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded p-2 border border-gray-200">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Filter className="w-3.5 h-3.5 text-gray-700" />
-                <h3 className="text-xs font-semibold text-gray-800">Filter Reports</h3>
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-blue-100 rounded-lg">
+                  <Filter className="w-4 h-4 text-blue-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800">Filter Reports</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Select Month</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Month</label>
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all hover:border-blue-400"
                   >
                     {months.map(month => (
                       <option key={month.value} value={month.value}>{month.label}</option>
@@ -793,11 +942,11 @@ export default function ReportsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Select Year</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Year</label>
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all hover:border-blue-400"
                   >
                     {years.map(year => (
                       <option key={year} value={year}>{year}</option>
@@ -808,119 +957,59 @@ export default function ReportsPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-1.5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
                   <BarChart3 className="w-5 h-5" />
-                  <div className="bg-white/20 rounded p-1">
-                    <BarChart3 className="w-3 h-3" />
-                  </div>
+                  <p className="text-blue-100 text-xs font-medium">Total Challans</p>
                 </div>
-                <p className="text-blue-100 text-[10px] font-medium mb-0.5">Total Challans</p>
-                <p className="text-xl font-bold">{feeData.total}</p>
-                <p className="text-blue-100 text-[10px] mt-0.5">PKR {feeData.totalAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{feeData.total}</p>
+                <p className="text-blue-100 text-xs mt-1">PKR {feeData.totalAmount.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-1.5">
-                  <TrendingUp className="w-5 h-5" />
-                  <div className="bg-white/20 rounded p-1">
-                    <TrendingUp className="w-3 h-3" />
-                  </div>
+              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <p className="text-green-100 text-xs font-medium">Paid</p>
                 </div>
-                <p className="text-green-100 text-[10px] font-medium mb-0.5">Paid</p>
-                <p className="text-xl font-bold">{feeData.paid}</p>
-                <p className="text-green-100 text-[10px] mt-0.5">PKR {feeData.paidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{feeData.paid}</p>
+                <p className="text-green-100 text-xs mt-1">PKR {feeData.paidAmount.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-1.5">
-                  <TrendingUp className="w-5 h-5" />
-                  <div className="bg-white/20 rounded p-1">
-                    <TrendingUp className="w-3 h-3" />
-                  </div>
+              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-5 h-5" />
+                  <p className="text-yellow-100 text-xs font-medium">Pending</p>
                 </div>
-                <p className="text-yellow-100 text-[10px] font-medium mb-0.5">Pending</p>
-                <p className="text-xl font-bold">{feeData.pending}</p>
-                <p className="text-yellow-100 text-[10px] mt-0.5">PKR {feeData.pendingAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{feeData.pending}</p>
+                <p className="text-yellow-100 text-xs mt-1">PKR {feeData.pendingAmount.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-red-500 to-red-600 rounded p-3 text-white shadow hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-1.5">
-                  <TrendingDown className="w-5 h-5" />
-                  <div className="bg-white/20 rounded p-1">
-                    <TrendingDown className="w-3 h-3" />
-                  </div>
+              <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-5 h-5" />
+                  <p className="text-red-100 text-xs font-medium">Overdue</p>
                 </div>
-                <p className="text-red-100 text-[10px] font-medium mb-0.5">Overdue</p>
-                <p className="text-xl font-bold">{feeData.overdue}</p>
-                <p className="text-red-100 text-[10px] mt-0.5">PKR {feeData.overdueAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{feeData.overdue}</p>
+                <p className="text-red-100 text-xs mt-1">PKR {feeData.overdueAmount.toLocaleString()}</p>
               </div>
             </div>
 
             {/* Chart */}
-            <div className="bg-gradient-to-br from-white to-gray-50 rounded border border-gray-200 p-3 shadow-sm">
-              <div className="mb-2">
-                <h3 className="text-xs font-bold text-gray-900 text-center mb-0.5">
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-bold text-gray-900 text-center mb-0.5">
                   {selectedMonth !== 'all'
                     ? `${months[parseInt(selectedMonth)].label} ${selectedYear} - Fee Collection Analysis`
                     : `Fee Collection Analysis - ${selectedYear}`}
                 </h3>
-                <p className="text-[10px] text-gray-500 text-center">
+                <p className="text-xs text-gray-600 text-center">
                   {selectedMonth !== 'all' ? 'Daily breakdown for selected month' : 'Monthly overview for selected year'}
                 </p>
               </div>
 
-              <div className="h-48 flex items-end justify-around gap-0.5 px-1 overflow-x-auto">
-                {monthlyFeeData.map((data, index) => {
-                  const maxValue = Math.max(...monthlyFeeData.map(d => d.total), 1)
-                  const minHeight = 8
-                  const totalHeight = maxValue > 0 ? Math.max((data.total / maxValue) * 100, data.total > 0 ? minHeight : 0) : 0
-                  const paidHeight = maxValue > 0 ? Math.max((data.paid / maxValue) * 100, data.paid > 0 ? minHeight : 0) : 0
-                  const overdueHeight = maxValue > 0 ? Math.max((data.overdue / maxValue) * 100, data.overdue > 0 ? minHeight : 0) : 0
-                  const pendingHeight = maxValue > 0 ? Math.max((data.pending / maxValue) * 100, data.pending > 0 ? minHeight : 0) : 0
-
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center gap-0.5 min-w-0">
-                      <div className="w-full flex justify-center items-end gap-px h-44">
-                        {visibleBars.total && (
-                          <div
-                            className="w-1.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t hover:from-blue-700 hover:to-blue-500 transition-all cursor-pointer"
-                            style={{ height: `${totalHeight}%` }}
-                            title={`Total: ${data.total}`}
-                          ></div>
-                        )}
-                        {visibleBars.paid && (
-                          <div
-                            className="w-1.5 bg-gradient-to-t from-green-600 to-green-400 rounded-t hover:from-green-700 hover:to-green-500 transition-all cursor-pointer"
-                            style={{ height: `${paidHeight}%` }}
-                            title={`Paid: ${data.paid}`}
-                          ></div>
-                        )}
-                        {visibleBars.overdue && (
-                          <div
-                            className="w-1.5 bg-gradient-to-t from-red-600 to-red-400 rounded-t hover:from-red-700 hover:to-red-500 transition-all cursor-pointer"
-                            style={{ height: `${overdueHeight}%` }}
-                            title={`Overdue: ${data.overdue}`}
-                          ></div>
-                        )}
-                        {visibleBars.pending && (
-                          <div
-                            className="w-1.5 bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t hover:from-yellow-700 hover:to-yellow-500 transition-all cursor-pointer"
-                            style={{ height: `${pendingHeight}%` }}
-                            title={`Pending: ${data.pending}`}
-                          ></div>
-                        )}
-                      </div>
-                      <p className="text-[9px] text-gray-600 font-medium truncate w-full text-center">
-                        {selectedMonth !== 'all' ? data.month : data.month.substring(0, 3)}
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+              {/* Legend */}
+              <div className="mb-3 flex flex-wrap justify-center gap-2">
                 {[
                   { key: 'total', label: 'Total', color: 'blue' },
                   { key: 'paid', label: 'Paid', color: 'green' },
@@ -930,59 +1019,101 @@ export default function ReportsPage() {
                   <button
                     key={key}
                     onClick={() => toggleBarVisibility(key)}
-                    className={`flex items-center gap-1 px-2 py-1 rounded transition-all text-[10px] font-medium shadow-sm ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold shadow-sm ${
                       visibleBars[key]
-                        ? `bg-${color}-100 border border-${color}-500 text-${color}-900`
-                        : 'bg-gray-100 border border-gray-300 text-gray-500 opacity-60 hover:opacity-100'
+                        ? color === 'blue' ? 'bg-blue-100 border-2 border-blue-500 text-blue-900' :
+                          color === 'green' ? 'bg-green-100 border-2 border-green-500 text-green-900' :
+                          color === 'yellow' ? 'bg-yellow-100 border-2 border-yellow-500 text-yellow-900' :
+                          'bg-red-100 border-2 border-red-500 text-red-900'
+                        : 'bg-gray-100 border-2 border-gray-300 text-gray-500 opacity-60 hover:opacity-100'
                     }`}
                   >
-                    <div className={`w-2 h-2 rounded-full ${visibleBars[key] ? `bg-${color}-500` : 'bg-gray-400'}`}></div>
+                    <div className={`w-2.5 h-2.5 rounded-full ${
+                      visibleBars[key]
+                        ? color === 'blue' ? 'bg-blue-500' :
+                          color === 'green' ? 'bg-green-500' :
+                          color === 'yellow' ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        : 'bg-gray-400'
+                    }`}></div>
                     <span>{label}</span>
                   </button>
                 ))}
               </div>
-            </div>
-        </div>
-      )}
 
-      {/* Payroll Analytics Section */}
-      {activeSection === 'payroll-analytics' && (
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200">
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-t-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-white/20 rounded-xl">
-                  <CreditCard className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Payroll Analytics</h2>
-                  <p className="text-green-100 text-sm">Monitor salary payments and disbursements</p>
+              {/* Chart - No Scroll */}
+              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border border-gray-200">
+                <div className="h-80 flex items-end justify-between gap-1">
+                  {monthlyFeeData.map((data, index) => {
+                    const maxValue = Math.max(...monthlyFeeData.map(d => d.total), 1)
+                    const minHeight = 5
+                    const totalHeight = maxValue > 0 ? Math.max((data.total / maxValue) * 100, data.total > 0 ? minHeight : 0) : 0
+                    const paidHeight = maxValue > 0 ? Math.max((data.paid / maxValue) * 100, data.paid > 0 ? minHeight : 0) : 0
+                    const overdueHeight = maxValue > 0 ? Math.max((data.overdue / maxValue) * 100, data.overdue > 0 ? minHeight : 0) : 0
+                    const pendingHeight = maxValue > 0 ? Math.max((data.pending / maxValue) * 100, data.pending > 0 ? minHeight : 0) : 0
+
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center gap-2 group">
+                        <div className="w-full flex justify-center items-end gap-0.5 h-72 relative">
+                          {visibleBars.total && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-md hover:from-blue-700 hover:to-blue-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${totalHeight}%` }}
+                              title={`Total: ${data.total}`}
+                            ></div>
+                          )}
+                          {visibleBars.paid && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-green-600 to-green-400 rounded-t-md hover:from-green-700 hover:to-green-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${paidHeight}%` }}
+                              title={`Paid: ${data.paid}`}
+                            ></div>
+                          )}
+                          {visibleBars.overdue && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-red-600 to-red-400 rounded-t-md hover:from-red-700 hover:to-red-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${overdueHeight}%` }}
+                              title={`Overdue: ${data.overdue}`}
+                            ></div>
+                          )}
+                          {visibleBars.pending && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-md hover:from-yellow-700 hover:to-yellow-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${pendingHeight}%` }}
+                              title={`Pending: ${data.pending}`}
+                            ></div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-700 font-medium text-center w-full truncate group-hover:text-blue-600 transition-colors">
+                          {selectedMonth !== 'all' ? data.month : data.month.substring(0, 3)}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
-              <button
-                onClick={exportToCSV}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-green-50 transition-colors font-medium shadow-md"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export CSV</span>
-              </button>
             </div>
           </div>
+        )}
 
-          <div className="p-6 space-y-6">
+        {/* Payroll Analytics Section */}
+        {activeSection === 'payroll-analytics' && (
+          <div className="space-y-6 animate-fadeIn">
             {/* Filters */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200">
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
               <div className="flex items-center gap-2 mb-4">
-                <Filter className="w-5 h-5 text-gray-700" />
-                <h3 className="font-semibold text-gray-800">Filter Reports</h3>
+                <div className="p-1.5 bg-green-100 rounded-lg">
+                  <Filter className="w-4 h-4 text-green-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800">Filter Reports</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Month</label>
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white transition-all"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white transition-all hover:border-green-400"
                   >
                     {months.map(month => (
                       <option key={month.value} value={month.value}>{month.label}</option>
@@ -990,11 +1121,11 @@ export default function ReportsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Year</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Year</label>
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white transition-all"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white transition-all hover:border-green-400"
                   >
                     {years.map(year => (
                       <option key={year} value={year}>{year}</option>
@@ -1005,119 +1136,59 @@ export default function ReportsPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <DollarSign className="w-8 h-8" />
-                  <div className="bg-white/20 rounded-lg p-2">
-                    <BarChart3 className="w-5 h-5" />
-                  </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-5 h-5" />
+                  <p className="text-blue-100 text-xs font-medium">Total Payments</p>
                 </div>
-                <p className="text-blue-100 text-sm font-medium mb-1">Total Payments</p>
-                <p className="text-3xl font-bold">{payrollData.total}</p>
-                <p className="text-blue-100 text-xs mt-2">PKR {payrollData.totalAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{payrollData.total}</p>
+                <p className="text-blue-100 text-xs mt-1">PKR {payrollData.totalAmount.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <TrendingUp className="w-8 h-8" />
-                  <div className="bg-white/20 rounded-lg p-2">
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
+              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <p className="text-green-100 text-xs font-medium">Paid</p>
                 </div>
-                <p className="text-green-100 text-sm font-medium mb-1">Paid</p>
-                <p className="text-3xl font-bold">{payrollData.paid}</p>
-                <p className="text-green-100 text-xs mt-2">PKR {payrollData.paidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{payrollData.paid}</p>
+                <p className="text-green-100 text-xs mt-1">PKR {payrollData.paidAmount.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <TrendingUp className="w-8 h-8" />
-                  <div className="bg-white/20 rounded-lg p-2">
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
+              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-5 h-5" />
+                  <p className="text-yellow-100 text-xs font-medium">Pending</p>
                 </div>
-                <p className="text-yellow-100 text-sm font-medium mb-1">Pending</p>
-                <p className="text-3xl font-bold">{payrollData.pending}</p>
-                <p className="text-yellow-100 text-xs mt-2">PKR {payrollData.pendingAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{payrollData.pending}</p>
+                <p className="text-yellow-100 text-xs mt-1">PKR {payrollData.pendingAmount.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <TrendingDown className="w-8 h-8" />
-                  <div className="bg-white/20 rounded-lg p-2">
-                    <TrendingDown className="w-5 h-5" />
-                  </div>
+              <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <XCircle className="w-5 h-5" />
+                  <p className="text-red-100 text-xs font-medium">Cancelled</p>
                 </div>
-                <p className="text-red-100 text-sm font-medium mb-1">Cancelled</p>
-                <p className="text-3xl font-bold">{payrollData.cancelled}</p>
-                <p className="text-red-100 text-xs mt-2">PKR {payrollData.cancelledAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{payrollData.cancelled}</p>
+                <p className="text-red-100 text-xs mt-1">PKR {payrollData.cancelledAmount.toLocaleString()}</p>
               </div>
             </div>
 
             {/* Chart */}
-            <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 border-gray-200 p-6 shadow-inner">
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-gray-900 text-center mb-1">
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-bold text-gray-900 text-center mb-0.5">
                   {selectedMonth !== 'all'
                     ? `${months[parseInt(selectedMonth)].label} ${selectedYear} - Payroll Analysis`
                     : `Payroll Analysis - ${selectedYear}`}
                 </h3>
-                <p className="text-sm text-gray-500 text-center">
+                <p className="text-xs text-gray-600 text-center">
                   {selectedMonth !== 'all' ? 'Daily breakdown for selected month' : 'Monthly overview for selected year'}
                 </p>
               </div>
 
-              <div className="h-80 flex items-end justify-around gap-1 px-2">
-                {monthlyPayrollData.map((data, index) => {
-                  const maxValue = Math.max(...monthlyPayrollData.map(d => d.total), 1)
-                  const minHeight = 8
-                  const totalHeight = maxValue > 0 ? Math.max((data.total / maxValue) * 100, data.total > 0 ? minHeight : 0) : 0
-                  const paidHeight = maxValue > 0 ? Math.max((data.paid / maxValue) * 100, data.paid > 0 ? minHeight : 0) : 0
-                  const cancelledHeight = maxValue > 0 ? Math.max((data.cancelled / maxValue) * 100, data.cancelled > 0 ? minHeight : 0) : 0
-                  const pendingHeight = maxValue > 0 ? Math.max((data.pending / maxValue) * 100, data.pending > 0 ? minHeight : 0) : 0
-
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center gap-2 min-w-0">
-                      <div className="w-full flex justify-center items-end gap-1 h-72">
-                        {visibleBars.total && (
-                          <div
-                            className="w-3 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg hover:from-blue-700 hover:to-blue-500 transition-all cursor-pointer shadow-md"
-                            style={{ height: `${totalHeight}%` }}
-                            title={`Total: ${data.total}`}
-                          ></div>
-                        )}
-                        {visibleBars.paid && (
-                          <div
-                            className="w-3 bg-gradient-to-t from-green-600 to-green-400 rounded-t-lg hover:from-green-700 hover:to-green-500 transition-all cursor-pointer shadow-md"
-                            style={{ height: `${paidHeight}%` }}
-                            title={`Paid: ${data.paid}`}
-                          ></div>
-                        )}
-                        {visibleBars.overdue && (
-                          <div
-                            className="w-3 bg-gradient-to-t from-red-600 to-red-400 rounded-t-lg hover:from-red-700 hover:to-red-500 transition-all cursor-pointer shadow-md"
-                            style={{ height: `${cancelledHeight}%` }}
-                            title={`Cancelled: ${data.cancelled}`}
-                          ></div>
-                        )}
-                        {visibleBars.pending && (
-                          <div
-                            className="w-3 bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-lg hover:from-yellow-700 hover:to-yellow-500 transition-all cursor-pointer shadow-md"
-                            style={{ height: `${pendingHeight}%` }}
-                            title={`Pending: ${data.pending}`}
-                          ></div>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-600 font-medium truncate w-full text-center">
-                        {selectedMonth !== 'all' ? data.month : data.month.substring(0, 3)}
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {/* Legend */}
+              <div className="mb-3 flex flex-wrap justify-center gap-2">
                 {[
                   { key: 'total', label: 'Total', color: 'blue' },
                   { key: 'paid', label: 'Paid', color: 'green' },
@@ -1127,85 +1198,117 @@ export default function ReportsPage() {
                   <button
                     key={key}
                     onClick={() => toggleBarVisibility(key)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all text-sm font-medium shadow-md hover:shadow-lg ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold shadow-sm ${
                       visibleBars[key]
-                        ? `bg-${color}-100 border-2 border-${color}-500 text-${color}-900`
+                        ? color === 'blue' ? 'bg-blue-100 border-2 border-blue-500 text-blue-900' :
+                          color === 'green' ? 'bg-green-100 border-2 border-green-500 text-green-900' :
+                          color === 'yellow' ? 'bg-yellow-100 border-2 border-yellow-500 text-yellow-900' :
+                          'bg-red-100 border-2 border-red-500 text-red-900'
                         : 'bg-gray-100 border-2 border-gray-300 text-gray-500 opacity-60 hover:opacity-100'
                     }`}
                   >
-                    <div className={`w-3 h-3 rounded-full shadow-inner ${visibleBars[key] ? `bg-${color}-500` : 'bg-gray-400'}`}></div>
+                    <div className={`w-2.5 h-2.5 rounded-full ${
+                      visibleBars[key]
+                        ? color === 'blue' ? 'bg-blue-500' :
+                          color === 'green' ? 'bg-green-500' :
+                          color === 'yellow' ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        : 'bg-gray-400'
+                    }`}></div>
                     <span>{label}</span>
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Earning Report Section */}
-      {activeSection === 'earning-report' && (
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200">
-          <div className="bg-gradient-to-r from-purple-500 to-pink-600 p-6 rounded-t-2xl">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white/20 rounded-xl">
-                <FileText className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">Earning Report</h2>
-                <p className="text-purple-100 text-sm">Comprehensive profit and loss statement</p>
-              </div>
-            </div>
-          </div>
+              {/* Chart - No Scroll */}
+              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border border-gray-200">
+                <div className="h-80 flex items-end justify-between gap-1">
+                  {monthlyPayrollData.map((data, index) => {
+                    const maxValue = Math.max(...monthlyPayrollData.map(d => d.total), 1)
+                    const minHeight = 5
+                    const totalHeight = maxValue > 0 ? Math.max((data.total / maxValue) * 100, data.total > 0 ? minHeight : 0) : 0
+                    const paidHeight = maxValue > 0 ? Math.max((data.paid / maxValue) * 100, data.paid > 0 ? minHeight : 0) : 0
+                    const cancelledHeight = maxValue > 0 ? Math.max((data.cancelled / maxValue) * 100, data.cancelled > 0 ? minHeight : 0) : 0
+                    const pendingHeight = maxValue > 0 ? Math.max((data.pending / maxValue) * 100, data.pending > 0 ? minHeight : 0) : 0
 
-          <div className="p-6 space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border-2 border-green-200 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-3">
-                  <DollarSign className="w-6 h-6 text-green-600" />
-                  <div className="bg-green-600 rounded-lg p-2">
-                    <TrendingUp className="w-4 h-4 text-white" />
-                  </div>
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center gap-2 group">
+                        <div className="w-full flex justify-center items-end gap-0.5 h-72 relative">
+                          {visibleBars.total && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-md hover:from-blue-700 hover:to-blue-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${totalHeight}%` }}
+                              title={`Total: ${data.total}`}
+                            ></div>
+                          )}
+                          {visibleBars.paid && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-green-600 to-green-400 rounded-t-md hover:from-green-700 hover:to-green-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${paidHeight}%` }}
+                              title={`Paid: ${data.paid}`}
+                            ></div>
+                          )}
+                          {visibleBars.overdue && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-red-600 to-red-400 rounded-t-md hover:from-red-700 hover:to-red-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${cancelledHeight}%` }}
+                              title={`Cancelled: ${data.cancelled}`}
+                            ></div>
+                          )}
+                          {visibleBars.pending && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-md hover:from-yellow-700 hover:to-yellow-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${pendingHeight}%` }}
+                              title={`Pending: ${data.pending}`}
+                            ></div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-700 font-medium text-center w-full truncate group-hover:text-green-600 transition-colors">
+                          {selectedMonth !== 'all' ? data.month : data.month.substring(0, 3)}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
-                <p className="text-sm font-medium text-green-700 mb-1">Total Income</p>
-                <p className="text-xs text-green-600 mb-2">From fee collections</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Earning Report Section */}
+        {activeSection === 'earning-report' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border-2 border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-green-600" />
+                  <p className="text-xs font-medium text-green-700">Total Income</p>
+                </div>
                 <p className="text-2xl font-bold text-green-900">PKR {feeData.paidAmount.toLocaleString()}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-6 border-2 border-red-200 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-3">
-                  <DollarSign className="w-6 h-6 text-red-600" />
-                  <div className="bg-red-600 rounded-lg p-2">
-                    <TrendingDown className="w-4 h-4 text-white" />
-                  </div>
+              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border-2 border-red-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-red-600" />
+                  <p className="text-xs font-medium text-red-700">Total Expense</p>
                 </div>
-                <p className="text-sm font-medium text-red-700 mb-1">Total Expense</p>
-                <p className="text-xs text-red-600 mb-2">From salary payments</p>
                 <p className="text-2xl font-bold text-red-900">PKR {payrollData.paidAmount.toLocaleString()}</p>
               </div>
 
-              <div className={`rounded-xl p-6 border-2 hover:shadow-lg transition-shadow ${
+              <div className={`rounded-xl p-4 border-2 ${
                 (feeData.paidAmount - payrollData.paidAmount) >= 0
                   ? 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200'
                   : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200'
               }`}>
-                <div className="flex items-center justify-between mb-3">
-                  <DollarSign className={`w-6 h-6 ${
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className={`w-5 h-5 ${
                     (feeData.paidAmount - payrollData.paidAmount) >= 0 ? 'text-purple-600' : 'text-orange-600'
                   }`} />
-                  <div className={`rounded-lg p-2 ${
-                    (feeData.paidAmount - payrollData.paidAmount) >= 0 ? 'bg-purple-600' : 'bg-orange-600'
-                  }`}>
-                    <DollarSign className="w-4 h-4 text-white" />
-                  </div>
+                  <p className={`text-xs font-medium ${
+                    (feeData.paidAmount - payrollData.paidAmount) >= 0 ? 'text-purple-700' : 'text-orange-700'
+                  }`}>Net Earning</p>
                 </div>
-                <p className={`text-sm font-medium mb-1 ${
-                  (feeData.paidAmount - payrollData.paidAmount) >= 0 ? 'text-purple-700' : 'text-orange-700'
-                }`}>Net Earning</p>
-                <p className={`text-xs mb-2 ${
-                  (feeData.paidAmount - payrollData.paidAmount) >= 0 ? 'text-purple-600' : 'text-orange-600'
-                }`}>(Income - Expense)</p>
                 <p className={`text-2xl font-bold ${
                   (feeData.paidAmount - payrollData.paidAmount) >= 0 ? 'text-purple-900' : 'text-orange-900'
                 }`}>
@@ -1213,15 +1316,11 @@ export default function ReportsPage() {
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border-2 border-blue-200 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-3">
-                  <BarChart3 className="w-6 h-6 text-blue-600" />
-                  <div className="bg-blue-600 rounded-lg p-2">
-                    <BarChart3 className="w-4 h-4 text-white" />
-                  </div>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border-2 border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-5 h-5 text-blue-600" />
+                  <p className="text-xs font-medium text-blue-700">Profit Margin</p>
                 </div>
-                <p className="text-sm font-medium text-blue-700 mb-1">Profit Margin</p>
-                <p className="text-xs text-blue-600 mb-2">Percentage of income</p>
                 <p className="text-2xl font-bold text-blue-900">
                   {feeData.paidAmount > 0
                     ? (((feeData.paidAmount - payrollData.paidAmount) / feeData.paidAmount) * 100).toFixed(1)
@@ -1275,8 +1374,8 @@ export default function ReportsPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

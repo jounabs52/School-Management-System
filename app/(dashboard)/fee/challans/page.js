@@ -1,17 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-<<<<<<< HEAD
 import { Search, Eye, Printer, CheckCircle, X } from 'lucide-react'
-=======
-import { Search, Eye, Download, Printer } from 'lucide-react'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-<<<<<<< HEAD
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
@@ -37,8 +32,6 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function FeeChallanPage() {
   const [challans, setChallans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -51,7 +44,6 @@ export default function FeeChallanPage() {
   const [challanItems, setChallanItems] = useState([])
   const [schoolName, setSchoolName] = useState('SMART SCHOOL PRO')
 
-<<<<<<< HEAD
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 10
@@ -80,17 +72,6 @@ export default function FeeChallanPage() {
     return () => {
       document.body.style.overflow = 'unset'
       document.body.style.paddingRight = ''
-=======
-  // Lock/unlock body scroll when modal opens/closes
-  useEffect(() => {
-    if (showViewModal) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
-    return () => {
-      document.body.style.overflow = 'unset'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }, [showViewModal])
 
@@ -100,14 +81,11 @@ export default function FeeChallanPage() {
     fetchAllClasses()
   }, [])
 
-<<<<<<< HEAD
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, statusFilter, classFilter])
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const fetchSchoolName = async () => {
     try {
       const user = getUserFromCookie()
@@ -132,10 +110,6 @@ export default function FeeChallanPage() {
       const user = getUserFromCookie()
       if (!user) return
 
-<<<<<<< HEAD
-=======
-      // Fetch ALL classes for the filter dropdown
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const { data: allClasses, error } = await supabase
         .from('classes')
         .select('id, class_name')
@@ -160,12 +134,6 @@ export default function FeeChallanPage() {
         return
       }
 
-<<<<<<< HEAD
-=======
-      console.log('Fetching challans for school_id:', user.school_id)
-
-      // First, get challans with basic student info
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const { data: challansData, error: challansError } = await supabase
         .from('fee_challans')
         .select(`
@@ -184,28 +152,14 @@ export default function FeeChallanPage() {
 
       if (challansError) {
         console.error('Query error:', challansError)
-<<<<<<< HEAD
         showToast(`Database Error: ${challansError.message}`, 'error')
-=======
-        alert(`Database Error: ${challansError.message}`)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         setLoading(false)
         return
       }
 
-<<<<<<< HEAD
       const classIds = [...new Set(challansData?.map(c => c.students?.current_class_id).filter(Boolean))]
       const sectionIds = [...new Set(challansData?.map(c => c.students?.current_section_id).filter(Boolean))]
 
-=======
-      console.log('Fetched challans with basic student data:', challansData)
-
-      // Get all unique class and section IDs
-      const classIds = [...new Set(challansData?.map(c => c.students?.current_class_id).filter(Boolean))]
-      const sectionIds = [...new Set(challansData?.map(c => c.students?.current_section_id).filter(Boolean))]
-
-      // Fetch classes and sections separately
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       let classesMap = {}
       let sectionsMap = {}
 
@@ -235,10 +189,6 @@ export default function FeeChallanPage() {
         }
       }
 
-<<<<<<< HEAD
-=======
-      // Merge the data
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const enrichedChallans = challansData?.map(challan => ({
         ...challan,
         students: challan.students ? {
@@ -248,21 +198,11 @@ export default function FeeChallanPage() {
         } : null
       }))
 
-<<<<<<< HEAD
       setChallans(enrichedChallans || [])
       setLoading(false)
     } catch (error) {
       console.error('Error fetching challans:', error)
       showToast(`Unexpected Error: ${error.message}`, 'error')
-=======
-      console.log('Enriched challans with class/section data:', enrichedChallans)
-      setChallans(enrichedChallans || [])
-
-      setLoading(false)
-    } catch (error) {
-      console.error('Error fetching challans:', error)
-      alert(`Unexpected Error: ${error.message}`)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       setLoading(false)
     }
   }
@@ -289,10 +229,6 @@ export default function FeeChallanPage() {
         return
       }
 
-<<<<<<< HEAD
-=======
-      console.log('Fetched challan items:', data)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       setChallanItems(data || [])
     } catch (error) {
       console.error('Error:', error)
@@ -311,10 +247,6 @@ export default function FeeChallanPage() {
       const user = getUserFromCookie()
       if (!user) return
 
-<<<<<<< HEAD
-=======
-      // Fetch challan items for this specific challan
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       const { data, error } = await supabase
         .from('fee_challan_items')
         .select(`
@@ -330,19 +262,11 @@ export default function FeeChallanPage() {
         console.error('Error fetching challan items:', error)
       }
 
-<<<<<<< HEAD
       await downloadChallanPDF(challan, data || [])
       showToast('PDF downloaded successfully!', 'success')
     } catch (error) {
       console.error('Error downloading PDF:', error)
       showToast(`Failed to download PDF: ${error.message}`, 'error')
-=======
-      // Download PDF with fetched items
-      await downloadChallanPDF(challan, data || [])
-    } catch (error) {
-      console.error('Error downloading PDF:', error)
-      alert(`Failed to download PDF: ${error.message}`)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -363,44 +287,21 @@ export default function FeeChallanPage() {
     if (!challanToUse) return
 
     try {
-<<<<<<< HEAD
       const student = challanToUse.students
       const doc = new jsPDF('landscape', 'mm', 'a4')
 
       const copyTypes = ['Bank', 'School', 'Student']
       const pageWidth = 297
       const copyWidth = pageWidth / 3
-=======
-      console.log('Generating PDF for challan:', challanToUse)
-      console.log('Challan items:', itemsToUse)
-
-      // Get student info
-      const student = challanToUse.students
-
-      // Create A4 landscape PDF for 4 copies
-      const doc = new jsPDF('landscape', 'mm', 'a4')
-
-      const copyTypes = ['Bank', 'School', 'Student']
-      const pageWidth = 297 // A4 landscape width
-      const copyWidth = pageWidth / 3 // Divide by 3 for 3 copies
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
       copyTypes.forEach((copyType, index) => {
         const xOffset = index * copyWidth
         const margin = 3
 
-<<<<<<< HEAD
-=======
-        // Draw border for each copy
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         doc.setDrawColor(200)
         doc.setLineWidth(0.3)
         doc.rect(xOffset + 1, 5, copyWidth - 2, 200)
 
-<<<<<<< HEAD
-=======
-        // School Header
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         doc.setFontSize(9)
         doc.setFont('helvetica', 'bold')
         doc.text(schoolName, xOffset + copyWidth / 2, 12, { align: 'center' })
@@ -412,10 +313,6 @@ export default function FeeChallanPage() {
 
         let yPos = 28
 
-<<<<<<< HEAD
-=======
-        // Challan Info
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         doc.setFontSize(6)
         doc.setFont('helvetica', 'bold')
         doc.text('Challan#', xOffset + margin, yPos)
@@ -462,51 +359,23 @@ export default function FeeChallanPage() {
 
         yPos += 6
 
-<<<<<<< HEAD
         const tableData = []
         let totalAmount = 0
 
         if (itemsToUse && itemsToUse.length > 0) {
-=======
-        // Fee Details Table - Use real data from backend
-        const tableData = []
-        let totalAmount = 0
-
-        console.log('Items to use for PDF:', itemsToUse)
-
-        if (itemsToUse && itemsToUse.length > 0) {
-          // Use real fee items from database
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           itemsToUse.forEach((item, idx) => {
             const amount = parseFloat(item.amount)
             totalAmount += amount
             const feeDescription = item.fee_types?.fee_name || item.description || 'Fee'
-<<<<<<< HEAD
-=======
-            console.log(`Adding fee item ${idx + 1}: ${feeDescription} - ${amount}`)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             tableData.push([
               (idx + 1).toString(),
               feeDescription,
               amount.toLocaleString()
             ])
           })
-<<<<<<< HEAD
           tableData.push(['', 'Total', totalAmount.toLocaleString()])
         } else {
           totalAmount = parseFloat(challanToUse.total_amount)
-=======
-
-          // Add total row
-          tableData.push(['', 'Total', totalAmount.toLocaleString()])
-        } else {
-          // No items found in database
-          console.error('⚠️ WARNING: No fee items found for challan:', challanToUse.challan_number)
-          console.error('⚠️ Please add fee items to fee_challan_items table for this challan')
-          totalAmount = parseFloat(challanToUse.total_amount)
-
-          // Show total only
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           tableData.push([
             '1',
             'Total Fee',
@@ -545,20 +414,12 @@ export default function FeeChallanPage() {
           }
         })
 
-<<<<<<< HEAD
-=======
-        // Amount in words
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         const finalY = doc.lastAutoTable.finalY + 3
         doc.setFontSize(5)
         doc.setFont('helvetica', 'italic')
         const words = numberToWords(totalAmount)
         doc.text(`${words} Only`, xOffset + margin, finalY, { maxWidth: copyWidth - 6 })
 
-<<<<<<< HEAD
-=======
-        // Barcode area (placeholder)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         const barcodeY = finalY + 8
         doc.setFontSize(8)
         doc.text('|||||||||||||||||||||||', xOffset + copyWidth / 2, barcodeY, { align: 'center' })
@@ -569,7 +430,6 @@ export default function FeeChallanPage() {
         doc.text('Cashier', xOffset + copyWidth - margin - 10, barcodeY + 4)
       })
 
-<<<<<<< HEAD
       doc.save(`Challan_${challanToUse.challan_number}.pdf`)
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -577,18 +437,6 @@ export default function FeeChallanPage() {
     }
   }
 
-=======
-      // Save PDF
-      doc.save(`Challan_${challanToUse.challan_number}.pdf`)
-    } catch (error) {
-      console.error('Error generating PDF:', error)
-      console.error('Error stack:', error.stack)
-      alert(`Failed to generate PDF: ${error.message}`)
-    }
-  }
-
-  // Helper function to convert number to words (simplified)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const numberToWords = (num) => {
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
     const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
@@ -640,7 +488,6 @@ export default function FeeChallanPage() {
     return matchesSearch && matchesStatus && matchesClass
   })
 
-<<<<<<< HEAD
   // Pagination calculations
   const totalPages = Math.ceil(filteredChallans.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -683,17 +530,12 @@ export default function FeeChallanPage() {
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
-=======
-  return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">View Challans</h1>
         <p className="text-gray-600">View and manage fee challans</p>
       </div>
 
-<<<<<<< HEAD
       {/* Search & Filter Section - REORDERED: Status, Classes, Search */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -724,11 +566,6 @@ export default function FeeChallanPage() {
               ))}
             </select>
           </div>
-=======
-      {/* Search & Filter Section */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
@@ -739,7 +576,6 @@ export default function FeeChallanPage() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
-<<<<<<< HEAD
         </div>
 
         <div className="flex gap-4 text-sm">
@@ -756,36 +592,6 @@ export default function FeeChallanPage() {
             Overdue: <span className="font-bold text-red-600">{filteredChallans.filter(c => c.status === 'overdue').length}</span>
           </p>
         </div>
-=======
-          <select
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="all">All Classes</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>
-                {cls.class_name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-
-        <p className="text-gray-600 text-sm">
-          There are <span className="font-bold text-red-600">{filteredChallans.length}</span> challans in the database
-        </p>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Table - Desktop View */}
@@ -794,7 +600,6 @@ export default function FeeChallanPage() {
           <table className="w-full">
             <thead className="bg-blue-900 text-white">
               <tr>
-<<<<<<< HEAD
                 <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Sr.</th>
                 <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Student Name</th>
                 <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Admission No.</th>
@@ -807,38 +612,19 @@ export default function FeeChallanPage() {
               </tr>
             </thead>
             <tbody>
-=======
-                <th className="px-4 py-4 text-left font-semibold text-sm">Sr.</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm">Student Name</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm">Admission No.</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm">Class</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm">Issue Date</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm">Due Date</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm">Amount</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm">Status</th>
-                <th className="px-4 py-4 text-center font-semibold text-sm">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               {loading ? (
                 <tr>
                   <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
-<<<<<<< HEAD
               ) : paginatedChallans.length === 0 ? (
-=======
-              ) : filteredChallans.length === 0 ? (
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <tr>
                   <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
                     No challans found
                   </td>
                 </tr>
               ) : (
-<<<<<<< HEAD
                 paginatedChallans.map((challan, index) => {
                   const student = challan.students
                   return (
@@ -861,58 +647,22 @@ export default function FeeChallanPage() {
                         Rs. {parseFloat(challan.total_amount).toLocaleString()}
                       </td>
                       <td className="px-4 py-4 border border-gray-200">
-=======
-                filteredChallans.map((challan, index) => {
-                  const student = challan.students
-                  return (
-                    <tr key={challan.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 text-gray-700 text-sm">{index + 1}</td>
-                      <td className="px-4 py-3 text-gray-900 text-sm">
-                        {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 text-sm">{student?.admission_number || 'N/A'}</td>
-                      <td className="px-4 py-3 text-gray-700 text-sm">
-                        {student?.classes?.class_name || 'N/A'}{student?.sections?.section_name ? ` - ${student.sections.section_name}` : ''}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 text-sm">
-                        {new Date(challan.issue_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 text-sm">
-                        {new Date(challan.due_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900 font-bold text-sm">
-                        Rs. {parseFloat(challan.total_amount).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
                           {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                         </span>
                       </td>
-<<<<<<< HEAD
                       <td className="px-4 py-4 border border-gray-200">
                         <div className="flex items-center justify-center gap-3">
                           <button
                             onClick={() => handleViewChallan(challan)}
                             className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
-=======
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleViewChallan(challan)}
-                            className="text-blue-600 hover:text-blue-800 transition p-2"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             title="View Details"
                           >
                             <Eye size={18} />
                           </button>
                           <button
                             onClick={() => handleDirectDownloadPDF(challan)}
-<<<<<<< HEAD
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-=======
-                            className="text-red-600 hover:text-red-800 transition p-2"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             title="Print Challan"
                           >
                             <Printer size={18} />
@@ -926,7 +676,6 @@ export default function FeeChallanPage() {
             </tbody>
           </table>
         </div>
-<<<<<<< HEAD
 
         {/* Pagination */}
         {!loading && filteredChallans.length > 0 && (
@@ -976,8 +725,6 @@ export default function FeeChallanPage() {
             </div>
           </div>
         )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Mobile/Tablet Card View */}
@@ -986,16 +733,11 @@ export default function FeeChallanPage() {
           <div className="bg-white rounded-xl shadow-lg p-8 text-center text-gray-500">
             Loading...
           </div>
-<<<<<<< HEAD
         ) : paginatedChallans.length === 0 ? (
-=======
-        ) : filteredChallans.length === 0 ? (
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="bg-white rounded-xl shadow-lg p-8 text-center text-gray-500">
             No challans found
           </div>
         ) : (
-<<<<<<< HEAD
           <>
             {paginatedChallans.map((challan, index) => {
               const student = challan.students
@@ -1097,78 +839,6 @@ export default function FeeChallanPage() {
               </div>
             )}
           </>
-=======
-          filteredChallans.map((challan, index) => {
-            const student = challan.students
-            return (
-              <div key={challan.id} className="bg-white rounded-xl shadow-lg p-4 border border-gray-200">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="text-xs text-gray-500 mb-1">Challan #{index + 1}</div>
-                    <div className="font-bold text-blue-900 text-sm">
-                      {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'Student Info Not Available'}
-                    </div>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
-                    {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Student:</span>
-                    <span className="font-semibold text-gray-900">
-                      {student ? `${student.first_name} ${student.last_name || ''}` : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Admission No:</span>
-                    <span className="font-semibold text-gray-900">{student?.admission_number || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Class:</span>
-                    <span className="font-semibold text-gray-900">
-                      {student?.classes?.class_name || 'N/A'} {student?.sections?.section_name ? `- ${student.sections.section_name}` : ''}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Issue Date:</span>
-                    <span className="text-gray-900">{new Date(challan.issue_date).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Due Date:</span>
-                    <span className="text-gray-900">{new Date(challan.due_date).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                    <span className="text-gray-600 font-semibold">Amount:</span>
-                    <span className="text-red-600 font-bold text-lg">
-                      Rs. {parseFloat(challan.total_amount).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-gray-200">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleViewChallan(challan)}
-                      className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                    >
-                      <Eye size={18} />
-                      View
-                    </button>
-                    <button
-                      onClick={() => handleDirectDownloadPDF(challan)}
-                      className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2"
-                    >
-                      <Printer size={18} />
-                      Print
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         )}
       </div>
 
@@ -1176,18 +846,11 @@ export default function FeeChallanPage() {
       {showViewModal && selectedChallan && (
         <>
           <div
-<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowViewModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-=======
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowViewModal(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -1198,11 +861,7 @@ export default function FeeChallanPage() {
                   onClick={() => setShowViewModal(false)}
                   className="text-white hover:bg-white/10 p-2 rounded-full transition"
                 >
-<<<<<<< HEAD
                   <X size={24} />
-=======
-                  ×
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </button>
               </div>
             </div>
@@ -1300,7 +959,6 @@ export default function FeeChallanPage() {
                   Close
                 </button>
                 <button
-<<<<<<< HEAD
                   onClick={() => {
                     downloadChallanPDF()
                     showToast('PDF downloaded successfully!', 'success')
@@ -1309,13 +967,6 @@ export default function FeeChallanPage() {
                 >
                   <Printer size={14} />
                   Print
-=======
-                  onClick={downloadChallanPDF}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
-                >
-                  <Download size={14} />
-                  Download
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </button>
               </div>
             </div>
@@ -1324,8 +975,4 @@ export default function FeeChallanPage() {
       )}
     </div>
   )
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
