@@ -155,12 +155,14 @@ CREATE TABLE students (
     current_section_id UUID,
     roll_number VARCHAR(20),
     house VARCHAR(20) CHECK (house IN ('red', 'blue', 'green', 'yellow')),
-   ALTER TABLE students
-    ADD COLUMN base_fee NUMERIC(10,2) DEFAULT 0,
-    ADD COLUMN discount_amount NUMERIC(10,2) DEFAULT 0,
-    ADD COLUMN discount_note TEXT,
-    ADD COLUMN final_fee NUMERIC(10,2) DEFAULT 0;
-
+    base_fee NUMERIC(10,2) DEFAULT 0,
+    discount_type VARCHAR(20) DEFAULT 'fixed' CHECK (discount_type IN ('fixed', 'percentage')), -- Discount type
+    discount_value NUMERIC(10,2) DEFAULT 0, -- Raw discount input (amount or percentage)
+    discount_amount NUMERIC(10,2) DEFAULT 0, -- Calculated discount amount
+    discount_note TEXT,
+    final_fee NUMERIC(10,2) DEFAULT 0,
+    fee_plan VARCHAR(20) DEFAULT 'monthly' CHECK (fee_plan IN ('monthly', 'quarterly', 'semi-annual', 'annual')), -- Fee payment frequency
+    starting_month INTEGER DEFAULT 1 CHECK (starting_month >= 1 AND starting_month <= 12), -- Starting month for fee schedule
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'alumni', 'transferred')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -421,7 +423,8 @@ CREATE TABLE classes (
     created_by UUID REFERENCES users(id) ON DELETE SET NULL, -- NEW
     class_name VARCHAR(50) NOT NULL,
     standard_fee NUMERIC(10,2) DEFAULT 0,  -- NEW COLUMN
-     incharge VARCHAR(100),
+    fee_plan VARCHAR(20) DEFAULT 'monthly' CHECK (fee_plan IN ('monthly', 'quarterly', 'semi-annual', 'annual')), -- Fee payment frequency
+    incharge VARCHAR(100),
     exam_marking_system VARCHAR(50),
     order_number INTEGER,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
@@ -705,13 +708,18 @@ CREATE TABLE fee_structures (
 CREATE TABLE fee_challans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
-    session_id UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     challan_number VARCHAR(100) NOT NULL,
+    fee_month VARCHAR(50), -- Month name (e.g., January, February)
+    fee_year VARCHAR(10), -- Year (e.g., 2025)
     issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
     due_date DATE NOT NULL,
     total_amount DECIMAL(10, 2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue', 'cancelled')),
+    paid_amount DECIMAL(10, 2) DEFAULT 0, -- Amount already paid
+    fee_plan VARCHAR(20) CHECK (fee_plan IN ('monthly', 'quarterly', 'semi-annual', 'annual')), -- Fee payment frequency
+    period_label VARCHAR(100), -- Period description (e.g., Jan-Mar 2025)
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'partial', 'overdue', 'cancelled')),
     created_by UUID REFERENCES users(id) ON DELETE SET NULL, -- NEW
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),

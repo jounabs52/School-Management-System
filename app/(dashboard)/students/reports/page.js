@@ -1,11 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-<<<<<<< HEAD
-import { FileText, CreditCard, Filter, Calendar, User, Hash, Loader2, Printer, Trash2, X } from 'lucide-react'
-=======
-import { FileText, CreditCard, Filter, Download, Calendar, User, Hash, Loader2, Printer, Trash2, X } from 'lucide-react'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+import { useState, useEffect, useRef } from 'react'
+import { FileText, CreditCard, Filter, Calendar, User, Hash, Loader2, Printer, Trash2, X, TrendingUp, Award, RefreshCw, Search, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 
@@ -17,6 +13,11 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 })
 
@@ -26,6 +27,7 @@ export default function StudentReportsPage() {
   const [idCards, setIdCards] = useState([])
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Filters
   const [selectedClass, setSelectedClass] = useState('')
@@ -35,13 +37,10 @@ export default function StudentReportsPage() {
   // Filtered data
   const [filteredData, setFilteredData] = useState([])
 
-<<<<<<< HEAD
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage] = useState(10)
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   // Toast notifications
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
@@ -49,19 +48,92 @@ export default function StudentReportsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [itemToDelete, setItemToDelete] = useState(null)
 
+  // Real-time subscriptions
+  const certificatesChannel = useRef(null)
+  const idCardsChannel = useRef(null)
+
+  // Statistics
+  const [stats, setStats] = useState({
+    totalCertificates: 0,
+    totalCards: 0,
+    activeCards: 0,
+    expiredCards: 0
+  })
+
   useEffect(() => {
     fetchClasses()
     fetchCertificates()
     fetchIdCards()
+    setupRealtimeSubscriptions()
+
+    return () => {
+      // Cleanup subscriptions
+      if (certificatesChannel.current) {
+        supabase.removeChannel(certificatesChannel.current)
+      }
+      if (idCardsChannel.current) {
+        supabase.removeChannel(idCardsChannel.current)
+      }
+    }
   }, [])
 
   useEffect(() => {
     applyFilters()
-<<<<<<< HEAD
     setCurrentPage(1) // Reset to page 1 when filters change
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   }, [activeTab, selectedClass, searchName, searchAdmissionNo, certificates, idCards])
+
+  useEffect(() => {
+    calculateStats()
+  }, [certificates, idCards])
+
+  const setupRealtimeSubscriptions = () => {
+    // Subscribe to certificates changes
+    certificatesChannel.current = supabase
+      .channel('certificates-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'student_certificates' },
+        (payload) => {
+          console.log('Certificate change detected:', payload)
+          fetchCertificates()
+          showToast('Data updated in real-time!', 'success')
+        }
+      )
+      .subscribe()
+
+    // Subscribe to ID cards changes
+    idCardsChannel.current = supabase
+      .channel('id-cards-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'student_id_cards' },
+        (payload) => {
+          console.log('ID card change detected:', payload)
+          fetchIdCards()
+          showToast('Data updated in real-time!', 'success')
+        }
+      )
+      .subscribe()
+  }
+
+  const calculateStats = () => {
+    const totalCertificates = certificates.length
+    const totalCards = idCards.length
+    const activeCards = idCards.filter(card => card.status === 'active').length
+    const expiredCards = idCards.filter(card => card.status !== 'active').length
+
+    setStats({
+      totalCertificates,
+      totalCards,
+      activeCards,
+      expiredCards
+    })
+  }
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await Promise.all([fetchCertificates(), fetchIdCards()])
+    showToast('Data refreshed successfully!', 'success')
+    setTimeout(() => setIsRefreshing(false), 500)
+  }
 
   const fetchClasses = async () => {
     try {
@@ -95,12 +167,8 @@ export default function StudentReportsPage() {
             last_name,
             admission_number,
             father_name,
-<<<<<<< HEAD
             current_class_id,
             photo_url
-=======
-            current_class_id
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           )
         `)
         .order('issue_date', { ascending: false })
@@ -144,12 +212,8 @@ export default function StudentReportsPage() {
         admission_number: cert.students?.admission_number || 'N/A',
         father_name: cert.students?.father_name || 'N/A',
         class_id: cert.students?.current_class_id || '',
-<<<<<<< HEAD
         class_name: classMap[cert.students?.current_class_id] || 'N/A',
         photo_url: cert.students?.photo_url || null
-=======
-        class_name: classMap[cert.students?.current_class_id] || 'N/A'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       }))
 
       console.log('Flattened certificates:', flattenedData)
@@ -179,12 +243,8 @@ export default function StudentReportsPage() {
             last_name,
             admission_number,
             father_name,
-<<<<<<< HEAD
             current_class_id,
             photo_url
-=======
-            current_class_id
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           )
         `)
         .order('issue_date', { ascending: false })
@@ -238,12 +298,8 @@ export default function StudentReportsPage() {
           admission_number: card.students?.admission_number || 'N/A',
           father_name: card.students?.father_name || 'N/A',
           class_id: card.students?.current_class_id || '',
-<<<<<<< HEAD
           class_name: classMap[card.students?.current_class_id] || 'N/A',
           photo_url: card.students?.photo_url || null
-=======
-          class_name: classMap[card.students?.current_class_id] || 'N/A'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         }
       })
 
@@ -285,15 +341,12 @@ export default function StudentReportsPage() {
     setFilteredData(filtered)
   }
 
-<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(filteredData.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
   const endIndex = startIndex + rowsPerPage
   const paginatedData = filteredData.slice(startIndex, endIndex)
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
     setTimeout(() => {
@@ -307,62 +360,6 @@ export default function StudentReportsPage() {
     setSearchAdmissionNo('')
   }
 
-<<<<<<< HEAD
-=======
-  const exportToCSV = () => {
-    const dataToExport = filteredData
-
-    if (dataToExport.length === 0) {
-      showToast('No data to export', 'error')
-      return
-    }
-
-    const headers = activeTab === 'certificates'
-      ? ['Student Name', 'Admission No', 'Father Name', 'Class', 'Certificate Type', 'Issue Date', 'Remarks']
-      : ['Student Name', 'Admission No', 'Father Name', 'Class', 'Card Number', 'Issue Date', 'Expiry Date', 'Status']
-
-    const rows = dataToExport.map(item => {
-      const fullName = `${item.student_first_name} ${item.student_last_name}`
-
-      if (activeTab === 'certificates') {
-        return [
-          fullName,
-          item.admission_number,
-          item.father_name,
-          item.class_name,
-          item.certificate_type,
-          item.issue_date,
-          item.remarks || ''
-        ]
-      } else {
-        return [
-          fullName,
-          item.admission_number,
-          item.father_name,
-          item.class_name,
-          item.card_number,
-          item.issue_date,
-          item.expiry_date,
-          item.status
-        ]
-      }
-    })
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `student_${activeTab}_report_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
-
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const handlePrint = async (item) => {
     try {
       if (activeTab === 'certificates') {
@@ -522,119 +519,206 @@ export default function StudentReportsPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 lg:p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-            <FileText className="text-white" size={24} />
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 transform hover:scale-105 transition-transform">
+              <Award className="text-white" size={28} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                Student Reports
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">Real-time certificates and ID cards management</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Student Reports</h1>
-            <p className="text-sm text-gray-600">View all certificates and ID cards issued</p>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 disabled:opacity-50"
+          >
+            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+            <span className="font-medium">Refresh</span>
+          </button>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                <FileText className="text-white" size={24} />
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-gray-800">{stats.totalCertificates}</p>
+              </div>
+            </div>
+            <p className="text-sm font-medium text-gray-600">Total Certificates</p>
+            <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
+              <TrendingUp size={14} />
+              <span>All time</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <CreditCard className="text-white" size={24} />
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-gray-800">{stats.totalCards}</p>
+              </div>
+            </div>
+            <p className="text-sm font-medium text-gray-600">Total ID Cards</p>
+            <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
+              <TrendingUp size={14} />
+              <span>All time</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                <Award className="text-white" size={24} />
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-gray-800">{stats.activeCards}</p>
+              </div>
+            </div>
+            <p className="text-sm font-medium text-gray-600">Active Cards</p>
+            <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
+              <TrendingUp size={14} />
+              <span>Currently valid</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                <Calendar className="text-white" size={24} />
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-gray-800">{stats.expiredCards}</p>
+              </div>
+            </div>
+            <p className="text-sm font-medium text-gray-600">Expired Cards</p>
+            <div className="mt-2 flex items-center gap-1 text-xs text-orange-600">
+              <Calendar size={14} />
+              <span>Need renewal</span>
+            </div>
           </div>
         </div>
-<<<<<<< HEAD
-=======
-
-        <button
-          onClick={exportToCSV}
-          disabled={filteredData.length === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Download size={18} />
-          Export to CSV
-        </button>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white rounded-xl shadow-lg">
+      <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20">
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <div className="flex gap-1 p-2">
+          <div className="flex gap-2 p-4">
             <button
               onClick={() => setActiveTab('certificates')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition ${
+              className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all transform ${
                 activeTab === 'certificates'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-500/30 scale-105'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
               }`}
             >
-              <FileText size={18} />
-              Certificates ({certificates.length})
+              <FileText size={20} />
+              <span>Certificates</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+                activeTab === 'certificates' ? 'bg-white/20' : 'bg-gray-300'
+              }`}>
+                {certificates.length}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('cards')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition ${
+              className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all transform ${
                 activeTab === 'cards'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
               }`}
             >
-              <CreditCard size={18} />
-              ID Cards ({idCards.length})
+              <CreditCard size={20} />
+              <span>ID Cards</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+                activeTab === 'cards' ? 'bg-white/20' : 'bg-gray-300'
+              }`}>
+                {idCards.length}
+              </span>
             </button>
           </div>
         </div>
 
         {/* Filters Section */}
-        <div className="p-6 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter size={18} className="text-gray-600" />
-            <h3 className="font-semibold text-gray-800">Filters</h3>
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-br from-gray-50 to-white">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+              <Search size={16} className="text-white" />
+            </div>
+            <h3 className="font-bold text-gray-800 text-lg">Search & Filter</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Class Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Filter by Class
               </label>
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-              >
-                <option value="">All Classes</option>
-                {classes.map((cls) => (
-                  <option key={cls.id} value={cls.id}>
-                    {cls.class_name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all group-hover:border-gray-300 appearance-none cursor-pointer font-medium"
+                >
+                  <option value="">All Classes</option>
+                  {classes.map((cls) => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.class_name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Name Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Search by Name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors" size={20} />
                 <input
                   type="text"
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                   placeholder="Enter student name..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium"
                 />
               </div>
             </div>
 
             {/* Admission Number Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Search by Admission No
               </label>
               <div className="relative">
-                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors" size={20} />
                 <input
                   type="text"
                   value={searchAdmissionNo}
                   onChange={(e) => setSearchAdmissionNo(e.target.value)}
                   placeholder="Enter admission number..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium"
                 />
               </div>
             </div>
@@ -642,11 +726,12 @@ export default function StudentReportsPage() {
 
           {/* Clear Filters Button */}
           {(selectedClass || searchName || searchAdmissionNo) && (
-            <div className="mt-4">
+            <div className="mt-5">
               <button
                 onClick={clearFilters}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-semibold transition-all"
               >
+                <X size={16} />
                 Clear all filters
               </button>
             </div>
@@ -655,245 +740,178 @@ export default function StudentReportsPage() {
 
         {/* Results Section */}
         <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">
-              {activeTab === 'certificates' ? 'Certificates' : 'ID Cards'} ({filteredData.length})
-            </h3>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">
+                {activeTab === 'certificates' ? 'Certificates List' : 'ID Cards List'}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
+              </p>
+            </div>
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 size={48} className="animate-spin text-blue-600 mb-4" />
-              <p className="text-gray-500">Loading data...</p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
+                <div className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
+              </div>
+              <p className="text-gray-600 font-medium mt-6">Loading data...</p>
+              <p className="text-gray-400 text-sm mt-1">Please wait</p>
             </div>
           ) : filteredData.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="text-center py-20">
+              <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                 {activeTab === 'certificates' ? (
-                  <FileText size={40} className="text-gray-400" />
+                  <FileText size={48} className="text-gray-400" />
                 ) : (
-                  <CreditCard size={40} className="text-gray-400" />
+                  <CreditCard size={48} className="text-gray-400" />
                 )}
               </div>
-              <p className="text-gray-500 text-lg mb-2">
+              <p className="text-gray-600 text-xl font-semibold mb-2">
                 {(selectedClass || searchName || searchAdmissionNo)
                   ? 'No results found'
                   : `No ${activeTab} issued yet`}
               </p>
               <p className="text-gray-400 text-sm">
                 {(selectedClass || searchName || searchAdmissionNo)
-                  ? 'Try adjusting your filters'
+                  ? 'Try adjusting your filters to find what you\'re looking for'
                   : `${activeTab === 'certificates' ? 'Certificates' : 'ID cards'} will appear here once issued`}
               </p>
             </div>
           ) : (
-<<<<<<< HEAD
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-blue-900 text-white">
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Father Name</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
+                    <tr className="bg-gradient-to-r from-blue-900 to-blue-800 text-white">
+                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Sr.</th>
+                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Student Name</th>
+                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Father Name</th>
+                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Class</th>
                     {activeTab === 'certificates' ? (
                       <>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Type</th>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Issue Date</th>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Remarks</th>
+                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Type</th>
+                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Issue Date</th>
+                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Remarks</th>
                       </>
                     ) : (
                       <>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Issue Date</th>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Expiry Date</th>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Status</th>
+                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Issue Date</th>
+                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Expiry Date</th>
+                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Status</th>
                       </>
                     )}
-                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
+                    <th className="px-5 py-4 text-center font-bold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedData.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3 border border-gray-200 text-blue-600">{startIndex + index + 1}</td>
-                      <td className="px-4 py-3 border border-gray-200">
+                    <tr
+                      key={item.id}
+                      className={`transition-all hover:bg-blue-50/50 ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                      }`}
+                    >
+                      <td className="px-5 py-4 border-r border-gray-200">
+                        <span className="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-bold rounded-lg text-sm">
+                          {startIndex + index + 1}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 border-r border-gray-200">
                         <div className="flex items-center gap-3">
                           {item.photo_url ? (
                             <img
                               src={item.photo_url}
                               alt={item.student_first_name}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                              className="w-12 h-12 rounded-xl object-cover border-2 border-blue-200 shadow-sm"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-lg font-bold shadow-sm">
                               {item.student_first_name.charAt(0)}
                             </div>
                           )}
-                          <span className="text-blue-600 font-medium">
-=======
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-blue-900 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Sr.
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Student Name
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Father Name
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Class
-                    </th>
-                    {activeTab === 'certificates' ? (
-                      <>
-                        <th className="px-6 py-4 text-left font-semibold">
-                          Type
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold">
-                          Issue Date
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold">
-                          Remarks
-                        </th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="px-6 py-4 text-left font-semibold">
-                          Issue Date
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold">
-                          Expiry Date
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold">
-                          Status
-                        </th>
-                      </>
-                    )}
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Options
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((item, index) => (
-                    <tr key={item.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4 text-gray-700">
-                        {index + 1}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-semibold">
-                            {item.student_first_name.charAt(0)}
+                          <div>
+                            <span className="text-gray-800 font-semibold block">
+                              {item.student_first_name} {item.student_last_name}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {item.admission_number}
+                            </span>
                           </div>
-                          <span className="font-medium text-gray-800">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                            {item.student_first_name} {item.student_last_name}
-                          </span>
                         </div>
                       </td>
-<<<<<<< HEAD
-                      <td className="px-4 py-3 border border-gray-200">{item.father_name}</td>
-                      <td className="px-4 py-3 border border-gray-200">{item.class_name}</td>
-                      {activeTab === 'certificates' ? (
-                        <>
-                          <td className="px-4 py-3 border border-gray-200">
-=======
-                      <td className="px-6 py-4 text-gray-700">
-                        {item.father_name}
+                      <td className="px-5 py-4 border-r border-gray-200">
+                        <span className="text-gray-700 font-medium">{item.father_name}</span>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                      <td className="px-5 py-4 border-r border-gray-200">
+                        <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold">
                           {item.class_name}
                         </span>
                       </td>
                       {activeTab === 'certificates' ? (
                         <>
-                          <td className="px-6 py-4">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm capitalize">
+                          <td className="px-5 py-4 border-r border-gray-200">
+                            <span className="inline-block px-4 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-sm font-semibold capitalize shadow-sm">
                               {item.certificate_type}
                             </span>
                           </td>
-<<<<<<< HEAD
-                          <td className="px-4 py-3 border border-gray-200">
-                            {new Date(item.issue_date).toLocaleDateString('en-GB')}
-                          </td>
-                          <td className="px-4 py-3 border border-gray-200">
-=======
-                          <td className="px-6 py-4 text-gray-700">
-                            <div className="flex items-center gap-2">
-                              <Calendar size={14} className="text-gray-400" />
-                              {new Date(item.issue_date).toLocaleDateString('en-GB')}
+                          <td className="px-5 py-4 border-r border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Calendar size={16} className="text-gray-400" />
+                              <span className="font-medium">
+                                {new Date(item.issue_date).toLocaleDateString('en-GB')}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-600 text-sm">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                            {item.remarks || '-'}
+                          <td className="px-5 py-4 border-r border-gray-200">
+                            <span className="text-gray-600 text-sm">
+                              {item.remarks || '-'}
+                            </span>
                           </td>
                         </>
                       ) : (
                         <>
-<<<<<<< HEAD
-                          <td className="px-4 py-3 border border-gray-200">
-                            {new Date(item.issue_date).toLocaleDateString('en-GB')}
-                          </td>
-                          <td className="px-4 py-3 border border-gray-200">
-                            {new Date(item.expiry_date).toLocaleDateString('en-GB')}
-                          </td>
-                          <td className="px-4 py-3 border border-gray-200">
-=======
-                          <td className="px-6 py-4 text-gray-700">
-                            <div className="flex items-center gap-2">
-                              <Calendar size={14} className="text-gray-400" />
-                              {new Date(item.issue_date).toLocaleDateString('en-GB')}
+                          <td className="px-5 py-4 border-r border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Calendar size={16} className="text-gray-400" />
+                              <span className="font-medium">
+                                {new Date(item.issue_date).toLocaleDateString('en-GB')}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-700">
-                            <div className="flex items-center gap-2">
-                              <Calendar size={14} className="text-gray-400" />
-                              {new Date(item.expiry_date).toLocaleDateString('en-GB')}
+                          <td className="px-5 py-4 border-r border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Calendar size={16} className="text-gray-400" />
+                              <span className="font-medium">
+                                {new Date(item.expiry_date).toLocaleDateString('en-GB')}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          <td className="px-5 py-4 border-r border-gray-200">
+                            <span className={`inline-block px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm capitalize ${
                               item.status === 'active'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
+                                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                                : 'bg-gradient-to-r from-red-500 to-red-600 text-white'
                             }`}>
                               {item.status}
                             </span>
                           </td>
                         </>
                       )}
-<<<<<<< HEAD
-                      <td className="px-4 py-3 border border-gray-200">
-                        <div className="flex gap-1">
+                      <td className="px-5 py-4">
+                        <div className="flex gap-2 justify-center">
                           <button
                             onClick={() => handlePrint(item)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
-=======
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handlePrint(item)}
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-all"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+                            className="p-2.5 text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-lg transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
                             title="Print"
                           >
-                            <Printer size={18} />
+                            <Download size={18} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
-<<<<<<< HEAD
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-=======
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-all"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+                            className="p-2.5 text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
                             title="Delete"
                           >
                             <Trash2 size={18} />
@@ -905,22 +923,23 @@ export default function StudentReportsPage() {
                 </tbody>
               </table>
             </div>
-<<<<<<< HEAD
 
             {/* Pagination Controls */}
             {filteredData.length > 0 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-                <div className="text-sm text-gray-600">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredData.length)} of {filteredData.length} students
+              <div className="px-6 py-5 border-t-2 border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white">
+                <div className="text-sm font-medium text-gray-600">
+                  Showing <span className="text-blue-600 font-bold">{startIndex + 1}</span> to{' '}
+                  <span className="text-blue-600 font-bold">{Math.min(endIndex, filteredData.length)}</span> of{' '}
+                  <span className="text-blue-600 font-bold">{filteredData.length}</span> {filteredData.length === 1 ? 'record' : 'records'}
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                    className={`px-5 py-2.5 rounded-xl font-semibold transition-all transform ${
                       currentPage === 1
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl hover:scale-105'
                     }`}
                   >
                     Previous
@@ -942,10 +961,10 @@ export default function StudentReportsPage() {
                           <button
                             key={i}
                             onClick={() => setCurrentPage(i)}
-                            className={`w-10 h-10 rounded-lg font-medium transition ${
+                            className={`w-11 h-11 rounded-xl font-bold transition-all transform ${
                               currentPage === i
-                                ? 'bg-[#1E3A8A] text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-110'
+                                : 'bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200 hover:border-blue-300 hover:scale-105'
                             }`}
                           >
                             {i}
@@ -958,10 +977,10 @@ export default function StudentReportsPage() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                    className={`px-5 py-2.5 rounded-xl font-semibold transition-all transform ${
                       currentPage === totalPages
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl hover:scale-105'
                     }`}
                   >
                     Next
@@ -970,31 +989,33 @@ export default function StudentReportsPage() {
               </div>
             )}
           </div>
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           )}
         </div>
       </div>
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-down">
-          <div className={`px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 ${
+        <div className="fixed top-6 right-6 z-50 animate-slide-down">
+          <div className={`px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-2 ${
             toast.type === 'success'
-              ? 'bg-green-600 text-white'
-              : 'bg-red-600 text-white'
+              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-400'
+              : 'bg-gradient-to-r from-red-500 to-red-600 text-white border-red-400'
           }`}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {toast.type === 'success' ? (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
               ) : (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
               )}
-              <span className="font-medium">{toast.message}</span>
+              <span className="font-semibold text-lg">{toast.message}</span>
             </div>
           </div>
         </div>
@@ -1002,97 +1023,62 @@ export default function StudentReportsPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && itemToDelete && (
-<<<<<<< HEAD
         <>
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 transition-opacity animate-fade-in"
             onClick={() => setShowDeleteModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full transform animate-scale-in" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 via-red-600 to-red-700 text-white px-8 py-6 rounded-t-3xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Trash2 size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Confirm Deletion</h3>
+                    <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                  </div>
+                </div>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'} for <span className="font-bold text-red-600">{itemToDelete.student_first_name} {itemToDelete.student_last_name}</span>? This action cannot be undone.
-                </p>
+              <div className="p-8">
+                <div className="mb-6 p-4 bg-red-50 rounded-xl border-2 border-red-200">
+                  <p className="text-gray-700 text-center">
+                    Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'} for
+                  </p>
+                  <p className="text-center mt-2">
+                    <span className="font-bold text-red-600 text-lg">
+                      {itemToDelete.student_first_name} {itemToDelete.student_last_name}
+                    </span>
+                  </p>
+                  <p className="text-sm text-gray-500 text-center mt-1">
+                    Admission No: {itemToDelete.admission_number}
+                  </p>
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
                       setItemToDelete(null)
                     }}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-6 py-3.5 text-gray-700 font-bold hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-300 transform hover:scale-105"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold rounded-xl hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:scale-105"
                   >
-                    <Trash2 size={18} />
-                    Delete
+                    <Trash2 size={20} />
+                    Delete Now
                   </button>
                 </div>
               </div>
             </div>
           </div>
         </>
-=======
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 relative">
-            <button
-              onClick={() => {
-                setShowDeleteModal(false)
-                setItemToDelete(null)
-              }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
-            >
-              <X size={24} />
-            </button>
-
-            <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
-              <Trash2 className="text-red-600" size={32} />
-            </div>
-
-            <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
-              Delete {activeTab === 'certificates' ? 'Certificate' : 'ID Card'}?
-            </h2>
-
-            <p className="text-gray-600 text-center mb-6">
-              Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'}? This action cannot be undone.
-            </p>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <div className="text-sm text-gray-700">
-                <p><strong>Student:</strong> {itemToDelete.student_first_name} {itemToDelete.student_last_name}</p>
-                <p><strong>Admission No:</strong> {itemToDelete.admission_number}</p>
-                <p><strong>Class:</strong> {itemToDelete.class_name}</p>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false)
-                  setItemToDelete(null)
-                }}
-                className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       )}
     </div>
   )
 }
+

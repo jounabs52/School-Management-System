@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-<<<<<<< HEAD
 import { Plus, Search, Edit2, X, Trash2, Printer, CheckCircle, AlertCircle } from 'lucide-react'
-=======
-import { Plus, Search, Edit2, X, Trash2, Printer } from 'lucide-react'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
@@ -22,7 +18,6 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
-<<<<<<< HEAD
 // Toast Component
 function Toast({ message, type, onClose }) {
   useEffect(() => {
@@ -33,25 +28,23 @@ function Toast({ message, type, onClose }) {
   }, [onClose])
 
   return (
-    <div className="fixed top-6 right-6 z-[10001] animate-slideIn">
-      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-xl border ${
-        type === 'success' 
-          ? 'bg-green-50 border-green-200 text-green-800' 
+    <div className="fixed top-4 right-4 z-[10001] animate-slideIn">
+      <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-xl border ${
+        type === 'success'
+          ? 'bg-green-50 border-green-200 text-green-800'
           : 'bg-red-50 border-red-200 text-red-800'
       }`}>
         {type === 'success' ? (
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
         ) : (
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
         )}
-        <span className="font-medium">{message}</span>
+        <span className="font-medium text-sm">{message}</span>
       </div>
     </div>
   )
 }
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function PassengersPage() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -64,28 +57,21 @@ export default function PassengersPage() {
   const [staff, setStaff] = useState([])
   const [classes, setClasses] = useState([])
   const [departments, setDepartments] = useState([])
-<<<<<<< HEAD
   const [departmentSearchTerm, setDepartmentSearchTerm] = useState('')
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false)
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const [filteredStudents, setFilteredStudents] = useState([])
   const [filteredStaff, setFilteredStaff] = useState([])
   const [filteredVehicles, setFilteredVehicles] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [routeFilter, setRouteFilter] = useState('')
-<<<<<<< HEAD
   const [typeFilter, setTypeFilter] = useState('') // Filter by STUDENT or STAFF
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const [selectedPassenger, setSelectedPassenger] = useState(null)
   const [passengerToDelete, setPassengerToDelete] = useState(null)
   const [studentSearchTerm, setStudentSearchTerm] = useState('')
   const [staffSearchTerm, setStaffSearchTerm] = useState('')
   const [showStudentDropdown, setShowStudentDropdown] = useState(false)
   const [showStaffDropdown, setShowStaffDropdown] = useState(false)
-<<<<<<< HEAD
   
   // Toast state
   const [toast, setToast] = useState(null)
@@ -98,8 +84,6 @@ export default function PassengersPage() {
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
   }
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   // Lock/unlock body scroll when modals open/close
   useEffect(() => {
@@ -338,7 +322,6 @@ export default function PassengersPage() {
     })
   }
 
-<<<<<<< HEAD
   // Filter departments based on search term
   const getFilteredDepartments = () => {
     if (!departmentSearchTerm.trim()) {
@@ -370,8 +353,6 @@ export default function PassengersPage() {
     setShowDepartmentDropdown(false)
   }
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   // Handle route selection - Filter vehicles based on route
   const handleRouteChange = (routeId) => {
     setFormData({ ...formData, route: routeId, vehicle: '' }) // Reset vehicle when route changes
@@ -526,38 +507,22 @@ export default function PassengersPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (formData.type === 'STUDENT' && !formData.studentId) {
-<<<<<<< HEAD
         showToast('Please select a student', 'error')
-=======
-        alert('Please select a student')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (formData.type === 'STAFF' && !formData.staffId) {
-<<<<<<< HEAD
         showToast('Please select a staff member', 'error')
-=======
-        alert('Please select a staff member')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!formData.route) {
-<<<<<<< HEAD
         showToast('Please select a route', 'error')
-=======
-        alert('Please select a route')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -571,11 +536,7 @@ export default function PassengersPage() {
         staffId = formData.staffId
       }
 
-<<<<<<< HEAD
       const { data, error } = await supabase
-=======
-      const { error } = await supabase
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .from('passengers')
         .insert([{
           school_id: user.school_id,
@@ -591,7 +552,6 @@ export default function PassengersPage() {
 
       if (error) {
         console.error('Error creating passenger:', error)
-<<<<<<< HEAD
         showToast('Failed to add passenger', 'error')
       } else {
         // Get related data for display
@@ -657,23 +617,6 @@ export default function PassengersPage() {
     } catch (error) {
       console.error('Error saving passenger:', error)
       showToast('Error saving passenger', 'error')
-=======
-        alert('Failed to add passenger: ' + error.message)
-      } else {
-        setShowModal(false)
-        setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', vehicle: '' })
-        setFilteredStudents([])
-        setFilteredStaff([])
-        setStudentSearchTerm('')
-        setStaffSearchTerm('')
-        setShowStudentDropdown(false)
-        setShowStaffDropdown(false)
-        fetchPassengers()
-      }
-    } catch (error) {
-      console.error('Error saving passenger:', error)
-      alert('Error saving passenger')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -701,20 +644,12 @@ export default function PassengersPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!formData.route) {
-<<<<<<< HEAD
         showToast('Route is required', 'error')
-=======
-        alert('Route is required')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -731,7 +666,6 @@ export default function PassengersPage() {
 
       if (error) {
         console.error('Error updating passenger:', error)
-<<<<<<< HEAD
         showToast('Failed to update passenger', 'error')
       } else {
         // Get updated route and vehicle info
@@ -780,18 +714,6 @@ export default function PassengersPage() {
     } catch (error) {
       console.error('Error updating passenger:', error)
       showToast('Error updating passenger', 'error')
-=======
-        alert('Failed to update passenger: ' + error.message)
-      } else {
-        setShowEditModal(false)
-        setFormData({ type: 'STUDENT', identifier: '', route: '', vehicle: '' })
-        setSelectedPassenger(null)
-        fetchPassengers()
-      }
-    } catch (error) {
-      console.error('Error updating passenger:', error)
-      alert('Error updating passenger')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -804,11 +726,7 @@ export default function PassengersPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -820,7 +738,6 @@ export default function PassengersPage() {
 
       if (error) {
         console.error('Error deleting passenger:', error)
-<<<<<<< HEAD
         showToast('Failed to delete passenger', 'error')
       } else {
         // Remove passenger from state
@@ -832,17 +749,6 @@ export default function PassengersPage() {
     } catch (error) {
       console.error('Error deleting passenger:', error)
       showToast('Error deleting passenger', 'error')
-=======
-        alert('Failed to delete passenger: ' + error.message)
-      } else {
-        setShowDeleteModal(false)
-        setPassengerToDelete(null)
-        fetchPassengers()
-      }
-    } catch (error) {
-      console.error('Error deleting passenger:', error)
-      alert('Error deleting passenger')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -850,11 +756,7 @@ export default function PassengersPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1083,27 +985,16 @@ export default function PassengersPage() {
 
       // Save PDF
       doc.save(`Transport_Fee_${name.replace(/\s+/g, '_')}_${dueDateStr}.pdf`)
-<<<<<<< HEAD
       showToast('PDF generated successfully!', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast('Failed to generate PDF', 'error')
-=======
-    } catch (error) {
-      console.error('Error generating PDF:', error)
-      alert('Failed to generate PDF: ' + error.message)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const filteredPassengers = passengers.filter(passenger => {
-<<<<<<< HEAD
     const matchesRoute = !routeFilter || passenger.route_id === routeFilter
     const matchesType = !typeFilter || passenger.type === typeFilter
-=======
-    const matchesTab = activeTab === 'all' || passenger.type === activeTab
-    const matchesRoute = !routeFilter || passenger.route_id === routeFilter
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
     const name = passenger.type === 'STUDENT'
       ? `${passenger.students?.first_name || ''} ${passenger.students?.last_name || ''}`.toLowerCase()
@@ -1112,7 +1003,6 @@ export default function PassengersPage() {
     const matchesSearch = name.includes(searchTerm.toLowerCase()) ||
       passenger.routes?.route_name?.toLowerCase().includes(searchTerm.toLowerCase())
 
-<<<<<<< HEAD
     return matchesRoute && matchesType && matchesSearch
   })
 
@@ -1160,7 +1050,7 @@ export default function PassengersPage() {
   }, [showStudentDropdown, showStaffDropdown, showDepartmentDropdown])
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
       {/* Toast notification */}
       {toast && (
         <Toast
@@ -1171,28 +1061,8 @@ export default function PassengersPage() {
       )}
 
       {/* Top Buttons */}
-      <div className="mb-6 flex flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap gap-2">
         <button
-=======
-    return matchesTab && matchesRoute && matchesSearch
-  })
-
-  return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
-      {/* Top Buttons */}
-      <div className="mb-6 flex flex-wrap gap-3">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
-            activeTab === 'all'
-              ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          All Passengers
-        </button>
-        <button
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           onClick={() => {
             setShowModal(true);
             setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', vehicle: '' });
@@ -1200,21 +1070,14 @@ export default function PassengersPage() {
             setFilteredStaff([]);
             setStudentSearchTerm('');
             setStaffSearchTerm('');
-<<<<<<< HEAD
             setDepartmentSearchTerm('');
             setShowStudentDropdown(false);
             setShowStaffDropdown(false);
             setShowDepartmentDropdown(false);
           }}
-          className="px-6 py-3 bg-red-600 text-white hover:bg-red-700 rounded-lg font-semibold transition flex items-center gap-2 shadow-lg"
-=======
-            setShowStudentDropdown(false);
-            setShowStaffDropdown(false);
-          }}
-          className="px-6 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-semibold transition flex items-center gap-2"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+          className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg font-medium transition flex items-center gap-2 text-sm"
         >
-          <Plus size={20} />
+          <Plus size={16} />
           Add Student
         </button>
         <button
@@ -1225,43 +1088,30 @@ export default function PassengersPage() {
             setFilteredStaff([]);
             setStudentSearchTerm('');
             setStaffSearchTerm('');
-<<<<<<< HEAD
             setDepartmentSearchTerm('');
             setShowStudentDropdown(false);
             setShowStaffDropdown(false);
             setShowDepartmentDropdown(false);
-=======
-            setShowStudentDropdown(false);
-            setShowStaffDropdown(false);
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           }}
-          className="px-6 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-semibold transition flex items-center gap-2"
+          className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition flex items-center gap-2 text-sm"
         >
-          <Plus size={20} />
+          <Plus size={16} />
           Add Staff
         </button>
       </div>
 
-<<<<<<< HEAD
       {/* Search Section */}
-=======
-      {/* Search Section - Always visible */}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Transport Register</h2>
+      <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
+        <h2 className="text-lg font-bold text-gray-800 mb-3">Transport Register</h2>
 
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="md:w-48">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="md:w-40">
             <select
               value={routeFilter}
               onChange={(e) => setRouteFilter(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
-<<<<<<< HEAD
               <option value="">All Routes</option>
-=======
-              <option value="">Select an option</option>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               {routes.map((route) => (
                 <option key={route.id} value={route.id}>
                   {route.route_name}
@@ -1269,88 +1119,62 @@ export default function PassengersPage() {
               ))}
             </select>
           </div>
-<<<<<<< HEAD
-          <div className="md:w-48">
+          <div className="md:w-40">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Types</option>
               <option value="STUDENT">Students</option>
               <option value="STAFF">Staff</option>
             </select>
           </div>
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
-<<<<<<< HEAD
         </div>
       </div>
 
       {/* Table */}
-=======
-          <button className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2">
-            <Search size={20} />
-            Search
-          </button>
-        </div>
-
-        <p className="text-gray-600 mt-4 text-sm">
-          There are <span className="font-bold text-red-600">{filteredPassengers.length}</span> routes registered in the routes data bank
-        </p>
-      </div>
-
-      {/* Table - Always visible */}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-blue-900 text-white">
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Name</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Route</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Vehicle</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Driver</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Driver Mobile</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fare</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Type</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Route</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Vehicle</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Driver</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Driver Mobile</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fare</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Type</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
                     Loading passengers...
                   </td>
                 </tr>
-<<<<<<< HEAD
               ) : currentPassengers.length === 0 ? (
-=======
-              ) : filteredPassengers.length === 0 ? (
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <tr>
-                  <td colSpan="9" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
                     No passengers found
                   </td>
                 </tr>
               ) : (
-<<<<<<< HEAD
                 currentPassengers.map((passenger, index) => {
-=======
-                filteredPassengers.map((passenger, index) => {
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   const name = passenger.type === 'STUDENT'
                     ? `${passenger.students?.first_name || ''} ${passenger.students?.last_name || ''}`.trim()
                     : `${passenger.staff?.first_name || ''} ${passenger.staff?.last_name || ''}`.trim()
@@ -1362,33 +1186,29 @@ export default function PassengersPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-<<<<<<< HEAD
-                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
-=======
-                      <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <span className="text-blue-600 font-medium">
                           {name}
                         </span>
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {passenger.routes?.route_name || '-'}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {passenger.vehicles?.registration_number || '-'}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {passenger.vehicles?.driver_name || '-'}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {passenger.vehicles?.driver_mobile || '-'}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {passenger.routes?.fare ? passenger.routes.fare.toLocaleString() : '-'}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      <td className="px-3 py-2.5 border border-gray-200">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                           passenger.type === 'STUDENT'
                             ? 'bg-blue-100 text-blue-700'
                             : 'bg-green-100 text-green-700'
@@ -1396,28 +1216,28 @@ export default function PassengersPage() {
                           {passenger.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handlePrintChallan(passenger)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                             title="Print Challan"
                           >
-                            <Printer size={18} />
+                            <Printer size={16} />
                           </button>
                           <button
                             onClick={() => handleEdit(passenger)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                             title="Edit"
                           >
-                            <Edit2 size={18} />
+                            <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => handleDelete(passenger)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>
@@ -1428,23 +1248,22 @@ export default function PassengersPage() {
             </tbody>
           </table>
         </div>
-<<<<<<< HEAD
 
         {/* Pagination Controls */}
         {!loading && filteredPassengers.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
-            <div className="text-sm text-gray-600">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-white">
+            <div className="text-xs text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredPassengers.length)} of {filteredPassengers.length} entries
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-1.5 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Previous
               </button>
-              
+
               {/* Page numbers */}
               <div className="flex items-center gap-1">
                 {[...Array(totalPages)].map((_, i) => {
@@ -1459,7 +1278,7 @@ export default function PassengersPage() {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 text-sm font-medium rounded-lg transition ${
+                        className={`w-8 h-8 text-sm font-medium rounded-lg transition ${
                           currentPage === pageNum
                             ? 'bg-blue-800 text-white'
                             : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
@@ -1469,7 +1288,7 @@ export default function PassengersPage() {
                       </button>
                     )
                   } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                    return <span key={pageNum} className="px-2">...</span>
+                    return <span key={pageNum} className="px-1">...</span>
                   }
                   return null
                 })}
@@ -1478,47 +1297,44 @@ export default function PassengersPage() {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-1.5 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Next
               </button>
             </div>
           </div>
         )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Add Passenger Sidebar */}
       {showModal && (
         <>
-<<<<<<< HEAD
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={resetAddModalState}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-          <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold">Add {formData.type === 'STUDENT' ? 'Student' : 'Staff'}</h3>
-                <p className="text-blue-200 text-sm mt-1">Add passenger details</p>
+                <h3 className="text-base font-bold">Add {formData.type === 'STUDENT' ? 'Student' : 'Staff'}</h3>
+                <p className="text-blue-200 text-xs mt-0.5">Add passenger details</p>
               </div>
               <button
                 onClick={resetAddModalState}
-                className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
               >
-                <X size={22} />
+                <X size={18} />
               </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-            <div className="space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div className="space-y-4">
               {formData.type === 'STUDENT' ? (
                 <>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Select Class <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1527,7 +1343,7 @@ export default function PassengersPage() {
                         console.log('Class dropdown changed to:', e.target.value);
                         handleClassChange(e.target.value);
                       }}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     >
                       <option value="">Select a class</option>
                       {classes.map((cls) => (
@@ -1537,8 +1353,8 @@ export default function PassengersPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                       Select Student <span className="text-red-500">*</span>
                     </label>
                     <div className="relative student-dropdown-container">
@@ -1558,22 +1374,22 @@ export default function PassengersPage() {
                         }}
                         disabled={!formData.classId}
                         placeholder={formData.classId ? 'Search by name or admission number...' : 'First select a class'}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       {showStudentDropdown && formData.classId && (
                         <>
                           {getFilteredStudentsForSearch().length > 0 ? (
-                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                               {getFilteredStudentsForSearch().map((student) => (
                                 <div
                                   key={student.id}
                                   onClick={() => handleStudentSelect(student)}
-                                  className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
+                                  className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
                                 >
-                                  <div className="font-medium text-gray-800">
+                                  <div className="font-medium text-gray-800 text-sm">
                                     {student.first_name} {student.last_name}
                                   </div>
-                                  <div className="text-sm text-gray-600">
+                                  <div className="text-xs text-gray-600">
                                     Admission No: {student.admission_number}
                                     {student.father_name && ` • S/O ${student.father_name}`}
                                   </div>
@@ -1884,232 +1700,10 @@ export default function PassengersPage() {
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-=======
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowModal(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-bold">Add {formData.type === 'STUDENT' ? 'Student' : 'Staff'}</h3>
-                  <p className="text-blue-200 text-sm mt-1">Add passenger details</p>
-                </div>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
-                >
-                  <X size={22} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                {formData.type === 'STUDENT' ? (
-                  <>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                      <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                        Select Class <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={formData.classId}
-                        onChange={(e) => {
-                          console.log('Class dropdown changed to:', e.target.value);
-                          handleClassChange(e.target.value);
-                        }}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                      >
-                        <option value="">Select a class</option>
-                        {classes.map((cls) => (
-                          <option key={cls.id} value={cls.id}>
-                            {cls.class_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                      <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                        Select Student <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative student-dropdown-container">
-                        <input
-                          type="text"
-                          value={studentSearchTerm}
-                          onChange={(e) => {
-                            setStudentSearchTerm(e.target.value)
-                            setShowStudentDropdown(true)
-                          }}
-                          onFocus={() => setShowStudentDropdown(true)}
-                          disabled={!formData.classId}
-                          placeholder={formData.classId ? 'Search by name or admission number...' : 'First select a class'}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                        {showStudentDropdown && formData.classId && (
-                          <>
-                            {getFilteredStudentsForSearch().length > 0 ? (
-                              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                {getFilteredStudentsForSearch().map((student) => (
-                                  <div
-                                    key={student.id}
-                                    onClick={() => handleStudentSelect(student)}
-                                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
-                                  >
-                                    <div className="font-medium text-gray-800">
-                                      {student.first_name} {student.last_name}
-                                    </div>
-                                    <div className="text-sm text-gray-600">
-                                      Admission No: {student.admission_number}
-                                      {student.father_name && ` • S/O ${student.father_name}`}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
-                                <div className="text-center text-gray-500">
-                                  {studentSearchTerm
-                                    ? `No students found matching "${studentSearchTerm}"`
-                                    : 'No students found in this class'
-                                  }
-                                </div>
-                                {!studentSearchTerm && (
-                                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-gray-600">
-                                    <p className="font-semibold text-yellow-800 mb-1">Possible reasons:</p>
-                                    <ul className="list-disc list-inside space-y-1 text-left">
-                                      <li>No students have been assigned to this class yet</li>
-                                      <li>Students may need their class assignment updated</li>
-                                      <li>Check student records to assign them to this class</li>
-                                    </ul>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                      <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                        Select Department <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={formData.departmentId}
-                        onChange={(e) => handleDepartmentChange(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                      >
-                        <option value="">Select a department</option>
-                        {departments.map((dept, index) => (
-                          <option key={index} value={dept}>
-                            {dept}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                      <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                        Select Staff Member <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative staff-dropdown-container">
-                        <input
-                          type="text"
-                          value={staffSearchTerm}
-                          onChange={(e) => {
-                            setStaffSearchTerm(e.target.value)
-                            setShowStaffDropdown(true)
-                          }}
-                          onFocus={() => setShowStaffDropdown(true)}
-                          disabled={!formData.departmentId}
-                          placeholder={formData.departmentId ? 'Search by name or computer number...' : 'First select a department'}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                        {showStaffDropdown && formData.departmentId && (
-                          <>
-                            {getFilteredStaffForSearch().length > 0 ? (
-                              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                {getFilteredStaffForSearch().map((staffMember) => (
-                                  <div
-                                    key={staffMember.id}
-                                    onClick={() => handleStaffSelect(staffMember)}
-                                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
-                                  >
-                                    <div className="font-medium text-gray-800">
-                                      {staffMember.first_name} {staffMember.last_name}
-                                    </div>
-                                    <div className="text-sm text-gray-600">
-                                      Computer No: {staffMember.computer_no}
-                                      {staffMember.designation && ` • ${staffMember.designation}`}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
-                                <div className="text-center text-gray-500">
-                                  {staffSearchTerm
-                                    ? `No staff found matching "${staffSearchTerm}"`
-                                    : 'No staff found in this department'
-                                  }
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Select Route <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.route}
-                    onChange={(e) => handleRouteChange(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  >
-                    <option value="">Select a route</option>
-                    {routes.map((route) => (
-                      <option key={route.id} value={route.id}>
-                        {route.route_name} (Rs{route.fare})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Select Vehicle (Optional)
-                  </label>
-                  <select
-                    value={formData.vehicle}
-                    onChange={(e) => setFormData({ ...formData, vehicle: e.target.value })}
-                    disabled={!formData.route}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select a vehicle</option>
-                    {filteredVehicles.map((vehicle) => (
-                      <option key={vehicle.id} value={vehicle.id}>
-                        {vehicle.registration_number}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 >
                   Cancel
                 </button>
                 <button
-<<<<<<< HEAD
                   onClick={confirmDelete}
                   className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
                 >
@@ -2119,21 +1713,10 @@ export default function PassengersPage() {
               </div>
             </div>
             </div>
-=======
-                  onClick={handleSave}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
-                >
-                  <Plus size={14} />
-                  Add Passenger
-                </button>
-              </div>
-            </div>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           </div>
         </>
       )}
 
-<<<<<<< HEAD
       <style jsx>{`
         @keyframes slideIn {
           from {
@@ -2152,144 +1735,3 @@ export default function PassengersPage() {
     </div>
   )
 }
-=======
-      {/* Edit Passenger Sidebar */}
-      {showEditModal && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowEditModal(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-bold">Edit Passenger</h3>
-                  <p className="text-blue-200 text-sm mt-1">Update passenger details</p>
-                </div>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
-                >
-                  <X size={22} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Passenger Name
-                  </label>
-                  <div className="px-4 py-3 bg-gray-100 rounded-lg text-gray-600">
-                    {selectedPassenger?.type === 'STUDENT'
-                      ? `${selectedPassenger?.students?.first_name || ''} ${selectedPassenger?.students?.last_name || ''}`
-                      : `${selectedPassenger?.staff?.first_name || ''} ${selectedPassenger?.staff?.last_name || ''}`}
-                  </div>
-                </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Type
-                  </label>
-                  <div className="px-4 py-3 bg-gray-100 rounded-lg text-gray-600">
-                    {selectedPassenger?.type}
-                  </div>
-                </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Select Route <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.route}
-                    onChange={(e) => handleRouteChange(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  >
-                    <option value="">Select a route</option>
-                    {routes.map((route) => (
-                      <option key={route.id} value={route.id}>
-                        {route.route_name} (Rs{route.fare})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Select Vehicle (Optional)
-                  </label>
-                  <select
-                    value={formData.vehicle}
-                    onChange={(e) => setFormData({ ...formData, vehicle: e.target.value })}
-                    disabled={!formData.route}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select a vehicle</option>
-                    {filteredVehicles.map((vehicle) => (
-                      <option key={vehicle.id} value={vehicle.id}>
-                        {vehicle.registration_number}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdate}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
-                >
-                  <Plus size={14} />
-                  Add Passenger
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && passengerToDelete && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowDeleteModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete this passenger? This action cannot be undone.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
-                  >
-                    <Trash2 size={18} />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

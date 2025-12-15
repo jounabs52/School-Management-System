@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-<<<<<<< HEAD
 import { Plus, Search, Edit2, X, Trash2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -33,12 +32,6 @@ function Toast({ message, type, onClose }) {
   )
 }
 
-=======
-import { Plus, Search, Edit2, X, Trash2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { getUserFromCookie } from '@/lib/clientAuth'
-
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 export default function VehiclesPage() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -49,7 +42,6 @@ export default function VehiclesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState(null)
   const [vehicleToDelete, setVehicleToDelete] = useState(null)
-<<<<<<< HEAD
   
   // Toast state
   const [toast, setToast] = useState(null)
@@ -62,8 +54,6 @@ export default function VehiclesPage() {
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
   }
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
   // Lock/unlock body scroll when modals open/close
   useEffect(() => {
@@ -165,28 +155,16 @@ export default function VehiclesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!formData.registrationNo) {
-<<<<<<< HEAD
         showToast('Registration Number is required', 'error')
         return
       }
 
       const { data, error } = await supabase
-=======
-        alert('Registration Number is required')
-        return
-      }
-
-      const { error } = await supabase
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         .from('vehicles')
         .insert([{
           school_id: user.school_id,
@@ -203,7 +181,6 @@ export default function VehiclesPage() {
 
       if (error) {
         console.error('Error creating vehicle:', error)
-<<<<<<< HEAD
         showToast('Failed to create vehicle', 'error')
       } else {
         // Get route info if route is selected
@@ -229,17 +206,6 @@ export default function VehiclesPage() {
     } catch (error) {
       console.error('Error saving vehicle:', error)
       showToast('Error saving vehicle', 'error')
-=======
-        alert('Failed to create vehicle: ' + error.message)
-      } else {
-        setShowModal(false)
-        setFormData({ registrationNo: '', capacity: '', driverName: '', driverMobile: '', route: '' })
-        fetchVehicles()
-      }
-    } catch (error) {
-      console.error('Error saving vehicle:', error)
-      alert('Error saving vehicle')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -259,20 +225,12 @@ export default function VehiclesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!formData.registrationNo) {
-<<<<<<< HEAD
         showToast('Registration Number is required', 'error')
-=======
-        alert('Registration Number is required')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -293,7 +251,6 @@ export default function VehiclesPage() {
 
       if (error) {
         console.error('Error updating vehicle:', error)
-<<<<<<< HEAD
         showToast('Failed to update vehicle', 'error')
       } else {
         // Get route info if route is selected
@@ -329,18 +286,6 @@ export default function VehiclesPage() {
     } catch (error) {
       console.error('Error updating vehicle:', error)
       showToast('Error updating vehicle', 'error')
-=======
-        alert('Failed to update vehicle: ' + error.message)
-      } else {
-        setShowEditModal(false)
-        setFormData({ registrationNo: '', capacity: '', driverName: '', driverMobile: '', route: '' })
-        setSelectedVehicle(null)
-        fetchVehicles()
-      }
-    } catch (error) {
-      console.error('Error updating vehicle:', error)
-      alert('Error updating vehicle')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -353,11 +298,7 @@ export default function VehiclesPage() {
     try {
       const user = getUserFromCookie()
       if (!user) {
-<<<<<<< HEAD
         showToast('Unauthorized', 'error')
-=======
-        alert('Unauthorized')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -369,7 +310,6 @@ export default function VehiclesPage() {
 
       if (error) {
         console.error('Error deleting vehicle:', error)
-<<<<<<< HEAD
         showToast('Failed to delete vehicle', 'error')
       } else {
         // Remove vehicle from state
@@ -381,17 +321,6 @@ export default function VehiclesPage() {
     } catch (error) {
       console.error('Error deleting vehicle:', error)
       showToast('Error deleting vehicle', 'error')
-=======
-        alert('Failed to delete vehicle: ' + error.message)
-      } else {
-        setShowDeleteModal(false)
-        setVehicleToDelete(null)
-        fetchVehicles()
-      }
-    } catch (error) {
-      console.error('Error deleting vehicle:', error)
-      alert('Error deleting vehicle')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -402,7 +331,6 @@ export default function VehiclesPage() {
     )
   })
 
-<<<<<<< HEAD
   // Pagination calculations
   const totalPages = Math.ceil(filteredVehicles.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -425,10 +353,6 @@ export default function VehiclesPage() {
         />
       )}
 
-=======
-  return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Top Button */}
       <div className="mb-6">
         <button
@@ -455,19 +379,7 @@ export default function VehiclesPage() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
-<<<<<<< HEAD
         </div>
-=======
-          <button className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2">
-            <Search size={20} />
-            Search
-          </button>
-        </div>
-
-        <p className="text-gray-600 mt-4 text-sm">
-          There are <span className="font-bold text-blue-600">{filteredVehicles.length}</span> Vehicles registered
-        </p>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Table */}
@@ -492,33 +404,21 @@ export default function VehiclesPage() {
                     Loading vehicles...
                   </td>
                 </tr>
-<<<<<<< HEAD
               ) : currentVehicles.length === 0 ? (
-=======
-              ) : filteredVehicles.length === 0 ? (
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <tr>
                   <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                     No vehicles found
                   </td>
                 </tr>
               ) : (
-<<<<<<< HEAD
                 currentVehicles.map((vehicle, index) => (
-=======
-                filteredVehicles.map((vehicle, index) => (
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   <tr
                     key={vehicle.id}
                     className={`${
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                     } hover:bg-blue-50 transition`}
                   >
-<<<<<<< HEAD
                     <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
-=======
-                    <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     <td className="px-4 py-3 border border-gray-200">
                       <span className="text-blue-600 font-medium">
                         {vehicle.registration_number}
@@ -562,7 +462,6 @@ export default function VehiclesPage() {
             </tbody>
           </table>
         </div>
-<<<<<<< HEAD
 
         {/* Pagination Controls */}
         {!loading && filteredVehicles.length > 0 && (
@@ -619,26 +518,17 @@ export default function VehiclesPage() {
             </div>
           </div>
         )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
 
       {/* Add New Vehicle Sidebar */}
       {showModal && (
         <>
           <div
-<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-=======
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowModal(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -747,18 +637,11 @@ export default function VehiclesPage() {
       {showEditModal && (
         <>
           <div
-<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowEditModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-=======
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowEditModal(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -855,11 +738,7 @@ export default function VehiclesPage() {
                   className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
                 >
                   <Plus size={14} />
-<<<<<<< HEAD
                   Update Vehicle
-=======
-                  Save Vehicle
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </button>
               </div>
             </div>
@@ -871,18 +750,11 @@ export default function VehiclesPage() {
       {showDeleteModal && vehicleToDelete && (
         <>
           <div
-<<<<<<< HEAD
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowDeleteModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-=======
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowDeleteModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
@@ -911,7 +783,6 @@ export default function VehiclesPage() {
           </div>
         </>
       )}
-<<<<<<< HEAD
 
       <style jsx>{`
         @keyframes slideIn {
@@ -931,8 +802,3 @@ export default function VehiclesPage() {
     </div>
   )
 }
-=======
-    </div>
-  )
-}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9

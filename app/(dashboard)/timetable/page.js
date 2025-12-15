@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-<<<<<<< HEAD
 import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -16,26 +15,20 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-600 text-white' :
       type === 'error' ? 'bg-red-600 text-white' :
       'bg-blue-600 text-white'
     }`}>
-      {type === 'success' && <CheckCircle size={20} />}
-      {type === 'error' && <X size={20} />}
-      <span className="font-medium">{message}</span>
+      {type === 'success' && <CheckCircle size={16} />}
+      {type === 'error' && <X size={16} />}
+      <span className="font-medium text-sm">{message}</span>
       <button onClick={onClose} className="ml-2 hover:opacity-80">
-        <X size={18} />
+        <X size={16} />
       </button>
     </div>
   )
 }
-=======
-import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { getUserFromCookie } from '@/lib/clientAuth'
-import toast, { Toaster } from 'react-hot-toast'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
 export default function TimetablePage() {
   const [activeTab, setActiveTab] = useState('timetable')
@@ -73,7 +66,6 @@ export default function TimetablePage() {
   })
   const [numberOfPeriods, setNumberOfPeriods] = useState(6)
 
-<<<<<<< HEAD
   // Pagination state for Periods tab
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 10
@@ -96,8 +88,6 @@ export default function TimetablePage() {
     setToast({ show: false, message: '', type: '' })
   }
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const [periodForm, setPeriodForm] = useState({
     class_id: '',
     day_of_week: '',
@@ -177,11 +167,7 @@ export default function TimetablePage() {
         if (userData) {
           if (!userData.school_id) {
             console.error('❌ User has no school_id!', userData)
-<<<<<<< HEAD
             showToast('Error: User account is not associated with a school. Please contact support.', 'error')
-=======
-            toast.error('Error: User account is not associated with a school. Please contact support.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             setLoadingClasses(false)
             return
           }
@@ -220,14 +206,11 @@ export default function TimetablePage() {
     }
   }, [selectedClass])
 
-<<<<<<< HEAD
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedClassFilter])
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const fetchClasses = async () => {
     try {
       setLoadingClasses(true)
@@ -462,11 +445,7 @@ export default function TimetablePage() {
 
   const handleLoad = async () => {
     if (!selectedClass) {
-<<<<<<< HEAD
       showToast('Please select a class first', 'error')
-=======
-      toast.error('Please select a class first')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       return
     }
     if (activeTab === 'timetable') {
@@ -538,20 +517,12 @@ export default function TimetablePage() {
   const handleSavePeriod = async () => {
     try {
       if (!periodForm.period_number || !periodForm.start_time || !periodForm.end_time) {
-<<<<<<< HEAD
         showToast('Please fill all required fields (Period Number, Start Time, End Time)', 'error')
-=======
-        toast.error('Please fill all required fields (Period Number, Start Time, End Time)')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
-<<<<<<< HEAD
         showToast('User authentication error', 'error')
-=======
-        toast.error('User authentication error')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -580,18 +551,11 @@ export default function TimetablePage() {
         if (error) {
           console.error('Error updating period:', error)
           console.error('Error details:', JSON.stringify(error, null, 2))
-<<<<<<< HEAD
           showToast(`Failed to update period: ${error.message || JSON.stringify(error)}`, 'error')
           return
         }
         console.log('Period updated successfully:', data)
         showToast('Period updated successfully!', 'success')
-=======
-          toast.error(`Failed to update period: ${error.message || JSON.stringify(error)}`)
-          return
-        }
-        console.log('Period updated successfully:', data)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       } else {
         const { data, error } = await supabase
           .from('periods')
@@ -603,18 +567,11 @@ export default function TimetablePage() {
           console.error('Error details:', JSON.stringify(error, null, 2))
           console.error('Error code:', error.code)
           console.error('Error hint:', error.hint)
-<<<<<<< HEAD
           showToast(`Failed to create period: ${error.message || 'Unknown error. Check console for details.'}`, 'error')
           return
         }
         console.log('Period created successfully:', data)
         showToast('Period created successfully!', 'success')
-=======
-          toast.error(`Failed to create period: ${error.message || 'Unknown error. Check console for details.'}`)
-          return
-        }
-        console.log('Period created successfully:', data)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       }
 
       await fetchPeriods()
@@ -631,20 +588,11 @@ export default function TimetablePage() {
       setEditingPeriod(null)
     } catch (error) {
       console.error('Error saving period:', error)
-<<<<<<< HEAD
       showToast('An error occurred while saving', 'error')
-=======
-      toast.error('An error occurred while saving')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleDeletePeriod = async (periodId) => {
-<<<<<<< HEAD
-=======
-    if (!confirm('Are you sure you want to delete this period?')) return
-
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     try {
       const { error } = await supabase
         .from('periods')
@@ -654,7 +602,6 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error deleting period:', error)
-<<<<<<< HEAD
         showToast('Failed to delete period', 'error')
         return
       }
@@ -667,45 +614,23 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error deleting period:', error)
       showToast('An error occurred while deleting', 'error')
-=======
-        toast.error('Failed to delete period')
-        return
-      }
-
-      await fetchPeriods()
-    } catch (error) {
-      console.error('Error deleting period:', error)
-      toast.error('An error occurred while deleting')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleSaveBulkPeriods = async () => {
     try {
       if (!bulkPeriodForm.class_ids.length || !bulkPeriodForm.day_of_weeks.length) {
-<<<<<<< HEAD
         showToast('Please select at least one class and one day', 'error')
-=======
-        toast.error('Please select at least one class and one day')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!bulkPeriodForm.start_time || !bulkPeriodForm.period_duration || !bulkPeriodForm.period_gap) {
-<<<<<<< HEAD
         showToast('Please fill all required fields (Start Time, Period Duration, Period Gap)', 'error')
-=======
-        toast.error('Please fill all required fields (Start Time, Period Duration, Period Gap)')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
-<<<<<<< HEAD
         showToast('User authentication error', 'error')
-=======
-        toast.error('User authentication error')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -757,11 +682,7 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error creating bulk periods:', error)
-<<<<<<< HEAD
         showToast('Failed to create periods: ' + error.message, 'error')
-=======
-        toast.error('Failed to create periods: ' + error.message)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -776,37 +697,22 @@ export default function TimetablePage() {
         break_period: '',
         break_duration: ''
       })
-<<<<<<< HEAD
       showToast(`Bulk periods created successfully! Created ${periodsToCreate.length} periods.`, 'success')
     } catch (error) {
       console.error('Error saving bulk periods:', error)
       showToast('An error occurred while saving', 'error')
-=======
-      toast.success(`Bulk periods created successfully! Created ${periodsToCreate.length} periods.`)
-    } catch (error) {
-      console.error('Error saving bulk periods:', error)
-      toast.error('An error occurred while saving')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleChangeTimings = async () => {
     try {
       if (!timingForm.start_time || !timingForm.period_duration) {
-<<<<<<< HEAD
         showToast('Please fill required fields (Start Time and Period Duration)', 'error')
-=======
-        toast.error('Please fill required fields (Start Time and Period Duration)')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
-<<<<<<< HEAD
         showToast('User authentication error', 'error')
-=======
-        toast.error('User authentication error')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -854,28 +760,17 @@ export default function TimetablePage() {
         period_gap: '',
         break_duration: ''
       })
-<<<<<<< HEAD
       showToast('Period timings updated successfully!', 'success')
     } catch (error) {
       console.error('Error updating timings:', error)
       showToast('An error occurred while updating', 'error')
-=======
-      toast.success('Period timings updated successfully!')
-    } catch (error) {
-      console.error('Error updating timings:', error)
-      toast.error('An error occurred while updating')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleDeleteAllPeriods = async () => {
     try {
       if (!user || !user.school_id) {
-<<<<<<< HEAD
         showToast('User authentication error', 'error')
-=======
-        toast.error('User authentication error')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -886,7 +781,6 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error deleting all periods:', error)
-<<<<<<< HEAD
         showToast('Failed to delete all periods', 'error')
         return
       }
@@ -898,47 +792,23 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error deleting all periods:', error)
       showToast('An error occurred while deleting', 'error')
-=======
-        toast.error('Failed to delete all periods')
-        return
-      }
-
-      await fetchPeriods()
-      setShowDeleteConfirm(false)
-      toast.success('All periods deleted successfully!')
-    } catch (error) {
-      console.error('Error deleting all periods:', error)
-      toast.error('An error occurred while deleting')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleAutoGenerateTimetable = async () => {
     try {
       if (!autoGenerateForm.class_id || !autoGenerateForm.day_of_week) {
-<<<<<<< HEAD
         showToast('Please select Class and Day', 'error')
-=======
-        toast.error('Please select Class and Day')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!user || !user.school_id) {
-<<<<<<< HEAD
         showToast('Authentication error. Please login again.', 'error')
-=======
-        toast.error('Authentication error. Please login again.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!currentSession) {
-<<<<<<< HEAD
         showToast('No active session found. Please create and activate a session first.', 'error')
-=======
-        toast.error('No active session found. Please create and activate a session first.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -955,20 +825,12 @@ export default function TimetablePage() {
 
       if (subjectsError) {
         console.error('Error fetching class subjects:', subjectsError)
-<<<<<<< HEAD
         showToast('Failed to fetch class subjects', 'error')
-=======
-        toast.error('Failed to fetch class subjects')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!classSubjectsData || classSubjectsData.length === 0) {
-<<<<<<< HEAD
         showToast('No subjects found for this class. Please add subjects first.', 'error')
-=======
-        toast.error('No subjects found for this class. Please add subjects first.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -986,11 +848,7 @@ export default function TimetablePage() {
       }).sort((a, b) => a.period_number - b.period_number)
 
       if (availablePeriods.length === 0) {
-<<<<<<< HEAD
         showToast('No periods found. Please create periods first.', 'error')
-=======
-        toast.error('No periods found. Please create periods first.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1006,14 +864,7 @@ export default function TimetablePage() {
         .eq('day_of_week', autoGenerateForm.day_of_week)
 
       if (existingTimetable && existingTimetable.length > 0) {
-<<<<<<< HEAD
         // Delete existing timetable for this day (user already warned in the modal)
-=======
-        if (!confirm(`Timetable already exists for ${autoGenerateForm.day_of_week}. Do you want to replace it?`)) {
-          return
-        }
-        // Delete existing timetable for this day
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         await supabase
           .from('timetable')
           .delete()
@@ -1056,19 +907,11 @@ export default function TimetablePage() {
 
       if (insertError) {
         console.error('Error creating timetable:', insertError)
-<<<<<<< HEAD
         showToast('Failed to generate timetable: ' + insertError.message, 'error')
         return
       }
 
       showToast(`Timetable generated successfully for ${autoGenerateForm.day_of_week}! Created ${timetableEntries.length} entries.`, 'success')
-=======
-        toast.error('Failed to generate timetable: ' + insertError.message)
-        return
-      }
-
-      toast.success(`Timetable generated successfully for ${autoGenerateForm.day_of_week}! Created ${timetableEntries.length} entries.`)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       setShowAutoGenerateModal(false)
       setAutoGenerateForm({
         class_id: '',
@@ -1081,70 +924,42 @@ export default function TimetablePage() {
       }
     } catch (error) {
       console.error('Error auto-generating timetable:', error)
-<<<<<<< HEAD
       showToast('An error occurred while generating timetable', 'error')
-=======
-      toast.error('An error occurred while generating timetable')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleSaveTimetable = async () => {
     try {
       if (!timetableForm.day_of_week || !timetableForm.period_number) {
-<<<<<<< HEAD
         showToast('Please select Day and Period', 'error')
-=======
-        toast.error('Please select Day and Period')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       // Only validate subject and teacher for regular periods, not breaks
       if (timetableForm.entry_type === 'regular') {
         if (!timetableForm.subject_id) {
-<<<<<<< HEAD
           showToast('Please select a Subject', 'error')
-=======
-          toast.error('Please select a Subject')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           return
         }
 
         if (!timetableForm.teacher_id) {
-<<<<<<< HEAD
           showToast('Please select a Teacher', 'error')
-=======
-          toast.error('Please select a Teacher')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           return
         }
       }
 
       if (!user || !user.school_id) {
-<<<<<<< HEAD
         showToast('Authentication error. Please login again.', 'error')
-=======
-        toast.error('Authentication error. Please login again.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!selectedClass) {
-<<<<<<< HEAD
         showToast('Please select a class first', 'error')
-=======
-        toast.error('Please select a class first')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
       if (!currentSession) {
-<<<<<<< HEAD
         showToast('No active session found. Please create and activate a session first.', 'error')
-=======
-        toast.error('No active session found. Please create and activate a session first.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1173,11 +988,7 @@ export default function TimetablePage() {
       )
 
       if (!period) {
-<<<<<<< HEAD
         showToast('Period timing not found. Please create period timings first.', 'error')
-=======
-        toast.error('Period timing not found. Please create period timings first.')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1205,16 +1016,10 @@ export default function TimetablePage() {
 
         if (error) {
           console.error('Error updating timetable:', error)
-<<<<<<< HEAD
           showToast('Failed to update timetable', 'error')
           return
         }
         showToast('Timetable updated successfully!', 'success')
-=======
-          toast.error('Failed to update timetable')
-          return
-        }
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       } else {
         const { error } = await supabase
           .from('timetable')
@@ -1222,16 +1027,10 @@ export default function TimetablePage() {
 
         if (error) {
           console.error('Error creating timetable:', error)
-<<<<<<< HEAD
           showToast('Failed to create timetable entry', 'error')
           return
         }
         showToast('Timetable entry created successfully!', 'success')
-=======
-          toast.error('Failed to create timetable entry')
-          return
-        }
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       }
 
       await fetchTimetable()
@@ -1247,20 +1046,11 @@ export default function TimetablePage() {
       setEditingTimetable(null)
     } catch (error) {
       console.error('Error saving timetable:', error)
-<<<<<<< HEAD
       showToast('An error occurred while saving', 'error')
-=======
-      toast.error('An error occurred while saving')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
   const handleDeleteTimetable = async (timetableId) => {
-<<<<<<< HEAD
-=======
-    if (!confirm('Are you sure you want to delete this timetable entry?')) return
-
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     try {
       const { error } = await supabase
         .from('timetable')
@@ -1270,7 +1060,6 @@ export default function TimetablePage() {
 
       if (error) {
         console.error('Error deleting timetable:', error)
-<<<<<<< HEAD
         showToast('Failed to delete timetable entry', 'error')
         return
       }
@@ -1283,16 +1072,6 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error deleting timetable:', error)
       showToast('An error occurred while deleting', 'error')
-=======
-        toast.error('Failed to delete timetable entry')
-        return
-      }
-
-      await fetchTimetable()
-    } catch (error) {
-      console.error('Error deleting timetable:', error)
-      toast.error('An error occurred while deleting')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -1333,11 +1112,7 @@ export default function TimetablePage() {
       console.log('Starting Print All PDF generation...')
 
       if (classes.length === 0) {
-<<<<<<< HEAD
         showToast('No classes available', 'error')
-=======
-        toast.error('No classes available')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1345,11 +1120,7 @@ export default function TimetablePage() {
       const allTimetablesData = await fetchAllClassesTimetables()
 
       if (allTimetablesData.length === 0) {
-<<<<<<< HEAD
         showToast('No timetables found', 'error')
-=======
-        toast.error('No timetables found')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1568,11 +1339,7 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error generating All Classes PDF:', error)
       console.error('Error details:', error.message, error.stack)
-<<<<<<< HEAD
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
-=======
-      toast.error(`Failed to generate PDF: ${error.message}`)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -1582,11 +1349,7 @@ export default function TimetablePage() {
       console.log('Starting PDF generation...')
 
       if (!selectedClass) {
-<<<<<<< HEAD
         showToast('Please select a class first', 'error')
-=======
-        toast.error('Please select a class first')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         return
       }
 
@@ -1794,11 +1557,7 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error generating PDF:', error)
       console.error('Error details:', error.message, error.stack)
-<<<<<<< HEAD
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
-=======
-      toast.error(`Failed to generate PDF: ${error.message}`)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     }
   }
 
@@ -1806,7 +1565,6 @@ export default function TimetablePage() {
     const matchesSearch = period.period_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          period.start_time?.includes(searchTerm) ||
                          period.end_time?.includes(searchTerm)
-<<<<<<< HEAD
     const matchesClass = selectedClassFilter === '' || period.class_id === selectedClassFilter
     return matchesSearch && matchesClass
   })
@@ -1850,21 +1608,13 @@ export default function TimetablePage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
-=======
-    return matchesSearch
-  })
-
-  return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
-      <Toaster position="top-right" />
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Tabs */}
-      <div className="mb-6 flex gap-2">
+      <div className="mb-4 flex gap-2">
         <button
           onClick={() => {
             setActiveTab('timetable')
@@ -1873,13 +1623,13 @@ export default function TimetablePage() {
             setShowTimingModal(false)
             setShowDeleteConfirm(false)
           }}
-          className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 text-sm ${
             activeTab === 'timetable'
               ? 'bg-[#DC2626] text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <Clock size={20} />
+          <Clock size={16} />
           Timetable
         </button>
         <button
@@ -1890,24 +1640,24 @@ export default function TimetablePage() {
             setShowTimingModal(false)
             setShowDeleteConfirm(false)
           }}
-          className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 text-sm ${
             activeTab === 'periods'
               ? 'bg-[#DC2626] text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <CalendarDays size={20} />
+          <CalendarDays size={16} />
           Periods
         </button>
       </div>
 
       {/* Content Area */}
       {activeTab === 'timetable' ? (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div style={{ width: '280px' }}>
-                <label className="block text-gray-700 text-xs mb-1.5 font-medium">Class</label>
+        <div className="bg-white rounded-xl shadow-lg p-4">
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div style={{ width: '200px' }}>
+                <label className="block text-gray-700 text-xs mb-1 font-medium">Class</label>
                 <select
                   value={selectedClass}
                   onChange={(e) => {
@@ -1932,8 +1682,8 @@ export default function TimetablePage() {
               </div>
 
               {selectedClass && selectedClass !== 'all' && sections.length > 0 && (
-                <div style={{ width: '280px' }}>
-                  <label className="block text-gray-700 text-xs mb-1.5 font-medium">Section (Optional)</label>
+                <div style={{ width: '200px' }}>
+                  <label className="block text-gray-700 text-xs mb-1 font-medium">Section (Optional)</label>
                   <select
                     value={selectedSection}
                     onChange={(e) => {
@@ -1967,12 +1717,12 @@ export default function TimetablePage() {
           </div>
 
           {!timetableLoaded ? (
-            <div className="text-center py-12">
-              <Clock size={64} className="mx-auto text-gray-300 mb-4" />
-              <h3 className="text-2xl font-bold text-gray-700 mb-2">
+            <div className="text-center py-8">
+              <Clock size={48} className="mx-auto text-gray-300 mb-3" />
+              <h3 className="text-lg font-bold text-gray-700 mb-1">
                 {!selectedClass ? 'Select a Class' : 'Click Load to View Timetable'}
               </h3>
-              <p className="text-gray-500">
+              <p className="text-gray-500 text-sm">
                 {!selectedClass
                   ? 'Please select a class and click Load to view the timetable'
                   : 'Click the Load button to display the timetable'}
@@ -1981,9 +1731,9 @@ export default function TimetablePage() {
           ) : (
             <>
               {/* Filter and Action Buttons Row */}
-              <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
                 {selectedClass !== 'all' && (
-                  <div style={{ width: '280px' }}>
+                  <div style={{ width: '200px' }}>
                     <select
                       value={selectedTeacherFilter}
                       onChange={(e) => setSelectedTeacherFilter(e.target.value)}
@@ -2077,23 +1827,23 @@ export default function TimetablePage() {
               {/* Timetable Display */}
               {selectedClass === 'all' ? (
                 // Display all classes timetables
-                <div className="space-y-8">
+                <div className="space-y-6">
                   {allClassesTimetables.map((classData) => (
                     <div key={classData.class_id} className="border border-gray-300 rounded-lg overflow-hidden">
-                      <div className="bg-[#1E3A8A] text-white px-4 py-3">
-                        <h3 className="text-lg font-bold">{classData.class_name}</h3>
+                      <div className="bg-[#1E3A8A] text-white px-3 py-2">
+                        <h3 className="text-sm font-bold">{classData.class_name}</h3>
                       </div>
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse text-sm">
+                        <table className="w-full border-collapse text-xs">
                           <thead>
                             <tr>
-                              <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">PERIOD</th>
-                              <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">MONDAY</th>
-                              <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">TUESDAY</th>
-                              <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">WEDNESDAY</th>
-                              <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">THURSDAY</th>
-                              <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">FRIDAY</th>
-                              <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">SATURDAY</th>
+                              <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">PERIOD</th>
+                              <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">MONDAY</th>
+                              <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">TUESDAY</th>
+                              <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">WEDNESDAY</th>
+                              <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">THURSDAY</th>
+                              <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">FRIDAY</th>
+                              <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">SATURDAY</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2124,27 +1874,27 @@ export default function TimetablePage() {
 
                               return (
                                 <tr key={periodNumber} className="border-t border-gray-200">
-                                  <td className="px-3 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm w-32">
+                                  <td className="px-2 py-1.5 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs w-28">
                                     <div className="uppercase whitespace-nowrap">PERIOD {periodNumber}</div>
-                                    <div className="text-[10px] font-normal mt-1 leading-tight">
+                                    <div className="text-[9px] font-normal mt-0.5 leading-tight">
                                       {getPeriodTimeForClass(periodNumber, daysOfWeek[0])}
                                     </div>
                                   </td>
                                   {daysOfWeek.map((day) => {
                                     const cell = classData.timetable.find(t => t.day_of_week === day && t.period_number === periodNumber)
                                     return (
-                                      <td key={day} className="px-2 py-2 border border-gray-300 bg-white h-12">
+                                      <td key={day} className="px-1.5 py-1.5 border border-gray-300 bg-white h-10">
                                         {cell ? (
                                           !cell.subject_id && !cell.teacher_id ? (
                                             // Break/Lunch Period
                                             <div className="h-full flex items-center justify-center">
-                                              <div className="font-semibold text-amber-600 text-xs">BREAK</div>
+                                              <div className="font-semibold text-amber-600 text-[10px]">BREAK</div>
                                             </div>
                                           ) : (
                                             <div className="relative h-full">
-                                              <div className="font-semibold text-gray-800 text-xs mb-0.5">{cell.subjects?.subject_name || 'Subject'}</div>
-                                              {cell.staff && <div className="text-gray-600 text-[10px] leading-tight">{cell.staff.first_name} {cell.staff.last_name}</div>}
-                                              {cell.room_number && <div className="text-gray-500 text-[10px] leading-tight mt-0.5">Room: {cell.room_number}</div>}
+                                              <div className="font-semibold text-gray-800 text-[10px] mb-0.5">{cell.subjects?.subject_name || 'Subject'}</div>
+                                              {cell.staff && <div className="text-gray-600 text-[9px] leading-tight">{cell.staff.first_name} {cell.staff.last_name}</div>}
+                                              {cell.room_number && <div className="text-gray-500 text-[9px] leading-tight mt-0.5">Room: {cell.room_number}</div>}
                                             </div>
                                           )
                                         ) : (
@@ -2165,24 +1915,24 @@ export default function TimetablePage() {
               ) : (
                 // Display single class timetable
                 <div className="overflow-x-auto border border-gray-300 rounded-lg">
-                  <table className="w-full border-collapse text-sm">
+                  <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr>
-                      <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">PERIOD</th>
-                      <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">MONDAY</th>
-                      <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">TUESDAY</th>
-                      <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">WEDNESDAY</th>
-                      <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">THURSDAY</th>
-                      <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">FRIDAY</th>
-                      <th className="px-4 py-3 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm uppercase tracking-wide">SATURDAY</th>
+                      <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">PERIOD</th>
+                      <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">MONDAY</th>
+                      <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">TUESDAY</th>
+                      <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">WEDNESDAY</th>
+                      <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">THURSDAY</th>
+                      <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">FRIDAY</th>
+                      <th className="px-2 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs uppercase tracking-wide">SATURDAY</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Array.from({ length: numberOfPeriods }, (_, i) => i + 1).map((periodNumber) => (
                       <tr key={periodNumber} className="border-t border-gray-200">
-                        <td className="px-3 py-2 text-center font-bold bg-[#1E3A8A] text-white border border-white text-sm w-32">
+                        <td className="px-2 py-1.5 text-center font-bold bg-[#1E3A8A] text-white border border-white text-xs w-28">
                           <div className="uppercase whitespace-nowrap">PERIOD {periodNumber}</div>
-                          <div className="text-[10px] font-normal mt-1 leading-tight">
+                          <div className="text-[9px] font-normal mt-0.5 leading-tight">
                             {getPeriodTime(periodNumber, daysOfWeek[0]) || 'Time not set'}
                           </div>
                         </td>
@@ -2192,24 +1942,24 @@ export default function TimetablePage() {
                           const shouldShowCell = !selectedTeacherFilter || (cell && cell.teacher_id === selectedTeacherFilter)
 
                           return (
-                            <td key={day} className="px-2 py-2 border border-gray-300 bg-white relative group h-12">
+                            <td key={day} className="px-1.5 py-1.5 border border-gray-300 bg-white relative group h-10">
                               {cell && shouldShowCell ? (
                                 <div className="relative h-full">
                                   {!cell.subject_id && !cell.teacher_id ? (
                                     // Break/Lunch Period - No subject or teacher
-                                    <div className="font-semibold text-amber-600 text-xs text-center flex items-center justify-center h-full">
+                                    <div className="font-semibold text-amber-600 text-[10px] text-center flex items-center justify-center h-full">
                                       BREAK
                                     </div>
                                   ) : (
                                     // Normal Mode - Display subject and conditionally teacher
                                     <>
-                                      <div className="font-semibold text-gray-800 text-xs mb-0.5">{cell.subjects?.subject_name || 'Subject'}</div>
+                                      <div className="font-semibold text-gray-800 text-[10px] mb-0.5">{cell.subjects?.subject_name || 'Subject'}</div>
                                       {showTeacherMode && cell.staff && (
-                                        <div className="text-gray-600 text-[10px] leading-tight">
+                                        <div className="text-gray-600 text-[9px] leading-tight">
                                           {cell.staff.first_name} {cell.staff.last_name}
                                         </div>
                                       )}
-                                      {cell.room_number && <div className="text-gray-500 text-[10px] leading-tight mt-0.5">Room: {cell.room_number}</div>}
+                                      {cell.room_number && <div className="text-gray-500 text-[9px] leading-tight mt-0.5">Room: {cell.room_number}</div>}
                                     </>
                                   )}
 
@@ -2235,14 +1985,10 @@ export default function TimetablePage() {
                                     </button>
                                     {deleteMode && (
                                       <button
-<<<<<<< HEAD
                                         onClick={() => {
                                           setTimetableToDelete(cell)
                                           setShowDeleteTimetableModal(true)
                                         }}
-=======
-                                        onClick={() => handleDeleteTimetable(cell.id)}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                                         className="bg-red-500 text-white p-0.5 rounded hover:bg-red-600"
                                         title="Delete"
                                       >
@@ -2283,15 +2029,15 @@ export default function TimetablePage() {
 
               {/* Add/Remove Period Buttons Below Table */}
               {selectedClass !== 'all' && (
-                <div className="flex justify-end gap-3 mt-4">
+                <div className="flex justify-end gap-2 mt-3">
                   {numberOfPeriods > 1 && (
                     <button
                       onClick={() => {
                         setNumberOfPeriods(prev => Math.max(1, prev - 1))
                       }}
-                      className="bg-[#EF4444] text-white px-4 py-2.5 rounded-md font-semibold hover:bg-red-600 transition flex items-center gap-2 shadow-md"
+                      className="bg-[#EF4444] text-white px-3 py-2 rounded-md font-medium hover:bg-red-600 transition flex items-center gap-1.5 text-sm"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                       </svg>
                       Remove Period Row
@@ -2301,9 +2047,9 @@ export default function TimetablePage() {
                     onClick={() => {
                       setNumberOfPeriods(prev => prev + 1)
                     }}
-                    className="bg-[#10B981] text-white px-4 py-2.5 rounded-md font-semibold hover:bg-green-600 transition flex items-center gap-2 shadow-md"
+                    className="bg-[#10B981] text-white px-3 py-2 rounded-md font-medium hover:bg-green-600 transition flex items-center gap-1.5 text-sm"
                   >
-                    <Plus size={18} />
+                    <Plus size={14} />
                     Add Period Row
                   </button>
                 </div>
@@ -2312,11 +2058,11 @@ export default function TimetablePage() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Periods</h2>
+        <div className="bg-white rounded-xl shadow-lg p-4">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-3">Periods</h2>
 
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex flex-wrap gap-2 mb-4">
               <button
                 onClick={() => {
                   setEditingPeriod(null)
@@ -2331,29 +2077,29 @@ export default function TimetablePage() {
                   })
                   setShowPeriodModal(true)
                 }}
-                className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+                className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 text-sm ${
                   showPeriodModal
                     ? 'bg-[#DC2626] text-white'
                     : 'bg-[#F3F4F6] text-gray-700 hover:bg-[#DC2626] hover:text-white'
                 }`}
               >
-                <Plus size={20} />
+                <Plus size={16} />
                 Add Single Period
               </button>
               <button
                 onClick={() => setShowBulkPeriodModal(true)}
-                className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+                className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 text-sm ${
                   showBulkPeriodModal
                     ? 'bg-[#DC2626] text-white'
                     : 'bg-[#F3F4F6] text-gray-700 hover:bg-[#DC2626] hover:text-white'
                 }`}
               >
-                <Plus size={20} />
+                <Plus size={16} />
                 Add Bulk Periods
               </button>
               <button
                 onClick={() => setShowTimingModal(true)}
-                className={`px-6 py-3 rounded-lg font-semibold transition ${
+                className={`px-4 py-2 rounded-lg font-medium transition text-sm ${
                   showTimingModal
                     ? 'bg-[#DC2626] text-white'
                     : 'bg-[#F3F4F6] text-gray-700 hover:bg-[#DC2626] hover:text-white'
@@ -2362,29 +2108,23 @@ export default function TimetablePage() {
                 Change Timing
               </button>
               <button
-<<<<<<< HEAD
                 onClick={() => setShowDeleteAllModal(true)}
-                className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+                className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 text-sm ${
                   showDeleteAllModal
-=======
-                onClick={() => setShowDeleteConfirm(true)}
-                className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
-                  showDeleteConfirm
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     ? 'bg-[#DC2626] text-white'
                     : 'bg-[#F3F4F6] text-gray-700 hover:bg-[#DC2626] hover:text-white'
                 }`}
               >
-                <Trash2 size={20} />
+                <Trash2 size={16} />
                 Delete Periods
               </button>
             </div>
 
-            <div className="flex gap-4 mb-6">
+            <div className="flex gap-3 mb-4">
               <select
                 value={selectedClassFilter}
                 onChange={(e) => setSelectedClassFilter(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               >
                 <option value="">All Classes</option>
                 {classes.map((cls) => (
@@ -2395,73 +2135,56 @@ export default function TimetablePage() {
               </select>
 
               <div className="flex-1 relative">
-<<<<<<< HEAD
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search"
-<<<<<<< HEAD
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
-=======
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none pr-12"
-                />
-                <button className="absolute right-0 top-0 h-full px-4 bg-[#28A745] text-white rounded-r-lg hover:bg-[#218838]">
-                  <Search size={20} />
-                </button>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               </div>
             </div>
 
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-xs text-gray-600 mb-3">
               There are <span className="text-red-600 font-semibold">{periods.length}</span> periods registered in the system.
             </p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-[#1B3C6D] text-white">
-                  <th className="px-4 py-3 text-left font-semibold border border-[#1B3C6D]">Sr.</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-[#1B3C6D]">Class</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-[#1B3C6D]">Day</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-[#1B3C6D]">Name</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-[#1B3C6D]">Start Time</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-[#1B3C6D]">End Time</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-[#1B3C6D]">Type</th>
-                  <th className="px-4 py-3 text-center font-semibold border border-[#1B3C6D]">Options</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Sr.</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Class</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Day</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Name</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Start Time</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">End Time</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Type</th>
+                  <th className="px-3 py-2.5 text-center font-semibold border border-[#1B3C6D]">Options</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPeriods.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
                       No periods found
                     </td>
                   </tr>
                 ) : (
-<<<<<<< HEAD
                   paginatedPeriods.map((period, index) => (
                     <tr key={period.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
-=======
-                  filteredPeriods.map((period, index) => (
-                    <tr key={period.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {period.class_id ? classes.find(c => c.id === period.class_id)?.class_name || '-' : 'All Classes'}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">{period.day_of_week || 'ALL DAYS'}</td>
-                      <td className="px-4 py-3 border border-gray-200">{period.period_name}</td>
-                      <td className="px-4 py-3 border border-gray-200">{formatTime(period.start_time)}</td>
-                      <td className="px-4 py-3 border border-gray-200">{formatTime(period.end_time)}</td>
-                      <td className="px-4 py-3 border border-gray-200">{formatPeriodType(period.period_type)}</td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">{period.day_of_week || 'ALL DAYS'}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">{period.period_name}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">{formatTime(period.start_time)}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">{formatTime(period.end_time)}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">{formatPeriodType(period.period_type)}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
@@ -2479,20 +2202,16 @@ export default function TimetablePage() {
                             }}
                             className="text-blue-600 hover:text-blue-800"
                           >
-                            <Edit2 size={18} />
+                            <Edit2 size={16} />
                           </button>
                           <button
-<<<<<<< HEAD
                             onClick={() => {
                               setPeriodToDelete(period)
                               setShowDeletePeriodModal(true)
                             }}
-=======
-                            onClick={() => handleDeletePeriod(period.id)}
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                             className="text-red-600 hover:text-red-800"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>
@@ -2502,20 +2221,19 @@ export default function TimetablePage() {
               </tbody>
             </table>
           </div>
-<<<<<<< HEAD
 
           {/* Pagination */}
           {filteredPeriods.length > 0 && (
-            <div className="px-4 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-500">
+            <div className="px-3 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between mt-3">
+              <div className="text-xs text-gray-500">
                 Showing {startIndex + 1} to {Math.min(endIndex, filteredPeriods.length)} of {filteredPeriods.length} periods
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                     currentPage === 1
                       ? 'bg-blue-300 text-white cursor-not-allowed'
                       : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -2528,7 +2246,7 @@ export default function TimetablePage() {
                   <button
                     key={idx}
                     onClick={() => typeof page === 'number' && goToPage(page)}
-                    className={`min-w-[40px] h-10 rounded-lg text-sm font-medium transition ${
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition ${
                       page === currentPage
                         ? 'bg-blue-900 text-white'
                         : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -2541,7 +2259,7 @@ export default function TimetablePage() {
                 <button
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                     currentPage === totalPages
                       ? 'bg-blue-300 text-white cursor-not-allowed'
                       : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -2552,8 +2270,6 @@ export default function TimetablePage() {
               </div>
             </div>
           )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         </div>
       )}
 
@@ -2562,33 +2278,30 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowPeriodModal(false)}
-<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
-            className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
+            className="bg-white h-full w-full max-w-sm shadow-2xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-[#2F5BA0] text-white px-6 py-4 flex justify-between items-center">
+            <div className="bg-[#2F5BA0] text-white px-4 py-4 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold">{editingPeriod ? 'Update Period' : 'Add Period'}</h3>
-                <p className="text-sm text-blue-100 mt-1">Fill in the details below</p>
+                <h3 className="text-base font-bold">{editingPeriod ? 'Update Period' : 'Add Period'}</h3>
+                <p className="text-xs text-blue-100 mt-0.5">Fill in the details below</p>
               </div>
-              <button onClick={() => setShowPeriodModal(false)} className="text-white hover:bg-white/10 p-2 rounded">
-                <X size={24} />
+              <button onClick={() => setShowPeriodModal(false)} className="text-white hover:bg-white/10 p-1.5 rounded">
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Class</label>
+                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Class</label>
                   <select
                     value={periodForm.class_id}
                     onChange={(e) => setPeriodForm({ ...periodForm, class_id: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Select Class (Optional)</option>
                     {classes.map((cls) => (
@@ -2600,11 +2313,11 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Select Day <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Select Day <span className="text-red-500">*</span></label>
                   <select
                     value={periodForm.day_of_week}
                     onChange={(e) => setPeriodForm({ ...periodForm, day_of_week: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Select Day</option>
                     {daysOfWeek.map((day) => (
@@ -2614,11 +2327,11 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Period <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Period <span className="text-red-500">*</span></label>
                   <select
                     value={periodForm.period_number}
                     onChange={(e) => setPeriodForm({ ...periodForm, period_number: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Select Period</option>
                     {[1,2,3,4,5,6,7,8].map((num) => (
@@ -2628,22 +2341,22 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Name (Optional)</label>
+                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Name (Optional)</label>
                   <input
                     type="text"
                     value={periodForm.period_name}
                     onChange={(e) => setPeriodForm({ ...periodForm, period_name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="Leave empty to auto-generate (e.g., Period 1)"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Leave empty to auto-generate"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Type <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Type <span className="text-red-500">*</span></label>
                   <select
                     value={periodForm.period_type}
                     onChange={(e) => setPeriodForm({ ...periodForm, period_type: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     {periodTypes.map((type) => (
                       <option key={type.value} value={type.value}>{type.label}</option>
@@ -2652,38 +2365,38 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Start Time <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Start Time <span className="text-red-500">*</span></label>
                   <input
                     type="time"
                     value={periodForm.start_time}
                     onChange={(e) => setPeriodForm({ ...periodForm, start_time: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">End Time <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">End Time <span className="text-red-500">*</span></label>
                   <input
                     type="time"
                     value={periodForm.end_time}
                     onChange={(e) => setPeriodForm({ ...periodForm, end_time: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end gap-2 pt-3">
                 <button
                   onClick={() => setShowPeriodModal(false)}
-                  className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
+                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSavePeriod}
-                  className="px-6 py-3 bg-[#DC2626] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                  className="px-4 py-2 bg-[#DC2626] text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
                 >
-                  <Plus size={20} />
+                  <Plus size={16} />
                   Save
                 </button>
               </div>
@@ -2697,39 +2410,36 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowBulkPeriodModal(false)}
-<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
-            className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
+            className="bg-white h-full w-full max-w-sm shadow-2xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-[#2F5BA0] text-white px-6 py-4 flex justify-between items-center">
+            <div className="bg-[#2F5BA0] text-white px-4 py-4 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold">Add Period via policy</h3>
-                <p className="text-sm text-blue-100 mt-1">Fill in the details below</p>
+                <h3 className="text-base font-bold">Add Period via policy</h3>
+                <p className="text-xs text-blue-100 mt-0.5">Fill in the details below</p>
               </div>
-              <button onClick={() => setShowBulkPeriodModal(false)} className="text-white hover:bg-white/10 p-2 rounded">
-                <X size={24} />
+              <button onClick={() => setShowBulkPeriodModal(false)} className="text-white hover:bg-white/10 p-1.5 rounded">
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 mb-4">
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-gray-600 mb-3">
                 This will create 8 periods automatically with the specified timing and gap between periods for selected classes and days.
               </p>
 
               {/* Class Selection */}
               <div className="col-span-2">
-                <label className="block text-gray-700 font-semibold mb-2">Class <span className="text-red-500">*</span></label>
-                <div className="border border-gray-300 rounded-lg p-4 max-h-40 overflow-y-auto bg-gray-50">
+                <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Class <span className="text-red-500">*</span></label>
+                <div className="border border-gray-300 rounded-lg p-3 max-h-32 overflow-y-auto bg-gray-50">
                   {classes.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No classes available</p>
+                    <p className="text-gray-500 text-xs">No classes available</p>
                   ) : (
                     classes.map((cls) => (
-                      <label key={cls.id} className="flex items-center gap-2 py-1 hover:bg-gray-100 px-2 rounded cursor-pointer">
+                      <label key={cls.id} className="flex items-center gap-2 py-0.5 hover:bg-gray-100 px-2 rounded cursor-pointer text-sm">
                         <input
                           type="checkbox"
                           checked={bulkPeriodForm.class_ids.includes(cls.id)}
@@ -2740,7 +2450,7 @@ export default function TimetablePage() {
                               setBulkPeriodForm({ ...bulkPeriodForm, class_ids: bulkPeriodForm.class_ids.filter(id => id !== cls.id) })
                             }
                           }}
-                          className="w-4 h-4 text-blue-600"
+                          className="w-3.5 h-3.5 text-blue-600"
                         />
                         <span className="text-gray-700">{cls.class_name}</span>
                       </label>
@@ -2752,11 +2462,11 @@ export default function TimetablePage() {
 
               {/* Day Selection */}
               <div className="col-span-2">
-                <label className="block text-gray-700 font-semibold mb-2">Select Day <span className="text-red-500">*</span></label>
-                <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                  <div className="grid grid-cols-2 gap-2">
+                <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Select Day <span className="text-red-500">*</span></label>
+                <div className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                  <div className="grid grid-cols-2 gap-1">
                     {daysOfWeek.map((day) => (
-                      <label key={day} className="flex items-center gap-2 py-1 hover:bg-gray-100 px-2 rounded cursor-pointer">
+                      <label key={day} className="flex items-center gap-2 py-0.5 hover:bg-gray-100 px-2 rounded cursor-pointer text-sm">
                         <input
                           type="checkbox"
                           checked={bulkPeriodForm.day_of_weeks.includes(day)}
@@ -2767,7 +2477,7 @@ export default function TimetablePage() {
                               setBulkPeriodForm({ ...bulkPeriodForm, day_of_weeks: bulkPeriodForm.day_of_weeks.filter(d => d !== day) })
                             }
                           }}
-                          className="w-4 h-4 text-blue-600"
+                          className="w-3.5 h-3.5 text-blue-600"
                         />
                         <span className="text-gray-700">{day}</span>
                       </label>
@@ -2852,10 +2562,7 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowTimingModal(false)}
-<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
@@ -2939,11 +2646,7 @@ export default function TimetablePage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-<<<<<<< HEAD
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(4px)' }}>
-=======
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="bg-[#DC2626] text-white px-6 py-4">
               <h3 className="text-xl font-bold">Confirm Delete</h3>
@@ -2977,10 +2680,7 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
           onClick={() => setShowTimetableModal(false)}
-<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
@@ -3150,10 +2850,7 @@ export default function TimetablePage() {
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
           onClick={() => setShowAutoGenerateModal(false)}
-<<<<<<< HEAD
           style={{ backdropFilter: 'blur(4px)' }}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         >
           <div
             className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 overflow-hidden"
@@ -3232,7 +2929,6 @@ export default function TimetablePage() {
           </div>
         </div>
       )}
-<<<<<<< HEAD
 
       {/* Delete Period Confirmation Modal */}
       {showDeletePeriodModal && periodToDelete && (
@@ -3344,8 +3040,6 @@ export default function TimetablePage() {
           </div>
         </>
       )}
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     </div>
   )
 }

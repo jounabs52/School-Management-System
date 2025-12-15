@@ -1,15 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-<<<<<<< HEAD
-import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Image, Loader2, AlertCircle, ToggleLeft, ToggleRight, Printer } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Loader2, AlertCircle, ToggleLeft, ToggleRight, Printer, CheckCircle } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
-import toast, { Toaster } from 'react-hot-toast'
 import jsPDF from 'jspdf'
-=======
-import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Image, Loader2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -22,6 +17,73 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: false
   }
 })
+
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose, disabled = false }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={disabled ? undefined : onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
+
+// Toast Component - Matches screenshot design with pill/rounded shape
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose()
+    }, 4000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  return (
+    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+      type === 'success' ? 'bg-green-500 text-white' :
+      type === 'error' ? 'bg-red-500 text-white' :
+      'bg-blue-500 text-white'
+    }`}
+    style={{
+      animation: 'slideIn 0.3s ease-out'
+    }}>
+      {type === 'success' && <CheckCircle size={20} strokeWidth={2.5} />}
+      {type === 'error' && <X size={20} strokeWidth={2.5} />}
+      <span className="font-medium text-sm">{message}</span>
+      <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity">
+        <X size={18} strokeWidth={2.5} />
+      </button>
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+      `}</style>
+    </div>
+  )
+}
 
 export default function AdmissionRegisterPage() {
   const [activeTab, setActiveTab] = useState('register')
@@ -50,13 +112,22 @@ export default function AdmissionRegisterPage() {
   const [showClassDropdown, setShowClassDropdown] = useState(false)
   const [showSectionDropdown, setShowSectionDropdown] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
-<<<<<<< HEAD
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage] = useState(10)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+
+  // Toast state
+  const [toast, setToast] = useState({ show: false, message: '', type: '' })
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type })
+  }
+
+  const hideToast = () => {
+    setToast({ show: false, message: '', type: '' })
+  }
+
   const [importData, setImportData] = useState({
     classId: '',
     className: '',
@@ -124,8 +195,118 @@ export default function AdmissionRegisterPage() {
     religion: '',
     nationality: 'Pakistan',
     permanentAddress: '',
-    medicalProblem: ''
+    medicalProblem: '',
+    feePlan: 'monthly',
+    startingMonth: new Date().getMonth() + 1, // Current month (1-12)
+    discountType: 'fixed' // 'fixed' or 'percentage'
   })
+
+  // Fee schedule preview state
+  const [feeSchedulePreview, setFeeSchedulePreview] = useState([])
+
+  // Calculate actual discount amount based on type
+  const calculateDiscount = (baseFee, discount, discountType) => {
+    const base = parseFloat(baseFee) || 0
+    const discountValue = parseFloat(discount) || 0
+    if (discountType === 'percentage') {
+      return Math.round((base * discountValue) / 100)
+    }
+    return discountValue
+  }
+
+  // Generate fee schedule based on fee plan and starting month
+  const generateFeeSchedule = (feePlan, startingMonth, baseFee, discount, discountType) => {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December']
+    const currentYear = new Date().getFullYear()
+    const actualDiscount = calculateDiscount(baseFee, discount, discountType)
+    const monthlyFee = (parseFloat(baseFee) || 0) - actualDiscount
+    const schedule = []
+
+    if (feePlan === 'monthly') {
+      // Generate 12 monthly challans from starting month
+      for (let i = 0; i < 12; i++) {
+        const monthIndex = ((startingMonth - 1) + i) % 12
+        const year = currentYear + Math.floor(((startingMonth - 1) + i) / 12)
+        schedule.push({
+          period: monthNames[monthIndex],
+          months: [monthNames[monthIndex]],
+          amount: monthlyFee,
+          dueDate: new Date(year, monthIndex, 10), // Due on 10th of each month
+          year: year
+        })
+      }
+    } else if (feePlan === 'quarterly') {
+      // Generate 4 quarterly challans (3 months each)
+      for (let i = 0; i < 4; i++) {
+        const startMonthIndex = ((startingMonth - 1) + (i * 3)) % 12
+        const endMonthIndex = ((startingMonth - 1) + (i * 3) + 2) % 12
+        const year = currentYear + Math.floor(((startingMonth - 1) + (i * 3)) / 12)
+        const months = []
+        for (let j = 0; j < 3; j++) {
+          months.push(monthNames[((startingMonth - 1) + (i * 3) + j) % 12])
+        }
+        schedule.push({
+          period: `${monthNames[startMonthIndex]} - ${monthNames[endMonthIndex]}`,
+          months: months,
+          amount: monthlyFee * 3,
+          dueDate: new Date(year, startMonthIndex, 10), // Due on 10th of first month
+          year: year
+        })
+      }
+    } else if (feePlan === 'semi-annual') {
+      // Generate 2 semi-annual challans (6 months each)
+      for (let i = 0; i < 2; i++) {
+        const startMonthIndex = ((startingMonth - 1) + (i * 6)) % 12
+        const endMonthIndex = ((startingMonth - 1) + (i * 6) + 5) % 12
+        const year = currentYear + Math.floor(((startingMonth - 1) + (i * 6)) / 12)
+        const months = []
+        for (let j = 0; j < 6; j++) {
+          months.push(monthNames[((startingMonth - 1) + (i * 6) + j) % 12])
+        }
+        schedule.push({
+          period: `${monthNames[startMonthIndex]} - ${monthNames[endMonthIndex]}`,
+          months: months,
+          amount: monthlyFee * 6,
+          dueDate: new Date(year, startMonthIndex, 10), // Due on 10th of first month
+          year: year
+        })
+      }
+    } else if (feePlan === 'annual') {
+      // Generate 1 annual challan (12 months)
+      const startMonthIndex = startingMonth - 1
+      const endMonthIndex = ((startingMonth - 1) + 11) % 12
+      const months = []
+      for (let j = 0; j < 12; j++) {
+        months.push(monthNames[((startingMonth - 1) + j) % 12])
+      }
+      schedule.push({
+        period: `${monthNames[startMonthIndex]} - ${monthNames[endMonthIndex]}`,
+        months: months,
+        amount: monthlyFee * 12,
+        dueDate: new Date(currentYear, startMonthIndex, 10), // Due on 10th of first month
+        year: currentYear
+      })
+    }
+
+    return schedule
+  }
+
+  // Update fee schedule preview when relevant fields change
+  useEffect(() => {
+    if (formData.baseFee && formData.feePlan && formData.startingMonth) {
+      const schedule = generateFeeSchedule(
+        formData.feePlan,
+        parseInt(formData.startingMonth),
+        formData.baseFee,
+        formData.discount,
+        formData.discountType
+      )
+      setFeeSchedulePreview(schedule)
+    } else {
+      setFeeSchedulePreview([])
+    }
+  }, [formData.feePlan, formData.startingMonth, formData.baseFee, formData.discount, formData.discountType])
 
   // Fetch classes when sidebar opens
   useEffect(() => {
@@ -149,19 +330,22 @@ export default function AdmissionRegisterPage() {
     fetchStudents()
   }, [selectedOption])
 
-  // Prevent body scroll when any popup is open
+  // Prevent body scroll when modals are open
   useEffect(() => {
-    if (showRegisterSidebar || showDeleteModal || showViewModal) {
+    if (showRegisterSidebar || showViewModal || showDeleteModal) {
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
       document.body.style.overflow = 'hidden'
+      document.body.style.paddingRight = `${scrollbarWidth}px`
     } else {
-      document.body.style.overflow = 'unset'
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
     }
 
-    // Cleanup function to ensure scroll is re-enabled when component unmounts
     return () => {
-      document.body.style.overflow = 'unset'
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
     }
-  }, [showRegisterSidebar, showDeleteModal, showViewModal])
+  }, [showRegisterSidebar, showViewModal, showDeleteModal])
 
   const fetchStudents = async () => {
     setLoading(true)
@@ -202,10 +386,7 @@ export default function AdmissionRegisterPage() {
         dateOfBirth: student.date_of_birth,
         admissionDate: student.admission_date,
         status: student.status,
-<<<<<<< HEAD
         photo_url: student.photo_url,
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         sr: index + 1
       }))
 
@@ -223,7 +404,7 @@ export default function AdmissionRegisterPage() {
     try {
       const { data, error } = await supabase
         .from('classes')
-        .select('id, class_name, standard_fee, status')
+        .select('id, class_name, standard_fee, fee_plan, status')
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -271,7 +452,8 @@ export default function AdmissionRegisterPage() {
       ...formData,
       class: classId,
       section: '', // Reset section when class changes
-      baseFee: selectedClass?.standard_fee || ''
+      baseFee: selectedClass?.standard_fee || '',
+      feePlan: selectedClass?.fee_plan || 'monthly' // Get fee plan from class
     })
     // Fetch sections for the selected class
     fetchSections(classId)
@@ -292,7 +474,6 @@ export default function AdmissionRegisterPage() {
     return matchesSearch && matchesClass
   })
 
-<<<<<<< HEAD
   // Pagination logic
   const totalPages = Math.ceil(filteredAdmissions.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
@@ -304,8 +485,6 @@ export default function AdmissionRegisterPage() {
     setCurrentPage(1)
   }, [searchTerm, selectedOption])
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
   const resetForm = () => {
     setFormData({
       id: null,
@@ -367,11 +546,15 @@ export default function AdmissionRegisterPage() {
       religion: '',
       nationality: 'Pakistan',
       permanentAddress: '',
-      medicalProblem: ''
+      medicalProblem: '',
+      feePlan: 'monthly',
+      startingMonth: new Date().getMonth() + 1,
+      discountType: 'fixed'
     })
     setIsEditMode(false)
     setShowOtherDetails(false)
     setSections([])
+    setFeeSchedulePreview([])
   }
 
   const handleRegisterNewStudent = () => {
@@ -390,7 +573,6 @@ export default function AdmissionRegisterPage() {
       const firstName = nameParts[0]
       const lastName = nameParts.slice(1).join(' ') || null
 
-<<<<<<< HEAD
       // Handle image upload to Supabase bucket
       let photoUrl = formData.photoUrl || null
       if (imageFile) {
@@ -423,23 +605,11 @@ export default function AdmissionRegisterPage() {
           console.log('Public URL:', photoUrl)
         } catch (imgError) {
           console.error('Image upload error:', imgError)
-          toast.error('Image upload failed. Student will be saved without photo.', {
-            duration: 4000,
-            style: {
-              background: '#EF4444',
-              color: '#fff',
-              fontWeight: '500',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              fontSize: '14px'
-            }
-          })
+          showToast('Image upload failed. Student will be saved without photo.', 'error')
           photoUrl = formData.photoUrl || null
         }
       }
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       // Fetch the first school_id if we're creating a new student
       let schoolId = null
       if (!isEditMode) {
@@ -465,10 +635,7 @@ export default function AdmissionRegisterPage() {
             first_name: firstName,
             last_name: lastName,
             father_name: formData.fatherName,
-<<<<<<< HEAD
             photo_url: photoUrl,
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             mother_name: formData.motherName || null,
             date_of_birth: formData.dateOfBirth || null,
             gender: formData.gender,
@@ -482,16 +649,19 @@ export default function AdmissionRegisterPage() {
             roll_number: formData.rollNumber || null,
             house: formData.house || null,
             base_fee: parseFloat(formData.baseFee) || 0,
-            discount_amount: parseFloat(formData.discount) || 0,
+            discount_type: formData.discountType || 'fixed',
+            discount_value: parseFloat(formData.discount) || 0,
+            discount_amount: calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
             discount_note: formData.discountNote || null,
-            final_fee: (parseFloat(formData.baseFee) || 0) - (parseFloat(formData.discount) || 0),
+            final_fee: (parseFloat(formData.baseFee) || 0) - calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
+            fee_plan: formData.feePlan || 'monthly',
+            starting_month: parseInt(formData.startingMonth) || new Date().getMonth() + 1,
             updated_at: new Date().toISOString()
           })
           .eq('id', formData.id)
 
         if (updateError) throw updateError
 
-<<<<<<< HEAD
         // Update state without reloading
         setAdmissions(prev => prev.map(adm =>
           adm.id === formData.id
@@ -499,20 +669,7 @@ export default function AdmissionRegisterPage() {
             : adm
         ))
 
-        toast.success('Student updated successfully!', {
-          duration: 3000,
-          style: {
-            background: '#10B981',
-            color: '#fff',
-            fontWeight: '500',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            fontSize: '14px'
-          }
-        })
-=======
-        setSuccess('Student updated successfully!')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+        showToast('Student updated successfully!', 'success')
       } else {
         // Create new student
         const { data: insertedStudent, error: insertError } = await supabase
@@ -523,10 +680,7 @@ export default function AdmissionRegisterPage() {
             first_name: firstName,
             last_name: lastName,
             father_name: formData.fatherName,
-<<<<<<< HEAD
             photo_url: photoUrl,
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             mother_name: formData.motherName || null,
             date_of_birth: formData.dateOfBirth || null,
             gender: formData.gender,
@@ -540,9 +694,13 @@ export default function AdmissionRegisterPage() {
             roll_number: formData.rollNumber || null,
             house: formData.house || null,
             base_fee: parseFloat(formData.baseFee) || 0,
-            discount_amount: parseFloat(formData.discount) || 0,
+            discount_type: formData.discountType || 'fixed',
+            discount_value: parseFloat(formData.discount) || 0,
+            discount_amount: calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
             discount_note: formData.discountNote || null,
-            final_fee: (parseFloat(formData.baseFee) || 0) - (parseFloat(formData.discount) || 0),
+            final_fee: (parseFloat(formData.baseFee) || 0) - calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
+            fee_plan: formData.feePlan || 'monthly',
+            starting_month: parseInt(formData.startingMonth) || new Date().getMonth() + 1,
             status: 'active'
           }])
           .select()
@@ -610,50 +768,81 @@ export default function AdmissionRegisterPage() {
           await supabase.from('student_contacts').insert(contacts)
         }
 
-<<<<<<< HEAD
+        // Generate and create ONE fee challan with complete fee schedule
+        if (formData.baseFee && formData.feePlan && formData.startingMonth) {
+          const feeSchedule = generateFeeSchedule(
+            formData.feePlan,
+            parseInt(formData.startingMonth),
+            formData.baseFee,
+            formData.discount,
+            formData.discountType
+          )
+
+          // Get current session
+          const { data: sessionData } = await supabase
+            .from('sessions')
+            .select('id')
+            .eq('school_id', schoolId)
+            .eq('is_current', true)
+            .single()
+
+          const sessionId = sessionData?.id || null
+
+          // Calculate total amount for the year
+          const totalYearlyAmount = feeSchedule.reduce((sum, item) => sum + item.amount, 0)
+          const actualDiscount = calculateDiscount(formData.baseFee, formData.discount, formData.discountType)
+
+          // Create ONE fee challan with complete schedule stored in fee_schedule JSON
+          const challanNumber = `CH-${insertedStudent.admission_number}-${new Date().getFullYear()}`
+          const challanToInsert = {
+            school_id: schoolId,
+            session_id: sessionId,
+            student_id: insertedStudent.id,
+            challan_number: challanNumber,
+            fee_month: feeSchedule[0]?.months[0] || 'January', // Starting month
+            fee_year: feeSchedule[0]?.year?.toString() || new Date().getFullYear().toString(),
+            issue_date: new Date().toISOString().split('T')[0],
+            due_date: feeSchedule[0]?.dueDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+            total_amount: totalYearlyAmount,
+            paid_amount: 0,
+            status: 'pending',
+            fee_plan: formData.feePlan,
+            period_label: `${feeSchedule[0]?.period} - ${feeSchedule[feeSchedule.length - 1]?.period}`,
+            base_fee: parseFloat(formData.baseFee) || 0,
+            discount_amount: actualDiscount,
+            discount_type: formData.discountType || 'fixed',
+            fee_schedule: feeSchedule.map(item => ({
+              period: item.period,
+              months: item.months,
+              amount: item.amount,
+              dueDate: item.dueDate.toISOString().split('T')[0],
+              year: item.year,
+              status: 'pending'
+            }))
+          }
+
+          const { error: challanError } = await supabase
+            .from('fee_challans')
+            .insert([challanToInsert])
+
+          if (challanError) {
+            console.error('Error creating fee challan:', challanError)
+            // Don't throw - student is already created, just log the error
+          }
+        }
+
         // Add to state without reloading
         fetchStudents()
 
-        toast.success('Student created successfully!', {
-          duration: 3000,
-          style: {
-            background: '#10B981',
-            color: '#fff',
-            fontWeight: '500',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            fontSize: '14px'
-          }
-        })
-=======
-        setSuccess('Student created successfully!')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+        showToast('Student created successfully with fee schedule!', 'success')
       }
 
       setShowRegisterSidebar(false)
       resetForm()
-<<<<<<< HEAD
       setImageFile(null)
       setImagePreview(null)
     } catch (err) {
-      toast.error(err.message || 'Failed to save student', {
-        duration: 3000,
-        style: {
-          background: '#EF4444',
-          color: '#fff',
-          fontWeight: '500',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontSize: '14px'
-        }
-      })
-=======
-      fetchStudents() // Refresh the list
-
-      setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      setError(err.message || 'Failed to save student')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+      showToast(err.message || 'Failed to save student', 'error')
       console.error('Save error:', err)
     } finally {
       setSaving(false)
@@ -670,7 +859,6 @@ export default function AdmissionRegisterPage() {
     setError(null)
 
     try {
-<<<<<<< HEAD
       const studentId = selectedStudent.id
       const studentName = selectedStudent.name
 
@@ -689,39 +877,9 @@ export default function AdmissionRegisterPage() {
       // Update state without reloading
       setAdmissions(prev => prev.filter(adm => adm.id !== studentId))
 
-      toast.success(`Student "${studentName}" deleted successfully!`, {
-        duration: 3000,
-        style: {
-          background: '#10B981',
-          color: '#fff',
-          fontWeight: '500',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontSize: '14px'
-        }
-      })
+      showToast(`Student "${studentName}" deleted successfully!`, 'success')
     } catch (err) {
-      toast.error(err.message || 'Failed to delete student', {
-        duration: 3000
-      })
-=======
-      // Soft delete - update status to inactive
-      const { error: deleteError } = await supabase
-        .from('students')
-        .update({ status: 'inactive', updated_at: new Date().toISOString() })
-        .eq('id', selectedStudent.id)
-
-      if (deleteError) throw deleteError
-
-      setSuccess('Student deleted successfully!')
-      setShowDeleteModal(false)
-      setSelectedStudent(null)
-      fetchStudents() // Refresh the list
-
-      setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      setError(err.message || 'Failed to delete student')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+      showToast(err.message || 'Failed to delete student', 'error')
       console.error('Delete error:', err)
     } finally {
       setDeleting(false)
@@ -729,12 +887,6 @@ export default function AdmissionRegisterPage() {
   }
 
   const handleToggleStatus = async (student) => {
-<<<<<<< HEAD
-=======
-    setError(null)
-    setSuccess(null)
-
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
     try {
       // Toggle between active and inactive
       const newStatus = student.status === 'active' ? 'inactive' : 'active'
@@ -746,45 +898,15 @@ export default function AdmissionRegisterPage() {
 
       if (updateError) throw updateError
 
-<<<<<<< HEAD
       // Update state without page reload
       setAdmissions(prev => prev.map(adm =>
         adm.id === student.id ? { ...adm, status: newStatus } : adm
       ))
 
       const statusText = newStatus === 'active' ? 'activated' : 'deactivated'
-      toast.success(`Student ${statusText} successfully!`, {
-        duration: 3000,
-        style: {
-          background: '#10B981',
-          color: '#fff',
-          fontWeight: '500',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontSize: '14px'
-        }
-      })
+      showToast(`Student ${statusText} successfully!`, 'success')
     } catch (err) {
-      toast.error(err.message || 'Failed to update student status', {
-        duration: 3000,
-        style: {
-          background: '#EF4444',
-          color: '#fff',
-          fontWeight: '500',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontSize: '14px'
-        }
-      })
-=======
-      const statusText = newStatus === 'active' ? 'activated' : 'deactivated'
-      setSuccess(`Student ${statusText} successfully!`)
-      fetchStudents() // Refresh the list
-
-      setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      setError(err.message || 'Failed to update student status')
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+      showToast(err.message || 'Failed to update student status', 'error')
       console.error('Toggle status error:', err)
     }
   }
@@ -809,14 +931,11 @@ export default function AdmissionRegisterPage() {
         await fetchSections(fullStudent.current_class_id)
       }
 
-<<<<<<< HEAD
       // Set image preview if exists
       if (fullStudent.photo_url) {
         setImagePreview(null) // Don't set preview for existing URL, show the saved image
       }
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       setFormData({
         id: fullStudent.id,
         admissionNo: fullStudent.admission_number || '',
@@ -877,7 +996,11 @@ export default function AdmissionRegisterPage() {
         religion: fullStudent.religion || '',
         nationality: fullStudent.nationality || 'Pakistan',
         permanentAddress: '',
-        medicalProblem: ''
+        medicalProblem: '',
+        feePlan: fullStudent.fee_plan || 'monthly',
+        startingMonth: fullStudent.starting_month || new Date().getMonth() + 1,
+        discountType: fullStudent.discount_type || 'fixed',
+        discount: fullStudent.discount_value || fullStudent.discount_amount || ''
       })
     } catch (err) {
       setError(err.message || 'Failed to load student details')
@@ -887,7 +1010,6 @@ export default function AdmissionRegisterPage() {
     }
   }
 
-<<<<<<< HEAD
   const handleView = async (student) => {
     try {
       // Fetch complete student data from Supabase
@@ -899,7 +1021,7 @@ export default function AdmissionRegisterPage() {
 
       if (error) {
         console.error('Error fetching student details:', error)
-        toast.error('Failed to load student details', { duration: 3000 })
+        showToast('Failed to load student details', 'error')
         return
       }
 
@@ -937,7 +1059,7 @@ export default function AdmissionRegisterPage() {
       setShowViewModal(true)
     } catch (err) {
       console.error('Error in handleView:', err)
-      toast.error('An error occurred while loading student details', { duration: 3000 })
+      showToast('An error occurred while loading student details', 'error')
     }
   }
 
@@ -1081,22 +1203,7 @@ export default function AdmissionRegisterPage() {
     // Close the modal
     setShowViewModal(false)
 
-    toast.success('PDF generated successfully!', {
-      duration: 3000,
-      style: {
-        background: '#10B981',
-        color: '#fff',
-        fontWeight: '500',
-        padding: '12px 16px',
-        borderRadius: '8px',
-        fontSize: '14px'
-      }
-    })
-=======
-  const handleView = (student) => {
-    setSelectedStudent(student)
-    setShowViewModal(true)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
+    showToast('PDF generated successfully!', 'success')
   }
 
   const handleImportClassSelect = (classId, className) => {
@@ -1396,11 +1503,11 @@ export default function AdmissionRegisterPage() {
 
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
-<<<<<<< HEAD
-      <Toaster position="top-right" />
+      {/* Toast Notification */}
+      {toast.show && (
+        <Toast message={toast.message} type={toast.type} onClose={hideToast} />
+      )}
 
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       {/* Success/Error Messages */}
       {success && (
         <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
@@ -1455,11 +1562,7 @@ export default function AdmissionRegisterPage() {
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Admission Register</h2>
 
         {/* Search and Filter Section */}
-<<<<<<< HEAD
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
-=======
-        <div className="grid grid-cols-1 md:grid-cols-10 gap-4 mb-6">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
           <div className="md:col-span-3">
             <select
               value={selectedOption}
@@ -1475,11 +1578,7 @@ export default function AdmissionRegisterPage() {
             </select>
           </div>
 
-<<<<<<< HEAD
           <div className="md:col-span-9">
-=======
-          <div className="md:col-span-5">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -1491,19 +1590,6 @@ export default function AdmissionRegisterPage() {
               />
             </div>
           </div>
-<<<<<<< HEAD
-=======
-
-          <div className="md:col-span-2">
-            <button
-              onClick={() => {}}
-              className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2"
-            >
-              <Search size={20} />
-              Search
-            </button>
-          </div>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
         </div>
 
         {/* Info Text */}
@@ -1520,14 +1606,9 @@ export default function AdmissionRegisterPage() {
 
         {/* Table */}
         {!loading && (
-<<<<<<< HEAD
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
-=======
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
               <thead>
                 <tr className="bg-blue-900 text-white">
                   <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
@@ -1547,27 +1628,18 @@ export default function AdmissionRegisterPage() {
                     </td>
                   </tr>
                 ) : (
-<<<<<<< HEAD
                   paginatedAdmissions.map((admission, index) => (
-=======
-                  filteredAdmissions.map((admission, index) => (
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     <tr
                       key={admission.id}
                       className={`${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-<<<<<<< HEAD
                       <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
-=======
-                      <td className="px-4 py-3 border border-gray-200">{admission.sr}</td>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                       <td className="px-4 py-3 border border-gray-200">{admission.session}</td>
                       <td className="px-4 py-3 border border-gray-200">{getClassName(admission.class)}</td>
                       <td className="px-4 py-3 border border-gray-200">
                         <div className="flex items-center gap-2">
-<<<<<<< HEAD
                           <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                             {admission.photo_url ? (
                               <img src={admission.photo_url} alt={admission.name} className="w-full h-full object-cover" />
@@ -1575,9 +1647,6 @@ export default function AdmissionRegisterPage() {
                               <span className="text-xl">{admission.avatar}</span>
                             )}
                           </div>
-=======
-                          <span className="text-2xl">{admission.avatar}</span>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                           <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                             {admission.name}
                           </span>
@@ -1631,7 +1700,6 @@ export default function AdmissionRegisterPage() {
               </tbody>
             </table>
           </div>
-<<<<<<< HEAD
 
           {/* Pagination Controls */}
           {filteredAdmissions.length > 0 && (
@@ -1697,14 +1765,6 @@ export default function AdmissionRegisterPage() {
           )}
         </div>
         )}
-=======
-        )}
-
-        {/* Pagination */}
-        <div className="mt-6 flex justify-between items-center">
-          <p className="text-sm text-gray-600">Showing {filteredAdmissions.length} entries</p>
-        </div>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
       </div>
       )}
 
@@ -1969,12 +2029,8 @@ export default function AdmissionRegisterPage() {
 
       {/* Register New Student Sidebar */}
       {showRegisterSidebar && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => !saving && setShowRegisterSidebar(false)}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+        <ModalOverlay onClose={() => !saving && setShowRegisterSidebar(false)} disabled={saving}>
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -2083,19 +2139,7 @@ export default function AdmissionRegisterPage() {
                     </select>
                   </div>
                 </div>
-<<<<<<< HEAD
-=======
-                <div className="mt-4 border border-dashed border-gray-300 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">UPLOAD STUDENT PICTURE</p>
-                  <p className="text-xs text-gray-500 italic mb-2">Select image file</p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="w-full text-xs"
-                  />
-                </div>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">Base Fee (Auto-filled)</label>
                     <input
@@ -2107,10 +2151,50 @@ export default function AdmissionRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Discount</label>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      Starting Month <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.startingMonth}
+                      onChange={(e) => setFormData({ ...formData, startingMonth: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="1">January</option>
+                      <option value="2">February</option>
+                      <option value="3">March</option>
+                      <option value="4">April</option>
+                      <option value="5">May</option>
+                      <option value="6">June</option>
+                      <option value="7">July</option>
+                      <option value="8">August</option>
+                      <option value="9">September</option>
+                      <option value="10">October</option>
+                      <option value="11">November</option>
+                      <option value="12">December</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Discount Section */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">Discount Type</label>
+                    <select
+                      value={formData.discountType}
+                      onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="fixed">Fixed Amount (Rs.)</option>
+                      <option value="percentage">Percentage (%)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      {formData.discountType === 'percentage' ? 'Discount (%)' : 'Discount (Rs.)'}
+                    </label>
                     <input
                       type="number"
-                      placeholder="0.00"
+                      placeholder={formData.discountType === 'percentage' ? 'e.g., 10' : '0.00'}
                       value={formData.discount}
                       onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -2127,6 +2211,83 @@ export default function AdmissionRegisterPage() {
                     />
                   </div>
                 </div>
+
+                {/* Calculated Discount Display */}
+                {formData.baseFee && formData.discount && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Base Fee:</span>
+                      <span className="font-medium">Rs. {parseFloat(formData.baseFee).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mt-1">
+                      <span className="text-gray-600">Discount:</span>
+                      <span className="font-medium text-red-600">
+                        - Rs. {formData.discountType === 'percentage'
+                          ? Math.round((parseFloat(formData.baseFee) * parseFloat(formData.discount)) / 100).toLocaleString()
+                          : parseFloat(formData.discount).toLocaleString()
+                        }
+                        {formData.discountType === 'percentage' && ` (${formData.discount}%)`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mt-1 pt-1 border-t border-green-300">
+                      <span className="text-gray-800 font-semibold">Final Fee:</span>
+                      <span className="font-bold text-green-700">
+                        Rs. {formData.discountType === 'percentage'
+                          ? (parseFloat(formData.baseFee) - Math.round((parseFloat(formData.baseFee) * parseFloat(formData.discount)) / 100)).toLocaleString()
+                          : (parseFloat(formData.baseFee) - parseFloat(formData.discount)).toLocaleString()
+                        }
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fee Schedule Preview */}
+                {feeSchedulePreview.length > 0 && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h5 className="text-sm font-bold text-blue-800 mb-3 flex items-center gap-2">
+                      <FileText size={16} />
+                      Fee Schedule Preview
+                    </h5>
+                    <div className="max-h-48 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-blue-100">
+                            <th className="px-3 py-2 text-left text-blue-800 font-semibold">Period</th>
+                            <th className="px-3 py-2 text-left text-blue-800 font-semibold">Due Date</th>
+                            <th className="px-3 py-2 text-right text-blue-800 font-semibold">Monthly Fee</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {feeSchedulePreview.map((item, index) => {
+                            const monthlyFee = (parseFloat(formData.baseFee) || 0) - calculateDiscount(formData.baseFee, formData.discount, formData.discountType)
+                            return (
+                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
+                                <td className="px-3 py-2 text-gray-700">{item.period} {item.year}</td>
+                                <td className="px-3 py-2 text-gray-700">
+                                  {item.dueDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </td>
+                                <td className="px-3 py-2 text-right text-blue-600 font-medium">
+                                  Rs. {monthlyFee.toLocaleString()}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-blue-100 font-bold">
+                            <td className="px-3 py-2 text-blue-800" colSpan="2">Total Annual Fee</td>
+                            <td className="px-3 py-2 text-right text-blue-800">
+                              Rs. {feeSchedulePreview.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-2 italic">
+                      * Fee challan will be automatically generated when the student is registered
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Student & Father Information */}
@@ -2162,7 +2323,6 @@ export default function AdmissionRegisterPage() {
                       required
                     />
                   </div>
-<<<<<<< HEAD
                   <div className="md:col-span-2">
                     <label className="block text-gray-700 text-sm mb-2">
                       Student Photo
@@ -2206,8 +2366,6 @@ export default function AdmissionRegisterPage() {
                       />
                     </div>
                   </div>
-=======
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">Father Mobile</label>
                     <input
@@ -2678,17 +2836,13 @@ export default function AdmissionRegisterPage() {
               </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedStudent && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => !deleting && setShowDeleteModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <ModalOverlay onClose={() => !deleting && setShowDeleteModal(false)} disabled={deleting}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
@@ -2726,22 +2880,17 @@ export default function AdmissionRegisterPage() {
               </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* View Student Modal */}
       {showViewModal && selectedStudent && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-            onClick={() => setShowViewModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <ModalOverlay onClose={() => setShowViewModal(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Student Information</h3>
-<<<<<<< HEAD
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handlePrintStudent}
@@ -2757,19 +2906,10 @@ export default function AdmissionRegisterPage() {
                       <X size={20} />
                     </button>
                   </div>
-=======
-                  <button
-                    onClick={() => setShowViewModal(false)}
-                    className="text-white hover:bg-white/10 p-2 rounded-full transition"
-                  >
-                    <X size={20} />
-                  </button>
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 </div>
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
-<<<<<<< HEAD
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden">
                     {selectedStudent.photo_url ? (
                       <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
@@ -3121,36 +3261,6 @@ export default function AdmissionRegisterPage() {
                   </div>
                 )}
 
-=======
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl">
-                    {selectedStudent.avatar}
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-bold text-gray-800">{selectedStudent.name}</h4>
-                    <p className="text-gray-600">Admission No: <span className="font-semibold">{selectedStudent.admNo}</span></p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Session</p>
-                    <p className="font-semibold text-gray-800">{selectedStudent.session}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Class</p>
-                    <p className="font-semibold text-gray-800">{getClassName(selectedStudent.class)}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Father Name</p>
-                    <p className="font-semibold text-gray-800">{selectedStudent.father}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Gender</p>
-                    <p className="font-semibold text-gray-800 capitalize">{selectedStudent.gender}</p>
-                  </div>
-                </div>
-
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                 <div className="mt-6 flex gap-3">
                   <button
                     onClick={() => setShowViewModal(false)}
@@ -3161,7 +3271,6 @@ export default function AdmissionRegisterPage() {
                   <button
                     onClick={() => {
                       setShowViewModal(false)
-<<<<<<< HEAD
                       handleEdit({
                         id: selectedStudent.id,
                         admNo: selectedStudent.admission_number,
@@ -3172,9 +3281,6 @@ export default function AdmissionRegisterPage() {
                         gender: selectedStudent.gender,
                         avatar: selectedStudent.avatar
                       })
-=======
-                      handleEdit(selectedStudent)
->>>>>>> 41a7b959a3b7fd8ab5e53864e9567b110a3262f9
                     }}
                     className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
                   >
@@ -3185,7 +3291,7 @@ export default function AdmissionRegisterPage() {
               </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
     </div>
   )
