@@ -131,8 +131,22 @@ export default function PassengersPage() {
     staffId: '',
     identifier: '',
     route: '',
+    station: '',
     vehicle: ''
   })
+
+  // Station and fare calculation states
+  const [routeStations, setRouteStations] = useState([])
+  const [selectedStation, setSelectedStation] = useState(null)
+  const [fareCalculation, setFareCalculation] = useState({
+    baseFare: 0,
+    discountPercent: 0,
+    discountAmount: 0,
+    finalFare: 0
+  })
+
+  // Vehicle seat availability tracking
+  const [vehicleSeatAvailability, setVehicleSeatAvailability] = useState({})
 
   useEffect(() => {
     fetchRoutes()
@@ -201,7 +215,7 @@ export default function PassengersPage() {
 
       const { data, error } = await supabase
         .from('vehicles')
-        .select('id, registration_number, driver_name, driver_mobile, route_id')
+        .select('id, registration_number, driver_name, driver_mobile, route_id, seating_capacity')
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('registration_number', { ascending: true })
@@ -339,10 +353,43 @@ export default function PassengersPage() {
     handleDepartmentChange(department)
   }
 
+  // Calculate seat availability for vehicles
+  const calculateVehicleSeatAvailability = async (vehicleIds) => {
+    if (!vehicleIds || vehicleIds.length === 0) return {}
+
+    const availability = {}
+
+    for (const vehicleId of vehicleIds) {
+      const vehicle = vehicles.find(v => v.id === vehicleId)
+      if (!vehicle) continue
+
+      // Count current passengers for this vehicle
+      const { data: currentPassengers } = await supabase
+        .from('passengers')
+        .select('id', { count: 'exact' })
+        .eq('vehicle_id', vehicleId)
+        .eq('status', 'active')
+
+      const currentOccupancy = currentPassengers?.length || 0
+      const capacity = vehicle.seating_capacity || 0
+      const available = capacity > 0 ? Math.max(0, capacity - currentOccupancy) : 999 // Show large number for unlimited
+      const isFull = capacity > 0 ? currentOccupancy >= capacity : false // Only full if capacity is set
+
+      availability[vehicleId] = {
+        capacity,
+        occupied: currentOccupancy,
+        available,
+        isFull
+      }
+    }
+
+    return availability
+  }
+
   // Reset add passenger modal state
   const resetAddModalState = () => {
     setShowModal(false)
-    setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', vehicle: '' })
+    setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '' })
     setFilteredStudents([])
     setFilteredStaff([])
     setStudentSearchTerm('')
@@ -351,15 +398,101 @@ export default function PassengersPage() {
     setShowStudentDropdown(false)
     setShowStaffDropdown(false)
     setShowDepartmentDropdown(false)
+    setRouteStations([])
+    setSelectedStation(null)
+    setFareCalculation({ baseFare: 0, discountPercent: 0, discountAmount: 0, finalFare: 0 })
+  }
+
+  // Fetch stations for selected route
+  const fetchStationsForRoute = async (routeId) => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from('stations')
+        .select('*')
+        .eq('route_id', routeId)
+        .eq('status', 'active')
+        .order('station_order', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching stations:', error)
+        setRouteStations([])
+      } else {
+        console.log('✅ Fetched stations for route:', data)
+        setRouteStations(data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching stations:', error)
+      setRouteStations([])
+    }
+  }
+
+  // Calculate fare based on station and passenger type
+  const calculateFare = (station, passengerType) => {
+    if (!station || !station.fare) {
+      setFareCalculation({ baseFare: 0, discountPercent: 0, discountAmount: 0, finalFare: 0 })
+      return
+    }
+
+    const baseFare = parseInt(station.fare) || 0
+    let discountPercent = 0
+
+    // Apply discount based on passenger type
+    switch (passengerType) {
+      case 'STUDENT':
+        discountPercent = 30
+        break
+      case 'STAFF':
+        discountPercent = 50
+        break
+      default:
+        discountPercent = 0
+    }
+
+    const discountAmount = Math.round((baseFare * discountPercent) / 100)
+    const finalFare = baseFare - discountAmount
+
+    setFareCalculation({
+      baseFare,
+      discountPercent,
+      discountAmount,
+      finalFare
+    })
+
+    console.log('💰 Fare Calculation:', {
+      station: station.station_name,
+      baseFare,
+      discountPercent,
+      discountAmount,
+      finalFare
+    })
+  }
+
+  // Handle station selection
+  const handleStationChange = (stationId) => {
+    const station = routeStations.find(s => s.id === stationId)
+    setSelectedStation(station)
+    setFormData({ ...formData, station: stationId })
+
+    if (station) {
+      calculateFare(station, formData.type)
+    }
   }
 
   // Handle route selection - Filter vehicles based on route
-  const handleRouteChange = (routeId) => {
-    setFormData({ ...formData, route: routeId, vehicle: '' }) // Reset vehicle when route changes
+  const handleRouteChange = async (routeId) => {
+    setFormData({ ...formData, route: routeId, station: '', vehicle: '' }) // Reset station and vehicle when route changes
+    setRouteStations([])
+    setSelectedStation(null)
+    setFareCalculation({ baseFare: 0, discountPercent: 0, discountAmount: 0, finalFare: 0 })
 
     if (routeId) {
       console.log('🚗 Selected route ID:', routeId)
-      console.log('🚗 All vehicles:', vehicles)
+
+      // Fetch stations for this route
+      await fetchStationsForRoute(routeId)
 
       // Filter vehicles to show only those assigned to this specific route
       const vehiclesForRoute = vehicles.filter(v => v.route_id === routeId)
@@ -367,13 +500,19 @@ export default function PassengersPage() {
 
       setFilteredVehicles(vehiclesForRoute)
 
+      // Calculate seat availability for these vehicles
+      const vehicleIds = vehiclesForRoute.map(v => v.id)
+      const availability = await calculateVehicleSeatAvailability(vehicleIds)
+      setVehicleSeatAvailability(availability)
+
       // Auto-select the vehicle if only one is available
       if (vehiclesForRoute.length === 1) {
-        setFormData(prev => ({ ...prev, route: routeId, vehicle: vehiclesForRoute[0].id }))
+        setFormData(prev => ({ ...prev, route: routeId, station: '', vehicle: vehiclesForRoute[0].id }))
       }
     } else {
       // If no route selected, reset to show all vehicles
       setFilteredVehicles([])
+      setVehicleSeatAvailability({})
     }
   }
 
@@ -473,10 +612,15 @@ export default function PassengersPage() {
             route_name,
             fare
           ),
+          stations (
+            station_name,
+            fare
+          ),
           vehicles (
             registration_number,
             driver_name,
-            driver_mobile
+            driver_mobile,
+            seating_capacity
           ),
           students (
             first_name,
@@ -526,6 +670,11 @@ export default function PassengersPage() {
         return
       }
 
+      if (!formData.vehicle) {
+        showToast('Please select a vehicle', 'error')
+        return
+      }
+
       // Get the selected student or staff ID
       let studentId = null
       let staffId = null
@@ -536,6 +685,91 @@ export default function PassengersPage() {
         staffId = formData.staffId
       }
 
+      // Check if this student/staff is already registered in transport
+      const { data: existingPassenger, error: checkError } = await supabase
+        .from('passengers')
+        .select('id, student_id, staff_id, routes(route_name), students(first_name, last_name), staff(first_name, last_name)')
+        .eq('school_id', user.school_id)
+        .eq('status', 'active')
+
+      if (checkError) {
+        console.error('Error checking existing passengers:', checkError)
+        showToast('Error checking passenger status', 'error')
+        return
+      }
+
+      // Filter to find if this specific student/staff already exists
+      const duplicate = existingPassenger?.find(p => {
+        if (formData.type === 'STUDENT') {
+          return p.student_id === studentId
+        } else {
+          return p.staff_id === staffId
+        }
+      })
+
+      if (duplicate) {
+        const name = formData.type === 'STUDENT'
+          ? `${duplicate.students?.first_name} ${duplicate.students?.last_name}`
+          : `${duplicate.staff?.first_name} ${duplicate.staff?.last_name}`
+        const routeName = duplicate.routes?.route_name || 'Unknown Route'
+
+        showToast(`${name} is already registered on ${routeName}. Cannot add same person twice!`, 'error')
+        return
+      }
+
+      // Check vehicle seat capacity if vehicle is selected
+      if (formData.vehicle) {
+        const selectedVehicle = vehicles.find(v => v.id === formData.vehicle)
+
+        if (selectedVehicle) {
+          const vehicleCapacity = selectedVehicle.seating_capacity || 0
+
+          // Only check capacity if it's set (greater than 0)
+          if (vehicleCapacity > 0) {
+            // Count current passengers assigned to this vehicle
+            const { data: currentPassengers, error: countError } = await supabase
+              .from('passengers')
+              .select('id', { count: 'exact' })
+              .eq('vehicle_id', formData.vehicle)
+              .eq('status', 'active')
+
+            if (countError) {
+              console.error('Error counting passengers:', countError)
+              showToast('Error checking seat availability', 'error')
+              return
+            }
+
+            const currentOccupancy = currentPassengers?.length || 0
+
+            console.log('🚗 Seat Capacity Check:', {
+              vehicle: selectedVehicle.registration_number,
+              capacity: vehicleCapacity,
+              currentOccupancy,
+              availableSeats: vehicleCapacity - currentOccupancy,
+              wouldBeAfterAdd: currentOccupancy + 1
+            })
+
+            // Block if adding this passenger would exceed or equal capacity
+            if (currentOccupancy >= vehicleCapacity) {
+              console.error('❌ CAPACITY EXCEEDED:', {
+                vehicle: selectedVehicle.registration_number,
+                capacity: vehicleCapacity,
+                current: currentOccupancy,
+                trying_to_add: 1
+              })
+              showToast(`Vehicle ${selectedVehicle.registration_number} is full! Capacity: ${vehicleCapacity}, Current: ${currentOccupancy}`, 'error')
+              return
+            }
+
+            console.log('✅ Capacity check passed, seat available')
+          } else {
+            console.log('🚗 Vehicle has no capacity limit set, allowing passenger')
+          }
+        }
+      }
+
+      // studentId and staffId already declared above for duplicate checking
+
       const { data, error } = await supabase
         .from('passengers')
         .insert([{
@@ -545,7 +779,11 @@ export default function PassengersPage() {
           student_id: studentId,
           staff_id: staffId,
           route_id: formData.route,
+          station_id: formData.station || null,
           vehicle_id: formData.vehicle || null,
+          base_fare: fareCalculation.baseFare,
+          discount_percent: fareCalculation.discountPercent,
+          final_fare: fareCalculation.finalFare,
           status: 'active'
         }])
         .select()
@@ -620,22 +858,45 @@ export default function PassengersPage() {
     }
   }
 
-  const handleEdit = (passenger) => {
+  const handleEdit = async (passenger) => {
     setSelectedPassenger(passenger)
+
+    // Set form data with passenger's current values
     setFormData({
       type: passenger.type || 'STUDENT',
+      studentId: passenger.student_id || '',
+      staffId: passenger.staff_id || '',
+      classId: passenger.students?.current_class_id || '',
+      departmentId: passenger.staff?.department || '',
       identifier: passenger.type === 'STUDENT'
         ? passenger.students?.admission_number || ''
         : passenger.staff?.computer_no || '',
       route: passenger.route_id || '',
+      station: passenger.station_id || '',
       vehicle: passenger.vehicle_id || ''
     })
 
-    // Filter vehicles based on the passenger's current route
+    // Load stations for the route if route exists
     if (passenger.route_id) {
+      await fetchStationsForRoute(passenger.route_id)
+
+      // Filter vehicles based on the passenger's current route
       const vehiclesForRoute = vehicles.filter(v => v.route_id === passenger.route_id)
       setFilteredVehicles(vehiclesForRoute)
+
+      // Calculate seat availability for these vehicles
+      const vehicleIds = vehiclesForRoute.map(v => v.id)
+      const availability = await calculateVehicleSeatAvailability(vehicleIds)
+      setVehicleSeatAvailability(availability)
     }
+
+    // Set fare calculation with existing values
+    setFareCalculation({
+      baseFare: passenger.base_fare || 0,
+      discountPercent: passenger.discount_percent || 0,
+      discountAmount: Math.round(((passenger.base_fare || 0) * (passenger.discount_percent || 0)) / 100),
+      finalFare: passenger.final_fare || 0
+    })
 
     setShowEditModal(true)
   }
@@ -653,11 +914,55 @@ export default function PassengersPage() {
         return
       }
 
+      // Check vehicle seat capacity if vehicle is selected AND it's different from current vehicle
+      if (formData.vehicle && formData.vehicle !== selectedPassenger.vehicle_id) {
+        const selectedVehicle = vehicles.find(v => v.id === formData.vehicle)
+
+        if (selectedVehicle) {
+          // Count current passengers assigned to this vehicle
+          const { data: currentPassengers, error: countError } = await supabase
+            .from('passengers')
+            .select('id', { count: 'exact' })
+            .eq('vehicle_id', formData.vehicle)
+            .eq('status', 'active')
+
+          if (countError) {
+            console.error('Error counting passengers:', countError)
+            showToast('Error checking seat availability', 'error')
+            return
+          }
+
+          const currentOccupancy = currentPassengers?.length || 0
+          const vehicleCapacity = selectedVehicle.seating_capacity || 0
+
+          console.log('🚗 Seat Capacity Check (Edit):', {
+            vehicle: selectedVehicle.registration_number,
+            capacity: vehicleCapacity,
+            currentOccupancy,
+            availableSeats: vehicleCapacity - currentOccupancy
+          })
+
+          // Only check capacity if it's set (greater than 0)
+          if (vehicleCapacity > 0) {
+            if (currentOccupancy >= vehicleCapacity) {
+              showToast(`Vehicle ${selectedVehicle.registration_number} is full! Capacity: ${vehicleCapacity}, Current: ${currentOccupancy}`, 'error')
+              return
+            }
+          } else {
+            console.log('🚗 Vehicle has no capacity limit set, allowing passenger update')
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('passengers')
         .update({
           route_id: formData.route,
+          station_id: formData.station || null,
           vehicle_id: formData.vehicle || null,
+          base_fare: fareCalculation.baseFare,
+          discount_percent: fareCalculation.discountPercent,
+          final_fare: fareCalculation.finalFare,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedPassenger.id)
@@ -767,6 +1072,22 @@ export default function PassengersPage() {
         .eq('id', user.school_id)
         .single()
 
+      // Fetch station details
+      let stationName = 'N/A'
+      let stationFare = 0
+      if (passenger.station_id) {
+        const { data: stationData } = await supabase
+          .from('stations')
+          .select('station_name, fare')
+          .eq('id', passenger.station_id)
+          .single()
+
+        if (stationData) {
+          stationName = stationData.station_name
+          stationFare = stationData.fare || 0
+        }
+      }
+
       // Get passenger details
       const name = passenger.type === 'STUDENT'
         ? `${passenger.students?.first_name || ''} ${passenger.students?.last_name || ''}`
@@ -777,8 +1098,13 @@ export default function PassengersPage() {
         : passenger.staff?.computer_no || ''
 
       const route = passenger.routes?.route_name || ''
-      const fare = passenger.routes?.fare || 0
-      const feeType = '2nd Installment (Morning)'
+
+      // Use saved fare details from passenger record
+      const baseFare = passenger.base_fare || stationFare || passenger.routes?.fare || 0
+      const discountPercent = passenger.discount_percent || 0
+      const finalFare = passenger.final_fare || baseFare
+
+      const feeType = 'Transport Fee (Monthly)'
 
       // Calculate due date (20 days from now)
       const dueDate = new Date()
@@ -831,7 +1157,7 @@ export default function PassengersPage() {
         return num.toString()
       }
 
-      const amountInWords = numberToWords(fare) + ' Only'
+      const amountInWords = numberToWords(finalFare) + ' Only'
 
       // Create PDF
       const doc = new jsPDF({
@@ -912,6 +1238,13 @@ export default function PassengersPage() {
         doc.setFont('helvetica', 'normal')
         doc.text(route, startX + 26, currentY)
 
+        // Drop Station
+        currentY += lineHeight
+        doc.setFont('helvetica', 'bold')
+        doc.text('Drop Station', startX + 1, currentY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(stationName, startX + 26, currentY)
+
         // Fee Type
         currentY += lineHeight
         doc.setFont('helvetica', 'bold')
@@ -937,22 +1270,33 @@ export default function PassengersPage() {
         doc.text('Particulars', startX + 31, tableStartY + 3.5, { align: 'center' })
         doc.text('Amount', startX + 59.5, tableStartY + 3.5, { align: 'center' })
 
-        // Table row - Transport Fee
+        // Table row 1 - Base Transport Fee
         currentY = tableStartY + 5
         doc.setTextColor(0, 0, 0)
         doc.setFont('helvetica', 'normal')
         doc.setDrawColor(0, 0, 0)
-        doc.rect(startX + 1, currentY, 9, 7, 'S')
-        doc.rect(startX + 10, currentY, 42, 7, 'S')
-        doc.rect(startX + 52, currentY, 15, 7, 'S')
+        doc.rect(startX + 1, currentY, 9, 6, 'S')
+        doc.rect(startX + 10, currentY, 42, 6, 'S')
+        doc.rect(startX + 52, currentY, 15, 6, 'S')
 
-        doc.setFontSize(7)
-        doc.text('1', startX + 5.5, currentY + 4.5, { align: 'center' })
-        doc.text('Transport Fee', startX + 31, currentY + 4.5, { align: 'center' })
-        doc.text(fare.toLocaleString(), startX + 59.5, currentY + 4.5, { align: 'center' })
+        doc.setFontSize(6.5)
+        doc.text('1', startX + 5.5, currentY + 3.8, { align: 'center' })
+        doc.text('Transport Fee (Base)', startX + 31, currentY + 3.8, { align: 'center' })
+        doc.text(baseFare.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
+
+        // Table row 2 - Discount
+        currentY += 6
+        doc.rect(startX + 1, currentY, 9, 6, 'S')
+        doc.rect(startX + 10, currentY, 42, 6, 'S')
+        doc.rect(startX + 52, currentY, 15, 6, 'S')
+
+        doc.text('2', startX + 5.5, currentY + 3.8, { align: 'center' })
+        const discountAmount = Math.round((baseFare * discountPercent) / 100)
+        doc.text(`Discount (${discountPercent}%)`, startX + 31, currentY + 3.8, { align: 'center' })
+        doc.text(`-${discountAmount.toLocaleString()}`, startX + 59.5, currentY + 3.8, { align: 'center' })
 
         // Total Fee row
-        currentY += 7
+        currentY += 6
         doc.setDrawColor(0, 0, 0)
         doc.rect(startX + 1, currentY, 51, 5.5, 'S')
         doc.rect(startX + 52, currentY, 15, 5.5, 'S')
@@ -960,7 +1304,7 @@ export default function PassengersPage() {
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(7.5)
         doc.text('Total Fee', startX + 26.5, currentY + 3.8, { align: 'center' })
-        doc.text(fare.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
+        doc.text(finalFare.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
 
         // Amount in words
         currentY += 8
@@ -1152,10 +1496,11 @@ export default function PassengersPage() {
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Name</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Route</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Station</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Vehicle</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Driver</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Driver Mobile</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fare</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Base Fare</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Discount</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Final Fare</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Type</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
               </tr>
@@ -1163,13 +1508,13 @@ export default function PassengersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
                     Loading passengers...
                   </td>
                 </tr>
               ) : currentPassengers.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
                     No passengers found
                   </td>
                 </tr>
@@ -1196,16 +1541,27 @@ export default function PassengersPage() {
                         {passenger.routes?.route_name || '-'}
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">
+                        <span className="text-gray-700">
+                          {passenger.stations?.station_name || '-'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {passenger.vehicles?.registration_number || '-'}
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">
-                        {passenger.vehicles?.driver_name || '-'}
+                        <span className="font-semibold text-gray-700">
+                          PKR {passenger.base_fare ? passenger.base_fare.toLocaleString() : '0'}
+                        </span>
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">
-                        {passenger.vehicles?.driver_mobile || '-'}
+                        <span className="text-green-600 font-semibold">
+                          {passenger.discount_percent || 0}%
+                        </span>
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">
-                        {passenger.routes?.fare ? passenger.routes.fare.toLocaleString() : '-'}
+                        <span className="font-bold text-blue-700">
+                          PKR {passenger.final_fare ? passenger.final_fare.toLocaleString() : '0'}
+                        </span>
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -1314,7 +1670,7 @@ export default function PassengersPage() {
             onClick={resetAddModalState}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
           <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
             <div className="flex justify-between items-center">
               <div>
@@ -1537,9 +1893,95 @@ export default function PassengersPage() {
                   ))}
                 </select>
               </div>
+
+              {/* Station Selection */}
+              {formData.route && routeStations.length > 0 && (
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Select Drop Station <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.station}
+                    onChange={(e) => handleStationChange(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="">Select your drop station</option>
+                    {routeStations.map((station, index) => (
+                      <option key={station.id} value={station.id}>
+                        {index + 1}. {station.station_name} - PKR {station.fare?.toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Fare Calculation Display */}
+              {fareCalculation.baseFare > 0 && (
+                <div className="bg-white border-2 border-blue-200 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold">₨</span>
+                    </div>
+                    <h4 className="font-bold text-blue-900">Fare Calculation</h4>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {/* Base Fare */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Base Fare:</span>
+                      <span className="text-lg font-bold text-gray-900">
+                        PKR {fareCalculation.baseFare.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Discount Input */}
+                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                      <label className="text-xs font-medium text-green-700 mb-1.5 block">Discount Percentage:</label>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="number"
+                            value={fareCalculation.discountPercent}
+                            onChange={(e) => {
+                              const newPercent = Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
+                              const discountAmount = Math.round((fareCalculation.baseFare * newPercent) / 100)
+                              const finalFare = fareCalculation.baseFare - discountAmount
+                              setFareCalculation({
+                                ...fareCalculation,
+                                discountPercent: newPercent,
+                                discountAmount,
+                                finalFare
+                              })
+                            }}
+                            min="0"
+                            max="100"
+                            className="w-full px-3 py-2 pr-10 border border-green-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white font-bold text-green-700"
+                            placeholder="0"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 font-bold">%</span>
+                        </div>
+                        <div className="text-right min-w-[100px]">
+                          <p className="text-xs text-green-600 font-bold whitespace-nowrap">
+                            - PKR {fareCalculation.discountAmount.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Final Fare */}
+                    <div className="flex justify-between items-center bg-blue-600 -mx-4 -mb-4 px-4 py-3 rounded-b-lg mt-3">
+                      <span className="text-white font-bold">Final Fare:</span>
+                      <span className="text-2xl font-bold text-white">
+                        PKR {fareCalculation.finalFare.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                  Select Vehicle (Optional)
+                  Select Vehicle <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.vehicle}
@@ -1548,11 +1990,30 @@ export default function PassengersPage() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Select a vehicle</option>
-                  {filteredVehicles.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.registration_number}
-                    </option>
-                  ))}
+                  {filteredVehicles.map((vehicle) => {
+                    const seatInfo = vehicleSeatAvailability[vehicle.id]
+                    const capacity = seatInfo?.capacity ?? vehicle.seating_capacity ?? 0
+                    const occupied = seatInfo?.occupied ?? 0
+                    const available = seatInfo?.available ?? (capacity > 0 ? capacity - occupied : 999)
+                    const isFull = seatInfo?.isFull ?? (capacity > 0 && occupied >= capacity)
+                    const hasCapacityLimit = capacity > 0
+
+                    return (
+                      <option
+                        key={vehicle.id}
+                        value={vehicle.id}
+                        disabled={isFull}
+                      >
+                        {vehicle.registration_number} - {
+                          isFull
+                            ? 'FULL'
+                            : hasCapacityLimit
+                              ? `${available}/${capacity} seats available`
+                              : 'Unlimited seats'
+                        }
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
             </div>
@@ -1581,12 +2042,12 @@ export default function PassengersPage() {
       {/* Edit Passenger Sidebar */}
       {showEditModal && (
         <>
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowEditModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
           <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
             <div className="flex justify-between items-center">
               <div>
@@ -1640,7 +2101,7 @@ export default function PassengersPage() {
               </div>
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                  Select Vehicle (Optional)
+                  Select Vehicle <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.vehicle}
@@ -1649,13 +2110,112 @@ export default function PassengersPage() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Select a vehicle</option>
-                  {filteredVehicles.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.registration_number}
-                    </option>
-                  ))}
+                  {filteredVehicles.map((vehicle) => {
+                    const seatInfo = vehicleSeatAvailability[vehicle.id]
+                    const capacity = seatInfo?.capacity ?? vehicle.seating_capacity ?? 0
+                    const occupied = seatInfo?.occupied ?? 0
+                    const available = seatInfo?.available ?? (capacity > 0 ? capacity - occupied : 999)
+                    const isFull = seatInfo?.isFull ?? (capacity > 0 && occupied >= capacity)
+                    const hasCapacityLimit = capacity > 0
+
+                    return (
+                      <option
+                        key={vehicle.id}
+                        value={vehicle.id}
+                        disabled={isFull}
+                      >
+                        {vehicle.registration_number} - {
+                          isFull
+                            ? 'FULL'
+                            : hasCapacityLimit
+                              ? `${available}/${capacity} seats available`
+                              : 'Unlimited seats'
+                        }
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
+
+              {/* Station Selection */}
+              {routeStations.length > 0 && (
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                    Select Drop Station <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.station}
+                    onChange={handleStationChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="">Select a station</option>
+                    {routeStations.map((station, index) => (
+                      <option key={station.id} value={station.id}>
+                        {index + 1}. {station.station_name} - PKR {station.fare?.toLocaleString() || '0'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Fare Calculation Display */}
+              {formData.station && fareCalculation.baseFare > 0 && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border-2 border-blue-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="bg-blue-600 text-white p-2 rounded-lg">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-blue-900 font-bold text-base">Fare Calculation</h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center pb-3 border-b border-blue-200">
+                      <span className="text-gray-700 font-medium">Base Fare:</span>
+                      <span className="text-gray-900 font-bold text-lg">PKR {fareCalculation.baseFare.toLocaleString()}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <label className="text-gray-700 font-medium min-w-[140px]">Discount Percentage:</label>
+                      <div className="flex-1 flex items-center gap-3">
+                        <div className="relative flex-1">
+                          <input
+                            type="number"
+                            value={fareCalculation.discountPercent}
+                            onChange={(e) => {
+                              const newPercent = Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
+                              const discountAmount = Math.round((fareCalculation.baseFare * newPercent) / 100)
+                              const finalFare = fareCalculation.baseFare - discountAmount
+                              setFareCalculation({
+                                ...fareCalculation,
+                                discountPercent: newPercent,
+                                discountAmount,
+                                finalFare
+                              })
+                            }}
+                            min="0"
+                            max="100"
+                            className="w-full px-3 py-2 pr-10 border border-green-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white font-bold text-green-700"
+                            placeholder="0"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 font-bold">%</span>
+                        </div>
+                        <div className="text-right min-w-[100px]">
+                          <p className="text-xs text-green-600 font-bold whitespace-nowrap">
+                            - PKR {fareCalculation.discountAmount.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-3 border-t-2 border-blue-300 bg-blue-600 -mx-5 -mb-5 px-5 py-3 rounded-b-xl">
+                      <span className="text-white font-bold text-base">Final Fare:</span>
+                      <span className="text-white font-black text-2xl">PKR {fareCalculation.finalFare.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="border-t border-gray-200 px-6 py-3 bg-white">

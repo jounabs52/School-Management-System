@@ -44,6 +44,7 @@ export default function RoutesPage() {
   const [selectedRoute, setSelectedRoute] = useState(null)
   const [routeToDelete, setRouteToDelete] = useState(null)
   const [newStationName, setNewStationName] = useState('')
+  const [newStationFare, setNewStationFare] = useState('')
   
   // Toast state
   const [toast, setToast] = useState(null)
@@ -84,7 +85,7 @@ export default function RoutesPage() {
     passengers: ''
   })
 
-  const [tempStationName, setTempStationName] = useState('')
+  const [tempStation, setTempStation] = useState({ name: '', fare: '' })
 
   useEffect(() => {
     fetchRoutes()
@@ -190,11 +191,12 @@ export default function RoutesPage() {
       if (routeData && routeData.length > 0 && formData.stationsList.length > 0) {
         const newRouteId = routeData[0].id
 
-        const stationsToInsert = formData.stationsList.map((stationName, index) => ({
+        const stationsToInsert = formData.stationsList.map((station, index) => ({
           school_id: user.school_id,
           created_by: user.id,
           route_id: newRouteId,
-          station_name: stationName,
+          station_name: typeof station === 'string' ? station : station.name,
+          fare: typeof station === 'object' ? parseInt(station.fare) || 0 : 0,
           station_order: index + 1,
           status: 'active'
         }))
@@ -222,7 +224,7 @@ export default function RoutesPage() {
       setRoutes([newRoute, ...routes])
       setShowModal(false)
       setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-      setTempStationName('')
+      setTempStation({ name: '', fare: '' })
       showToast('Route added successfully!', 'success')
     } catch (error) {
       console.error('Error saving route:', error)
@@ -232,15 +234,19 @@ export default function RoutesPage() {
 
   // Add station to temporary list in form
   const handleAddStationToForm = () => {
-    if (!tempStationName.trim()) {
+    if (!tempStation.name.trim()) {
       showToast('Please enter station name', 'error')
+      return
+    }
+    if (!tempStation.fare || parseFloat(tempStation.fare) <= 0) {
+      showToast('Please enter a valid fare amount', 'error')
       return
     }
     setFormData({
       ...formData,
-      stationsList: [...formData.stationsList, tempStationName.trim()]
+      stationsList: [...formData.stationsList, { name: tempStation.name.trim(), fare: tempStation.fare }]
     })
-    setTempStationName('')
+    setTempStation({ name: '', fare: '' })
   }
 
   // Remove station from temporary list in form
@@ -249,8 +255,17 @@ export default function RoutesPage() {
     setFormData({ ...formData, stationsList: newStationsList })
   }
 
-  const handleEdit = (route) => {
+  const handleEdit = async (route) => {
     setSelectedRoute(route)
+
+    // Fetch existing stations for this route
+    const { data: existingStations } = await supabase
+      .from('stations')
+      .select('*')
+      .eq('route_id', route.id)
+      .eq('status', 'active')
+      .order('station_order', { ascending: true })
+
     setFormData({
       routeName: route.route_name || '',
       fare: route.fare || '',
@@ -258,6 +273,10 @@ export default function RoutesPage() {
       vehicles: route.vehicles_count || '',
       passengers: route.passengers_count || ''
     })
+
+    // Set existing stations to display them
+    setStations(existingStations || [])
+
     setShowEditModal(true)
   }
 
@@ -309,11 +328,12 @@ export default function RoutesPage() {
           ? existingStations[0].station_order
           : 0
 
-        const stationsToInsert = formData.stationsList.map((stationName, index) => ({
+        const stationsToInsert = formData.stationsList.map((station, index) => ({
           school_id: user.school_id,
           created_by: user.id,
           route_id: selectedRoute.id,
-          station_name: stationName,
+          station_name: typeof station === 'string' ? station : station.name,
+          fare: typeof station === 'object' ? parseInt(station.fare) || 0 : 0,
           station_order: maxOrder + index + 1,
           status: 'active'
         }))
@@ -344,7 +364,7 @@ export default function RoutesPage() {
 
       setShowEditModal(false)
       setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-      setTempStationName('')
+      setTempStation({ name: '', fare: '' })
       setSelectedRoute(null)
       showToast('Route updated successfully!', 'success')
     } catch (error) {
@@ -432,6 +452,11 @@ export default function RoutesPage() {
         return
       }
 
+      if (!newStationFare || parseFloat(newStationFare) <= 0) {
+        showToast('Please enter a valid fare amount', 'error')
+        return
+      }
+
       // Get the next order number
       const maxOrder = stations.length > 0
         ? Math.max(...stations.map(s => s.station_order || 0))
@@ -444,6 +469,7 @@ export default function RoutesPage() {
           created_by: user.id,
           route_id: selectedRoute.id,
           station_name: newStationName.trim(),
+          fare: parseInt(newStationFare) || 0,
           station_order: maxOrder + 1,
           status: 'active'
         }])
@@ -455,15 +481,16 @@ export default function RoutesPage() {
       } else {
         // Add station to local state
         setStations([...stations, data[0]])
-        
+
         // Update route's station count in routes state
-        setRoutes(routes.map(route => 
-          route.id === selectedRoute.id 
+        setRoutes(routes.map(route =>
+          route.id === selectedRoute.id
             ? { ...route, stations_count: (route.stations_count || 0) + 1 }
             : route
         ))
-        
+
         setNewStationName('')
+        setNewStationFare('')
         showToast('Station added successfully!', 'success')
       }
     } catch (error) {
@@ -714,11 +741,11 @@ export default function RoutesPage() {
             onClick={() => {
               setShowModal(false)
               setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-              setTempStationName('')
+              setTempStation({ name: '', fare: '' })
             }}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -729,7 +756,7 @@ export default function RoutesPage() {
                   onClick={() => {
                     setShowModal(false)
                     setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-                    setTempStationName('')
+                    setTempStation({ name: '', fare: '' })
                   }}
                   className="text-white hover:bg-white/10 p-2 rounded-full transition"
                 >
@@ -770,25 +797,36 @@ export default function RoutesPage() {
                 {/* Stations Section */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Stations (Optional)
+                    Stations with Fares
                   </label>
-                  <div className="flex gap-2 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <input
                       type="text"
-                      placeholder="Enter station name"
-                      value={tempStationName}
-                      onChange={(e) => setTempStationName(e.target.value)}
+                      placeholder="Station name (e.g., Station 1)"
+                      value={tempStation.name}
+                      onChange={(e) => setTempStation({ ...tempStation, name: e.target.value })}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                      className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
                     />
-                    <button
-                      type="button"
-                      onClick={handleAddStationToForm}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-sm"
-                    >
-                      <Plus size={16} />
-                      Add
-                    </button>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Fare (e.g., 1500)"
+                        value={tempStation.fare}
+                        onChange={(e) => setTempStation({ ...tempStation, fare: e.target.value })}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
+                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                        min="0"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddStationToForm}
+                        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-sm font-medium"
+                      >
+                        <Plus size={16} />
+                        Add
+                      </button>
+                    </div>
                   </div>
 
                   {/* Stations List */}
@@ -798,18 +836,27 @@ export default function RoutesPage() {
                       {formData.stationsList.map((station, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-200"
+                          className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
                               {index + 1}
                             </div>
-                            <span className="text-sm text-gray-700">{station}</span>
+                            <div>
+                              <span className="text-sm font-medium text-gray-800">
+                                {typeof station === 'string' ? station : station.name}
+                              </span>
+                              {typeof station === 'object' && station.fare && (
+                                <div className="text-xs text-green-600 font-semibold mt-0.5">
+                                  PKR {parseFloat(station.fare).toLocaleString()}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleRemoveStationFromForm(index)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition"
+                            className="p-1.5 text-red-600 hover:bg-red-100 rounded transition"
                           >
                             <X size={16} />
                           </button>
@@ -826,7 +873,7 @@ export default function RoutesPage() {
                   onClick={() => {
                     setShowModal(false)
                     setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-                    setTempStationName('')
+                    setTempStation({ name: '', fare: '' })
                   }}
                   className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
                 >
@@ -853,12 +900,12 @@ export default function RoutesPage() {
             onClick={() => {
               setShowEditModal(false)
               setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-              setTempStationName('')
+              setTempStation({ name: '', fare: '' })
               setSelectedRoute(null)
             }}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -869,7 +916,7 @@ export default function RoutesPage() {
                   onClick={() => {
                     setShowEditModal(false)
                     setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-                    setTempStationName('')
+                    setTempStation({ name: '', fare: '' })
                     setSelectedRoute(null)
                   }}
                   className="text-white hover:bg-white/10 p-2 rounded-full transition"
@@ -908,28 +955,72 @@ export default function RoutesPage() {
                   </div>
                 </div>
 
+                {/* Existing Stations */}
+                {stations.length > 0 && (
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                      Existing Stations ({stations.length})
+                    </label>
+                    <div className="space-y-2">
+                      {stations.map((station, index) => (
+                        <div
+                          key={station.id}
+                          className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <span className="text-sm font-medium text-gray-800">
+                                {station.station_name}
+                              </span>
+                              {station.fare > 0 && (
+                                <div className="text-xs text-green-600 font-semibold mt-0.5">
+                                  PKR {station.fare.toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Stations Section */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Stations (Optional)
+                    Add More Stations
                   </label>
-                  <div className="flex gap-2 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <input
                       type="text"
-                      placeholder="Enter station name"
-                      value={tempStationName}
-                      onChange={(e) => setTempStationName(e.target.value)}
+                      placeholder="Station name (e.g., Station 1)"
+                      value={tempStation.name}
+                      onChange={(e) => setTempStation({ ...tempStation, name: e.target.value })}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                      className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
                     />
-                    <button
-                      type="button"
-                      onClick={handleAddStationToForm}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-sm"
-                    >
-                      <Plus size={16} />
-                      Add
-                    </button>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Fare (e.g., 1500)"
+                        value={tempStation.fare}
+                        onChange={(e) => setTempStation({ ...tempStation, fare: e.target.value })}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
+                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                        min="0"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddStationToForm}
+                        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-sm font-medium"
+                      >
+                        <Plus size={16} />
+                        Add
+                      </button>
+                    </div>
                   </div>
 
                   {/* Stations List */}
@@ -939,18 +1030,27 @@ export default function RoutesPage() {
                       {formData.stationsList.map((station, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-200"
+                          className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
                               {index + 1}
                             </div>
-                            <span className="text-sm text-gray-700">{station}</span>
+                            <div>
+                              <span className="text-sm font-medium text-gray-800">
+                                {typeof station === 'string' ? station : station.name}
+                              </span>
+                              {typeof station === 'object' && station.fare && (
+                                <div className="text-xs text-green-600 font-semibold mt-0.5">
+                                  PKR {parseFloat(station.fare).toLocaleString()}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleRemoveStationFromForm(index)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition"
+                            className="p-1.5 text-red-600 hover:bg-red-100 rounded transition"
                           >
                             <X size={16} />
                           </button>
@@ -967,7 +1067,7 @@ export default function RoutesPage() {
                   onClick={() => {
                     setShowEditModal(false)
                     setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
-                    setTempStationName('')
+                    setTempStation({ name: '', fare: '' })
                     setSelectedRoute(null)
                   }}
                   className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
@@ -1035,10 +1135,11 @@ export default function RoutesPage() {
               setSelectedRoute(null)
               setStations([])
               setNewStationName('')
+              setNewStationFare('')
             }}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -1051,6 +1152,7 @@ export default function RoutesPage() {
                     setSelectedRoute(null)
                     setStations([])
                     setNewStationName('')
+                    setNewStationFare('')
                   }}
                   className="text-white hover:bg-white/10 p-2 rounded-full transition"
                 >
@@ -1061,78 +1163,126 @@ export default function RoutesPage() {
 
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
               {/* Add New Station */}
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4">
-                <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+              <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6">
+                <label className="block text-gray-800 font-semibold mb-4 text-sm uppercase tracking-wide flex items-center gap-2">
+                  <MapPin size={16} className="text-blue-600" />
                   Add New Station
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Station Name"
-                    value={newStationName}
-                    onChange={(e) => setNewStationName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddStation()}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  />
-                  <button
-                    onClick={handleAddStation}
-                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-                  >
-                    <Plus size={18} />
-                    Add
-                  </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Station Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Station 1"
+                      value={newStationName}
+                      onChange={(e) => setNewStationName(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddStation()}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Fare Amount <span className="text-red-500">*</span></label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">Rs.</span>
+                        <input
+                          type="number"
+                          placeholder="1500"
+                          value={newStationFare}
+                          onChange={(e) => setNewStationFare(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddStation()}
+                          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                          min="0"
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddStation}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg"
+                      >
+                        <Plus size={18} />
+                        Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Stations List */}
-              <div className="space-y-2">
-                <h4 className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-3">
-                  Stations ({stations.length})
-                </h4>
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-gray-800 font-bold text-sm uppercase tracking-wide flex items-center gap-2">
+                    <MapPin size={16} className="text-blue-600" />
+                    All Stations
+                    <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                      {stations.length}
+                    </span>
+                  </h4>
+                </div>
+
                 {stations.length === 0 ? (
-                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
-                    <MapPin className="mx-auto text-gray-400 mb-2" size={32} />
-                    <p className="text-gray-500">No stations added yet</p>
-                    <p className="text-gray-400 text-sm mt-1">Add your first station above</p>
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-12 rounded-xl border-2 border-dashed border-gray-300 text-center">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <MapPin className="text-gray-400" size={32} />
+                    </div>
+                    <p className="text-gray-600 font-semibold mb-1">No stations added yet</p>
+                    <p className="text-gray-400 text-sm">Add your first station using the form above</p>
                   </div>
                 ) : (
-                  stations.map((station, index) => (
-                    <div
-                      key={station.id}
-                      className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="text-gray-800 font-medium">{station.station_name}</p>
-                          <p className="text-gray-400 text-xs">Order: {station.station_order}</p>
+                  <div className="space-y-3">
+                    {stations.map((station, index) => (
+                      <div
+                        key={station.id}
+                        className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center font-bold shadow-md">
+                              {index + 1}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-1">
+                                <h5 className="text-gray-900 font-semibold text-base">{station.station_name}</h5>
+                                {station.fare > 0 && (
+                                  <div className="px-3 py-1 bg-green-50 border border-green-200 rounded-lg">
+                                    <span className="text-green-700 font-bold text-sm">
+                                      PKR {station.fare.toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-gray-400 text-xs flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                                Order: {station.station_order}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteStation(station.id)}
+                            className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
+                            title="Delete Station"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteStation(station.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        title="Delete Station"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
+            <div className="border-t border-gray-200 px-6 py-4 bg-gradient-to-r from-gray-50 to-white">
               <button
                 onClick={() => {
                   setShowStationsModal(false)
                   setSelectedRoute(null)
                   setStations([])
                   setNewStationName('')
+                  setNewStationFare('')
                 }}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+                className="w-full px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
               >
+                <X size={18} />
                 Close
               </button>
             </div>

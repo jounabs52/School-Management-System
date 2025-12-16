@@ -3,7 +3,8 @@
     "allow": [
       "Bash(wc:*)",
       "Bash(ls:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }
