@@ -84,6 +84,34 @@ export default function ContactsPage() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  // Apply blur effect to sidebar when modals are open
+  useEffect(() => {
+    if (showAddModal || showGroupModal || showImportModal || confirmDialog.show) {
+      document.body.style.overflow = 'hidden'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showAddModal, showGroupModal, showImportModal, confirmDialog.show])
+
   // Search options
   const searchOptions = [
     'Via General Data',
@@ -562,59 +590,59 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-1">
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 mb-4">
         <button
           onClick={() => {
             resetForm()
             setEditingContact(null)
             setShowAddModal(true)
           }}
-          className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           Add Contact
         </button>
         <button
           onClick={() => setShowGroupModal(true)}
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
         >
-          <Users className="w-5 h-5" />
+          <Users className="w-4 h-4" />
           Create Group
         </button>
         <button
           onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
         >
-          <Upload className="w-5 h-5" />
+          <Upload className="w-4 h-4" />
           Import Data
         </button>
         <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
         >
-          <FileSpreadsheet className="w-5 h-5" />
+          <FileSpreadsheet className="w-4 h-4" />
           Export Excel
         </button>
         <button
           onClick={exportToPDF}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
         >
-          <Download className="w-5 h-5" />
+          <Download className="w-4 h-4" />
           Export PDF
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search Type Dropdown */}
           <div className="relative min-w-[180px]">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="w-full appearance-none border border-gray-300 rounded px-4 py-2.5 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white"
+              className="w-full appearance-none border border-gray-300 rounded px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white"
             >
               {searchOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
@@ -626,14 +654,14 @@ export default function ContactsPage() {
           {/* Search Input */}
           <div className="flex-1 min-w-[250px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full border border-gray-300 rounded pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
           </div>
@@ -641,10 +669,10 @@ export default function ContactsPage() {
           {/* Search Button */}
           <button
             onClick={handleSearch}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2.5 rounded font-medium transition"
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
           >
             Search
-            <Search className="w-5 h-5" />
+            <Search className="w-4 h-4" />
           </button>
 
           {/* Group Filter */}
@@ -652,7 +680,7 @@ export default function ContactsPage() {
             <select
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             >
               <option value="">All Groups</option>
               {groups.map(group => (
@@ -662,7 +690,7 @@ export default function ContactsPage() {
           </div>
         </div>
 
-        <p className="mt-4 text-gray-600">
+        <p className="mt-3 text-sm text-gray-600">
           Showing <span className="text-blue-600 font-semibold">{filteredContacts.length}</span> of <span className="text-blue-600 font-semibold">{contacts.length}</span> contacts
         </p>
       </div>
@@ -670,15 +698,15 @@ export default function ContactsPage() {
       {/* Contacts Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading contacts...</div>
+          <div className="p-8 text-center text-sm text-gray-500">Loading contacts...</div>
         ) : filteredContacts.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No contacts found</div>
+          <div className="p-8 text-center text-sm text-gray-500">No contacts found</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-slate-600 text-white text-sm">
-                  <th className="px-4 py-3 text-left font-medium">
+                <tr className="bg-blue-600 text-white text-sm">
+                  <th className="px-3 py-2 text-left font-semibold">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -689,18 +717,18 @@ export default function ContactsPage() {
                       <span>Sr.</span>
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left font-medium">Name</th>
-                  <th className="px-4 py-3 text-left font-medium">Group</th>
-                  <th className="px-4 py-3 text-left font-medium">Company</th>
-                  <th className="px-4 py-3 text-left font-medium">Mobile</th>
-                  <th className="px-4 py-3 text-left font-medium">WhatsApp</th>
-                  <th className="px-4 py-3 text-left font-medium">Options</th>
+                  <th className="px-3 py-2 text-left font-semibold">Name</th>
+                  <th className="px-3 py-2 text-left font-semibold">Group</th>
+                  <th className="px-3 py-2 text-left font-semibold">Company</th>
+                  <th className="px-3 py-2 text-left font-semibold">Mobile</th>
+                  <th className="px-3 py-2 text-left font-semibold">WhatsApp</th>
+                  <th className="px-3 py-2 text-left font-semibold">Options</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredContacts.map((contact, index) => (
                   <tr key={contact.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -708,38 +736,38 @@ export default function ContactsPage() {
                           onChange={() => handleSelectContact(contact.id)}
                           className="w-4 h-4 rounded"
                         />
-                        <span>{index + 1}</span>
+                        <span className="text-sm">{index + 1}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-semibold">
                           {contact.name?.charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-blue-500 font-medium">{contact.name}</span>
+                        <span className="text-blue-500 text-sm font-medium">{contact.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">
+                    <td className="px-3 py-2">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
                         {contact.contact_groups?.group_name || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{contact.company || 'N/A'}</td>
-                    <td className="px-4 py-3 text-gray-700">{contact.mobile}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-sm text-gray-700">{contact.company || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-700">{contact.mobile}</td>
+                    <td className="px-3 py-2">
                       {contact.whatsapp ? (
                         <button
                           onClick={() => handleWhatsApp(contact.whatsapp)}
                           className="flex items-center gap-1 text-green-600 hover:text-green-700"
                         >
-                          <MessageCircle size={16} />
-                          <span className="text-sm">{contact.whatsapp}</span>
+                          <MessageCircle className="w-4 h-4" />
+                          <span className="text-xs">{contact.whatsapp}</span>
                         </button>
                       ) : (
-                        <span className="text-gray-400">N/A</span>
+                        <span className="text-sm text-gray-400">N/A</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditContact(contact)}
@@ -768,7 +796,7 @@ export default function ContactsPage() {
       {/* Add/Edit Contact Modal */}
       {showAddModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowAddModal(false)} />
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowAddModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between sticky top-0 z-10">
               <h2 className="text-lg font-semibold">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
@@ -853,7 +881,7 @@ export default function ContactsPage() {
               <button
                 onClick={handleSaveContact}
                 disabled={saving}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50"
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : editingContact ? 'Update' : 'Save'}
               </button>
@@ -865,7 +893,7 @@ export default function ContactsPage() {
       {/* Import Data Modal */}
       {showImportModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowImportModal(false)} />
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowImportModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Import Contact Data</h2>
@@ -919,7 +947,7 @@ export default function ContactsPage() {
                 <button
                   onClick={handleImport}
                   disabled={!importFile || importing}
-                  className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="w-4 h-4" />
                   {importing ? 'Importing...' : 'Upload & Save'}
@@ -938,7 +966,7 @@ export default function ContactsPage() {
       {/* Create Group Modal */}
       {showGroupModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowGroupModal(false)} />
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowGroupModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Create Contact Group</h2>
@@ -983,7 +1011,7 @@ export default function ContactsPage() {
               <button
                 onClick={handleSaveGroup}
                 disabled={saving}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50"
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50"
               >
                 {saving ? 'Creating...' : 'Create Group'}
               </button>
@@ -995,12 +1023,12 @@ export default function ContactsPage() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
             <div
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-lg">
                 <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
               <div className="p-6">
@@ -1015,7 +1043,7 @@ export default function ContactsPage() {
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                  className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
                 >
                   Confirm
                 </button>
