@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { FileText, CreditCard, Filter, Calendar, User, Hash, Loader2, Printer, Trash2, X, TrendingUp, Award, RefreshCw, Search, Download } from 'lucide-react'
+import { FileText, CreditCard, Calendar, User, Hash, Trash2, X, TrendingUp, Award, RefreshCw, Search, Download, CheckCircle } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 
@@ -351,7 +351,11 @@ export default function StudentReportsPage() {
     setToast({ show: true, message, type })
     setTimeout(() => {
       setToast({ show: false, message: '', type: '' })
-    }, 3000)
+    }, 4000)
+  }
+
+  const hideToast = () => {
+    setToast({ show: false, message: '', type: '' })
   }
 
   const clearFilters = () => {
@@ -516,6 +520,16 @@ export default function StudentReportsPage() {
       console.error('Error deleting record:', error)
       showToast('Failed to delete. Please try again.', 'error')
     }
+  }
+
+  const handleView = (item) => {
+    showToast('View functionality - Coming soon!', 'success')
+    console.log('View item:', item)
+  }
+
+  const handleEdit = (item) => {
+    showToast('Edit functionality - Coming soon!', 'success')
+    console.log('Edit item:', item)
   }
 
   return (
@@ -786,78 +800,65 @@ export default function StudentReportsPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gradient-to-r from-blue-900 to-blue-800 text-white">
-                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Sr.</th>
-                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Student Name</th>
-                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Father Name</th>
-                      <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Class</th>
+                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Sr.</th>
+                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Student Name</th>
+                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Father Name</th>
+                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Class</th>
                     {activeTab === 'certificates' ? (
                       <>
-                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Type</th>
-                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Issue Date</th>
-                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Remarks</th>
+                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Type</th>
+                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Issue Date</th>
+                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Remarks</th>
                       </>
                     ) : (
                       <>
-                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Issue Date</th>
-                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Expiry Date</th>
-                        <th className="px-5 py-4 text-left font-bold border-r border-blue-700">Status</th>
+                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Issue Date</th>
+                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Expiry Date</th>
+                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Status</th>
                       </>
                     )}
-                    <th className="px-5 py-4 text-center font-bold">Actions</th>
+                    <th className="px-4 py-3 text-center font-bold border border-gray-300">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedData.map((item, index) => (
                     <tr
                       key={item.id}
-                      className={`transition-all hover:bg-blue-50/50 ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                      }`}
+                      className={`${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                      } hover:bg-blue-50 transition`}
                     >
-                      <td className="px-5 py-4 border-r border-gray-200">
-                        <span className="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-bold rounded-lg text-sm">
-                          {startIndex + index + 1}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 border-r border-gray-200">
-                        <div className="flex items-center gap-3">
-                          {item.photo_url ? (
-                            <img
-                              src={item.photo_url}
-                              alt={item.student_first_name}
-                              className="w-12 h-12 rounded-xl object-cover border-2 border-blue-200 shadow-sm"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-lg font-bold shadow-sm">
-                              {item.student_first_name.charAt(0)}
-                            </div>
-                          )}
-                          <div>
-                            <span className="text-gray-800 font-semibold block">
-                              {item.student_first_name} {item.student_last_name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {item.admission_number}
-                            </span>
+                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {item.photo_url ? (
+                              <img src={item.photo_url} alt={item.student_first_name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-lg font-bold">
+                                {item.student_first_name.charAt(0)}
+                              </div>
+                            )}
                           </div>
+                          <span className="text-blue-600 font-medium hover:underline cursor-pointer">
+                            {item.student_first_name} {item.student_last_name}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-5 py-4 border-r border-gray-200">
-                        <span className="text-gray-700 font-medium">{item.father_name}</span>
-                      </td>
-                      <td className="px-5 py-4 border-r border-gray-200">
+                      <td className="px-4 py-3 border border-gray-200">{item.father_name}</td>
+                      <td className="px-4 py-3 border border-gray-200">
                         <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold">
                           {item.class_name}
                         </span>
                       </td>
                       {activeTab === 'certificates' ? (
                         <>
-                          <td className="px-5 py-4 border-r border-gray-200">
+                          <td className="px-4 py-3 border border-gray-200">
                             <span className="inline-block px-4 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-sm font-semibold capitalize shadow-sm">
                               {item.certificate_type}
                             </span>
                           </td>
-                          <td className="px-5 py-4 border-r border-gray-200">
+                          <td className="px-4 py-3 border border-gray-200">
                             <div className="flex items-center gap-2 text-gray-700">
                               <Calendar size={16} className="text-gray-400" />
                               <span className="font-medium">
@@ -865,7 +866,7 @@ export default function StudentReportsPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-5 py-4 border-r border-gray-200">
+                          <td className="px-4 py-3 border border-gray-200">
                             <span className="text-gray-600 text-sm">
                               {item.remarks || '-'}
                             </span>
@@ -873,7 +874,7 @@ export default function StudentReportsPage() {
                         </>
                       ) : (
                         <>
-                          <td className="px-5 py-4 border-r border-gray-200">
+                          <td className="px-4 py-3 border border-gray-200">
                             <div className="flex items-center gap-2 text-gray-700">
                               <Calendar size={16} className="text-gray-400" />
                               <span className="font-medium">
@@ -881,7 +882,7 @@ export default function StudentReportsPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-5 py-4 border-r border-gray-200">
+                          <td className="px-4 py-3 border border-gray-200">
                             <div className="flex items-center gap-2 text-gray-700">
                               <Calendar size={16} className="text-gray-400" />
                               <span className="font-medium">
@@ -889,7 +890,7 @@ export default function StudentReportsPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-5 py-4 border-r border-gray-200">
+                          <td className="px-4 py-3 border border-gray-200">
                             <span className={`inline-block px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm capitalize ${
                               item.status === 'active'
                                 ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
@@ -900,18 +901,18 @@ export default function StudentReportsPage() {
                           </td>
                         </>
                       )}
-                      <td className="px-5 py-4">
-                        <div className="flex gap-2 justify-center">
+                      <td className="px-4 py-3 border border-gray-200">
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => handlePrint(item)}
-                            className="p-2.5 text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-lg transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
-                            title="Print"
+                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            title="Download"
                           >
                             <Download size={18} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
-                            className="p-2.5 text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
                             <Trash2 size={18} />
@@ -926,20 +927,18 @@ export default function StudentReportsPage() {
 
             {/* Pagination Controls */}
             {filteredData.length > 0 && (
-              <div className="px-6 py-5 border-t-2 border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white">
-                <div className="text-sm font-medium text-gray-600">
-                  Showing <span className="text-blue-600 font-bold">{startIndex + 1}</span> to{' '}
-                  <span className="text-blue-600 font-bold">{Math.min(endIndex, filteredData.length)}</span> of{' '}
-                  <span className="text-blue-600 font-bold">{filteredData.length}</span> {filteredData.length === 1 ? 'record' : 'records'}
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                <div className="text-sm text-gray-600">
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredData.length)} of {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'}
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className={`px-5 py-2.5 rounded-xl font-semibold transition-all transform ${
+                    className={`px-4 py-2 rounded-lg font-medium transition ${
                       currentPage === 1
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl hover:scale-105'
+                        : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
                     }`}
                   >
                     Previous
@@ -961,10 +960,10 @@ export default function StudentReportsPage() {
                           <button
                             key={i}
                             onClick={() => setCurrentPage(i)}
-                            className={`w-11 h-11 rounded-xl font-bold transition-all transform ${
+                            className={`w-10 h-10 rounded-lg font-medium transition ${
                               currentPage === i
-                                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-110'
-                                : 'bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200 hover:border-blue-300 hover:scale-105'
+                                ? 'bg-[#1E3A8A] text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                             }`}
                           >
                             {i}
@@ -977,10 +976,10 @@ export default function StudentReportsPage() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className={`px-5 py-2.5 rounded-xl font-semibold transition-all transform ${
+                    className={`px-4 py-2 rounded-lg font-medium transition ${
                       currentPage === totalPages
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl hover:scale-105'
+                        : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
                     }`}
                   >
                     Next
@@ -995,29 +994,17 @@ export default function StudentReportsPage() {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed top-6 right-6 z-50 animate-slide-down">
-          <div className={`px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-2 ${
-            toast.type === 'success'
-              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-400'
-              : 'bg-gradient-to-r from-red-500 to-red-600 text-white border-red-400'
-          }`}>
-            <div className="flex items-center gap-3">
-              {toast.type === 'success' ? (
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              ) : (
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
-              <span className="font-semibold text-lg">{toast.message}</span>
-            </div>
-          </div>
+        <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+          toast.type === 'success' ? 'bg-green-500 text-white' :
+          toast.type === 'error' ? 'bg-red-500 text-white' :
+          'bg-blue-500 text-white'
+        }`}>
+          {toast.type === 'success' && <CheckCircle size={20} strokeWidth={2.5} />}
+          {toast.type === 'error' && <X size={20} strokeWidth={2.5} />}
+          <span className="font-medium text-sm">{toast.message}</span>
+          <button onClick={hideToast} className="ml-1 hover:opacity-80 transition-opacity">
+            <X size={18} strokeWidth={2.5} />
+          </button>
         </div>
       )}
 
@@ -1025,29 +1012,33 @@ export default function StudentReportsPage() {
       {showDeleteModal && itemToDelete && (
         <>
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 transition-opacity animate-fade-in"
+            className="fixed inset-0 bg-black/30 z-[99998]"
+            style={{
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)'
+            }}
             onClick={() => setShowDeleteModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full transform animate-scale-in" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 via-red-600 to-red-700 text-white px-8 py-6 rounded-t-3xl">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Trash2 size={24} />
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <Trash2 size={20} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">Confirm Deletion</h3>
-                    <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                    <h3 className="text-lg font-bold">Confirm Deletion</h3>
+                    <p className="text-red-100 text-xs mt-0.5">This action cannot be undone</p>
                   </div>
                 </div>
               </div>
-              <div className="p-8">
-                <div className="mb-6 p-4 bg-red-50 rounded-xl border-2 border-red-200">
+              <div className="p-6">
+                <div className="mb-6">
                   <p className="text-gray-700 text-center">
                     Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'} for
                   </p>
                   <p className="text-center mt-2">
-                    <span className="font-bold text-red-600 text-lg">
+                    <span className="font-bold text-gray-900 text-base">
                       {itemToDelete.student_first_name} {itemToDelete.student_last_name}
                     </span>
                   </p>
@@ -1061,16 +1052,16 @@ export default function StudentReportsPage() {
                       setShowDeleteModal(false)
                       setItemToDelete(null)
                     }}
-                    className="flex-1 px-6 py-3.5 text-gray-700 font-bold hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-300 transform hover:scale-105"
+                    className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-all border border-gray-300"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold rounded-xl hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:scale-105"
+                    className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2"
                   >
-                    <Trash2 size={20} />
-                    Delete Now
+                    <Trash2 size={18} />
+                    Delete
                   </button>
                 </div>
               </div>

@@ -606,6 +606,13 @@ export default function FeeCreatePage() {
           .eq('id', student.id)
           .single()
 
+        // Get the class fee_plan
+        const { data: classData } = await supabase
+          .from('classes')
+          .select('fee_plan')
+          .eq('id', studentData?.current_class_id)
+          .single()
+
         let totalAmount = 0
         let feeItems = []
 
@@ -650,6 +657,7 @@ export default function FeeCreatePage() {
             due_date: dueDate.toISOString().split('T')[0],
             total_amount: totalAmount,
             status: 'pending',
+            fee_plan: classData?.fee_plan || 'monthly',
             created_by: user.id
           }])
           .select()
@@ -1434,27 +1442,24 @@ export default function FeeCreatePage() {
                         >
                           <Eye size={18} />
                         </button>
-                        <button
-                          onClick={() => handleEditChallan(challan)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit Challan"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteChallan(challan.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                          title="Delete Challan"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleStatusToggle(challan.id, challan.status)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
-                          title="Toggle Status"
-                        >
-                          <RefreshCw size={18} />
-                        </button>
+                        {challan.status !== 'paid' && (
+                          <button
+                            onClick={() => handleDeleteChallan(challan.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete Challan"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                        {challan.status !== 'paid' && (
+                          <button
+                            onClick={() => handleStatusToggle(challan.id, challan.status)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                            title="Toggle Status"
+                          >
+                            <RefreshCw size={18} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handlePrintChallan(challan)}
                           className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"

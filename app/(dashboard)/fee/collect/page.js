@@ -923,7 +923,6 @@ export default function FeeCollectPage() {
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Admission No.</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fee Plan</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Period</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Amount</th>
                 <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Status</th>
                 <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Action</th>
@@ -932,13 +931,13 @@ export default function FeeCollectPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : paginatedChallans.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
                     No challans found
                   </td>
                 </tr>
@@ -957,19 +956,16 @@ export default function FeeCollectPage() {
                       {challan.student?.class?.class_name || 'N/A'}
                       {challan.student?.section?.section_name ? ` - ${challan.student.section.section_name}` : ''}
                     </td>
-                    <td className="px-3 py-2.5 text-gray-700 border border-gray-200">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <td className="px-3 py-2.5 text-center border border-gray-200">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">
                         {getFeePlanLabel(challan.fee_plan)}
                       </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-700 border border-gray-200 text-xs">
-                      {challan.period_label || `${challan.fee_month} ${challan.fee_year}`}
                     </td>
                     <td className="px-3 py-2.5 text-gray-900 font-bold border border-gray-200">
                       Rs. {parseFloat(challan.total_amount).toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5 text-center border border-gray-200">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
                         challan.status === 'paid' ? 'bg-green-100 text-green-800' :
                         challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
@@ -1094,15 +1090,11 @@ export default function FeeCollectPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Fee Plan:</span>
-                      <span className="font-semibold text-gray-800 capitalize">{selectedChallan.fee_plan || 'Monthly'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Period:</span>
-                      <span className="font-semibold text-gray-800">{selectedChallan.period_label || `${selectedChallan.fee_month} ${selectedChallan.fee_year}`}</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">{selectedChallan.fee_plan || 'Monthly'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Status:</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
                         selectedChallan.status === 'paid' ? 'bg-green-100 text-green-800' :
                         selectedChallan.status === 'overdue' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
