@@ -856,17 +856,17 @@ export default function ExamReportsPage() {
           {/* Test Results Table */}
           {activeTab === 'test-results' && Array.isArray(reportData) && (
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">#</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Roll No.</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Student Name</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Obtained</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Total</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Percentage</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Grade</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Status</th>
+              <table className="min-w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">#</th>
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Obtained</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Total</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Percentage</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Grade</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -876,19 +876,19 @@ export default function ExamReportsPage() {
                     const isPass = mark.status === 'present' && mark.marks_obtained >= stats.passThreshold
 
                     return (
-                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3 text-sm">{index + 1}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{mark.students?.roll_number || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm">{mark.students?.first_name} {mark.students?.last_name}</td>
-                        <td className="px-4 py-3 text-sm text-center font-semibold">
+                      <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                        <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
+                        <td className="px-4 py-3 border border-gray-200 font-medium">{mark.students?.roll_number || 'N/A'}</td>
+                        <td className="px-4 py-3 border border-gray-200">{mark.students?.first_name} {mark.students?.last_name}</td>
+                        <td className="px-4 py-3 border border-gray-200 text-center font-semibold">
                           {mark.status === 'present' ? mark.marks_obtained : '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-center">{stats.totalMarks}</td>
-                        <td className="px-4 py-3 text-sm text-center font-medium">
+                        <td className="px-4 py-3 border border-gray-200 text-center">{stats.totalMarks}</td>
+                        <td className="px-4 py-3 border border-gray-200 text-center font-medium">
                           {percentage !== '-' ? percentage + '%' : '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        <td className="px-4 py-3 border border-gray-200 text-center">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             grade === 'A+' || grade === 'A' ? 'bg-green-100 text-green-800' :
                             grade === 'B' || grade === 'C' ? 'bg-blue-100 text-blue-800' :
                             grade === 'D' || grade === 'E' ? 'bg-yellow-100 text-yellow-800' :
@@ -898,8 +898,8 @@ export default function ExamReportsPage() {
                             {grade}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        <td className="px-4 py-3 border border-gray-200 text-center">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             mark.status === 'absent' ? 'bg-gray-100 text-gray-800' :
                             isPass ? 'bg-green-100 text-green-800' :
                             'bg-red-100 text-red-800'
@@ -918,40 +918,40 @@ export default function ExamReportsPage() {
           {/* Class Summary Table */}
           {activeTab === 'class-summary' && Array.isArray(reportData) && (
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Class</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Tests</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Students</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Passed</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Failed</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Absent</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Pass %</th>
+              <table className="min-w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Students</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Passed</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Failed</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Absent</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass %</th>
                   </tr>
                 </thead>
                 <tbody>
                   {reportData.map((item, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3 text-sm font-medium">{item.className}</td>
-                      <td className="px-4 py-3 text-sm text-center">{item.totalTests}</td>
-                      <td className="px-4 py-3 text-sm text-center">{item.totalStudents}</td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                    <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                      <td className="px-4 py-3 border border-gray-200 font-medium">{item.className}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalTests}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalStudents}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
                           {item.passedStudents}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                      <td className="px-4 py-3 border border-gray-200 text-center">
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
                           {item.failedStudents}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                      <td className="px-4 py-3 border border-gray-200 text-center">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">
                           {item.absentStudents}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-center font-bold">{item.passPercentage}%</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center font-bold">{item.passPercentage}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -962,36 +962,36 @@ export default function ExamReportsPage() {
           {/* Subject Summary Table */}
           {activeTab === 'subject-summary' && Array.isArray(reportData) && (
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Tests</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Students</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Passed</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Failed</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Pass %</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Avg %</th>
+              <table className="min-w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Subject</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Students</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Passed</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Failed</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass %</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Avg %</th>
                   </tr>
                 </thead>
                 <tbody>
                   {reportData.map((item, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3 text-sm font-medium">{item.subjectName}</td>
-                      <td className="px-4 py-3 text-sm text-center">{item.totalTests}</td>
-                      <td className="px-4 py-3 text-sm text-center">{item.totalStudents}</td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                    <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                      <td className="px-4 py-3 border border-gray-200 font-medium">{item.subjectName}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalTests}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalStudents}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
                           {item.passedStudents}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                      <td className="px-4 py-3 border border-gray-200 text-center">
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
                           {item.failedStudents}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-center font-bold">{item.passPercentage}%</td>
-                      <td className="px-4 py-3 text-sm text-center font-bold">{item.averagePercentage}%</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center font-bold">{item.passPercentage}%</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center font-bold">{item.averagePercentage}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1008,26 +1008,26 @@ export default function ExamReportsPage() {
                   Top 10 Performers
                 </h3>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className="bg-green-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Rank</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Roll No.</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Student Name</th>
-                        <th className="px-4 py-3 text-center text-sm font-semibold">Tests</th>
-                        <th className="px-4 py-3 text-center text-sm font-semibold">Pass</th>
-                        <th className="px-4 py-3 text-center text-sm font-semibold">Average %</th>
+                  <table className="min-w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-blue-900 text-white">
+                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Rank</th>
+                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
+                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
+                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass</th>
+                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Average %</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reportData.topPerformers.map((student, idx) => (
-                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-green-50'}>
-                          <td className="px-4 py-3 text-sm font-bold">{idx + 1}</td>
-                          <td className="px-4 py-3 text-sm">{student.roll_number}</td>
-                          <td className="px-4 py-3 text-sm font-medium">{student.student_name}</td>
-                          <td className="px-4 py-3 text-sm text-center">{student.testCount}</td>
-                          <td className="px-4 py-3 text-sm text-center">{student.passCount}</td>
-                          <td className="px-4 py-3 text-sm text-center font-bold text-green-700">
+                        <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                          <td className="px-4 py-3 border border-gray-200 font-bold">{idx + 1}</td>
+                          <td className="px-4 py-3 border border-gray-200">{student.roll_number}</td>
+                          <td className="px-4 py-3 border border-gray-200 font-medium">{student.student_name}</td>
+                          <td className="px-4 py-3 border border-gray-200 text-center">{student.testCount}</td>
+                          <td className="px-4 py-3 border border-gray-200 text-center">{student.passCount}</td>
+                          <td className="px-4 py-3 border border-gray-200 text-center font-bold text-green-700">
                             {student.averagePercentage}%
                           </td>
                         </tr>
@@ -1044,24 +1044,24 @@ export default function ExamReportsPage() {
                     Students Needing Attention (Below 40%)
                   </h3>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className="bg-red-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-sm font-semibold">Roll No.</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold">Student Name</th>
-                          <th className="px-4 py-3 text-center text-sm font-semibold">Tests</th>
-                          <th className="px-4 py-3 text-center text-sm font-semibold">Pass</th>
-                          <th className="px-4 py-3 text-center text-sm font-semibold">Average %</th>
+                    <table className="min-w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-blue-900 text-white">
+                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
+                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass</th>
+                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Average %</th>
                         </tr>
                       </thead>
                       <tbody>
                         {reportData.needsAttention.map((student, idx) => (
-                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-red-50'}>
-                            <td className="px-4 py-3 text-sm">{student.roll_number}</td>
-                            <td className="px-4 py-3 text-sm font-medium">{student.student_name}</td>
-                            <td className="px-4 py-3 text-sm text-center">{student.testCount}</td>
-                            <td className="px-4 py-3 text-sm text-center">{student.passCount}</td>
-                            <td className="px-4 py-3 text-sm text-center font-bold text-red-700">
+                          <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                            <td className="px-4 py-3 border border-gray-200">{student.roll_number}</td>
+                            <td className="px-4 py-3 border border-gray-200 font-medium">{student.student_name}</td>
+                            <td className="px-4 py-3 border border-gray-200 text-center">{student.testCount}</td>
+                            <td className="px-4 py-3 border border-gray-200 text-center">{student.passCount}</td>
+                            <td className="px-4 py-3 border border-gray-200 text-center font-bold text-red-700">
                               {student.averagePercentage}%
                             </td>
                           </tr>

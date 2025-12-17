@@ -236,11 +236,11 @@ export default function StaffAttendancePage() {
   const departments = ['all', ...new Set(staffList.map(s => s.department).filter(d => d))]
 
   return (
-    <div className="p-3">
+    <div className="p-1">
       <h1 className="text-2xl font-bold mb-4">Staff Attendance</h1>
 
       {/* Date Picker and Load Button */}
-      <div className="bg-white rounded-lg shadow p-3 mb-4">
+      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -251,12 +251,12 @@ export default function StaffAttendancePage() {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2"
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
                 onClick={handleLoadAttendance}
                 disabled={loading}
-                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 disabled:bg-gray-400"
+                className="bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-gray-400 transition-colors"
               >
                 {loading ? 'Loading...' : 'Load Attendance'}
               </button>
@@ -267,13 +267,13 @@ export default function StaffAttendancePage() {
 
       {/* Filters and Search */}
       {staffList.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-3 mb-4">
+        <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Members</option>
                 {departments.filter(d => d !== 'all').map(dept => (
@@ -287,7 +287,7 @@ export default function StaffAttendancePage() {
                 placeholder="Search by name, father name, or employee number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="flex-1">
@@ -295,7 +295,7 @@ export default function StaffAttendancePage() {
                 onChange={(e) => handleMarkAll(e.target.value)}
                 value=""
                 disabled={saving}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Mark All Attendance</option>
                 <option value="present">Present</option>
@@ -311,32 +311,32 @@ export default function StaffAttendancePage() {
 
       {/* Staff Attendance Table */}
       {staffList.length > 0 ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-blue-600">
-                <tr>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Sr.</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Name</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Father Name</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Comp.</th>
-                  <th className="px-3 py-2 text-center text-sm font-semibold text-white">Status</th>
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-blue-900 text-white">
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Father Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Comp.</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {filteredStaff.length > 0 ? (
                   filteredStaff.map((staff, index) => {
                     const currentStatus = attendanceRecords[staff.id]
                     return (
-                      <tr key={staff.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-sm text-gray-700">{index + 1}</td>
-                        <td className="px-3 py-2">
+                      <tr key={staff.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
+                        <td className="border border-gray-200 px-3 py-2.5">
                           <div className="flex items-center gap-2">
                             {staff.photo_url ? (
-                              <img 
-                                src={staff.photo_url} 
+                              <img
+                                src={staff.photo_url}
                                 alt={staff.first_name}
-                                className="w-8 h-8 rounded-full object-cover"
+                                className="w-8 h-8 rounded-full object-cover border border-gray-200"
                               />
                             ) : (
                               <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
@@ -344,16 +344,16 @@ export default function StaffAttendancePage() {
                               </div>
                             )}
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="font-medium text-gray-900">
                                 {staff.first_name} {staff.last_name}
                               </div>
                               <div className="text-xs text-gray-500">{staff.employee_number}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-sm text-gray-700">{staff.father_name || '-'}</td>
-                        <td className="px-3 py-2 text-sm text-gray-700">{staff.department || '-'}</td>
-                        <td className="px-3 py-2">
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{staff.father_name || '-'}</td>
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{staff.department || '-'}</td>
+                        <td className="border border-gray-200 px-3 py-2.5">
                           <div className="flex justify-center gap-1 flex-wrap">
                             <button
                               onClick={() => markAttendance(staff.id, 'present')}
@@ -417,7 +417,7 @@ export default function StaffAttendancePage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-3 py-6 text-center text-gray-500">
+                    <td colSpan="5" className="border border-gray-200 px-3 py-6 text-center text-gray-500">
                       No staff members found matching your search criteria
                     </td>
                   </tr>
@@ -427,7 +427,7 @@ export default function StaffAttendancePage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+        <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
           Please select a date and click "Load Attendance" to view staff list
         </div>
       )}

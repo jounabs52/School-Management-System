@@ -397,7 +397,7 @@ export default function StaffPayrollPage() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
-                  <tr className="bg-blue-600 text-white text-sm">
+                  <tr className="bg-blue-900 text-white text-sm">
                     <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Staff Name</th>
                     <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Father Name</th>
                     <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Employee Number</th>
@@ -415,7 +415,7 @@ export default function StaffPayrollPage() {
                       <td className="border border-gray-300 px-3 py-2 text-center">
                         <button
                           onClick={() => loadStaffDetails(staff)}
-                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded text-sm font-medium transition-colors"
+                          className="bg-blue-900 hover:bg-blue-800 text-white px-4 py-1 rounded text-sm font-medium transition-colors"
                         >
                           Load
                         </button>
@@ -510,13 +510,13 @@ export default function StaffPayrollPage() {
           <div className="flex flex-wrap gap-2 mb-2">
             <button
               onClick={() => setShowSalaryStructureModal(true)}
-              className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
             >
               <span>💰</span> View Salary Structure
             </button>
             <button
               onClick={() => setShowPaymentHistoryModal(true)}
-              className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors"
+              className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
             >
               <span>📋</span> Payment History ({paymentHistory.length})
             </button>
@@ -646,7 +646,7 @@ export default function StaffPayrollPage() {
       {showSalaryStructureModal && salaryStructure && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            <div className="bg-blue-500 text-white px-3 py-2 flex justify-between items-center">
+            <div className="bg-blue-900 text-white px-3 py-2 flex justify-between items-center">
               <h3 className="text-base font-bold">Salary Structure - {selectedStaff.first_name} {selectedStaff.last_name}</h3>
               <button
                 onClick={() => setShowSalaryStructureModal(false)}
@@ -658,7 +658,7 @@ export default function StaffPayrollPage() {
             <div className="p-3 overflow-y-auto max-h-[calc(90vh-120px)]">
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
-                  <tr className="bg-gray-100">
+                  <tr className="bg-blue-900 text-white">
                     <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Component</th>
                     <th className="border border-gray-300 px-3 py-2 text-sm text-right font-semibold">Amount (PKR)</th>
                   </tr>
@@ -735,7 +735,7 @@ export default function StaffPayrollPage() {
       {showPaymentHistoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
-            <div className="bg-green-500 text-white px-3 py-2 flex justify-between items-center">
+            <div className="bg-blue-900 text-white px-3 py-2 flex justify-between items-center">
               <h3 className="text-base font-bold">Payment History - {selectedStaff.first_name} {selectedStaff.last_name}</h3>
               <button
                 onClick={() => setShowPaymentHistoryModal(false)}

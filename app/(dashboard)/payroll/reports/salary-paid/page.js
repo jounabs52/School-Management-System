@@ -104,7 +104,8 @@ export default function SalaryPaidReport() {
 
     // Filter by month and year
     filtered = filtered.filter(
-      p => p.payment_month === selectedMonth && p.payment_year === selectedYear
+      p => parseInt(p.payment_month) === parseInt(selectedMonth) &&
+           parseInt(p.payment_year) === parseInt(selectedYear)
     )
 
     // Filter by status
@@ -379,14 +380,14 @@ export default function SalaryPaidReport() {
             </button>
             <button
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
@@ -396,7 +397,7 @@ export default function SalaryPaidReport() {
 
         {/* Filters */}
         {showFilters && (
-          <div className="bg-white rounded-lg shadow-md p-4 mb-2 print:hidden">
+          <div className="bg-white rounded-lg shadow-sm p-3 mb-2 print:hidden">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
@@ -441,58 +442,58 @@ export default function SalaryPaidReport() {
       </div>
 
       {/* Salary Payments Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden print:shadow-none">
         {loading ? (
           <div className="text-center py-12 text-gray-500">Loading salary payment report...</div>
         ) : filteredPayments.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-gradient-to-r from-red-600 to-red-700 text-white print:bg-gray-800">
-                  <th className="border border-red-800 px-4 py-3 text-left font-semibold text-sm">#</th>
-                  <th className="border border-red-800 px-4 py-3 text-left font-semibold text-sm">Staff Name</th>
-                  <th className="border border-red-800 px-4 py-3 text-left font-semibold text-sm">Computer No</th>
-                  <th className="border border-red-800 px-4 py-3 text-left font-semibold text-sm">Narration</th>
-                  <th className="border border-red-800 px-4 py-3 text-right font-semibold text-sm">Amount Paid</th>
-                  <th className="border border-red-800 px-4 py-3 text-center font-semibold text-sm">Date</th>
-                  <th className="border border-red-800 px-4 py-3 text-center font-semibold text-sm print:hidden">User</th>
+                <tr className="bg-blue-900 text-white print:bg-gray-800">
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">#</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Staff Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Computer No</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Narration</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Amount Paid</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Date</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold print:hidden">User</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPayments.map((payment, index) => (
-                  <tr key={payment.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm">{index + 1}</td>
-                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm font-medium">
+                  <tr key={payment.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                    <td className="border border-gray-200 px-3 py-2.5">{index + 1}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 font-medium">
                       {payment.staff?.first_name} {payment.staff?.last_name}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm">
+                    <td className="border border-gray-200 px-3 py-2.5">
                       {payment.staff?.employee_number || 'N/A'}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm">
+                    <td className="border border-gray-200 px-3 py-2.5">
                       Salary {payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : 'Partial'} for {getMonthName(payment.payment_month)} {payment.payment_year}
                       {payment.remarks && ` - ${payment.remarks}`}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm text-right font-semibold">
+                    <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold">
                       {parseFloat(payment.net_salary || 0).toLocaleString()}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm text-center">
+                    <td className="border border-gray-200 px-3 py-2.5 text-center">
                       {new Date(payment.payment_date).toLocaleDateString('en-GB')}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-sm text-sm text-center print:hidden">
+                    <td className="border border-gray-200 px-3 py-2.5 text-center print:hidden">
                       {payment.paid_by_user?.username || 'N/A'}
                     </td>
                   </tr>
                 ))}
                 {/* Grand Total Row */}
                 <tr className="bg-red-100 font-bold">
-                  <td colSpan="4" className="border border-gray-300 px-4 py-3 text-sm text-right">
+                  <td colSpan="4" className="border border-gray-200 px-3 py-2.5 text-right">
                     Grand Total
                   </td>
-                  <td className="border border-gray-300 px-4 py-3 text-sm text-right text-red-700">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right text-red-700">
                     {calculateGrandTotal().toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-4 py-3 text-sm text-center">---</td>
-                  <td className="border border-gray-300 px-4 py-3 text-sm text-center print:hidden">---</td>
+                  <td className="border border-gray-200 px-3 py-2.5 text-center">---</td>
+                  <td className="border border-gray-200 px-3 py-2.5 text-center print:hidden">---</td>
                 </tr>
               </tbody>
             </table>

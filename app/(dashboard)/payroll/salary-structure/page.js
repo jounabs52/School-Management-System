@@ -454,7 +454,7 @@ export default function SalaryStructurePage() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
-                  <tr className="bg-blue-600 text-white">
+                  <tr className="bg-blue-900 text-white">
                     <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Staff Name</th>
                     <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Employee Number</th>
                     <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Designation</th>
@@ -472,7 +472,7 @@ export default function SalaryStructurePage() {
                       <td className="border border-gray-300 px-3 py-2 text-sm text-center">
                         <button
                           onClick={() => loadStaffSalaryStructure(staff)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-1 rounded font-medium transition-colors"
+                          className="bg-blue-900 hover:bg-blue-800 text-white px-6 py-1 rounded font-medium transition-colors"
                         >
                           Manage Salary
                         </button>
@@ -691,7 +691,7 @@ export default function SalaryStructurePage() {
                   <button
                     onClick={handleSaveSalaryStructure}
                     disabled={saving || basicSalary <= 0}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {saving ? 'Saving...' : existingStructure ? 'Update Salary Structure' : 'Create Salary Structure'}
                   </button>
@@ -720,7 +720,7 @@ export default function SalaryStructurePage() {
           <div className="mt-2 overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-2 py-1 text-xs text-left font-semibold">Component</th>
                   <th className="border border-gray-300 px-2 py-1 text-xs text-right font-semibold">Amount (PKR)</th>
                 </tr>

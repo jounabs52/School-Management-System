@@ -564,8 +564,8 @@ export default function ExpensesPage() {
       </div>
 
       {/* Search and Actions */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-2">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
+        <div className="flex flex-col md:flex-row gap-2 items-center justify-between">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
@@ -587,21 +587,21 @@ export default function ExpensesPage() {
             </button>
             <button
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Plus size={16} />
               Add Expense
@@ -684,43 +684,43 @@ export default function ExpensesPage() {
           <div className="text-center py-12 text-gray-500">Loading expenses...</div>
         ) : filteredExpenses.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-blue-900 text-white">
                 <tr>
-                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">#</th>
-                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Date</th>
-                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Category</th>
-                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Vendor</th>
-                  <th className="px-3 py-2 text-sm text-left font-semibold text-sm">Invoice#</th>
-                  <th className="px-3 py-2 text-sm text-right font-semibold text-sm">Amount</th>
-                  <th className="px-3 py-2 text-sm text-center font-semibold text-sm">Payment</th>
-                  <th className="px-3 py-2 text-sm text-center font-semibold text-sm">Status</th>
-                  <th className="px-3 py-2 text-sm text-center font-semibold text-sm">Actions</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">#</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Date</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Category</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Vendor</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Invoice#</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Amount</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Payment</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Status</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredExpenses.map((expense, index) => (
-                  <tr key={expense.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-2 text-sm text-sm text-gray-700">{index + 1}</td>
-                    <td className="px-3 py-2 text-sm text-sm text-gray-700">
+                  <tr key={expense.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                    <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-gray-700">
                       {new Date(expense.expense_date).toLocaleDateString('en-GB')}
                     </td>
-                    <td className="px-3 py-2 text-sm text-sm">
+                    <td className="border border-gray-200 px-3 py-2.5">
                       <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
                         {expense.category?.category_name || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-sm text-gray-700">{expense.vendor_name || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm text-sm text-gray-700">{expense.invoice_number || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm text-sm text-right font-semibold text-gray-900">
+                    <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{expense.vendor_name || 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{expense.invoice_number || 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold text-gray-900">
                       Rs {parseFloat(expense.amount || 0).toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 text-sm text-sm text-center">
+                    <td className="border border-gray-200 px-3 py-2.5 text-center">
                       <span className="text-gray-600 text-xs">
                         {expense.payment_method?.toUpperCase() || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-center">
+                    <td className="border border-gray-200 px-3 py-2.5 text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         expense.status === 'paid' ? 'bg-green-100 text-green-700' :
                         expense.status === 'approved' ? 'bg-blue-100 text-blue-700' :
@@ -729,7 +729,7 @@ export default function ExpensesPage() {
                         {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-sm">
+                    <td className="border border-gray-200 px-3 py-2.5">
                       <div className="flex items-center justify-center gap-2">
                         {expense.status === 'pending' && (
                           <button
@@ -742,7 +742,7 @@ export default function ExpensesPage() {
                         )}
                         <button
                           onClick={() => openEditModal(expense)}
-                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                          className="text-blue-900 hover:text-blue-700 transition-colors"
                           title="Edit"
                         >
                           <Edit size={18} />
@@ -1014,7 +1014,7 @@ export default function ExpensesPage() {
               </button>
               <button
                 onClick={handleEditExpense}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                className="px-6 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-lg font-medium transition-colors"
               >
                 Update Expense
               </button>

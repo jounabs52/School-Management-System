@@ -1178,14 +1178,10 @@ export default function ExamMarksPage() {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-              toast.type === 'success' ? 'bg-green-500' :
-              toast.type === 'error' ? 'bg-red-500' :
-              'bg-blue-500'
-            } text-white min-w-[300px]`}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg bg-green-600 text-white min-w-[300px]"
           >
             {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5" />}
+            {toast.type === 'error' && <XCircle className="w-5 h-5 text-red-400" />}
             {toast.type === 'info' && <AlertCircle className="w-5 h-5" />}
             <span className="flex-1">{toast.message}</span>
             <button onClick={() => removeToast(toast.id)} className="hover:bg-white/20 p-1 rounded">
@@ -1337,35 +1333,35 @@ export default function ExamMarksPage() {
             )}
 
             {students.length > 0 && selectedSubject && (
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                  <table className="w-full">
-                    <thead className="bg-blue-600 text-white sticky top-0 z-10">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Roll No</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Admission No</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Student Name</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Father Name</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold w-32">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-blue-900 text-white sticky top-0 z-10">
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Roll No</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Admission No</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Father Name</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800 w-32">
                           Marks Obtained <span className="text-red-300">*</span>
                         </th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold w-24">Absent</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800 w-24">Absent</th>
                       </tr>
                     </thead>
                     <tbody>
                       {students.map((student, index) => {
                         const marks = marksData[student.id] || {}
                         return (
-                          <tr key={student.id} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm">{index + 1}</td>
-                            <td className="px-3 py-2 text-sm">{student.roll_number || 'N/A'}</td>
-                            <td className="px-3 py-2 text-sm">{student.admission_number}</td>
-                            <td className="px-3 py-2 text-sm font-medium">
+                          <tr key={student.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                            <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
+                            <td className="px-3 py-2.5 border border-gray-200">{student.roll_number || 'N/A'}</td>
+                            <td className="px-3 py-2.5 border border-gray-200">{student.admission_number}</td>
+                            <td className="px-3 py-2.5 border border-gray-200 font-medium">
                               {student.first_name} {student.last_name}
                             </td>
-                            <td className="px-3 py-2 text-sm">{student.father_name}</td>
-                            <td className="px-3 py-2">
+                            <td className="px-3 py-2.5 border border-gray-200">{student.father_name}</td>
+                            <td className="px-3 py-2.5 border border-gray-200">
                               <input
                                 type="number"
                                 step="0.01"
@@ -1378,7 +1374,7 @@ export default function ExamMarksPage() {
                                 placeholder="0"
                               />
                             </td>
-                            <td className="px-3 py-2 text-center">
+                            <td className="px-3 py-2.5 border border-gray-200 text-center">
                               <input
                                 type="checkbox"
                                 checked={marks.is_absent || false}
@@ -1531,20 +1527,20 @@ export default function ExamMarksPage() {
             )}
 
             {viewMarks.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                  <table className="w-full">
-                    <thead className="bg-blue-600 text-white sticky top-0 z-10">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Roll No</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Admission No</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Student Name</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Father Name</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Total Marks</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Obtained Marks</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Percentage</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Status</th>
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-blue-900 text-white sticky top-0 z-10">
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Roll No</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Admission No</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Father Name</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total Marks</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Obtained Marks</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Percentage</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1555,36 +1551,36 @@ export default function ExamMarksPage() {
                         const isPassing = percentage >= 40
 
                         return (
-                          <tr key={mark.id} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm">{index + 1}</td>
-                            <td className="px-3 py-2 text-sm">{student.roll_number || 'N/A'}</td>
-                            <td className="px-3 py-2 text-sm">{student.admission_number}</td>
-                            <td className="px-3 py-2 text-sm font-medium">
+                          <tr key={mark.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                            <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
+                            <td className="px-3 py-2.5 border border-gray-200">{student.roll_number || 'N/A'}</td>
+                            <td className="px-3 py-2.5 border border-gray-200">{student.admission_number}</td>
+                            <td className="px-3 py-2.5 border border-gray-200 font-medium">
                               {student.first_name} {student.last_name}
                             </td>
-                            <td className="px-3 py-2 text-sm">{student.father_name}</td>
-                            <td className="px-3 py-2 text-sm text-center">{mark.total_marks}</td>
-                            <td className="px-3 py-2 text-sm text-center font-medium">
+                            <td className="px-3 py-2.5 border border-gray-200">{student.father_name}</td>
+                            <td className="px-3 py-2.5 border border-gray-200 text-center">{mark.total_marks}</td>
+                            <td className="px-3 py-2.5 border border-gray-200 text-center font-medium">
                               {isAbsent ? (
                                 <span className="text-red-600">Absent</span>
                               ) : (
                                 mark.obtained_marks || 0
                               )}
                             </td>
-                            <td className="px-3 py-2 text-sm text-center">
+                            <td className="px-3 py-2.5 border border-gray-200 text-center">
                               {isAbsent ? '-' : `${percentage}%`}
                             </td>
-                            <td className="px-3 py-2 text-sm">
+                            <td className="px-3 py-2.5 border border-gray-200">
                               {isAbsent ? (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
                                   Absent
                                 </span>
                               ) : isPassing ? (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                                   Pass
                                 </span>
                               ) : (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
                                   Fail
                                 </span>
                               )}
@@ -1753,36 +1749,36 @@ export default function ExamMarksPage() {
 
                 {/* Marks Table */}
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-blue-600 text-white">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
-                        <th className="px-3 py-2 text-left text-sm font-semibold">Subject</th>
-                        <th className="px-3 py-2 text-center text-sm font-semibold">Total Marks</th>
-                        <th className="px-3 py-2 text-center text-sm font-semibold">Obtained Marks</th>
-                        <th className="px-3 py-2 text-center text-sm font-semibold">Percentage</th>
-                        <th className="px-3 py-2 text-center text-sm font-semibold">Grade</th>
-                        <th className="px-3 py-2 text-center text-sm font-semibold">Status</th>
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-blue-900 text-white">
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                        <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Subject</th>
+                        <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Total Marks</th>
+                        <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Obtained Marks</th>
+                        <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Percentage</th>
+                        <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Grade</th>
+                        <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {resultCardData.subjects.map((subject, index) => (
-                        <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
-                          <td className="px-3 py-2 text-sm">{index + 1}</td>
-                          <td className="px-3 py-2 text-sm font-medium">{subject.subject_name}</td>
-                          <td className="px-3 py-2 text-sm text-center">{subject.total_marks}</td>
-                          <td className="px-3 py-2 text-sm text-center font-medium">
+                        <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                          <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
+                          <td className="px-3 py-2.5 border border-gray-200 font-medium">{subject.subject_name}</td>
+                          <td className="px-3 py-2.5 border border-gray-200 text-center">{subject.total_marks}</td>
+                          <td className="px-3 py-2.5 border border-gray-200 text-center font-medium">
                             {subject.is_absent ? (
                               <span className="text-red-600">Absent</span>
                             ) : (
                               subject.obtained_marks
                             )}
                           </td>
-                          <td className="px-3 py-2 text-sm text-center">
+                          <td className="px-3 py-2.5 border border-gray-200 text-center">
                             {subject.is_absent ? '-' : `${subject.percentage}%`}
                           </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          <td className="px-3 py-2.5 border border-gray-200 text-center">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                               subject.grade === 'A+' ? 'bg-green-100 text-green-800' :
                               subject.grade === 'A' ? 'bg-green-100 text-green-700' :
                               subject.grade === 'B' ? 'bg-blue-100 text-blue-800' :
@@ -1794,17 +1790,17 @@ export default function ExamMarksPage() {
                               {subject.grade}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-3 py-2.5 border border-gray-200 text-center">
                             {subject.is_absent ? (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
                                 Absent
                               </span>
                             ) : subject.is_passing ? (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                                 Pass
                               </span>
                             ) : (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
                                 Fail
                               </span>
                             )}
@@ -1812,14 +1808,14 @@ export default function ExamMarksPage() {
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                    <tfoot className="bg-blue-900 border-t-2 border-blue-800">
                       <tr>
-                        <td colSpan="2" className="px-3 py-3 text-right font-bold text-sm">Total:</td>
-                        <td className="px-3 py-3 text-center font-bold text-sm">{resultCardData.statistics.totalMax}</td>
-                        <td className="px-3 py-3 text-center font-bold text-sm">{resultCardData.statistics.totalObtained}</td>
-                        <td className="px-3 py-3 text-center font-bold text-sm">{resultCardData.statistics.overallPercentage}%</td>
-                        <td className="px-3 py-3 text-center">
-                          <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                        <td colSpan="2" className="px-3 py-3 text-right font-bold text-white border border-blue-800">Total:</td>
+                        <td className="px-3 py-3 text-center font-bold text-white border border-blue-800">{resultCardData.statistics.totalMax}</td>
+                        <td className="px-3 py-3 text-center font-bold text-white border border-blue-800">{resultCardData.statistics.totalObtained}</td>
+                        <td className="px-3 py-3 text-center font-bold text-white border border-blue-800">{resultCardData.statistics.overallPercentage}%</td>
+                        <td className="px-3 py-3 text-center border border-blue-800">
+                          <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
                             resultCardData.statistics.overallGrade === 'A+' ? 'bg-green-100 text-green-800' :
                             resultCardData.statistics.overallGrade === 'A' ? 'bg-green-100 text-green-700' :
                             resultCardData.statistics.overallGrade === 'B' ? 'bg-blue-100 text-blue-800' :
@@ -1830,7 +1826,7 @@ export default function ExamMarksPage() {
                             {resultCardData.statistics.overallGrade}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-center">
+                        <td className="px-3 py-3 text-center border border-blue-800">
                           <span className={`px-4 py-2 rounded-full text-sm font-bold ${
                             resultCardData.statistics.result === 'PASS'
                               ? 'bg-green-600 text-white'

@@ -26,7 +26,6 @@ export default function DatesheetPage() {
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showEditExamModal, setShowEditExamModal] = useState(false)
   const [showEditScheduleModal, setShowEditScheduleModal] = useState(false)
 
@@ -56,6 +55,7 @@ export default function DatesheetPage() {
   const [editEndTime, setEditEndTime] = useState('')
   const [editRoomNumber, setEditRoomNumber] = useState('')
   const [classSubjects, setClassSubjects] = useState([]) // Subjects for the selected class
+  const [classSubjectsMap, setClassSubjectsMap] = useState({}) // Map of classId -> array of subject IDs
   // Removed: editTotalMarks, editPassingMarks (not in datesheet_schedules)
 
   // Confirmation Dialog State
@@ -102,7 +102,7 @@ export default function DatesheetPage() {
 
   // Apply blur effect to sidebar and disable background scrolling when modals are open
   useEffect(() => {
-    const anyModalOpen = showCreateModal || showScheduleModal || showEditExamModal || showEditScheduleModal || showReportConfigModal || showGeneratedSlipsModal || showDatesheetClassModal || confirmDialog.show
+    const anyModalOpen = showCreateModal || showEditExamModal || showEditScheduleModal || showReportConfigModal || showGeneratedSlipsModal || showDatesheetClassModal || confirmDialog.show
 
     if (anyModalOpen) {
       // Disable body scrolling
@@ -132,7 +132,7 @@ export default function DatesheetPage() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showCreateModal, showScheduleModal, showEditExamModal, showEditScheduleModal, showReportConfigModal, showGeneratedSlipsModal, showDatesheetClassModal, confirmDialog.show])
+  }, [showCreateModal, showEditExamModal, showEditScheduleModal, showReportConfigModal, showGeneratedSlipsModal, showDatesheetClassModal, confirmDialog.show])
 
   const showConfirmDialog = (title, message, onConfirm) => {
     setConfirmDialog({ show: true, title, message, onConfirm })
@@ -392,6 +392,7 @@ export default function DatesheetPage() {
       // Calculate max subjects across all selected classes to limit columns
       if (classIds.length > 0) {
         let maxSubjects = 0
+        const newClassSubjectsMap = {}
 
         // Fetch subject count for each class
         for (const classId of classIds) {
@@ -401,10 +402,17 @@ export default function DatesheetPage() {
             .eq('school_id', currentUser.school_id)
             .eq('class_id', classId)
 
+          // Store the subject IDs for this class
+          const subjectIds = classSubjectsData?.map(cs => cs.subject_id) || []
+          newClassSubjectsMap[classId] = subjectIds
+
           if (classSubjectsData && classSubjectsData.length > maxSubjects) {
             maxSubjects = classSubjectsData.length
           }
         }
+
+        // Update the class-subjects map
+        setClassSubjectsMap(newClassSubjectsMap)
 
         // Limit dates to max subjects count, or show all if maxSubjects is 0
         if (maxSubjects > 0 && dates.length > maxSubjects) {
@@ -656,7 +664,7 @@ export default function DatesheetPage() {
     setSelectedClasses(classIds)
 
     await fetchSchedules(datesheet.id, classIds)
-    setShowScheduleModal(true)
+    setActiveTab('schedule')
   }
 
   const handleOpenEditDatesheet = (datesheet) => {
@@ -767,6 +775,233 @@ export default function DatesheetPage() {
     )
   }
 
+  const handleDeleteClassFromSchedule = async (classId) => {
+    const className = getClassName(classId)
+    showConfirmDialog(
+      'Delete Class Schedule',
+      `Are you sure you want to delete all schedule entries for ${className}?`,
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('datesheet_schedules')
+            .delete()
+            .eq('datesheet_id', currentDatesheet.id)
+            .eq('class_id', classId)
+
+          if (error) throw error
+
+          // Remove the class from selectedClasses
+          const updatedClasses = selectedClasses.filter(id => id !== classId)
+          setSelectedClasses(updatedClasses)
+
+          showToast('Class schedule deleted successfully', 'success')
+
+          // Refresh schedules if there are still classes selected
+          if (updatedClasses.length > 0) {
+            fetchSchedules(currentDatesheet.id, updatedClasses)
+          } else {
+            setSchedules([])
+          }
+        } catch (error) {
+          console.error('Error deleting class schedule:', error)
+          showToast('Failed to delete class schedule', 'error')
+        }
+      }
+    )
+  }
+
+  const handleDownloadClassDatesheet = async (classId) => {
+    try {
+      const className = getClassName(classId)
+
+      // Get schedules for this class only that have subjects
+      const classSchedules = schedules.filter(s => s.class_id === classId && s.subject_id)
+
+      if (classSchedules.length === 0) {
+        showToast('No schedule found for this class', 'error')
+        return
+      }
+
+      // Get unique dates where exams are scheduled for this class
+      const examDates = [...new Set(classSchedules.map(s => s.exam_date))].sort()
+
+      // Create PDF
+      const doc = new jsPDF('landscape')
+
+      // Add title
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text(currentDatesheet.title || 'Date Sheet', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
+
+      doc.setFontSize(14)
+      doc.text(`Class: ${className}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' })
+
+      if (currentDatesheet.exam_center) {
+        doc.setFontSize(12)
+        doc.text(`Exam Center: ${currentDatesheet.exam_center}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' })
+      }
+
+      // Prepare table data
+      const tableData = []
+      const headers = ['Sr.', 'Date', 'Day', 'Subject', 'Time']
+
+      examDates.forEach((date, index) => {
+        const schedule = classSchedules.find(s => s.exam_date === date)
+        if (schedule) {
+          const dateObj = new Date(date)
+          const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' })
+          const formattedDate = dateObj.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          })
+
+          tableData.push([
+            index + 1,
+            formattedDate,
+            dayName,
+            getSubjectName(schedule.subject_id),
+            `${schedule.start_time || ''} - ${schedule.end_time || ''}`
+          ])
+        }
+      })
+
+      // Add table
+      autoTable(doc, {
+        startY: currentDatesheet.exam_center ? 38 : 32,
+        head: [headers],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [30, 58, 138], // blue-900
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { cellWidth: 20 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 80 },
+          4: { cellWidth: 70 }
+        }
+      })
+
+      // Save PDF
+      doc.save(`${currentDatesheet.title}_${className}_Datesheet.pdf`)
+      showToast('Datesheet downloaded successfully', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast('Failed to download datesheet', 'error')
+    }
+  }
+
+  const handleDownloadAllDatesheets = async () => {
+    try {
+      if (selectedClasses.length === 0) {
+        showToast('No classes to download', 'error')
+        return
+      }
+
+      // Create PDF
+      const doc = new jsPDF('landscape')
+      let isFirstPage = true
+
+      // Loop through each class and add to the same PDF
+      for (const classId of selectedClasses) {
+        const className = getClassName(classId)
+
+        // Get schedules for this class only that have subjects
+        const classSchedules = schedules.filter(s => s.class_id === classId && s.subject_id)
+
+        if (classSchedules.length === 0) {
+          continue // Skip classes with no schedule
+        }
+
+        // Get unique dates where exams are scheduled for this class
+        const examDates = [...new Set(classSchedules.map(s => s.exam_date))].sort()
+
+        // Add new page for each class (except the first one)
+        if (!isFirstPage) {
+          doc.addPage()
+        }
+        isFirstPage = false
+
+        // Add title for this class
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text(currentDatesheet.title || 'Date Sheet', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
+
+        doc.setFontSize(14)
+        doc.text(`Class: ${className}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' })
+
+        if (currentDatesheet.exam_center) {
+          doc.setFontSize(12)
+          doc.text(`Exam Center: ${currentDatesheet.exam_center}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' })
+        }
+
+        // Prepare table data
+        const tableData = []
+        const headers = ['Sr.', 'Date', 'Day', 'Subject', 'Time']
+
+        examDates.forEach((date, index) => {
+          const schedule = classSchedules.find(s => s.exam_date === date)
+          if (schedule) {
+            const dateObj = new Date(date)
+            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' })
+            const formattedDate = dateObj.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            })
+
+            tableData.push([
+              index + 1,
+              formattedDate,
+              dayName,
+              getSubjectName(schedule.subject_id),
+              `${schedule.start_time || ''} - ${schedule.end_time || ''}`
+            ])
+          }
+        })
+
+        // Add table
+        autoTable(doc, {
+          startY: currentDatesheet.exam_center ? 38 : 32,
+          head: [headers],
+          body: tableData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [30, 58, 138], // blue-900
+            textColor: 255,
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          bodyStyles: {
+            halign: 'center'
+          },
+          columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 50 },
+            3: { cellWidth: 80 },
+            4: { cellWidth: 70 }
+          }
+        })
+      }
+
+      // Save single PDF with all classes
+      doc.save(`${currentDatesheet.title}_All_Classes_Datesheet.pdf`)
+      showToast(`Downloaded datesheet for ${selectedClasses.length} classes`, 'success')
+    } catch (error) {
+      console.error('Error downloading all datesheets:', error)
+      showToast('Failed to download all datesheets', 'error')
+    }
+  }
+
   const resetForm = () => {
     setSelectedClasses([])
     setDatesheetTitle('')
@@ -788,6 +1023,26 @@ export default function DatesheetPage() {
   const getSubjectName = (subjectId) => {
     const subject = subjects.find(s => s.id === subjectId)
     return subject?.subject_name || ''
+  }
+
+  // Check if a class has any unscheduled subjects
+  const hasUnscheduledSubjects = (classId) => {
+    if (!classId) return false
+
+    // Get all subject IDs for this class from the classSubjectsMap
+    const totalClassSubjects = classSubjectsMap[classId] || []
+
+    // Get all scheduled subject IDs for this class
+    const scheduledSubjectIds = schedules
+      .filter(s => s.class_id === classId && s.subject_id)
+      .map(s => s.subject_id)
+
+    // Check if there are subjects not yet scheduled
+    const unscheduledSubjects = totalClassSubjects.filter(
+      subjectId => !scheduledSubjectIds.includes(subjectId)
+    )
+
+    return unscheduledSubjects.length > 0
   }
 
   const filteredDatesheets = datesheets.filter(datesheet =>
@@ -1506,21 +1761,23 @@ export default function DatesheetPage() {
   return (
     <div className="p-1">
       {/* Tabs */}
-      <div className="flex gap-2 mb-2">
-        {['datesheets', 'reports'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition-colors capitalize rounded-lg ${
-              activeTab === tab
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            {tab === 'datesheets' ? 'Datesheets Management' : 'Reports & Slips'}
-          </button>
-        ))}
-      </div>
+      {activeTab !== 'schedule' && (
+        <div className="flex gap-2 mb-2">
+          {['datesheets', 'reports'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 text-sm font-medium transition-colors capitalize rounded-lg ${
+                activeTab === tab
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {tab === 'datesheets' ? 'Datesheets Management' : 'Reports & Slips'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* DATESHEETS TAB */}
       {activeTab === 'datesheets' && (
@@ -1562,52 +1819,52 @@ export default function DatesheetPage() {
             <span className="font-semibold"> {session?.name || 'Loading...'}</span>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-blue-600 text-white">
-            <tr>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Datesheet Title</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Start Date</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Exam Center</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold">Options</th>
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-blue-900 text-white">
+              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Datesheet Title</th>
+              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Start Date</th>
+              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Exam Center</th>
+              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {filteredDatesheets.length > 0 ? (
               filteredDatesheets.map((datesheet, index) => (
-                <tr key={datesheet.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 text-sm">{index + 1}</td>
-                  <td className="px-3 py-2 text-sm font-medium">{datesheet.title}</td>
-                  <td className="px-3 py-2 text-sm">{datesheet.start_date || '-'}</td>
-                  <td className="px-3 py-2 text-sm">{datesheet.exam_center || '-'}</td>
-                  <td className="px-3 py-2">
+                <tr key={datesheet.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                  <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
+                  <td className="px-3 py-2.5 font-medium border border-gray-200">{datesheet.title}</td>
+                  <td className="px-3 py-2.5 border border-gray-200">{datesheet.start_date || '-'}</td>
+                  <td className="px-3 py-2.5 border border-gray-200">{datesheet.exam_center || '-'}</td>
+                  <td className="px-3 py-2.5 border border-gray-200">
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleOpenSchedule(datesheet)}
-                        className="bg-orange-500 text-white px-4 py-1 rounded text-sm hover:bg-orange-600 flex items-center gap-1"
+                        className="bg-blue-900 text-white px-4 py-1 rounded text-sm hover:bg-blue-800 flex items-center gap-1"
                       >
                         <Calendar className="w-4 h-4" />
                         Schedule
                       </button>
                       <button
                         onClick={() => handleGeneratePDF(datesheet)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        className="text-blue-600 hover:text-blue-800 p-1"
                         title="Download PDF"
                       >
-                        <Download className="w-4 h-4" />
+                        <Download className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleOpenEditDatesheet(datesheet)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        className="text-blue-600 hover:text-blue-800 p-1"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDeleteDatesheet(datesheet.id)}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        className="text-red-600 hover:text-red-800 p-1"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </td>
@@ -1796,90 +2053,121 @@ export default function DatesheetPage() {
         </>
       )}
 
-      {/* Schedule Modal */}
-      {showScheduleModal && currentDatesheet && (
-        <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowScheduleModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Update Date Sheet Schedule ({currentDatesheet.title})</h2>
-                <button onClick={() => setShowScheduleModal(false)} className="hover:bg-blue-800 p-1 rounded">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-            <div className="flex-1 overflow-auto p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-300">
-                  <thead>
-                    <tr className="bg-blue-600 text-white">
-                      <th className="border border-gray-300 px-3 py-2 text-sm">Sr.</th>
-                      <th className="border border-gray-300 px-3 py-2 text-sm">Class Name</th>
-                      {scheduleDates.map(date => (
-                        <th key={date} className="border border-gray-300 px-3 py-2 text-sm min-w-[150px]">
-                          {new Date(date).toLocaleDateString('en-US', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedClasses?.map((classId, index) => (
-                      <tr key={classId}>
-                        <td className="border border-gray-300 px-3 py-2 text-center text-sm">{index + 1}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm font-medium">
-                          {getClassName(classId)}
-                        </td>
-                        {scheduleDates.map(date => {
-                          const schedule = getScheduleForClassAndDate(classId, date)
-                          return (
-                            <td key={date} className="border border-gray-300 px-2 py-2 text-sm">
-                              {schedule?.subject_id ? (
-                                <div className="flex flex-col gap-1">
-                                  <div className="font-medium text-blue-600">
-                                    {getSubjectName(schedule.subject_id)}
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <button
-                                      onClick={() => handleEditSchedule(schedule)}
-                                      className="text-green-600 hover:text-green-800"
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteSchedule(schedule.id)}
-                                      className="text-red-600 hover:text-red-800"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                schedule && (
-                                  <button
-                                    onClick={() => handleEditSchedule(schedule)}
-                                    className="text-blue-500 hover:text-blue-700 text-xs"
-                                  >
-                                    + Add Subject
-                                  </button>
-                                )
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      {/* SCHEDULE SECTION */}
+      {activeTab === 'schedule' && currentDatesheet && (
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          {/* Header with Back Button */}
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => setActiveTab('datesheets')}
+              className="flex items-center gap-2 text-gray-700 hover:text-gray-900 font-medium transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Datesheets
+            </button>
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Update Date Sheet Schedule - {currentDatesheet.title}
+              </h2>
             </div>
-            </div>
+            <button
+              onClick={handleDownloadAllDatesheets}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+            >
+              <Download className="w-4 h-4" />
+              Download All Classes
+            </button>
           </div>
-        </>
+
+          {/* Schedule Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-blue-900 text-white">
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Sr.</th>
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Class Name</th>
+                  {scheduleDates.map(date => (
+                    <th key={date} className="border border-blue-800 px-3 py-2.5 font-semibold min-w-[150px]">
+                      {new Date(date).toLocaleDateString('en-US', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </th>
+                  ))}
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedClasses?.map((classId, index) => (
+                  <tr key={classId} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                    <td className="border border-gray-200 px-3 py-2.5 text-center">{index + 1}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 font-medium">
+                      {getClassName(classId)}
+                    </td>
+                    {scheduleDates.map(date => {
+                      const schedule = getScheduleForClassAndDate(classId, date)
+                      return (
+                        <td key={date} className="border border-gray-200 px-2 py-2.5">
+                          {schedule?.subject_id ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="font-medium text-blue-600">
+                                {getSubjectName(schedule.subject_id)}
+                              </div>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleEditSchedule(schedule)}
+                                  className="text-blue-600 hover:text-blue-800 p-1"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSchedule(schedule.id)}
+                                  className="text-red-600 hover:text-red-800 p-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            schedule && hasUnscheduledSubjects(classId) && (
+                              <button
+                                onClick={() => handleEditSchedule(schedule)}
+                                className="text-blue-500 hover:text-blue-700 text-xs"
+                              >
+                                + Add Subject
+                              </button>
+                            )
+                          )}
+                        </td>
+                      )
+                    })}
+                    <td className="border border-gray-200 px-3 py-2.5 text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          onClick={() => handleDownloadClassDatesheet(classId)}
+                          className="text-blue-600 hover:text-blue-800 p-1"
+                          title="Download Datesheet"
+                        >
+                          <Download className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClassFromSchedule(classId)}
+                          className="text-red-600 hover:text-red-800 p-1"
+                          title="Delete Class"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {/* Edit Datesheet Modal */}
@@ -2010,9 +2298,25 @@ export default function DatesheetPage() {
                 >
                   <option value="">Select Subject</option>
                   {classSubjects.length > 0 ? (
-                    classSubjects.map(subject => (
-                      <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
-                    ))
+                    (() => {
+                      // Get all subject IDs already scheduled for this class
+                      const scheduledSubjectIds = schedules
+                        .filter(s => s.class_id === editingSchedule.class_id && s.subject_id && s.id !== editingSchedule.id)
+                        .map(s => s.subject_id)
+
+                      // Filter out subjects that are already scheduled
+                      const availableSubjects = classSubjects.filter(subject =>
+                        !scheduledSubjectIds.includes(subject.id)
+                      )
+
+                      if (availableSubjects.length === 0) {
+                        return <option value="" disabled>All subjects already scheduled</option>
+                      }
+
+                      return availableSubjects.map(subject => (
+                        <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
+                      ))
+                    })()
                   ) : (
                     <option value="" disabled>No subjects assigned to this class</option>
                   )}
@@ -2105,53 +2409,24 @@ export default function DatesheetPage() {
 
           {/* Reports Table */}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-blue-600 text-white">
-                  <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold">Sr.</th>
-                  <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold">Report Type</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold">Actions</th>
+                <tr className="bg-blue-900 text-white">
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Report Type</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="bg-gray-200">
-                  <td colSpan="3" className="border border-gray-300 px-3 py-1 text-sm font-semibold text-gray-700">
-                    Date Sheet Reports
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 text-sm">1</td>
-                  <td className="border border-gray-300 px-3 py-2 text-sm font-medium">Single Class Datesheet</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">
-                    <button
-                      onClick={handleSingleClassDatesheet}
-                      className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
-                    >
-                      Generate
-                    </button>
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 text-sm">2</td>
-                  <td className="border border-gray-300 px-3 py-2 text-sm font-medium">All Classes Datesheet</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">
-                    <button
-                      onClick={handleAllClassesDatesheet}
-                      className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
-                    >
-                      Generate
-                    </button>
-                  </td>
-                </tr>
-                <tr className="bg-gray-200">
-                  <td colSpan="3" className="border border-gray-300 px-3 py-1 text-sm font-semibold text-gray-700">
+                  <td colSpan="3" className="border border-gray-200 px-3 py-1 font-semibold text-gray-700">
                     Roll No Slips
                   </td>
                 </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 text-sm">3</td>
-                  <td className="border border-gray-300 px-3 py-2 text-sm font-medium">Roll No Slips</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">
+                <tr className="bg-white hover:bg-blue-50 transition">
+                  <td className="border border-gray-200 px-3 py-2.5">1</td>
+                  <td className="border border-gray-200 px-3 py-2.5 font-medium">Roll No Slips</td>
+                  <td className="border border-gray-200 px-3 py-2.5 text-center">
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => handleViewGeneratedSlips('rollno')}
@@ -2194,34 +2469,34 @@ export default function DatesheetPage() {
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
                 {generatedSlips.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-300">
+                    <table className="w-full border-collapse text-sm">
                       <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-gray-300 px-4 py-2 text-left">Sr.</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Student Name</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Father Name</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Roll No</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Slip Number</th>
-                          <th className="border border-gray-300 px-4 py-2 text-left">Generated On</th>
-                          <th className="border border-gray-300 px-4 py-2 text-center">Actions</th>
+                        <tr className="bg-blue-900 text-white">
+                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Sr.</th>
+                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Student Name</th>
+                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Father Name</th>
+                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Roll No</th>
+                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Slip Number</th>
+                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Generated On</th>
+                          <th className="border border-blue-800 px-4 py-2.5 text-center font-semibold">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {generatedSlips.map((slip, index) => (
-                          <tr key={slip.id} className="hover:bg-gray-50">
-                            <td className="border border-gray-300 px-4 py-2">{index + 1}</td>
-                            <td className="border border-gray-300 px-4 py-2">
+                          <tr key={slip.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                            <td className="border border-gray-200 px-4 py-2.5">{index + 1}</td>
+                            <td className="border border-gray-200 px-4 py-2.5">
                               {slip.students?.first_name && slip.students?.last_name
                                 ? `${slip.students.first_name} ${slip.students.last_name}`
                                 : slip.students?.first_name || 'N/A'}
                             </td>
-                            <td className="border border-gray-300 px-4 py-2">{slip.students?.father_name || 'N/A'}</td>
-                            <td className="border border-gray-300 px-4 py-2">{slip.students?.roll_number || 'N/A'}</td>
-                            <td className="border border-gray-300 px-4 py-2">{slip.slip_number}</td>
-                            <td className="border border-gray-300 px-4 py-2">
+                            <td className="border border-gray-200 px-4 py-2.5">{slip.students?.father_name || 'N/A'}</td>
+                            <td className="border border-gray-200 px-4 py-2.5">{slip.students?.roll_number || 'N/A'}</td>
+                            <td className="border border-gray-200 px-4 py-2.5">{slip.slip_number}</td>
+                            <td className="border border-gray-200 px-4 py-2.5">
                               {new Date(slip.created_at).toLocaleDateString()}
                             </td>
-                            <td className="border border-gray-300 px-4 py-2 text-center">
+                            <td className="border border-gray-200 px-4 py-2.5 text-center">
                               <button
                                 onClick={() => generateRollNoSlipPDF(slip)}
                                 className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm flex items-center gap-1 mx-auto"
@@ -2500,16 +2775,11 @@ export default function DatesheetPage() {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-green-500' :
-              toast.type === 'error' ? 'bg-red-500' :
-              toast.type === 'warning' ? 'bg-yellow-500' :
-              'bg-blue-500'
-            }`}
+            className="flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg bg-green-600 text-white transform transition-all duration-300"
           >
             {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0 text-red-400" />}
+            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0 text-yellow-400" />}
             <span className="flex-1 text-sm font-medium">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}

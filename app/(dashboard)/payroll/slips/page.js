@@ -463,7 +463,7 @@ export default function SalarySlipsPage() {
       />
 
       {/* Search and Filter Section */}
-      <div className="bg-white rounded-lg shadow-md p-2 mb-2">
+      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
         <div className="flex flex-col md:flex-row gap-2 mb-2">
           {/* Search Type Dropdown */}
           <div className="w-full md:w-48">
@@ -494,7 +494,7 @@ export default function SalarySlipsPage() {
           {/* Advanced Search Toggle */}
           <button
             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 text-sm rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 text-sm rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             <Filter size={18} />
             Advance Search
@@ -531,27 +531,27 @@ export default function SalarySlipsPage() {
           </div>
         )}
 
-        <p className="text-xs text-gray-500 mt-2">
-          There are <span className="font-bold text-blue-600">{filteredPayments.length}</span> salary slips.
+        <p className="text-sm text-gray-600">
+          There are <span className="font-semibold text-red-600">{filteredPayments.length}</span> salary slips.
         </p>
       </div>
 
       {/* Salary Slips Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading salary slips...</div>
         ) : filteredPayments.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-blue-600 text-white">
-                  <th className="px-2 py-1 text-xs text-left font-semibold">Sr.</th>
-                  <th className="px-2 py-1 text-xs text-left font-semibold">Staff Name</th>
-                  <th className="px-2 py-1 text-xs text-left font-semibold">Narration</th>
-                  <th className="px-2 py-1 text-xs text-right font-semibold">Total</th>
-                  <th className="px-2 py-1 text-xs text-right font-semibold">Balance</th>
-                  <th className="px-2 py-1 text-xs text-center font-semibold">Status</th>
-                  <th className="px-2 py-1 text-xs text-center font-semibold">Options</th>
+                <tr className="bg-blue-900 text-white">
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Staff Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Narration</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Total</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Balance</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Status</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Options</th>
                 </tr>
               </thead>
               <tbody>
@@ -559,9 +559,9 @@ export default function SalarySlipsPage() {
                   const balance = calculateBalance(payment)
 
                   return (
-                    <tr key={payment.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-2 py-1 text-xs text-gray-700">{index + 1}</td>
-                      <td className="px-2 py-1">
+                    <tr key={payment.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                      <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
+                      <td className="border border-gray-200 px-3 py-2.5">
                         <div className="flex items-center gap-2">
                           {payment.staff?.photo_url ? (
                             <img
@@ -588,36 +588,39 @@ export default function SalarySlipsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-2 py-1 text-xs text-gray-700">
+                      <td className="border border-gray-200 px-3 py-2.5 text-gray-700">
                         Salary Slip ({getMonthName(payment.payment_month)} - {payment.payment_year})
                       </td>
-                      <td className="px-2 py-1 text-xs text-right font-semibold text-gray-800">
+                      <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold text-gray-800">
                         Rs{parseFloat(payment.net_salary || 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-1 text-xs text-right font-semibold text-gray-800">
+                      <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold text-gray-800">
                         Rs{balance.toLocaleString()}
                       </td>
-                      <td className="px-2 py-1 text-center">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${
-                          payment.status === 'paid'
-                            ? 'bg-green-500 text-white'
-                            : payment.status === 'pending'
-                            ? 'bg-orange-500 text-white'
-                            : payment.status === 'partial'
-                            ? 'bg-yellow-500 text-white'
-                            : 'bg-gray-500 text-white'
-                        }`}>
-                          {payment.status === 'paid'
-                            ? 'Full Paid'
-                            : payment.status === 'pending'
-                            ? 'Pending'
-                            : payment.status === 'partial'
-                            ? 'Partial'
-                            : payment.status
-                          }
-                        </span>
+                      <td className="border border-gray-200 px-3 py-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className={`w-2.5 h-2.5 rounded-full ${
+                            payment.status === 'paid'
+                              ? 'bg-green-500'
+                              : payment.status === 'pending'
+                              ? 'bg-orange-500'
+                              : payment.status === 'partial'
+                              ? 'bg-yellow-500'
+                              : 'bg-gray-500'
+                          }`}></span>
+                          <span className="text-xs font-medium text-gray-700">
+                            {payment.status === 'paid'
+                              ? 'Full Paid'
+                              : payment.status === 'pending'
+                              ? 'Pending'
+                              : payment.status === 'partial'
+                              ? 'Partial'
+                              : payment.status
+                            }
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-2 py-1">
+                      <td className="border border-gray-200 px-3 py-2.5">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleViewDetails(payment)}
@@ -699,7 +702,7 @@ export default function SalarySlipsPage() {
                   <h4 className="text-sm font-semibold text-gray-800 mb-2">Salary Breakdown</h4>
                   <table className="w-full border-collapse border border-gray-300">
                     <tbody>
-                      <tr className="bg-gray-100">
+                      <tr className="bg-blue-900 text-white">
                         <td className="border border-gray-300 px-2 py-1 text-xs font-medium">Basic Salary</td>
                         <td className="border border-gray-300 px-2 py-1 text-xs text-right">Rs{parseFloat(selectedPayment.basic_salary || 0).toLocaleString()}</td>
                       </tr>

@@ -58,44 +58,44 @@ export default function PayrollReportsPage() {
   return (
     <div className="p-1">
       {/* Reports Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-blue-600">
-              <th className="px-3 py-2 text-left text-sm font-semibold text-white w-20">
+            <tr className="bg-blue-900 text-white">
+              <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold w-20">
                 Sr.
               </th>
-              <th className="px-3 py-2 text-left text-sm font-semibold text-white">
+              <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">
                 Report Name
               </th>
-              <th className="px-3 py-2 text-center text-sm font-semibold text-white w-32">
+              <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold w-32">
                 Action
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {reports.map((report, index) => {
               const Icon = report.icon
               return (
-                <tr key={report.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
+                <tr key={report.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                  <td className="border border-gray-200 px-3 py-2.5 text-gray-700">
                     {index + 1}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="border border-gray-200 px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                         <Icon className="w-4 h-4 text-blue-600" />
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-gray-800">{report.title}</div>
+                        <div className="font-semibold text-gray-800">{report.title}</div>
                         <div className="text-xs text-gray-500">{report.description}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center">
+                  <td className="border border-gray-200 px-3 py-2.5 text-center">
                     <button
                       onClick={() => handleViewReport(report.href)}
-                      className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-lg font-medium text-sm transition-colors"
+                      className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded-lg font-medium transition-colors"
                     >
                       <Eye size={16} />
                       View

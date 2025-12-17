@@ -336,11 +336,11 @@ export default function StudentAttendancePage() {
   }
 
   return (
-    <div className="p-3">
+    <div className="p-1">
       <h1 className="text-2xl font-bold mb-4">Student Attendance</h1>
 
       {/* Fetch Students Section */}
-      <div className="bg-white rounded-lg shadow p-3 mb-4">
+      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
         <h2 className="text-lg font-semibold mb-3">Fetch Students for Attendance</h2>
         <div className="flex items-end gap-3">
           <div className="flex-1">
@@ -353,7 +353,7 @@ export default function StudentAttendancePage() {
                 setFilteredStudents([])
                 setAttendanceRecords({})
               }}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All Classes</option>
               {classes.map(cls => (
@@ -373,7 +373,7 @@ export default function StudentAttendancePage() {
                   setFilteredStudents([])
                   setAttendanceRecords({})
                 }}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">All Sections</option>
                 {sections.map(section => (
@@ -389,14 +389,14 @@ export default function StudentAttendancePage() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <button
             onClick={handleLoadAttendance}
             disabled={loading}
-            className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 disabled:bg-gray-400"
+            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 font-medium transition-colors"
           >
             {loading ? 'Loading...' : 'Load'}
           </button>
@@ -405,13 +405,13 @@ export default function StudentAttendancePage() {
 
       {/* Search and Filters */}
       {studentList.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-3 mb-4">
+        <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <select
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="default">Default Search</option>
                 <option value="name">By Name</option>
@@ -424,7 +424,7 @@ export default function StudentAttendancePage() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Members</option>
               </select>
@@ -436,7 +436,7 @@ export default function StudentAttendancePage() {
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
@@ -445,7 +445,7 @@ export default function StudentAttendancePage() {
                 onChange={(e) => handleMarkAll(e.target.value)}
                 value=""
                 disabled={saving}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Mark All Attendance</option>
                 <option value="present">Present</option>
@@ -461,28 +461,28 @@ export default function StudentAttendancePage() {
 
       {/* Students Table */}
       {studentList.length > 0 ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-blue-600">
-                <tr>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Sr.</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Name</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Father Name</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">ADM</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Class</th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-white">Roll.No</th>
-                  <th className="px-3 py-2 text-center text-sm font-semibold text-white">Status</th>
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-blue-900 text-white">
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Father Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">ADM</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Class</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Roll.No</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {filteredStudents.length > 0 ? (
                   filteredStudents.map((student, index) => {
                     const currentStatus = attendanceRecords[student.id]
                     return (
-                      <tr key={student.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-sm text-gray-700">{index + 1}</td>
-                        <td className="px-3 py-2">
+                      <tr key={student.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
+                        <td className="border border-gray-200 px-3 py-2.5">
                           <div className="flex items-center gap-2">
                             {student.photo_url ? (
                               <img 
@@ -496,20 +496,20 @@ export default function StudentAttendancePage() {
                               </div>
                             )}
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="font-medium text-gray-900">
                                 {student.first_name} {student.last_name}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-sm text-gray-700">{student.father_name || '-'}</td>
-                        <td className="px-3 py-2 text-sm text-gray-700">{student.admission_number || '-'}</td>
-                        <td className="px-3 py-2 text-sm text-gray-700">
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{student.father_name || '-'}</td>
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{student.admission_number || '-'}</td>
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">
                           {getClassName(student.current_class_id)}
                           {getSectionName(student.current_section_id) && `(${getSectionName(student.current_section_id)})`}
                         </td>
-                        <td className="px-3 py-2 text-sm text-gray-700">{student.roll_number || '-'}</td>
-                        <td className="px-3 py-2">
+                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{student.roll_number || '-'}</td>
+                        <td className="border border-gray-200 px-3 py-2.5">
                           <div className="flex justify-center gap-1 flex-wrap">
                             <button
                               onClick={() => markAttendance(student, 'present')}
@@ -573,7 +573,7 @@ export default function StudentAttendancePage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-3 py-6 text-center text-gray-500">
+                    <td colSpan="7" className="border border-gray-200 px-3 py-6 text-center text-gray-500">
                       No students found matching your search criteria
                     </td>
                   </tr>
@@ -583,7 +583,7 @@ export default function StudentAttendancePage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+        <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
           Please select a class and click "Load" to view students
         </div>
       )}
