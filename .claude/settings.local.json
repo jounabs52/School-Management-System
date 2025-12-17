@@ -4,7 +4,9 @@
       "Bash(wc:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx eslint:*)",
+      "Bash(node -e:*)"
     ]
   }
 }
