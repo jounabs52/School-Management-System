@@ -522,127 +522,118 @@ export default function StudentReportsPage() {
     }
   }
 
-  const handleView = (item) => {
-    showToast('View functionality - Coming soon!', 'success')
-    console.log('View item:', item)
-  }
-
-  const handleEdit = (item) => {
-    showToast('Edit functionality - Coming soon!', 'success')
-    console.log('Edit item:', item)
-  }
 
   return (
-    <div className="p-4 lg:p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="p-3 sm:p-4 lg:p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 transform hover:scale-105 transition-transform">
-              <Award className="text-white" size={28} />
+      <div className="mb-4 sm:mb-6 lg:mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 transform hover:scale-105 transition-transform flex-shrink-0">
+              <Award className="text-white" size={20} />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent truncate">
                 Student Reports
               </h1>
-              <p className="text-sm text-gray-600 mt-1">Real-time certificates and ID cards management</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1 truncate">Real-time certificates and ID cards management</p>
             </div>
           </div>
 
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 disabled:opacity-50 w-full md:w-auto"
           >
-            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
-            <span className="font-medium">Refresh</span>
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+            <span className="font-medium text-sm sm:text-base">Refresh</span>
           </button>
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
-                <FileText className="text-white" size={24} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                <FileText className="text-white" size={20} />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-800">{stats.totalCertificates}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.totalCertificates}</p>
               </div>
             </div>
-            <p className="text-sm font-medium text-gray-600">Total Certificates</p>
-            <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp size={14} />
-              <span>All time</span>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Certificates</p>
+            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-green-600">
+              <TrendingUp size={12} className="flex-shrink-0" />
+              <span className="truncate">All time</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                <CreditCard className="text-white" size={24} />
+          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                <CreditCard className="text-white" size={20} />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-800">{stats.totalCards}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.totalCards}</p>
               </div>
             </div>
-            <p className="text-sm font-medium text-gray-600">Total ID Cards</p>
-            <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp size={14} />
-              <span>All time</span>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total ID Cards</p>
+            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-green-600">
+              <TrendingUp size={12} className="flex-shrink-0" />
+              <span className="truncate">All time</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
-                <Award className="text-white" size={24} />
+          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                <Award className="text-white" size={20} />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-800">{stats.activeCards}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.activeCards}</p>
               </div>
             </div>
-            <p className="text-sm font-medium text-gray-600">Active Cards</p>
-            <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp size={14} />
-              <span>Currently valid</span>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Active Cards</p>
+            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-green-600">
+              <TrendingUp size={12} className="flex-shrink-0" />
+              <span className="truncate">Currently valid</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
-                <Calendar className="text-white" size={24} />
+          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                <Calendar className="text-white" size={20} />
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-gray-800">{stats.expiredCards}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.expiredCards}</p>
               </div>
             </div>
-            <p className="text-sm font-medium text-gray-600">Expired Cards</p>
-            <div className="mt-2 flex items-center gap-1 text-xs text-orange-600">
-              <Calendar size={14} />
-              <span>Need renewal</span>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Expired Cards</p>
+            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-orange-600">
+              <Calendar size={12} className="flex-shrink-0" />
+              <span className="truncate">Need renewal</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20">
+      <div className="bg-white/80 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-xl border border-white/20">
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <div className="flex gap-2 p-4">
+          <div className="flex flex-col sm:flex-row gap-2 p-3 sm:p-4">
             <button
               onClick={() => setActiveTab('certificates')}
-              className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all transform ${
+              className={`flex items-center justify-center sm:justify-start gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl font-semibold transition-all transform text-sm sm:text-base ${
                 activeTab === 'certificates'
                   ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-500/30 scale-105'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
               }`}
             >
-              <FileText size={20} />
-              <span>Certificates</span>
-              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+              <FileText size={18} className="flex-shrink-0" />
+              <span className="truncate">Certificates</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold whitespace-nowrap ${
                 activeTab === 'certificates' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
                 {certificates.length}
@@ -650,15 +641,15 @@ export default function StudentReportsPage() {
             </button>
             <button
               onClick={() => setActiveTab('cards')}
-              className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all transform ${
+              className={`flex items-center justify-center sm:justify-start gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl font-semibold transition-all transform text-sm sm:text-base ${
                 activeTab === 'cards'
                   ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
               }`}
             >
-              <CreditCard size={20} />
-              <span>ID Cards</span>
-              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+              <CreditCard size={18} className="flex-shrink-0" />
+              <span className="truncate">ID Cards</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold whitespace-nowrap ${
                 activeTab === 'cards' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
                 {idCards.length}
@@ -668,25 +659,25 @@ export default function StudentReportsPage() {
         </div>
 
         {/* Filters Section */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-br from-gray-50 to-white">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
-              <Search size={16} className="text-white" />
+        <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200 bg-gradient-to-br from-gray-50 to-white">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4 lg:mb-5">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Search size={14} className="text-white" />
             </div>
-            <h3 className="font-bold text-gray-800 text-lg">Search & Filter</h3>
+            <h3 className="font-bold text-gray-800 text-base sm:text-lg truncate">Search & Filter</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {/* Class Filter */}
             <div className="group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                 Filter by Class
               </label>
               <div className="relative">
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all group-hover:border-gray-300 appearance-none cursor-pointer font-medium"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all group-hover:border-gray-300 appearance-none cursor-pointer font-medium text-sm"
                 >
                   <option value="">All Classes</option>
                   {classes.map((cls) => (
@@ -695,8 +686,8 @@ export default function StudentReportsPage() {
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
@@ -705,34 +696,34 @@ export default function StudentReportsPage() {
 
             {/* Name Search */}
             <div className="group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                 Search by Name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors" size={20} />
+                <User className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" size={18} />
                 <input
                   type="text"
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                   placeholder="Enter student name..."
-                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium"
+                  className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium text-sm"
                 />
               </div>
             </div>
 
             {/* Admission Number Search */}
             <div className="group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                 Search by Admission No
               </label>
               <div className="relative">
-                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors" size={20} />
+                <Hash className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" size={18} />
                 <input
                   type="text"
                   value={searchAdmissionNo}
                   onChange={(e) => setSearchAdmissionNo(e.target.value)}
                   placeholder="Enter admission number..."
-                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium"
+                  className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium text-sm"
                 />
               </div>
             </div>
@@ -740,26 +731,26 @@ export default function StudentReportsPage() {
 
           {/* Clear Filters Button */}
           {(selectedClass || searchName || searchAdmissionNo) && (
-            <div className="mt-5">
+            <div className="mt-3 sm:mt-4 lg:mt-5">
               <button
                 onClick={clearFilters}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-semibold transition-all"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-semibold transition-all text-xs sm:text-sm"
               >
-                <X size={16} />
-                Clear all filters
+                <X size={14} className="flex-shrink-0" />
+                <span>Clear all filters</span>
               </button>
             </div>
           )}
         </div>
 
         {/* Results Section */}
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-800">
+        <div className="p-3 sm:p-4 lg:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 truncate">
                 {activeTab === 'certificates' ? 'Certificates List' : 'ID Cards List'}
               </h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 truncate">
                 {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
               </p>
             </div>
@@ -795,29 +786,29 @@ export default function StudentReportsPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-100">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full border-collapse min-w-max">
                   <thead>
                     <tr className="bg-gradient-to-r from-blue-900 to-blue-800 text-white">
-                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Sr.</th>
-                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Student Name</th>
-                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Father Name</th>
-                      <th className="px-4 py-3 text-left font-bold border border-gray-300">Class</th>
+                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Sr.</th>
+                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Student Name</th>
+                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Father Name</th>
+                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Class</th>
                     {activeTab === 'certificates' ? (
                       <>
-                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Type</th>
-                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Issue Date</th>
-                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Remarks</th>
+                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Type</th>
+                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Issue Date</th>
+                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Remarks</th>
                       </>
                     ) : (
                       <>
-                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Issue Date</th>
-                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Expiry Date</th>
-                        <th className="px-4 py-3 text-left font-bold border border-gray-300">Status</th>
+                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Issue Date</th>
+                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Expiry Date</th>
+                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Status</th>
                       </>
                     )}
-                    <th className="px-4 py-3 text-center font-bold border border-gray-300">Actions</th>
+                    <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-center font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -828,70 +819,70 @@ export default function StudentReportsPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-4 py-3 border border-gray-200">
-                        <div className="flex items-center gap-2">
-                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200 text-xs sm:text-sm">{startIndex + index + 1}</td>
+                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                             {item.photo_url ? (
                               <img src={item.photo_url} alt={item.student_first_name} className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-lg font-bold">
+                              <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm sm:text-base lg:text-lg font-bold">
                                 {item.student_first_name.charAt(0)}
                               </div>
                             )}
                           </div>
-                          <span className="text-blue-600 font-medium hover:underline cursor-pointer">
+                          <span className="text-blue-600 font-medium hover:underline cursor-pointer text-xs sm:text-sm truncate">
                             {item.student_first_name} {item.student_last_name}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">{item.father_name}</td>
-                      <td className="px-4 py-3 border border-gray-200">
-                        <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold">
+                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200 text-xs sm:text-sm">{item.father_name}</td>
+                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                        <span className="inline-block px-2 sm:px-3 py-0.5 sm:py-1 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap">
                           {item.class_name}
                         </span>
                       </td>
                       {activeTab === 'certificates' ? (
                         <>
-                          <td className="px-4 py-3 border border-gray-200">
-                            <span className="inline-block px-4 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-sm font-semibold capitalize shadow-sm">
+                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                            <span className="inline-block px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs sm:text-sm font-semibold capitalize shadow-sm whitespace-nowrap">
                               {item.certificate_type}
                             </span>
                           </td>
-                          <td className="px-4 py-3 border border-gray-200">
-                            <div className="flex items-center gap-2 text-gray-700">
-                              <Calendar size={16} className="text-gray-400" />
-                              <span className="font-medium">
+                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                            <div className="flex items-center gap-1 sm:gap-2 text-gray-700">
+                              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                              <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
                                 {new Date(item.issue_date).toLocaleDateString('en-GB')}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 border border-gray-200">
-                            <span className="text-gray-600 text-sm">
+                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                            <span className="text-gray-600 text-xs sm:text-sm">
                               {item.remarks || '-'}
                             </span>
                           </td>
                         </>
                       ) : (
                         <>
-                          <td className="px-4 py-3 border border-gray-200">
-                            <div className="flex items-center gap-2 text-gray-700">
-                              <Calendar size={16} className="text-gray-400" />
-                              <span className="font-medium">
+                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                            <div className="flex items-center gap-1 sm:gap-2 text-gray-700">
+                              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                              <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
                                 {new Date(item.issue_date).toLocaleDateString('en-GB')}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 border border-gray-200">
-                            <div className="flex items-center gap-2 text-gray-700">
-                              <Calendar size={16} className="text-gray-400" />
-                              <span className="font-medium">
+                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                            <div className="flex items-center gap-1 sm:gap-2 text-gray-700">
+                              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                              <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
                                 {new Date(item.expiry_date).toLocaleDateString('en-GB')}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 border border-gray-200">
-                            <span className={`inline-block px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm capitalize ${
+                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                            <span className={`inline-block px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow-sm capitalize whitespace-nowrap ${
                               item.status === 'active'
                                 ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
                                 : 'bg-gradient-to-r from-red-500 to-red-600 text-white'
@@ -901,21 +892,21 @@ export default function StudentReportsPage() {
                           </td>
                         </>
                       )}
-                      <td className="px-4 py-3 border border-gray-200">
-                        <div className="flex items-center gap-1">
+                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
+                        <div className="flex items-center justify-center gap-0.5 sm:gap-1">
                           <button
                             onClick={() => handlePrint(item)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            className="p-1.5 sm:p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                             title="Download"
                           >
-                            <Download size={18} />
+                            <Download size={16} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>
@@ -927,15 +918,15 @@ export default function StudentReportsPage() {
 
             {/* Pagination Controls */}
             {filteredData.length > 0 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-                <div className="text-sm text-gray-600">
+              <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 bg-gray-50">
+                <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                   Showing {startIndex + 1} to {Math.min(endIndex, filteredData.length)} of {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition text-xs sm:text-sm ${
                       currentPage === 1
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -943,7 +934,7 @@ export default function StudentReportsPage() {
                   >
                     Previous
                   </button>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     {(() => {
                       const pages = []
                       const maxVisiblePages = 4
@@ -960,7 +951,7 @@ export default function StudentReportsPage() {
                           <button
                             key={i}
                             onClick={() => setCurrentPage(i)}
-                            className={`w-10 h-10 rounded-lg font-medium transition ${
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg font-medium transition text-xs sm:text-sm ${
                               currentPage === i
                                 ? 'bg-[#1E3A8A] text-white'
                                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
@@ -976,7 +967,7 @@ export default function StudentReportsPage() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition text-xs sm:text-sm ${
                       currentPage === totalPages
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1019,48 +1010,48 @@ export default function StudentReportsPage() {
             }}
             onClick={() => setShowDeleteModal(false)}
           />
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Trash2 size={20} />
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg sm:rounded-t-xl">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Trash2 size={18} />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold">Confirm Deletion</h3>
-                    <p className="text-red-100 text-xs mt-0.5">This action cannot be undone</p>
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg font-bold truncate">Confirm Deletion</h3>
+                    <p className="text-red-100 text-xs mt-0.5 truncate">This action cannot be undone</p>
                   </div>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="mb-6">
-                  <p className="text-gray-700 text-center">
+              <div className="p-4 sm:p-6">
+                <div className="mb-4 sm:mb-6">
+                  <p className="text-gray-700 text-center text-sm sm:text-base">
                     Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'} for
                   </p>
                   <p className="text-center mt-2">
-                    <span className="font-bold text-gray-900 text-base">
+                    <span className="font-bold text-gray-900 text-sm sm:text-base">
                       {itemToDelete.student_first_name} {itemToDelete.student_last_name}
                     </span>
                   </p>
-                  <p className="text-sm text-gray-500 text-center mt-1">
+                  <p className="text-xs sm:text-sm text-gray-500 text-center mt-1">
                     Admission No: {itemToDelete.admission_number}
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
                       setItemToDelete(null)
                     }}
-                    className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-all border border-gray-300"
+                    className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-all border border-gray-300 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2 text-sm"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                     Delete
                   </button>
                 </div>

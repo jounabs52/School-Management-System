@@ -15,18 +15,18 @@ function Toast({ message, type, onClose }) {
   }, [onClose])
 
   return (
-    <div className="fixed top-6 right-6 z-[10001] animate-slideIn">
-      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-xl border ${
-        type === 'success' 
-          ? 'bg-green-50 border-green-200 text-green-800' 
+    <div className="fixed top-4 right-4 z-[10001] animate-slideIn">
+      <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-xl border ${
+        type === 'success'
+          ? 'bg-green-50 border-green-200 text-green-800'
           : 'bg-red-50 border-red-200 text-red-800'
       }`}>
         {type === 'success' ? (
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
         ) : (
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
         )}
-        <span className="font-medium">{message}</span>
+        <span className="font-medium text-sm">{message}</span>
       </div>
     </div>
   )
@@ -343,7 +343,7 @@ export default function VehiclesPage() {
   }, [searchTerm])
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-2 bg-gray-50 min-h-screen">
       {/* Toast notification */}
       {toast && (
         <Toast
@@ -353,37 +353,31 @@ export default function VehiclesPage() {
         />
       )}
 
-      {/* Top Button */}
-      <div className="mb-6">
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-lg"
-        >
-          <Plus size={20} />
-          Add New Vehicle
-        </button>
-      </div>
-
       {/* Search Section */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Search Vehicle</h2>
-
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+      <div className="bg-white rounded-lg shadow p-2 mb-2">
+        <div className="flex flex-col md:flex-row gap-1.5 items-center">
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
+          >
+            <Plus size={12} />
+            Add Vehicle
+          </button>
+          <div className="flex-1 relative w-full">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={12} />
             <input
               type="text"
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
@@ -528,7 +522,7 @@ export default function VehiclesPage() {
             onClick={() => setShowModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -641,7 +635,7 @@ export default function VehiclesPage() {
             onClick={() => setShowEditModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>

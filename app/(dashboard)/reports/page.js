@@ -79,6 +79,11 @@ export default function ReportsPage() {
   const [isRealTimeActive, setIsRealTimeActive] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(new Date())
 
+  // Date filter states for Overview and Earnings
+  const [dateFilter, setDateFilter] = useState('all') // 'all', 'today', 'week', '15days', 'month', 'custom'
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+
   const months = [
     { value: 'all', label: 'All Months' },
     { value: '1', label: 'January' },
@@ -96,6 +101,61 @@ export default function ReportsPage() {
   ]
 
   const years = ['2025', '2024', '2023', '2022', '2021', '2020']
+
+  // Helper function to get date range based on filter
+  const getDateRange = () => {
+    const now = new Date()
+    let startDate = null
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+
+    switch (dateFilter) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+        break
+      case 'week':
+        startDate = new Date(now)
+        startDate.setDate(now.getDate() - 7)
+        startDate.setHours(0, 0, 0, 0)
+        break
+      case '15days':
+        startDate = new Date(now)
+        startDate.setDate(now.getDate() - 15)
+        startDate.setHours(0, 0, 0, 0)
+        break
+      case 'month':
+        startDate = new Date(now)
+        startDate.setDate(now.getDate() - 30)
+        startDate.setHours(0, 0, 0, 0)
+        break
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          startDate = new Date(customStartDate)
+          startDate.setHours(0, 0, 0, 0)
+          endDate = new Date(customEndDate)
+          endDate.setHours(23, 59, 59, 999)
+        }
+        break
+      case 'all':
+      default:
+        return { startDate: null, endDate: null }
+    }
+
+    return { startDate, endDate }
+  }
+
+  // Filter data by date range
+  const filterByDateRange = (data, dateField = 'created_at') => {
+    const { startDate, endDate } = getDateRange()
+
+    if (!startDate || !endDate) {
+      return data
+    }
+
+    return data.filter(item => {
+      const itemDate = new Date(item[dateField])
+      return itemDate >= startDate && itemDate <= endDate
+    })
+  }
 
   // Get current user from cookie
   useEffect(() => {
@@ -220,7 +280,7 @@ export default function ReportsPage() {
     if (allPayrollData.length > 0) {
       calculatePayrollMonthData()
     }
-  }, [selectedMonth, selectedYear, allYearData, allPayrollData])
+  }, [selectedMonth, selectedYear, allYearData, allPayrollData, dateFilter, customStartDate, customEndDate])
 
   const fetchAllData = useCallback(async (showLoader = true) => {
     if (!currentUser?.school_id || !supabase) return
@@ -361,10 +421,15 @@ export default function ReportsPage() {
   const calculateMonthData = () => {
     if (allYearData.length === 0) return
 
-    let yearFilteredData = allYearData
+    // Apply date range filter first (for Overview and Earnings sections)
+    let dateFilteredData = activeSection === 'overview' || activeSection === 'earning-report'
+      ? filterByDateRange(allYearData)
+      : allYearData
+
+    let yearFilteredData = dateFilteredData
     if (selectedYear !== 'all') {
       const year = parseInt(selectedYear)
-      yearFilteredData = allYearData.filter(challan => {
+      yearFilteredData = dateFilteredData.filter(challan => {
         const date = new Date(challan.created_at)
         return date.getFullYear() === year
       })
@@ -463,10 +528,15 @@ export default function ReportsPage() {
       return
     }
 
-    let yearFilteredData = allPayrollData
+    // Apply date range filter first (for Overview and Earnings sections)
+    let dateFilteredData = activeSection === 'overview' || activeSection === 'earning-report'
+      ? filterByDateRange(allPayrollData)
+      : allPayrollData
+
+    let yearFilteredData = dateFilteredData
     if (selectedYear !== 'all') {
       const year = parseInt(selectedYear)
-      yearFilteredData = allPayrollData.filter(salary => {
+      yearFilteredData = dateFilteredData.filter(salary => {
         const date = new Date(salary.created_at)
         return date.getFullYear() === year
       })
@@ -716,6 +786,60 @@ export default function ReportsPage() {
         {/* Overview Section */}
         {activeSection === 'overview' && (
           <div className="space-y-6 animate-fadeIn">
+            {/* Date Filter */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-indigo-100 rounded-lg">
+                  <Filter className="w-4 h-4 text-indigo-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800">Date Filter</h3>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
+                {[
+                  { value: 'all', label: 'All Time' },
+                  { value: 'today', label: 'Today' },
+                  { value: 'week', label: 'Last 7 Days' },
+                  { value: '15days', label: 'Last 15 Days' },
+                  { value: 'month', label: 'Last 30 Days' },
+                  { value: 'custom', label: 'Custom Range' }
+                ].map(filter => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setDateFilter(filter.value)}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                      dateFilter === filter.value
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              {dateFilter === 'custom' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Start Date</label>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">End Date</label>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Financial Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-blue-500">
@@ -1278,6 +1402,60 @@ export default function ReportsPage() {
         {/* Earning Report Section */}
         {activeSection === 'earning-report' && (
           <div className="space-y-6 animate-fadeIn">
+            {/* Date Filter */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-purple-100 rounded-lg">
+                  <Filter className="w-4 h-4 text-purple-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800">Date Filter</h3>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
+                {[
+                  { value: 'all', label: 'All Time' },
+                  { value: 'today', label: 'Today' },
+                  { value: 'week', label: 'Last 7 Days' },
+                  { value: '15days', label: 'Last 15 Days' },
+                  { value: 'month', label: 'Last 30 Days' },
+                  { value: 'custom', label: 'Custom Range' }
+                ].map(filter => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setDateFilter(filter.value)}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                      dateFilter === filter.value
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              {dateFilter === 'custom' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Start Date</label>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">End Date</label>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border-2 border-green-200">

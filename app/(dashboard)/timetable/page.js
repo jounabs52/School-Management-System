@@ -211,6 +211,29 @@ export default function TimetablePage() {
     setCurrentPage(1)
   }, [searchTerm, selectedClassFilter])
 
+  // Prevent body scroll when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = showPeriodModal || showBulkPeriodModal || showTimingModal ||
+                           showTimetableModal || showDeletePeriodModal || showDeleteAllModal ||
+                           showDeleteTimetableModal || showAutoGenerateModal
+
+    if (isAnyModalOpen) {
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+      document.body.style.overflow = 'hidden'
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+
+    // Cleanup function to restore scroll on component unmount
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+  }, [showPeriodModal, showBulkPeriodModal, showTimingModal, showTimetableModal,
+      showDeletePeriodModal, showDeleteAllModal, showDeleteTimetableModal, showAutoGenerateModal])
+
   const fetchClasses = async () => {
     try {
       setLoadingClasses(true)
@@ -2275,33 +2298,32 @@ export default function TimetablePage() {
 
       {/* Add Period Modal */}
       {showPeriodModal && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
-          onClick={() => setShowPeriodModal(false)}
-          style={{ backdropFilter: 'blur(4px)' }}
-        >
+        <>
           <div
-            className="bg-white h-full w-full max-w-sm shadow-2xl overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-[#2F5BA0] text-white px-4 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-base font-bold">{editingPeriod ? 'Update Period' : 'Add Period'}</h3>
-                <p className="text-xs text-blue-100 mt-0.5">Fill in the details below</p>
-              </div>
-              <button onClick={() => setShowPeriodModal(false)} className="text-white hover:bg-white/10 p-1.5 rounded">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            className="fixed inset-0 bg-black/50 z-[9999]"
+            onClick={() => setShowPeriodModal(false)}
+            style={{ backdropFilter: 'blur(4px)' }}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+              <div className="flex justify-between items-center">
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Class</label>
+                  <h3 className="text-xl font-bold">{editingPeriod ? 'Update Period' : 'Add Period'}</h3>
+                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                </div>
+                <button onClick={() => setShowPeriodModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Class</label>
                   <select
                     value={periodForm.class_id}
                     onChange={(e) => setPeriodForm({ ...periodForm, class_id: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Select Class (Optional)</option>
                     {classes.map((cls) => (
@@ -2313,11 +2335,11 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Select Day <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-2">Select Day <span className="text-red-500">*</span></label>
                   <select
                     value={periodForm.day_of_week}
                     onChange={(e) => setPeriodForm({ ...periodForm, day_of_week: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Select Day</option>
                     {daysOfWeek.map((day) => (
@@ -2327,11 +2349,11 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Period <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-2">Period <span className="text-red-500">*</span></label>
                   <select
                     value={periodForm.period_number}
                     onChange={(e) => setPeriodForm({ ...periodForm, period_number: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Select Period</option>
                     {[1,2,3,4,5,6,7,8].map((num) => (
@@ -2341,22 +2363,22 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Name (Optional)</label>
+                  <label className="block text-gray-700 font-semibold mb-2">Name (Optional)</label>
                   <input
                     type="text"
                     value={periodForm.period_name}
                     onChange={(e) => setPeriodForm({ ...periodForm, period_name: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Leave empty to auto-generate"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Type <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-2">Type <span className="text-red-500">*</span></label>
                   <select
                     value={periodForm.period_type}
                     onChange={(e) => setPeriodForm({ ...periodForm, period_type: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     {periodTypes.map((type) => (
                       <option key={type.value} value={type.value}>{type.label}</option>
@@ -2365,75 +2387,75 @@ export default function TimetablePage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Start Time <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-2">Start Time <span className="text-red-500">*</span></label>
                   <input
                     type="time"
                     value={periodForm.start_time}
                     onChange={(e) => setPeriodForm({ ...periodForm, start_time: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1.5 text-xs">End Time <span className="text-red-500">*</span></label>
+                  <label className="block text-gray-700 font-semibold mb-2">End Time <span className="text-red-500">*</span></label>
                   <input
                     type="time"
                     value={periodForm.end_time}
                     onChange={(e) => setPeriodForm({ ...periodForm, end_time: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
               </div>
-
-              <div className="flex justify-end gap-2 pt-3">
+            </div>
+            <div className="p-6 bg-white border-t border-gray-200">
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowPeriodModal(false)}
-                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-sm"
+                  className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSavePeriod}
-                  className="px-4 py-2 bg-[#DC2626] text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
+                  className="px-6 py-3 bg-[#DC2626] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center gap-2"
                 >
-                  <Plus size={16} />
+                  <Plus size={20} />
                   Save
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Bulk Period Modal */}
       {showBulkPeriodModal && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
-          onClick={() => setShowBulkPeriodModal(false)}
-          style={{ backdropFilter: 'blur(4px)' }}
-        >
+        <>
           <div
-            className="bg-white h-full w-full max-w-sm shadow-2xl overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-[#2F5BA0] text-white px-4 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-base font-bold">Add Period via policy</h3>
-                <p className="text-xs text-blue-100 mt-0.5">Fill in the details below</p>
+            className="fixed inset-0 bg-black/50 z-[9999]"
+            onClick={() => setShowBulkPeriodModal(false)}
+            style={{ backdropFilter: 'blur(4px)' }}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold">Add Period via policy</h3>
+                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                </div>
+                <button onClick={() => setShowBulkPeriodModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
+                  <X size={24} />
+                </button>
               </div>
-              <button onClick={() => setShowBulkPeriodModal(false)} className="text-white hover:bg-white/10 p-1.5 rounded">
-                <X size={18} />
-              </button>
             </div>
-
-            <div className="p-4 space-y-3">
-              <p className="text-xs text-gray-600 mb-3">
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <p className="text-sm text-gray-600 mb-4">
                 This will create 8 periods automatically with the specified timing and gap between periods for selected classes and days.
               </p>
 
               {/* Class Selection */}
               <div className="col-span-2">
-                <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Class <span className="text-red-500">*</span></label>
+                <label className="block text-gray-700 font-semibold mb-2">Class <span className="text-red-500">*</span></label>
                 <div className="border border-gray-300 rounded-lg p-3 max-h-32 overflow-y-auto bg-gray-50">
                   {classes.length === 0 ? (
                     <p className="text-gray-500 text-xs">No classes available</p>
@@ -2462,7 +2484,7 @@ export default function TimetablePage() {
 
               {/* Day Selection */}
               <div className="col-span-2">
-                <label className="block text-gray-700 font-semibold mb-1.5 text-xs">Select Day <span className="text-red-500">*</span></label>
+                <label className="block text-gray-700 font-semibold mb-2">Select Day <span className="text-red-500">*</span></label>
                 <div className="border border-gray-300 rounded-lg p-3 bg-gray-50">
                   <div className="grid grid-cols-2 gap-1">
                     {daysOfWeek.map((day) => (
@@ -2537,8 +2559,9 @@ export default function TimetablePage() {
                   </select>
                 </div>
               </div>
-
-              <div className="flex justify-end gap-3 pt-4">
+            </div>
+            <div className="p-6 bg-white border-t border-gray-200">
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowBulkPeriodModal(false)}
                   className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
@@ -2554,31 +2577,30 @@ export default function TimetablePage() {
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Change Timing Modal */}
       {showTimingModal && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
-          onClick={() => setShowTimingModal(false)}
-          style={{ backdropFilter: 'blur(4px)' }}
-        >
+        <>
           <div
-            className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-[#2F5BA0] text-white px-6 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-bold">Change Period Timing</h3>
-                <p className="text-sm text-blue-100 mt-1">Fill in the details below</p>
+            className="fixed inset-0 bg-black/50 z-[9999]"
+            onClick={() => setShowTimingModal(false)}
+            style={{ backdropFilter: 'blur(4px)' }}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold">Change Period Timing</h3>
+                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                </div>
+                <button onClick={() => setShowTimingModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
+                  <X size={24} />
+                </button>
               </div>
-              <button onClick={() => setShowTimingModal(false)} className="text-white hover:bg-white/10 p-2 rounded">
-                <X size={24} />
-              </button>
             </div>
-
-            <div className="p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">Start Time <span className="text-red-500">*</span></label>
@@ -2624,8 +2646,9 @@ export default function TimetablePage() {
                   />
                 </div>
               </div>
-
-              <div className="flex justify-end gap-3 pt-4">
+            </div>
+            <div className="p-6 bg-white border-t border-gray-200">
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowTimingModal(false)}
                   className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
@@ -2641,62 +2664,68 @@ export default function TimetablePage() {
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-[#DC2626] text-white px-6 py-4">
-              <h3 className="text-xl font-bold">Confirm Delete</h3>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-6">
-                Are you sure you want to delete <span className="text-red-600 font-bold">All Periods</span>?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteAllPeriods}
-                  className="flex-1 px-6 py-3 bg-[#DC2626] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
-                >
-                  <Trash2 size={18} />
-                  Delete
-                </button>
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-[9999]"
+            onClick={() => setShowDeleteConfirm(false)}
+            style={{ backdropFilter: 'blur(4px)' }}
+          />
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete <span className="text-red-600 font-bold">All Periods</span>?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteAllPeriods}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={18} />
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Timetable Entry Modal */}
       {showTimetableModal && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end"
-          onClick={() => setShowTimetableModal(false)}
-          style={{ backdropFilter: 'blur(4px)' }}
-        >
+        <>
           <div
-            className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-[#2F5BA0] text-white px-6 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-bold">{editingTimetable ? 'Update Timetable Entry' : 'Add Timetable Entry'}</h3>
-                <p className="text-sm text-blue-100 mt-1">Fill in the details below</p>
+            className="fixed inset-0 bg-black/50 z-[9999]"
+            onClick={() => setShowTimetableModal(false)}
+            style={{ backdropFilter: 'blur(4px)' }}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold">{editingTimetable ? 'Update Timetable Entry' : 'Add Timetable Entry'}</h3>
+                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                </div>
+                <button onClick={() => setShowTimetableModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
+                  <X size={24} />
+                </button>
               </div>
-              <button onClick={() => setShowTimetableModal(false)} className="text-white hover:bg-white/10 p-2 rounded">
-                <X size={24} />
-              </button>
             </div>
-
-            <div className="p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">Day <span className="text-red-500">*</span></label>
@@ -2842,28 +2871,28 @@ export default function TimetablePage() {
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Auto Generate Timetable Modal */}
       {showAutoGenerateModal && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
-          onClick={() => setShowAutoGenerateModal(false)}
-          style={{ backdropFilter: 'blur(4px)' }}
-        >
+        <>
           <div
-            className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-[#059669] text-white px-6 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-bold">Auto Generate Timetable</h3>
-                <p className="text-sm text-emerald-100 mt-1">Generate full day timetable automatically</p>
+            className="fixed inset-0 bg-black/50 z-[9999]"
+            onClick={() => setShowAutoGenerateModal(false)}
+            style={{ backdropFilter: 'blur(4px)' }}
+          />
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl z-[10000] w-full max-w-md mx-4">
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-4 rounded-t-xl">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold">Auto Generate Timetable</h3>
+                  <p className="text-emerald-100 text-sm mt-1">Generate full day timetable automatically</p>
+                </div>
+                <button onClick={() => setShowAutoGenerateModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
+                  <X size={24} />
+                </button>
               </div>
-              <button onClick={() => setShowAutoGenerateModal(false)} className="text-white hover:bg-white/10 p-2 rounded">
-                <X size={24} />
-              </button>
             </div>
 
             <div className="p-6 space-y-4">
@@ -2927,7 +2956,7 @@ export default function TimetablePage() {
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Delete Period Confirmation Modal */}
@@ -2938,31 +2967,34 @@ export default function TimetablePage() {
             onClick={() => setShowDeletePeriodModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl z-[10000] w-full max-w-md">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-              <h3 className="text-xl font-bold">Confirm Delete</h3>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-6">
-                Are you sure you want to delete <strong>{periodToDelete.period_name}</strong>? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    setShowDeletePeriodModal(false)
-                    setPeriodToDelete(null)
-                  }}
-                  className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded transition border border-gray-300"
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete <strong>{periodToDelete.period_name}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeletePeriodModal(false)
+                      setPeriodToDelete(null)
+                    }}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleDeletePeriod(periodToDelete.id)}
-                  className="px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition"
+                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
                 >
+                  <Trash2 size={18} />
                   Delete
                 </button>
               </div>
+            </div>
             </div>
           </div>
         </>
@@ -2976,27 +3008,30 @@ export default function TimetablePage() {
             onClick={() => setShowDeleteAllModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl z-[10000] w-full max-w-md">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-              <h3 className="text-xl font-bold">Confirm Delete All</h3>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-6">
-                Are you sure you want to delete <strong>ALL</strong> periods? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowDeleteAllModal(false)}
-                  className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded transition border border-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteAllPeriods}
-                  className="px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition"
-                >
-                  Delete All
-                </button>
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete All</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete <strong>ALL</strong> periods? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteAllModal(false)}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteAllPeriods}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={18} />
+                    Delete All
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3011,30 +3046,33 @@ export default function TimetablePage() {
             onClick={() => setShowDeleteTimetableModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl z-[10000] w-full max-w-md">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-              <h3 className="text-xl font-bold">Confirm Delete</h3>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-6">
-                Are you sure you want to delete this timetable entry? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    setShowDeleteTimetableModal(false)
-                    setTimetableToDelete(null)
-                  }}
-                  className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded transition border border-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeleteTimetable(timetableToDelete.id)}
-                  className="px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition"
-                >
-                  Delete
-                </button>
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete this timetable entry? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteTimetableModal(false)
+                      setTimetableToDelete(null)
+                    }}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTimetable(timetableToDelete.id)}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={18} />
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
