@@ -484,61 +484,89 @@ export default function AdmissionInquiryPage() {
     }
   }
 
+  // Apply blur effect to sidebar when modals are open
+  useEffect(() => {
+    if (showAddModal || confirmDialog.show) {
+      document.body.style.overflow = 'hidden'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
+    }
+  }, [showAddModal, confirmDialog.show])
+
   return (
-    <div className="p-6">
+    <div className="p-1">
       {/* Header Actions */}
-      <div className="flex gap-3 mb-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
         <button
           onClick={() => {
             setEditingInquiry(null)
             resetForm()
             setShowAddModal(true)
           }}
-          className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded font-medium transition text-sm"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           Add Inquiry
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div className="flex flex-wrap items-center gap-4 mb-4">
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
           {/* Search Type Dropdown */}
-          <div className="relative min-w-[180px]">
+          <div className="relative min-w-[150px]">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="w-full appearance-none border border-gray-300 rounded px-4 py-2.5 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white"
+              className="w-full appearance-none border border-gray-300 rounded px-3 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white text-sm"
             >
               {searchOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
 
           {/* Search Input */}
-          <div className="flex-1 min-w-[250px]">
+          <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full border border-gray-300 rounded pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded pl-9 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
               />
             </div>
           </div>
 
           {/* Status Filter */}
-          <div className="min-w-[180px]">
+          <div className="min-w-[140px]">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -552,14 +580,14 @@ export default function AdmissionInquiryPage() {
           {/* Search Button */}
           <button
             onClick={handleSearch}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2.5 rounded font-medium transition"
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded font-medium transition text-sm"
           >
             Search
-            <Search className="w-5 h-5" />
+            <Search className="w-4 h-4" />
           </button>
         </div>
 
-        <p className="mt-4 text-gray-600">
+        <p className="mt-3 pt-3 border-t border-gray-200 text-gray-600 text-sm">
           Showing <span className="text-blue-600 font-semibold">{filteredInquiries.length}</span> of <span className="text-blue-600 font-semibold">{inquiries.length}</span> inquiries
         </p>
       </div>
@@ -567,56 +595,56 @@ export default function AdmissionInquiryPage() {
       {/* Inquiries Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading inquiries...</div>
+          <div className="p-6 text-center text-gray-500 text-sm">Loading inquiries...</div>
         ) : filteredInquiries.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p>No inquiries found</p>
+          <div className="p-6 text-center text-gray-500">
+            <FileText className="w-10 h-10 mx-auto mb-3 text-gray-400" />
+            <p className="text-sm">No inquiries found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-600 text-white text-sm">
+              <thead className="bg-blue-600 text-white text-sm">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium">Inquiry No</th>
-                  <th className="px-4 py-3 text-left font-medium">Name</th>
-                  <th className="px-4 py-3 text-left font-medium">Phone</th>
-                  <th className="px-4 py-3 text-left font-medium">Class</th>
-                  <th className="px-4 py-3 text-left font-medium">Date</th>
-                  <th className="px-4 py-3 text-left font-medium">Follow Up</th>
-                  <th className="px-4 py-3 text-left font-medium">Status</th>
-                  <th className="px-4 py-3 text-left font-medium">Options</th>
+                  <th className="px-3 py-2 text-left font-semibold">Inquiry No</th>
+                  <th className="px-3 py-2 text-left font-semibold">Name</th>
+                  <th className="px-3 py-2 text-left font-semibold">Phone</th>
+                  <th className="px-3 py-2 text-left font-semibold">Class</th>
+                  <th className="px-3 py-2 text-left font-semibold">Date</th>
+                  <th className="px-3 py-2 text-left font-semibold">Follow Up</th>
+                  <th className="px-3 py-2 text-left font-semibold">Status</th>
+                  <th className="px-3 py-2 text-left font-semibold">Options</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredInquiries.map(inquiry => (
                   <tr key={inquiry.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium">
+                    <td className="px-3 py-2 text-sm font-medium">
                       {inquiry.inquiry_no}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="text-sm font-medium text-gray-900">{inquiry.name}</div>
                       {inquiry.email && <div className="text-xs text-gray-500">{inquiry.email}</div>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500">
                       {inquiry.phone}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500">
                       {inquiry.classes?.class_name || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500">
                       {new Date(inquiry.date).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500">
                       {inquiry.follow_up_date ? new Date(inquiry.follow_up_date).toLocaleDateString() : '-'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(inquiry.status)}`}>
                         {inquiry.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
                         {inquiry.status !== 'admitted' && (
                           <button
                             onClick={() => handleConfirmAdmission(inquiry)}
@@ -653,7 +681,7 @@ export default function AdmissionInquiryPage() {
       {/* Add/Edit Modal - Compact Tabbed Design */}
       {showAddModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowAddModal(false)} />
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowAddModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-4xl bg-white shadow-2xl z-50 overflow-hidden flex flex-col">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 flex items-center justify-between">
@@ -1057,14 +1085,14 @@ export default function AdmissionInquiryPage() {
                   resetForm()
                   setActiveTab('basic')
                 }}
-                className="text-gray-700 hover:text-gray-900 font-medium px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition"
+                className="text-gray-700 hover:text-gray-900 font-medium px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition text-sm"
               >
                 Close
               </button>
               <button
                 onClick={handleSaveInquiry}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
               >
                 {saving ? 'Saving...' : editingInquiry ? 'Update Inquiry' : 'Save Inquiry'}
               </button>
@@ -1076,27 +1104,27 @@ export default function AdmissionInquiryPage() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
             <div
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
-                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-t-lg">
+                <h3 className="text-base font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700">{confirmDialog.message}</p>
+              <div className="p-5">
+                <p className="text-gray-700 text-sm">{confirmDialog.message}</p>
               </div>
-              <div className="px-6 pb-6 flex justify-end gap-3">
+              <div className="px-5 pb-5 flex justify-end gap-2">
                 <button
                   onClick={handleCancelConfirm}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-sm"
                 >
                   Confirm
                 </button>

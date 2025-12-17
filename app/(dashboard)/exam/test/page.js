@@ -737,12 +737,16 @@ export default function TestsPage() {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowDeleteModal(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-              <h3 className="text-lg font-semibold mb-4">Delete Test</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete the test "{testToDelete?.test_name}"? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-end">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4">
+                <h3 className="text-lg font-semibold">Delete Test</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-600">
+                  Are you sure you want to delete the test "{testToDelete?.test_name}"? This action cannot be undone.
+                </p>
+              </div>
+              <div className="px-6 pb-6 flex gap-3 justify-end">
                 <button
                   onClick={() => {
                     setShowDeleteModal(false)

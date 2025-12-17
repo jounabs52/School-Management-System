@@ -72,7 +72,8 @@ export default function PassengersPage() {
   const [staffSearchTerm, setStaffSearchTerm] = useState('')
   const [showStudentDropdown, setShowStudentDropdown] = useState(false)
   const [showStaffDropdown, setShowStaffDropdown] = useState(false)
-  
+  const [activeButton, setActiveButton] = useState(null) // Track which button is active ('STUDENT' or 'STAFF')
+
   // Toast state
   const [toast, setToast] = useState(null)
   
@@ -389,6 +390,7 @@ export default function PassengersPage() {
   // Reset add passenger modal state
   const resetAddModalState = () => {
     setShowModal(false)
+    setActiveButton(null) // Reset active button
     setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '' })
     setFilteredStudents([])
     setFilteredStaff([])
@@ -1394,7 +1396,7 @@ export default function PassengersPage() {
   }, [showStudentDropdown, showStaffDropdown, showDepartmentDropdown])
 
   return (
-    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
+    <div className="p-2 bg-gray-50 min-h-screen">
       {/* Toast notification */}
       {toast && (
         <Toast
@@ -1404,56 +1406,60 @@ export default function PassengersPage() {
         />
       )}
 
-      {/* Top Buttons */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          onClick={() => {
-            setShowModal(true);
-            setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', vehicle: '' });
-            setFilteredStudents([]);
-            setFilteredStaff([]);
-            setStudentSearchTerm('');
-            setStaffSearchTerm('');
-            setDepartmentSearchTerm('');
-            setShowStudentDropdown(false);
-            setShowStaffDropdown(false);
-            setShowDepartmentDropdown(false);
-          }}
-          className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg font-medium transition flex items-center gap-2 text-sm"
-        >
-          <Plus size={16} />
-          Add Student
-        </button>
-        <button
-          onClick={() => {
-            setShowModal(true);
-            setFormData({ type: 'STAFF', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', vehicle: '' });
-            setFilteredStudents([]);
-            setFilteredStaff([]);
-            setStudentSearchTerm('');
-            setStaffSearchTerm('');
-            setDepartmentSearchTerm('');
-            setShowStudentDropdown(false);
-            setShowStaffDropdown(false);
-            setShowDepartmentDropdown(false);
-          }}
-          className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition flex items-center gap-2 text-sm"
-        >
-          <Plus size={16} />
-          Add Staff
-        </button>
-      </div>
-
       {/* Search Section */}
-      <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
-        <h2 className="text-lg font-bold text-gray-800 mb-3">Transport Register</h2>
-
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="md:w-40">
+      <div className="bg-white rounded-lg shadow p-2 mb-2">
+        <div className="flex flex-col md:flex-row gap-1.5 items-center">
+          <button
+            onClick={() => {
+              setShowModal(true);
+              setActiveButton('STUDENT');
+              setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '' });
+              setFilteredStudents([]);
+              setFilteredStaff([]);
+              setStudentSearchTerm('');
+              setStaffSearchTerm('');
+              setDepartmentSearchTerm('');
+              setShowStudentDropdown(false);
+              setShowStaffDropdown(false);
+              setShowDepartmentDropdown(false);
+            }}
+            className={`px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap ${
+              activeButton === 'STUDENT'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Plus size={12} />
+            Add Student
+          </button>
+          <button
+            onClick={() => {
+              setShowModal(true);
+              setActiveButton('STAFF');
+              setFormData({ type: 'STAFF', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '' });
+              setFilteredStudents([]);
+              setFilteredStaff([]);
+              setStudentSearchTerm('');
+              setStaffSearchTerm('');
+              setDepartmentSearchTerm('');
+              setShowStudentDropdown(false);
+              setShowStaffDropdown(false);
+              setShowDepartmentDropdown(false);
+            }}
+            className={`px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap ${
+              activeButton === 'STAFF'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Plus size={12} />
+            Add Staff
+          </button>
+          <div className="md:w-28">
             <select
               value={routeFilter}
               onChange={(e) => setRouteFilter(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Routes</option>
               {routes.map((route) => (
@@ -1463,32 +1469,32 @@ export default function PassengersPage() {
               ))}
             </select>
           </div>
-          <div className="md:w-40">
+          <div className="md:w-28">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Types</option>
               <option value="STUDENT">Students</option>
               <option value="STAFF">Staff</option>
             </select>
           </div>
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+          <div className="flex-1 relative w-full">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={12} />
             <input
               type="text"
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
