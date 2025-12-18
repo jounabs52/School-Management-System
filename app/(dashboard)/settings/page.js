@@ -105,7 +105,7 @@ export default function SettingsPage() {
     }
   }
 
-  // Handle logo file upload
+  // Handle logo file upload to Supabase Storage
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -116,7 +116,7 @@ export default function SettingsPage() {
       return
     }
 
-    // Validate file size (max 1MB for base64)
+    // Validate file size (max 1MB)
     if (file.size > 1 * 1024 * 1024) {
       showToast('Image size should be less than 1MB', 'warning')
       return
@@ -124,36 +124,74 @@ export default function SettingsPage() {
 
     try {
       setUploading(true)
+      console.log('🔄 Starting logo upload...')
 
-      // Convert image to base64
-      const reader = new FileReader()
-      reader.onloadend = async () => {
-        const base64String = reader.result
+      // Delete old logo if exists
+      if (schoolData.logo_url && schoolData.logo_url.includes('school-logos/')) {
+        const oldFileName = schoolData.logo_url.split('school-logos/')[1].split('?')[0]
+        console.log('🗑️ Deleting old logo:', oldFileName)
 
-        // Update the logo in the database immediately
-        const { error } = await supabase
-          .from('schools')
-          .update({ logo_url: base64String })
-          .eq('id', currentUser.school_id)
-          .eq('status', 'active')
+        const { error: deleteError } = await supabase.storage
+          .from('school-logos')
+          .remove([oldFileName])
 
-        if (error) throw error
-
-        // Update local state
-        setSchoolData(prev => ({ ...prev, logo_url: base64String }))
-        showToast('Logo uploaded successfully!', 'success')
-        setUploading(false)
+        if (deleteError) {
+          console.warn('Warning: Could not delete old logo:', deleteError)
+        }
       }
 
-      reader.onerror = () => {
-        showToast('Error reading file', 'error')
-        setUploading(false)
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${currentUser.school_id}_${Date.now()}.${fileExt}`
+      console.log('📤 Uploading new logo:', fileName)
+
+      // Upload to Supabase Storage bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('school-logos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError)
+        throw uploadError
       }
 
-      reader.readAsDataURL(file)
+      console.log('✅ Upload successful:', uploadData)
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('school-logos')
+        .getPublicUrl(fileName)
+
+      const publicUrl = urlData.publicUrl
+      console.log('🔗 Public URL:', publicUrl)
+
+      // Update the logo URL in the database
+      const { error: updateError } = await supabase
+        .from('schools')
+        .update({
+          logo_url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentUser.school_id)
+
+      if (updateError) {
+        console.error('❌ Database update error:', updateError)
+        throw updateError
+      }
+
+      console.log('✅ Database updated successfully')
+
+      // Update local state
+      setSchoolData(prev => ({ ...prev, logo_url: publicUrl }))
+      showToast('Logo uploaded successfully!', 'success')
+
     } catch (error) {
-      console.error('Error uploading logo:', error)
+      console.error('❌ Error uploading logo:', error)
       showToast('Error uploading logo: ' + error.message, 'error')
+    } finally {
       setUploading(false)
     }
   }

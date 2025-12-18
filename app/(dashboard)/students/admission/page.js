@@ -429,14 +429,32 @@ export default function AdmissionRegisterPage() {
     try {
       const { data, error } = await supabase
         .from('sections')
-        .select('id, section_name, status')
+        .select('id, section_name, status, capacity')
         .eq('class_id', classId)
         .eq('status', 'active')
         .order('section_name', { ascending: true })
 
       if (error) throw error
 
-      setSections(data || [])
+      // Get current student count for each section
+      const sectionsWithCount = await Promise.all(
+        (data || []).map(async (section) => {
+          const { count, error: countError } = await supabase
+            .from('students')
+            .select('id', { count: 'exact', head: true })
+            .eq('current_section_id', section.id)
+            .eq('status', 'active')
+
+          if (countError) {
+            console.error('Error counting students:', countError)
+            return { ...section, current_count: 0 }
+          }
+
+          return { ...section, current_count: count || 0 }
+        })
+      )
+
+      setSections(sectionsWithCount)
     } catch (err) {
       console.error('Error fetching sections:', err)
       // Don't show error if sections table doesn't exist yet
@@ -457,6 +475,37 @@ export default function AdmissionRegisterPage() {
     })
     // Fetch sections for the selected class
     fetchSections(classId)
+  }
+
+  const handleSectionChange = (sectionId) => {
+    if (!sectionId) {
+      setFormData({ ...formData, section: sectionId })
+      return
+    }
+
+    // Find the selected section
+    const selectedSection = sections.find(s => s.id === sectionId)
+
+    if (selectedSection) {
+      const capacity = selectedSection.capacity || 0
+      const currentCount = selectedSection.current_count || 0
+
+      // Check if we're editing an existing student
+      if (isEditMode) {
+        // Allow section change when editing
+        setFormData({ ...formData, section: sectionId })
+      } else {
+        // For new admission, check capacity
+        if (currentCount >= capacity) {
+          showToast(`Section ${selectedSection.section_name} is full! Capacity: ${capacity}/${capacity}`, 'error')
+          setFormData({ ...formData, section: '' })
+        } else {
+          setFormData({ ...formData, section: sectionId })
+        }
+      }
+    } else {
+      setFormData({ ...formData, section: sectionId })
+    }
   }
 
   const getClassName = (classId) => {
@@ -648,6 +697,7 @@ export default function AdmissionRegisterPage() {
             current_section_id: formData.section || null,
             roll_number: formData.rollNumber || null,
             house: formData.house || null,
+            whatsapp_number: formData.whatsappNumber || null,
             base_fee: parseFloat(formData.baseFee) || 0,
             discount_type: formData.discountType || 'fixed',
             discount_value: parseFloat(formData.discount) || 0,
@@ -693,6 +743,7 @@ export default function AdmissionRegisterPage() {
             current_section_id: formData.section || null,
             roll_number: formData.rollNumber || null,
             house: formData.house || null,
+            whatsapp_number: formData.whatsappNumber || null,
             base_fee: parseFloat(formData.baseFee) || 0,
             discount_type: formData.discountType || 'fixed',
             discount_value: parseFloat(formData.discount) || 0,
@@ -959,7 +1010,7 @@ export default function AdmissionRegisterPage() {
         fatherOccupation: '',
         fatherAnnualIncome: '',
         guardianMobile: '',
-        whatsappNumber: '',
+        whatsappNumber: fullStudent.whatsapp_number || '',
         category: '',
         dateOfBirth: fullStudent.date_of_birth || '',
         studentCnic: '',
@@ -2089,18 +2140,21 @@ export default function AdmissionRegisterPage() {
                     <label className="block text-gray-700 text-sm mb-2">Section</label>
                     <select
                       value={formData.section}
-                      onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                      onChange={(e) => handleSectionChange(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       disabled={loadingSections || !formData.class}
                     >
                       <option value="">
                         {loadingSections ? 'Loading sections...' : formData.class ? 'Select Section' : 'Select Class First'}
                       </option>
-                      {sections.map((sec) => (
-                        <option key={sec.id} value={sec.id}>
-                          {sec.section_name}
-                        </option>
-                      ))}
+                      {sections.map((sec) => {
+                        const isFull = (sec.current_count || 0) >= (sec.capacity || 0)
+                        return (
+                          <option key={sec.id} value={sec.id} disabled={isFull && !isEditMode}>
+                            {sec.section_name} - {sec.current_count || 0}/{sec.capacity || 0} {isFull ? '(Full)' : ''}
+                          </option>
+                        )
+                      })}
                     </select>
                   </div>
                 </div>
@@ -2125,23 +2179,24 @@ export default function AdmissionRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">House</label>
-                    <select
-                      value={formData.house}
-                      onChange={(e) => setFormData({ ...formData, house: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                    >
-                      <option value="">Select House</option>
-                      <option value="red">Red</option>
-                      <option value="blue">Blue</option>
-                      <option value="green">Green</option>
-                      <option value="yellow">Yellow</option>
-                    </select>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      Father WhatsApp Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter WhatsApp Number"
+                      value={formData.whatsappNumber}
+                      onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      required
+                    />
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Base Fee (Auto-filled)</label>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      Base Fee {formData.feePlan && `(${formData.feePlan.charAt(0).toUpperCase() + formData.feePlan.slice(1)} Plan)`}
+                    </label>
                     <input
                       type="number"
                       placeholder="0.00"
@@ -2241,53 +2296,6 @@ export default function AdmissionRegisterPage() {
                   </div>
                 )}
 
-                {/* Fee Schedule Preview */}
-                {feeSchedulePreview.length > 0 && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h5 className="text-sm font-bold text-blue-800 mb-3 flex items-center gap-2">
-                      <FileText size={16} />
-                      Fee Schedule Preview
-                    </h5>
-                    <div className="max-h-48 overflow-y-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-blue-100">
-                            <th className="px-3 py-2 text-left text-blue-800 font-semibold">Period</th>
-                            <th className="px-3 py-2 text-left text-blue-800 font-semibold">Due Date</th>
-                            <th className="px-3 py-2 text-right text-blue-800 font-semibold">Monthly Fee</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {feeSchedulePreview.map((item, index) => {
-                            const monthlyFee = (parseFloat(formData.baseFee) || 0) - calculateDiscount(formData.baseFee, formData.discount, formData.discountType)
-                            return (
-                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
-                                <td className="px-3 py-2 text-gray-700">{item.period} {item.year}</td>
-                                <td className="px-3 py-2 text-gray-700">
-                                  {item.dueDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </td>
-                                <td className="px-3 py-2 text-right text-blue-600 font-medium">
-                                  Rs. {monthlyFee.toLocaleString()}
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr className="bg-blue-100 font-bold">
-                            <td className="px-3 py-2 text-blue-800" colSpan="2">Total Annual Fee</td>
-                            <td className="px-3 py-2 text-right text-blue-800">
-                              Rs. {feeSchedulePreview.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-2 italic">
-                      * Fee challan will be automatically generated when the student is registered
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Student & Father Information */}
@@ -2417,16 +2425,6 @@ export default function AdmissionRegisterPage() {
                       placeholder="0.00"
                       value={formData.fatherAnnualIncome}
                       onChange={(e) => setFormData({ ...formData, fatherAnnualIncome: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm mb-2">WhatsApp Number</label>
-                    <input
-                      type="text"
-                      placeholder="Enter WhatsApp Number"
-                      value={formData.whatsappNumber}
-                      onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
@@ -2818,7 +2816,7 @@ export default function AdmissionRegisterPage() {
                 </button>
                 <button
                   onClick={handleSaveStudent}
-                  disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo}
+                  disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo || !formData.whatsappNumber}
                   className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50"
                 >
                   {saving ? (

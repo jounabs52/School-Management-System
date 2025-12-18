@@ -650,7 +650,7 @@ export default function FeeCollectPage() {
 
       const { data: classesData } = await supabase
         .from('classes')
-        .select('id, class_name')
+        .select('id, class_name, fee_plan')
         .in('id', classIds)
 
       const { data: sectionsData } = await supabase
@@ -958,7 +958,7 @@ export default function FeeCollectPage() {
                     </td>
                     <td className="px-3 py-2.5 text-center border border-gray-200">
                       <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">
-                        {getFeePlanLabel(challan.fee_plan)}
+                        {getFeePlanLabel(challan.student?.class?.fee_plan || 'monthly')}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-gray-900 font-bold border border-gray-200">
@@ -1090,7 +1090,7 @@ export default function FeeCollectPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Fee Plan:</span>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">{selectedChallan.fee_plan || 'Monthly'}</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">{getFeePlanLabel(selectedChallan.student?.class?.fee_plan || 'monthly')}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Status:</span>

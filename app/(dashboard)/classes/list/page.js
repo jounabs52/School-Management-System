@@ -43,7 +43,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -298,15 +298,18 @@ export default function ClassListPage() {
       // Get classes with student count and total discount
       const { data: classes, error } = await supabase
         .from('classes')
-        .select('id, class_name, standard_fee, incharge, exam_marking_system, fee_plan')
+        .select('*')
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
       if (error) {
-        console.error('Error fetching classes:', error)
+        console.error('❌ Error fetching classes:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
         setClasses([])
       } else {
+        console.log('✅ Fetched classes:', classes)
+        console.log('Number of classes:', classes?.length || 0)
         // For each class, get student count and total discount
         const classesWithStats = await Promise.all(
           (classes || []).map(async (cls) => {
@@ -334,15 +337,17 @@ export default function ClassListPage() {
             return {
               ...cls,
               total_students: totalStudents || 0,
-              total_discount: totalDiscount
+              total_discount: totalDiscount,
+              fee_plan: cls.fee_plan || 'monthly' // Default if column doesn't exist
             }
           })
         )
 
+        console.log('✅ Classes with stats:', classesWithStats)
         setClasses(classesWithStats)
       }
     } catch (error) {
-      console.error('Error fetching classes:', error)
+      console.error('❌ Error fetching classes:', error)
     } finally {
       setLoading(false)
     }
@@ -373,23 +378,63 @@ export default function ClassListPage() {
         return
       }
 
+      // Prepare the class data
+      const classData = {
+        school_id: user.school_id,
+        created_by: user.id,
+        class_name: formData.className,
+        incharge: formData.incharge,
+        exam_marking_system: formData.markingSystem,
+        status: 'active'
+      }
+
+      // Note: standard_fee and fee_plan columns must exist in database
+      // Run migrations/add_fee_plan_column.sql if you see errors
+      if (formData.classFee) {
+        classData.standard_fee = parseFloat(formData.classFee) || 0
+      }
+      if (formData.feePlan) {
+        classData.fee_plan = formData.feePlan
+      }
+
       const { data, error } = await supabase
         .from('classes')
-        .insert([{
-          school_id: user.school_id,
-          created_by: user.id,
-          class_name: formData.className,
-          standard_fee: parseFloat(formData.classFee) || 0,
-          incharge: formData.incharge,
-          exam_marking_system: formData.markingSystem,
-          fee_plan: formData.feePlan || 'monthly',
-          status: 'active'
-        }])
+        .insert([classData])
         .select()
 
       if (error) {
         console.error('Error creating class:', error)
-        showToast('Failed to create class: ' + error.message, 'error')
+        // If the error is about standard_fee column, try without it
+        if (error.message.includes('standard_fee')) {
+          delete classData.standard_fee
+          const { data: retryData, error: retryError } = await supabase
+            .from('classes')
+            .insert([classData])
+            .select()
+
+          if (retryError) {
+            showToast('Failed to create class: ' + retryError.message, 'error')
+            return
+          }
+
+          showToast('Class created successfully! (Note: Fee will be set to 0)', 'success')
+          setShowModal(false)
+          setFormData({ incharge: '', className: '', classFee: '', markingSystem: '', feePlan: 'monthly' })
+          setInchargeSearchTerm('')
+          setShowInchargeDropdown(false)
+
+          const newClass = retryData[0]
+          const { count: totalStudents } = await supabase
+            .from('students')
+            .select('*', { count: 'exact', head: true })
+            .eq('school_id', user.school_id)
+            .eq('current_class_id', newClass.id)
+            .eq('status', 'active')
+
+          setClasses(prev => [...prev, { ...newClass, total_students: totalStudents || 0, total_discount: 0 }])
+        } else {
+          showToast('Failed to create class: ' + error.message, 'error')
+        }
       } else {
         setShowModal(false)
         setFormData({ incharge: '', className: '', classFee: '', markingSystem: '', feePlan: 'monthly' })
@@ -435,16 +480,26 @@ export default function ClassListPage() {
         return
       }
 
+      // Prepare update data
+      // Note: standard_fee and fee_plan columns must exist in database
+      // Run migrations/add_fee_plan_column.sql if you see errors
+      const updateData = {
+        class_name: formData.className,
+        incharge: formData.incharge,
+        exam_marking_system: formData.markingSystem,
+        updated_at: new Date().toISOString()
+      }
+
+      if (formData.classFee !== undefined && formData.classFee !== '') {
+        updateData.standard_fee = parseFloat(formData.classFee) || 0
+      }
+      if (formData.feePlan) {
+        updateData.fee_plan = formData.feePlan
+      }
+
       const { data, error } = await supabase
         .from('classes')
-        .update({
-          class_name: formData.className,
-          standard_fee: parseFloat(formData.classFee) || 0,
-          incharge: formData.incharge,
-          exam_marking_system: formData.markingSystem,
-          fee_plan: formData.feePlan || 'monthly',
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', selectedClass.id)
         .eq('school_id', user.school_id)
         .select()
@@ -781,7 +836,7 @@ export default function ClassListPage() {
         {/* Student Edit Sidebar */}
         {showStudentEditModal && selectedStudent && (
           <ModalOverlay onClose={() => setShowStudentEditModal(false)}>
-            <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+            <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
               <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
                 <div className="flex justify-between items-center">
                   <div>
@@ -1046,11 +1101,13 @@ export default function ClassListPage() {
                           cls.fee_plan === 'quarterly' ? 'bg-purple-100 text-purple-800' :
                           cls.fee_plan === 'semi-annual' ? 'bg-orange-100 text-orange-800' :
                           cls.fee_plan === 'annual' ? 'bg-green-100 text-green-800' :
+                          cls.fee_plan === 'one-time' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-blue-100 text-blue-800'
                         }`}>
                           {cls.fee_plan === 'quarterly' ? 'Quarterly' :
                            cls.fee_plan === 'semi-annual' ? 'Semi-Annual' :
-                           cls.fee_plan === 'annual' ? 'Annual' : 'Monthly'}
+                           cls.fee_plan === 'annual' ? 'Annual' :
+                           cls.fee_plan === 'one-time' ? 'One-Time' : 'Monthly'}
                         </span>
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">{totalStudents}</td>
@@ -1163,7 +1220,7 @@ export default function ClassListPage() {
       {/* Add New Class Sidebar */}
       {showModal && (
         <ModalOverlay onClose={() => setShowModal(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
                 <div>
@@ -1244,6 +1301,22 @@ export default function ClassListPage() {
                 </div>
                 <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                    Fee Plan <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.feePlan}
+                    onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly (3 months)</option>
+                    <option value="semi-annual">Semi-Annual (6 months)</option>
+                    <option value="annual">Annual (12 months)</option>
+                    <option value="one-time">One-Time Fee</option>
+                  </select>
+                </div>
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class Fee
                   </label>
                   <div className="relative">
@@ -1256,21 +1329,6 @@ export default function ClassListPage() {
                       className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
-                    Fee Plan <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.feePlan}
-                    onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly (3 months)</option>
-                    <option value="semi-annual">Semi-Annual (6 months)</option>
-                    <option value="annual">Annual (12 months)</option>
-                  </select>
                 </div>
                 <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
@@ -1314,7 +1372,7 @@ export default function ClassListPage() {
       {/* Edit Class Sidebar */}
       {showEditModal && (
         <ModalOverlay onClose={() => setShowEditModal(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-xs bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
                 <div>
@@ -1395,6 +1453,22 @@ export default function ClassListPage() {
                 </div>
                 <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                    Fee Plan <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.feePlan}
+                    onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly (3 months)</option>
+                    <option value="semi-annual">Semi-Annual (6 months)</option>
+                    <option value="annual">Annual (12 months)</option>
+                    <option value="one-time">One-Time Fee</option>
+                  </select>
+                </div>
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class Fee
                   </label>
                   <div className="relative">
@@ -1407,21 +1481,6 @@ export default function ClassListPage() {
                       className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
-                    Fee Plan <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.feePlan}
-                    onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly (3 months)</option>
-                    <option value="semi-annual">Semi-Annual (6 months)</option>
-                    <option value="annual">Annual (12 months)</option>
-                  </select>
                 </div>
                 <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
