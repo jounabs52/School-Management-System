@@ -5,6 +5,14 @@ import { supabase } from '@/lib/supabase'
 import { X, FileDown } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import {
+  addPDFHeader,
+  addPDFFooter,
+  addPDFWatermark,
+  convertImageToBase64,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
 
 export default function AttendanceReportsPage() {
   const [activeTab, setActiveTab] = useState('student')
@@ -62,7 +70,30 @@ export default function AttendanceReportsPage() {
         .single()
 
       if (error) throw error
-      setSchoolData(data)
+
+      // Convert logo URL to base64 if it exists
+      let logoBase64 = data.logo_url
+      if (data.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        console.log('🔄 Converting logo URL to base64...')
+        logoBase64 = await convertImageToBase64(data.logo_url)
+        console.log('✅ Logo converted to base64:', logoBase64 ? 'Success' : 'Failed')
+      }
+
+      // Map to expected format for PDF
+      const schoolData = {
+        school_name: data.name,
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        website: data.website,
+        logo: logoBase64,
+        tagline: data.tagline,
+        principal_name: data.principal_name,
+        established_date: data.established_date
+      }
+
+      setSchoolData(schoolData)
     } catch (error) {
       console.error('Error fetching school data:', error)
     }
@@ -220,77 +251,25 @@ export default function AttendanceReportsPage() {
       console.log('Found table with', rows.length, 'rows')
 
         const doc = new jsPDF('p', 'mm', 'a4')
-        const pageWidth = doc.internal.pageSize.width
-        const pageHeight = doc.internal.pageSize.height
-        
-        // Colors
-        const primaryColor = [41, 128, 185]
-        const secondaryColor = [52, 73, 94]
-        
-        let yPosition = 20
-
-        // Add School Header
-        if (schoolData) {
-          // Logo
-          if (schoolData.logo_url) {
-            try {
-              doc.addImage(schoolData.logo_url, 'PNG', 15, yPosition, 25, 25)
-            } catch (e) {
-              console.log('Could not load logo')
-            }
-          }
-
-          // School Name
-          doc.setFontSize(20)
-          doc.setTextColor(...primaryColor)
-          doc.setFont('helvetica', 'bold')
-          doc.text(schoolData.name || 'School Name', pageWidth / 2, yPosition + 5, { align: 'center' })
-
-          yPosition += 13
-          doc.setFontSize(10)
-          doc.setTextColor(...secondaryColor)
-          doc.setFont('helvetica', 'normal')
-
-          // Address
-          if (schoolData.address) {
-            doc.text(schoolData.address, pageWidth / 2, yPosition, { align: 'center' })
-            yPosition += 5
-          }
-
-          // Contact Info
-          const contactInfo = []
-          if (schoolData.phone) contactInfo.push(`Phone: ${schoolData.phone}`)
-          if (schoolData.email) contactInfo.push(`Email: ${schoolData.email}`)
-          if (contactInfo.length > 0) {
-            doc.text(contactInfo.join(' | '), pageWidth / 2, yPosition, { align: 'center' })
-            yPosition += 5
-          }
-
-          // Website
-          if (schoolData.website) {
-            doc.text(schoolData.website, pageWidth / 2, yPosition, { align: 'center' })
-            yPosition += 8
-          } else {
-            yPosition += 3
-          }
-
-          // Divider Line
-          doc.setDrawColor(...primaryColor)
-          doc.setLineWidth(0.5)
-          doc.line(15, yPosition, pageWidth - 15, yPosition)
-          yPosition += 8
-        }
 
         // Report Title
         const reportName = activeTab === 'student'
           ? studentReports.find(r => r.id === activeReport)?.name
           : staffReports.find(r => r.id === activeReport)?.name
 
-        doc.setFontSize(16)
-        doc.setTextColor(...primaryColor)
-        doc.setFont('helvetica', 'bold')
-        doc.text(reportName || 'Report', pageWidth / 2, yPosition, { align: 'center' })
-        yPosition += 10
+        // Add professional header with logo
+        const headerOptions = {
+          subtitle: reportName || 'Attendance Report',
+          info: `Generated on: ${new Date().toLocaleDateString('en-GB')}`
+        }
+        let yPosition = addPDFHeader(doc, schoolData, 'ATTENDANCE REPORT', headerOptions)
+
+        // Add watermark
+        if (schoolData) {
+          addPDFWatermark(doc, schoolData)
+        }
+
+        yPosition += 5
 
         // Extract table data from DOM
         // table variable already defined above
@@ -300,43 +279,82 @@ export default function AttendanceReportsPage() {
           Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim())
         )
 
+        // Determine column widths based on number of columns
+        const numColumns = headers.length
+        const pageWidth = doc.internal.pageSize.getWidth()
+        const availableWidth = pageWidth - 30 // margins
+
+        // Build column styles dynamically
+        const columnStyles = {}
+
+        if (numColumns > 10) {
+          // For attendance registers with many date columns
+          // First 3 columns: Sr, Staff Name/Student Name, Emp#/Admission# - wider
+          columnStyles[0] = { cellWidth: 8, halign: 'center', valign: 'middle' } // Sr
+          columnStyles[1] = { cellWidth: 35, halign: 'left', valign: 'middle' } // Name
+          columnStyles[2] = { cellWidth: 20, halign: 'center', valign: 'middle' } // ID/Emp#
+
+          // Remaining columns (dates) - equal small width
+          const dateColWidth = (availableWidth - 63) / (numColumns - 3)
+          for (let i = 3; i < numColumns; i++) {
+            columnStyles[i] = {
+              cellWidth: dateColWidth,
+              halign: 'center',
+              valign: 'middle',
+              fontSize: 7
+            }
+          }
+        } else {
+          // For regular reports with fewer columns - auto width
+          const colWidth = availableWidth / numColumns
+          for (let i = 0; i < numColumns; i++) {
+            columnStyles[i] = {
+              cellWidth: colWidth,
+              halign: i === 0 ? 'center' : (i === 1 ? 'left' : 'center'),
+              valign: 'middle'
+            }
+          }
+        }
+
         autoTable(doc, {
           startY: yPosition,
           head: [headers],
           body: rows,
           theme: 'grid',
           headStyles: {
-            fillColor: primaryColor,
+            fillColor: PDF_COLORS.headerBg,
             textColor: [255, 255, 255],
+            fontSize: numColumns > 10 ? 7 : 9,
             fontStyle: 'bold',
-            halign: 'center'
+            halign: 'center',
+            valign: 'middle',
+            cellPadding: { top: 2, right: 1, bottom: 2, left: 1 }
           },
+          bodyStyles: {
+            fontSize: numColumns > 10 ? 7 : 8,
+            cellPadding: numColumns > 10 ? { top: 1.5, right: 1, bottom: 1.5, left: 1 } : 2,
+            valign: 'middle',
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+          },
+          columnStyles: columnStyles,
+          alternateRowStyles: {
+            fillColor: [248, 248, 248]
+          },
+          margin: { left: 15, right: 15 },
+          tableWidth: 'auto',
           styles: {
-            fontSize: 9,
-            cellPadding: 3
-          },
-          margin: { left: 15, right: 15 }
+            overflow: 'linebreak',
+            cellWidth: 'wrap'
+          }
         })
       }
 
-      // Footer
+      // Add professional footer to all pages
       const pageCount = doc.internal.getNumberOfPages()
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i)
-        doc.setFontSize(8)
-        doc.setTextColor(...secondaryColor)
-        doc.text(
-          `Page ${i} of ${pageCount}`,
-          pageWidth / 2,
-          pageHeight - 10,
-          { align: 'center' }
-        )
-        doc.text(
-          'Generated by Smart School Pro',
-          pageWidth - 15,
-          pageHeight - 10,
-          { align: 'right' }
-        )
+        addPDFFooter(doc, i, pageCount)
       }
 
       // Save PDF

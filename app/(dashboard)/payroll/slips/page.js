@@ -6,6 +6,17 @@ import { Search, Printer, Info, Trash2, Filter } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
+import {
+  addPDFHeader,
+  addPDFWatermark,
+  addPDFFooter,
+  addSignatureSection,
+  formatCurrency,
+  formatDate,
+  convertImageToBase64,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
 
 export default function SalarySlipsPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -79,16 +90,66 @@ export default function SalarySlipsPage() {
 
   const fetchSchoolDetails = async () => {
     try {
-      const { data, error } = await supabase
+      console.log('🔍 Fetching school details for school_id:', currentUser.school_id)
+
+      const { data, error} = await supabase
         .from('schools')
-        .select('school_name, logo')
+        .select('*')
         .eq('id', currentUser.school_id)
         .single()
 
-      if (error) throw error
-      setSchoolDetails(data)
+      if (error) {
+        console.error('❌ Supabase error:', error)
+        throw error
+      }
+
+      console.log('✅ School data fetched from database:', data)
+
+      if (!data) {
+        console.error('❌ No school data returned')
+        toast.error('No school data found')
+        return
+      }
+
+      // Convert logo URL to base64 if it exists
+      console.log('📸 Logo from database:', data.logo_url)
+      console.log('📸 Logo type:', typeof data.logo_url)
+
+      let logoBase64 = data.logo_url
+      if (data.logo_url && typeof data.logo_url === 'string') {
+        if (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://')) {
+          console.log('🔄 Converting logo URL to base64...')
+          logoBase64 = await convertImageToBase64(data.logo_url)
+          console.log('✅ Logo converted to base64:', logoBase64 ? 'Success' : 'Failed')
+        } else if (data.logo_url.startsWith('data:image')) {
+          console.log('✅ Logo is already base64, using as-is')
+        } else {
+          console.log('⚠️ Logo format not recognized:', data.logo_url.substring(0, 50))
+        }
+      } else {
+        console.log('❌ No logo found or logo is not a string')
+      }
+
+      // Map to expected format
+      const schoolData = {
+        school_name: data.name,
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        website: data.website,
+        logo: logoBase64,
+        tagline: data.tagline,
+        principal_name: data.principal_name,
+        established_date: data.established_date
+      }
+
+      console.log('✅ Mapped school data:', schoolData)
+      setSchoolDetails(schoolData)
+      console.log('✅ School details state updated')
     } catch (error) {
-      console.error('Error fetching school details:', error)
+      console.error('❌ Error fetching school details:', error)
+      toast.error('Failed to load school data: ' + error.message)
     }
   }
 
@@ -212,123 +273,135 @@ export default function SalarySlipsPage() {
       return
     }
 
+    if (!schoolDetails) {
+      toast.error('School data not loaded. Please wait and try again.')
+      return
+    }
+
+    console.log('School Details for PDF:', schoolDetails)
+
     try {
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
-      let yPos = 20
 
-      // Add school logo if available
-      if (schoolDetails?.logo) {
-        try {
-          // Add logo centered at top
-          const imgWidth = 25
-          const imgHeight = 25
-          const imgX = (pageWidth - imgWidth) / 2
-          pdf.addImage(schoolDetails.logo, 'PNG', imgX, yPos, imgWidth, imgHeight)
-          yPos += 30
-        } catch (error) {
-          console.error('Error adding logo:', error)
-          toast.error('Could not load school logo, generating slip without logo...')
-          yPos += 5
-        }
+      // Use schoolDetails directly (already mapped in fetchSchoolDetails)
+      const schoolData = {
+        name: schoolDetails.name || schoolDetails.school_name,
+        school_name: schoolDetails.school_name || schoolDetails.name,
+        address: schoolDetails.address || '',
+        phone: schoolDetails.phone || '',
+        email: schoolDetails.email || '',
+        website: schoolDetails.website || '',
+        logo: schoolDetails.logo || null,
+        principal_name: schoolDetails.principal_name || '',
+        tagline: schoolDetails.tagline || '',
+        established_date: schoolDetails.established_date || ''
       }
 
-      // School Name
-      if (schoolDetails?.school_name) {
-        pdf.setFontSize(20)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(31, 78, 120)
-        pdf.text(schoolDetails.school_name, pageWidth / 2, yPos, { align: 'center' })
-        yPos += 10
+      // Add professional header with new style
+      const headerOptions = {
+        subtitle: `${getMonthName(payment.payment_month)} ${payment.payment_year}`,
+        info: `Employee: ${payment.staff?.employee_number || 'N/A'}`
       }
+      let yPos = addPDFHeader(pdf, schoolData, 'SALARY SLIP', headerOptions)
 
-      // Title
-      pdf.setFontSize(18)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(0, 0, 0)
-      pdf.text('SALARY SLIP', pageWidth / 2, yPos, { align: 'center' })
-      yPos += 8
+      // Add watermark for security
+      addPDFWatermark(pdf, schoolData, 'CONFIDENTIAL')
 
-      // Period
-      pdf.setFontSize(12)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(100, 100, 100)
-      pdf.text(`${getMonthName(payment.payment_month)} ${payment.payment_year}`, pageWidth / 2, yPos, { align: 'center' })
-      yPos += 12
-
-      // Divider line
-      pdf.setDrawColor(200, 200, 200)
-      pdf.line(15, yPos, pageWidth - 15, yPos)
-      yPos += 10
-
-      // Employee Information Section
-      pdf.setFontSize(14)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(31, 78, 120)
-      pdf.text('Employee Information', 15, yPos)
-      yPos += 8
-
-      // Employee details table
-      const employeeData = [
-        ['Name:', `${payment.staff?.first_name || ''} ${payment.staff?.last_name || ''}`.trim() || 'N/A', 'Employee No:', payment.staff?.employee_number || 'N/A'],
-        ['Designation:', payment.staff?.designation || 'N/A', 'Department:', payment.staff?.department || 'N/A'],
-        ['Payment Date:', payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB') : 'N/A', 'Payment Method:', payment.payment_method?.replace('_', ' ').toUpperCase() || 'N/A']
-      ]
-
-      autoTable(pdf, {
-        startY: yPos,
-        body: employeeData,
-        theme: 'plain',
-        styles: {
-          fontSize: 10,
-          cellPadding: 3
-        },
-        columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 35, textColor: [80, 80, 80] },
-          1: { cellWidth: 60, textColor: [0, 0, 0] },
-          2: { fontStyle: 'bold', cellWidth: 35, textColor: [80, 80, 80] },
-          3: { cellWidth: 50, textColor: [0, 0, 0] }
-        }
-      })
-
-      yPos = pdf.lastAutoTable.finalY + 12
-
-      // Salary Breakdown Section
-      pdf.setFontSize(14)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(31, 78, 120)
-      pdf.text('Salary Breakdown', 15, yPos)
       yPos += 5
 
-      // Salary breakdown table
+      // Employee Information Box
+      const boxY = yPos
+      const boxHeight = 28
+
+      // Info box with light background
+      pdf.setFillColor(245, 247, 250)
+      pdf.rect(15, boxY, pageWidth - 30, boxHeight, 'F')
+      pdf.setDrawColor(...PDF_COLORS.border)
+      pdf.setLineWidth(0.3)
+      pdf.rect(15, boxY, pageWidth - 30, boxHeight, 'S')
+
+      // Section title
+      pdf.setFont(PDF_FONTS.primary, 'bold')
+      pdf.setFontSize(11)
+      pdf.setTextColor(...PDF_COLORS.primary)
+      pdf.text('EMPLOYEE INFORMATION', 20, boxY + 6)
+
+      // Employee details - Two column layout
+      pdf.setFont(PDF_FONTS.secondary, 'normal')
+      pdf.setFontSize(9)
+
+      let infoY = boxY + 12
+      const col1X = 20
+      const col2X = pageWidth / 2 + 5
+
+      // Column 1
+      pdf.setTextColor(...PDF_COLORS.textLight)
+      pdf.text('Name:', col1X, infoY)
+      pdf.text('Designation:', col1X, infoY + 5)
+      pdf.text('Payment Date:', col1X, infoY + 10)
+
+      pdf.setFont(PDF_FONTS.secondary, 'bold')
+      pdf.setTextColor(...PDF_COLORS.textDark)
+      const staffName = `${payment.staff?.first_name || ''} ${payment.staff?.last_name || ''}`.trim() || 'N/A'
+      pdf.text(staffName, col1X + 25, infoY)
+      pdf.text(payment.staff?.designation || 'N/A', col1X + 25, infoY + 5)
+      pdf.text(formatDate(payment.payment_date), col1X + 25, infoY + 10)
+
+      // Column 2
+      pdf.setFont(PDF_FONTS.secondary, 'normal')
+      pdf.setTextColor(...PDF_COLORS.textLight)
+      pdf.text('Employee No:', col2X, infoY)
+      pdf.text('Department:', col2X, infoY + 5)
+      pdf.text('Payment Method:', col2X, infoY + 10)
+
+      pdf.setFont(PDF_FONTS.secondary, 'bold')
+      pdf.setTextColor(...PDF_COLORS.textDark)
+      pdf.text(payment.staff?.employee_number || 'N/A', col2X + 32, infoY)
+      pdf.text(payment.staff?.department || 'N/A', col2X + 32, infoY + 5)
+      pdf.text((payment.payment_method?.replace('_', ' ') || 'N/A').toUpperCase(), col2X + 32, infoY + 10)
+
+      yPos = boxY + boxHeight + 12
+
+      // Salary Breakdown Section Title
+      pdf.setFont(PDF_FONTS.primary, 'bold')
+      pdf.setFontSize(11)
+      pdf.setTextColor(...PDF_COLORS.primary)
+      pdf.text('SALARY BREAKDOWN', 15, yPos)
+      yPos += 5
+
+      // Salary breakdown table using autotable
       const salaryData = [
-        ['Basic Salary', `Rs ${parseFloat(payment.basic_salary || 0).toLocaleString()}`],
-        ['Total Allowances', `Rs ${parseFloat(payment.total_allowances || 0).toLocaleString()}`],
-        ['Gross Salary', `Rs ${parseFloat(payment.gross_salary || 0).toLocaleString()}`],
-        ['Total Deductions', `Rs ${parseFloat(payment.total_deductions || 0).toLocaleString()}`],
-        ['NET SALARY', `Rs ${parseFloat(payment.net_salary || 0).toLocaleString()}`]
+        ['Basic Salary', formatCurrency(payment.basic_salary)],
+        ['Total Allowances', formatCurrency(payment.total_allowances)],
+        ['Gross Salary', formatCurrency(payment.gross_salary)],
+        ['Total Deductions', formatCurrency(payment.total_deductions)],
+        ['NET SALARY PAYABLE', formatCurrency(payment.net_salary)]
       ]
 
       autoTable(pdf, {
         startY: yPos,
-        head: [['Description', 'Amount']],
+        head: [['Particulars', 'Amount']],
         body: salaryData,
-        theme: 'grid',
+        theme: 'striped',
         headStyles: {
-          fillColor: [31, 78, 120],
+          fillColor: PDF_COLORS.headerBg,
           textColor: [255, 255, 255],
-          fontSize: 11,
+          fontSize: 10,
           fontStyle: 'bold',
           halign: 'left'
         },
         styles: {
-          fontSize: 10,
-          cellPadding: 5
+          fontSize: 9,
+          cellPadding: 4
         },
         columnStyles: {
           0: { cellWidth: 130, fontStyle: 'normal' },
-          1: { cellWidth: 50, halign: 'right', fontStyle: 'normal' }
+          1: { cellWidth: 50, halign: 'right', fontStyle: 'bold' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
         },
         didParseCell: function(data) {
           // Highlight gross salary row
@@ -340,7 +413,7 @@ export default function SalarySlipsPage() {
           if (data.row.index === 4 && data.section === 'body') {
             data.cell.styles.fillColor = [232, 245, 233]
             data.cell.styles.fontStyle = 'bold'
-            data.cell.styles.fontSize = 12
+            data.cell.styles.fontSize = 11
             data.cell.styles.textColor = [27, 94, 32]
           }
           // Color deductions red
@@ -358,25 +431,49 @@ export default function SalarySlipsPage() {
 
       // Remarks if available
       if (payment.remarks) {
-        pdf.setFontSize(10)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(80, 80, 80)
+        pdf.setFont(PDF_FONTS.secondary, 'bold')
+        pdf.setFontSize(9)
+        pdf.setTextColor(...PDF_COLORS.textLight)
         pdf.text('Remarks:', 15, yPos)
-        yPos += 5
-        pdf.setFont('helvetica', 'normal')
-        pdf.setTextColor(0, 0, 0)
+        yPos += 4
+
+        pdf.setFont(PDF_FONTS.secondary, 'normal')
+        pdf.setTextColor(...PDF_COLORS.textDark)
         const remarksLines = pdf.splitTextToSize(payment.remarks, pageWidth - 30)
         pdf.text(remarksLines, 15, yPos)
-        yPos += remarksLines.length * 5 + 5
+        yPos += remarksLines.length * 4 + 8
       }
 
-      // Footer
-      const footerY = pageHeight - 20
-      pdf.setFontSize(9)
-      pdf.setFont('helvetica', 'italic')
-      pdf.setTextColor(150, 150, 150)
-      pdf.text('This is a computer-generated salary slip. No signature required.', pageWidth / 2, footerY, { align: 'center' })
-      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, pageWidth / 2, footerY + 5, { align: 'center' })
+      // Signature Section
+      const sigY = pageHeight - 50
+      const signatures = [
+        {
+          label: 'Prepared By',
+          name: '',
+          title: 'Accounts Department'
+        },
+        {
+          label: 'Verified By',
+          name: '',
+          title: 'Finance Officer'
+        },
+        {
+          label: 'Authorized By',
+          name: schoolData.principal_name || '',
+          title: 'Principal / Director'
+        }
+      ]
+      addSignatureSection(pdf, signatures, sigY)
+
+      // Payment ID/Reference (bottom left corner)
+      pdf.setFont(PDF_FONTS.secondary, 'normal')
+      pdf.setFontSize(7)
+      pdf.setTextColor(...PDF_COLORS.textLight)
+      const paymentRef = `PAY-${payment.id || Date.now()}`
+      pdf.text(paymentRef, 15, pageHeight - 25)
+
+      // Professional footer
+      addPDFFooter(pdf, 1, 1)
 
       // Auto download PDF
       const fileName = `Salary-Slip-${payment.staff?.first_name || 'Staff'}-${payment.staff?.last_name || ''}-${getMonthName(payment.payment_month)}-${payment.payment_year}.pdf`

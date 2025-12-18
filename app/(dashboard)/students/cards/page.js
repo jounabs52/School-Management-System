@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { CreditCard } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import QRCode from 'qrcode'
+import { convertImageToBase64 } from '@/lib/pdfUtils'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -163,7 +165,17 @@ export default function StudentIDCardsPage() {
         .single()
 
       if (error) throw error
-      setSchoolData(data)
+
+      // Convert logo URL to base64
+      let logoBase64 = data?.logo_url
+      if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        logoBase64 = await convertImageToBase64(data.logo_url)
+      }
+
+      setSchoolData({
+        ...data,
+        logo: logoBase64
+      })
     } catch (error) {
       console.error('Error fetching school data:', error)
     }
@@ -410,39 +422,47 @@ export default function StudentIDCardsPage() {
     const studentFullName = `${student.first_name || ''} ${student.last_name || ''}`.trim().toUpperCase()
     doc.text(studentFullName, photoX + photoSize/2, photoY + photoSize + 4, { align: 'center' })
 
-    // Barcode area below student name
-    const barcodeY = photoY + photoSize + 7
-    const barcodeWidth = photoSize + 2
-    const barcodeHeight = 6
+    // QR Code area below student name
+    const qrY = photoY + photoSize + 7
+    const qrSize = 14
 
     // Generate Student ID Number
     const studentIDNumber = `NWH-2023-${student.admission_number}`
 
-    // White background for barcode
-    doc.setFillColor(255, 255, 255)
-    doc.rect(photoX - 1, barcodeY, barcodeWidth, barcodeHeight, 'F')
+    // Generate QR code with student information
+    const qrData = JSON.stringify({
+      id: studentIDNumber,
+      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+      admission: student.admission_number,
+      school: schoolData?.name || 'NORTHWOOD HIGH SCHOOL'
+    })
 
-    // Draw barcode lines
-    doc.setLineWidth(0.4)
-    doc.setDrawColor(0, 0, 0)
+    try {
+      // Generate QR code as data URL
+      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+        width: 200,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      })
 
-    // Create barcode pattern with varying heights
-    const numLines = 20
-    const lineSpacing = barcodeWidth / numLines
-
-    for (let i = 0; i < numLines; i++) {
-      const x = photoX - 1 + (i * lineSpacing)
-      // Vary heights based on position for realistic barcode look
-      const heightVariation = (i % 3 === 0) ? 0.8 : (i % 2 === 0) ? 0.6 : 1
-      const lineHeight = (barcodeHeight - 1.5) * heightVariation
-      doc.line(x, barcodeY + 0.5, x, barcodeY + 0.5 + lineHeight)
+      // Add QR code to PDF
+      doc.addImage(qrCodeDataUrl, 'PNG', photoX + (photoSize - qrSize) / 2, qrY, qrSize, qrSize)
+    } catch (error) {
+      console.error('Error generating QR code:', error)
+      // Fallback: show text if QR code fails
+      doc.setFontSize(6)
+      doc.setTextColor(0, 0, 0)
+      doc.text('QR ERROR', photoX + photoSize/2, qrY + qrSize/2, { align: 'center' })
     }
 
-    // ID Number below barcode
+    // ID Number below QR code
     doc.setFontSize(5.5)
     doc.setTextColor(0, 0, 0)
     doc.setFont('courier', 'bold')
-    doc.text(studentIDNumber, photoX + photoSize/2, barcodeY + barcodeHeight + 1.5, { align: 'center' })
+    doc.text(studentIDNumber, photoX + photoSize/2, qrY + qrSize + 2, { align: 'center' })
 
     // Right section - Student details
     const detailsX = 32

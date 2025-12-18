@@ -21,7 +21,7 @@ export default function TestsPage() {
   const [resultDate, setResultDate] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSection, setSelectedSection] = useState('')
-  const [totalMarks, setTotalMarks] = useState('')
+  const [subjectMarks, setSubjectMarks] = useState({}) // {subjectId: totalMarks}
   const [details, setDetails] = useState('')
   const [selectedSubjects, setSelectedSubjects] = useState([])
   const [editingTest, setEditingTest] = useState(null)
@@ -216,22 +216,39 @@ export default function TestsPage() {
   const toggleSubjectSelection = (subjectId) => {
     setSelectedSubjects(prev => {
       if (prev.includes(subjectId)) {
+        // Remove subject and its marks
+        setSubjectMarks(prevMarks => {
+          const newMarks = { ...prevMarks }
+          delete newMarks[subjectId]
+          return newMarks
+        })
         return prev.filter(id => id !== subjectId)
       } else {
+        // Add subject
         return [...prev, subjectId]
       }
     })
   }
 
   const handleSaveTest = async () => {
-    if (!testName || !testDate || !selectedClass || !totalMarks || selectedSubjects.length === 0) {
+    if (!testName || !testDate || !selectedClass || selectedSubjects.length === 0) {
       showToast('Please fill all required fields', 'error')
+      return
+    }
+
+    // Validate that all selected subjects have marks entered
+    const missingMarks = selectedSubjects.filter(subjectId => !subjectMarks[subjectId] || subjectMarks[subjectId] === '')
+    if (missingMarks.length > 0) {
+      showToast('Please enter total marks for all selected subjects', 'error')
       return
     }
 
     setLoading(true)
     try {
       if (editingTest) {
+        // Calculate total marks from all subjects
+        const totalMarks = selectedSubjects.reduce((sum, subjectId) => sum + parseFloat(subjectMarks[subjectId] || 0), 0)
+
         const { error: testError } = await supabase
           .from('tests')
           .update({
@@ -240,7 +257,7 @@ export default function TestsPage() {
             result_date: resultDate || null,
             class_id: selectedClass,
             section_id: selectedSection || null,
-            total_marks: parseFloat(totalMarks),
+            total_marks: totalMarks,
             details: details || null
           })
           .eq('id', editingTest.id)
@@ -252,7 +269,8 @@ export default function TestsPage() {
         const testSubjects = selectedSubjects.map(subjectId => ({
           test_id: editingTest.id,
           subject_id: subjectId,
-          school_id: currentUser.school_id
+          school_id: currentUser.school_id,
+          total_marks: parseFloat(subjectMarks[subjectId])
         }))
 
         const { error: subjectsError } = await supabase
@@ -263,6 +281,9 @@ export default function TestsPage() {
 
         showToast('Test updated successfully', 'success')
       } else {
+        // Calculate total marks from all subjects
+        const totalMarks = selectedSubjects.reduce((sum, subjectId) => sum + parseFloat(subjectMarks[subjectId] || 0), 0)
+
         const { data: newTest, error: testError } = await supabase
           .from('tests')
           .insert({
@@ -273,7 +294,7 @@ export default function TestsPage() {
             result_date: resultDate || null,
             class_id: selectedClass,
             section_id: selectedSection || null,
-            total_marks: parseFloat(totalMarks),
+            total_marks: totalMarks,
             details: details || null,
             status: 'opened'
           })
@@ -285,7 +306,8 @@ export default function TestsPage() {
         const testSubjects = selectedSubjects.map(subjectId => ({
           test_id: newTest.id,
           subject_id: subjectId,
-          school_id: currentUser.school_id
+          school_id: currentUser.school_id,
+          total_marks: parseFloat(subjectMarks[subjectId])
         }))
 
         const { error: subjectsError } = await supabase
@@ -314,16 +336,23 @@ export default function TestsPage() {
     setTestDate(test.test_date)
     setResultDate(test.result_date || '')
     setSelectedClass(test.class_id)
-    setTotalMarks(test.total_marks.toString())
     setDetails(test.details || '')
     setSelectedSection(test.section_id || '')
 
     const { data: testSubjects } = await supabase
       .from('test_subjects')
-      .select('subject_id')
+      .select('subject_id, total_marks')
       .eq('test_id', test.id)
 
     setSelectedSubjects(testSubjects?.map(ts => ts.subject_id) || [])
+
+    // Load subject marks into state
+    const marks = {}
+    testSubjects?.forEach(ts => {
+      marks[ts.subject_id] = ts.total_marks?.toString() || ''
+    })
+    setSubjectMarks(marks)
+
     setActiveTab('add')
   }
 
@@ -377,7 +406,7 @@ export default function TestsPage() {
     setResultDate('')
     setSelectedClass('')
     setSelectedSection('')
-    setTotalMarks('')
+    setSubjectMarks({})
     setDetails('')
     setSelectedSubjects([])
     setEditingTest(null)
@@ -664,40 +693,42 @@ export default function TestsPage() {
                   className="w-full border border-gray-300 rounded px-3 py-2"
                 />
               </div>
-
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Total Marks <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={totalMarks}
-                  onChange={(e) => setTotalMarks(e.target.value)}
-                  placeholder="Enter Total Marks"
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                />
-              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Subjects / Courses <span className="text-red-500">*</span>
               </label>
-              <div className="border border-gray-300 rounded p-4 max-h-60 overflow-y-auto">
+              <div className="border border-gray-300 rounded p-4 max-h-96 overflow-y-auto">
                 {subjects.length === 0 ? (
                   <p className="text-gray-500 text-sm">Please select a class first</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {subjects.map(subject => (
-                      <label key={subject.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedSubjects.includes(subject.id)}
-                          onChange={() => toggleSubjectSelection(subject.id)}
-                          className="w-4 h-4 text-blue-600 rounded"
-                        />
-                        <span className="text-sm">{subject.subject_name}</span>
-                      </label>
+                      <div key={subject.id} className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedSubjects.includes(subject.id)}
+                            onChange={() => toggleSubjectSelection(subject.id)}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <span className="text-sm font-medium">{subject.subject_name}</span>
+                        </label>
+                        {selectedSubjects.includes(subject.id) && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm text-gray-600">Total Marks:</label>
+                            <input
+                              type="number"
+                              value={subjectMarks[subject.id] || ''}
+                              onChange={(e) => setSubjectMarks(prev => ({ ...prev, [subject.id]: e.target.value }))}
+                              placeholder="Marks"
+                              className="w-24 border border-gray-300 rounded px-2 py-1 text-sm"
+                              min="0"
+                            />
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}

@@ -5,9 +5,18 @@ import { supabase } from '@/lib/supabase'
 import { X, Plus, Search, Save, AlertCircle, CheckCircle, XCircle, FileText, Printer, Eye } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import {
+  addPDFHeader,
+  addPDFFooter,
+  addPDFWatermark,
+  convertImageToBase64,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
 
 export default function TestMarksPage() {
   const [currentUser, setCurrentUser] = useState(null)
+  const [schoolData, setSchoolData] = useState(null)
   const [tests, setTests] = useState([])
   const [completedTests, setCompletedTests] = useState([])
   const [classes, setClasses] = useState([])
@@ -25,12 +34,14 @@ export default function TestMarksPage() {
   const [selectedSubject, setSelectedSubject] = useState('')
   const [marksData, setMarksData] = useState({})
   const [existingMarks, setExistingMarks] = useState({})
+  const [subjectTotalMarks, setSubjectTotalMarks] = useState(0)
 
   // View Results States
   const [viewTest, setViewTest] = useState('')
   const [viewSubject, setViewSubject] = useState('')
   const [viewStudents, setViewStudents] = useState([])
   const [viewMarks, setViewMarks] = useState([])
+  const [viewSubjectTotalMarks, setViewSubjectTotalMarks] = useState(0)
 
   const showToast = (message, type = 'info') => {
     const id = Date.now()
@@ -42,6 +53,33 @@ export default function TestMarksPage() {
 
   const removeToast = (id) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
+
+  const fetchSchoolData = async () => {
+    if (!currentUser?.school_id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+
+      // Convert logo URL to base64
+      let logoBase64 = data?.logo_url
+      if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        logoBase64 = await convertImageToBase64(data.logo_url)
+      }
+
+      setSchoolData({
+        name: data?.name || 'School',
+        logo: logoBase64
+      })
+    } catch (error) {
+      console.error('Error fetching school data:', error)
+    }
   }
 
   useEffect(() => {
@@ -65,6 +103,7 @@ export default function TestMarksPage() {
 
   useEffect(() => {
     if (currentUser?.school_id) {
+      fetchSchoolData()
       fetchClasses()
       fetchOpenTests()
       fetchCompletedTests()
@@ -84,9 +123,11 @@ export default function TestMarksPage() {
     if (selectedTest && selectedClass && selectedSubject && currentUser?.school_id) {
       fetchStudents()
       fetchExistingMarks()
+      fetchSubjectTotalMarks()
     } else {
       setStudents([])
       setMarksData({})
+      setSubjectTotalMarks(0)
     }
   }, [selectedTest, selectedClass, selectedSection, selectedSubject])
 
@@ -94,9 +135,11 @@ export default function TestMarksPage() {
   useEffect(() => {
     if (viewTest && viewSubject && currentUser?.school_id) {
       fetchTestResults()
+      fetchViewSubjectTotalMarks()
     } else {
       setViewStudents([])
       setViewMarks([])
+      setViewSubjectTotalMarks(0)
     }
   }, [viewTest, viewSubject])
 
@@ -257,6 +300,40 @@ export default function TestMarksPage() {
     }
   }
 
+  const fetchSubjectTotalMarks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('test_subjects')
+        .select('total_marks')
+        .eq('test_id', selectedTest)
+        .eq('subject_id', selectedSubject)
+        .single()
+
+      if (error) throw error
+      setSubjectTotalMarks(data?.total_marks || 0)
+    } catch (error) {
+      console.error('Error fetching subject total marks:', error)
+      setSubjectTotalMarks(0)
+    }
+  }
+
+  const fetchViewSubjectTotalMarks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('test_subjects')
+        .select('total_marks')
+        .eq('test_id', viewTest)
+        .eq('subject_id', viewSubject)
+        .single()
+
+      if (error) throw error
+      setViewSubjectTotalMarks(data?.total_marks || 0)
+    } catch (error) {
+      console.error('Error fetching view subject total marks:', error)
+      setViewSubjectTotalMarks(0)
+    }
+  }
+
   const fetchTestResults = async () => {
     try {
       const test = completedTests.find(t => t.id === viewTest)
@@ -336,15 +413,12 @@ export default function TestMarksPage() {
 
     setLoading(true)
     try {
-      const test = tests.find(t => t.id === selectedTest)
-      const totalMarks = test?.total_marks || 0
-
-      // Validate marks
+      // Validate marks using subject-specific total marks
       for (const studentId in marksData) {
         const marks = marksData[studentId]
         if (!marks.is_absent && marks.obtained_marks) {
-          if (parseFloat(marks.obtained_marks) > parseFloat(totalMarks)) {
-            showToast(`Obtained marks cannot exceed total marks (${totalMarks})`, 'error')
+          if (parseFloat(marks.obtained_marks) > parseFloat(subjectTotalMarks)) {
+            showToast(`Obtained marks cannot exceed total marks (${subjectTotalMarks})`, 'error')
             setLoading(false)
             return
           }
@@ -405,39 +479,31 @@ export default function TestMarksPage() {
 
       const doc = new jsPDF()
 
-      // School Header
-      doc.setFontSize(18)
-      doc.setFont('helvetica', 'bold')
-      const schoolName = 'School Management System'
-      doc.text(schoolName, doc.internal.pageSize.width / 2, 15, { align: 'center' })
-
-      doc.setFontSize(14)
-      doc.text('Test Marks Report', doc.internal.pageSize.width / 2, 25, { align: 'center' })
-
       // Test Details
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
       const testDate = new Date(test.test_date).toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',
         year: 'numeric'
       })
 
-      doc.text(`Test Name: ${test.test_name || 'N/A'}`, 14, 35)
-      doc.text(`Class: ${test.classes?.class_name || 'N/A'}`, 14, 42)
-      doc.text(`Section: ${test.sections?.section_name || 'All'}`, 14, 49)
-      doc.text(`Subject: ${subject.subject_name || 'N/A'}`, 120, 35)
-      doc.text(`Test Date: ${testDate}`, 120, 42)
-      doc.text(`Total Marks: ${test.total_marks || 0}`, 120, 49)
+      // Add professional header
+      const headerOptions = {
+        subtitle: 'Test Marks Report',
+        info: `Test: ${test.test_name || 'N/A'} | Class: ${test.classes?.class_name || 'N/A'} | Subject: ${subject.subject_name || 'N/A'} | Date: ${testDate}`
+      }
+      let yPos = addPDFHeader(doc, schoolData, 'TEST MARKS', headerOptions)
 
-      // Draw line
-      doc.setLineWidth(0.5)
-      doc.line(14, 54, 196, 54)
+      // Add watermark
+      if (schoolData?.logo) {
+        addPDFWatermark(doc, schoolData)
+      }
+
+      yPos += 5
 
       // Prepare table data with null checks, percentage, and status
       const tableData = viewMarks.map((mark, index) => {
         const student = mark.students || {}
-        const percentage = mark.is_absent ? 0 : ((mark.obtained_marks / test.total_marks) * 100).toFixed(2)
+        const percentage = mark.is_absent ? 0 : ((mark.obtained_marks / viewSubjectTotalMarks) * 100).toFixed(2)
         const isPassing = percentage >= 40
 
         let status = 'Pass'
@@ -453,7 +519,7 @@ export default function TestMarksPage() {
           student.admission_number || 'N/A',
           `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'N/A',
           student.father_name || 'N/A',
-          (test.total_marks || 0).toString(),
+          (viewSubjectTotalMarks || 0).toString(),
           mark.is_absent ? 'Absent' : (mark.obtained_marks?.toString() || '0'),
           mark.is_absent ? '-' : `${percentage}%`,
           status
@@ -464,20 +530,22 @@ export default function TestMarksPage() {
 
       // Generate table
       autoTable(doc, {
-        startY: 60,
+        startY: yPos,
         head: [['Sr.', 'Roll No', 'Adm. No', 'Student Name', 'Father Name', 'Total', 'Obtained', 'Percentage', 'Status']],
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [30, 58, 138],
-          textColor: 255,
+          fillColor: PDF_COLORS.headerBg,
+          textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle'
         },
         bodyStyles: {
           fontSize: 8,
-          cellPadding: 2
+          cellPadding: 2,
+          valign: 'middle'
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
@@ -491,7 +559,7 @@ export default function TestMarksPage() {
           8: { halign: 'center', cellWidth: 17 }
         },
         alternateRowStyles: {
-          fillColor: [249, 250, 251]
+          fillColor: [248, 248, 248]
         },
         didParseCell: function(data) {
           // Color code status column
@@ -511,13 +579,11 @@ export default function TestMarksPage() {
         }
       })
 
-      // Footer
+      // Add professional footer to all pages
       const pageCount = doc.internal.getNumberOfPages()
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i)
-        doc.setFontSize(8)
-        const footerText = `Generated on: ${new Date().toLocaleDateString('en-GB')} | Page ${i} of ${pageCount}`
-        doc.text(footerText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' })
+        addPDFFooter(doc, i, pageCount)
       }
 
       // Save PDF with sanitized filename
@@ -656,8 +722,8 @@ export default function TestMarksPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
-                    <span className="font-semibold text-gray-700">Total Marks:</span>
-                    <span className="ml-2 text-gray-900">{selectedTestData.total_marks}</span>
+                    <span className="font-semibold text-gray-700">Total Marks (This Subject):</span>
+                    <span className="ml-2 text-gray-900">{subjectTotalMarks || 'Select subject'}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Test Date:</span>
@@ -714,7 +780,7 @@ export default function TestMarksPage() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                max={selectedTestData?.total_marks || 100}
+                                max={subjectTotalMarks || 100}
                                 value={marks.obtained_marks || ''}
                                 onChange={(e) => handleMarksChange(student.id, 'obtained_marks', e.target.value)}
                                 disabled={marks.is_absent}
@@ -848,8 +914,8 @@ export default function TestMarksPage() {
                     <span className="ml-2 text-gray-900">{viewTestData.classes?.class_name}</span>
                   </div>
                   <div>
-                    <span className="font-semibold text-gray-700">Total Marks:</span>
-                    <span className="ml-2 text-gray-900">{viewTestData.total_marks}</span>
+                    <span className="font-semibold text-gray-700">Total Marks (This Subject):</span>
+                    <span className="ml-2 text-gray-900">{viewSubjectTotalMarks}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Total Students:</span>
@@ -879,7 +945,7 @@ export default function TestMarksPage() {
                     <tbody>
                       {viewMarks.map((mark, index) => {
                         const student = mark.students
-                        const percentage = mark.is_absent ? 0 : ((mark.obtained_marks / viewTestData.total_marks) * 100).toFixed(2)
+                        const percentage = mark.is_absent ? 0 : ((mark.obtained_marks / viewSubjectTotalMarks) * 100).toFixed(2)
                         const isPassing = percentage >= 40
 
                         return (
@@ -891,7 +957,7 @@ export default function TestMarksPage() {
                               {student.first_name} {student.last_name}
                             </td>
                             <td className="px-3 py-2 text-sm">{student.father_name}</td>
-                            <td className="px-3 py-2 text-sm text-center">{viewTestData.total_marks}</td>
+                            <td className="px-3 py-2 text-sm text-center">{viewSubjectTotalMarks}</td>
                             <td className="px-3 py-2 text-sm text-center font-medium">
                               {mark.is_absent ? (
                                 <span className="text-red-600">Absent</span>

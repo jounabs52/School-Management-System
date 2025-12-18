@@ -6,6 +6,14 @@ import { Plus, Search, Filter, Download, Printer, Edit, Trash2, X, DollarSign, T
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
+import {
+  addPDFHeader,
+  addPDFFooter,
+  addPDFWatermark,
+  formatCurrency,
+  convertImageToBase64,
+  PDF_COLORS
+} from '@/lib/pdfUtils'
 
 export default function ExpensesPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -103,12 +111,35 @@ export default function ExpensesPage() {
     try {
       const { data, error } = await supabase
         .from('schools')
-        .select('school_name, logo')
+        .select('*')
         .eq('id', currentUser.school_id)
         .single()
 
       if (error) throw error
-      setSchoolDetails(data)
+
+      // Convert logo URL to base64 if it exists
+      let logoBase64 = data.logo_url
+      if (data.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        console.log('🔄 Converting logo URL to base64...')
+        logoBase64 = await convertImageToBase64(data.logo_url)
+        console.log('✅ Logo converted to base64:', logoBase64 ? 'Success' : 'Failed')
+      }
+
+      // Map to expected format
+      const schoolData = {
+        school_name: data.name,
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        website: data.website,
+        logo: logoBase64,
+        tagline: data.tagline,
+        principal_name: data.principal_name,
+        established_date: data.established_date
+      }
+
+      setSchoolDetails(schoolData)
     } catch (error) {
       console.error('Error fetching school details:', error)
     }
@@ -317,40 +348,29 @@ export default function ExpensesPage() {
       return
     }
 
+    if (!schoolDetails) {
+      toast.error('School data not loaded. Please wait and try again.')
+      return
+    }
+
     try {
       const pdf = new jsPDF('l', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
-      let yPos = 20
 
-      // Add school logo
-      if (schoolDetails?.logo) {
-        try {
-          const imgWidth = 20
-          const imgHeight = 20
-          const imgX = (pageWidth - imgWidth) / 2
-          pdf.addImage(schoolDetails.logo, 'PNG', imgX, yPos, imgWidth, imgHeight)
-          yPos += 25
-        } catch (error) {
-          console.error('Error adding logo:', error)
-          yPos += 5
-        }
+      // Add professional header
+      const totalAmount = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0)
+      const headerOptions = {
+        subtitle: startDate && endDate
+          ? `${new Date(startDate).toLocaleDateString('en-GB')} to ${new Date(endDate).toLocaleDateString('en-GB')}`
+          : 'All Expenses',
+        info: `Total Expenses: ${filteredExpenses.length} | Amount: ${formatCurrency(totalAmount)}`
       }
+      let yPos = addPDFHeader(pdf, schoolDetails, 'EXPENSE REPORT', headerOptions)
 
-      // School Name
-      if (schoolDetails?.school_name) {
-        pdf.setFontSize(18)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(31, 78, 120)
-        pdf.text(schoolDetails.school_name, pageWidth / 2, yPos, { align: 'center' })
-        yPos += 8
-      }
+      // Add watermark
+      addPDFWatermark(pdf, schoolDetails, 'CONFIDENTIAL')
 
-      // Title
-      pdf.setFontSize(16)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(0, 0, 0)
-      pdf.text('Expense Report', pageWidth / 2, yPos, { align: 'center' })
-      yPos += 10
+      yPos += 5
 
       // Prepare table data
       const tableData = filteredExpenses.map((expense, index) => [
@@ -374,7 +394,7 @@ export default function ExpensesPage() {
         body: [...tableData, totals],
         theme: 'grid',
         headStyles: {
-          fillColor: [31, 78, 120],
+          fillColor: PDF_COLORS.headerBg,
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold'
@@ -401,12 +421,8 @@ export default function ExpensesPage() {
         }
       })
 
-      // Footer
-      const finalY = pdf.lastAutoTable.finalY + 10
-      pdf.setFontSize(8)
-      pdf.setFont('helvetica', 'italic')
-      pdf.setTextColor(150, 150, 150)
-      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, pageWidth / 2, finalY, { align: 'center' })
+      // Add professional footer
+      addPDFFooter(pdf, 1, 1)
 
       pdf.save(`Expense-Report-${new Date().toLocaleDateString('en-GB')}.pdf`)
       toast.success('Expense report downloaded successfully!')

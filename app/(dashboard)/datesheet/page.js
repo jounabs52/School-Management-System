@@ -7,6 +7,14 @@ import { useRouter } from 'next/navigation'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { generateDatesheetPDF } from '@/lib/pdfGenerator'
+import {
+  convertImageToBase64,
+  addPDFHeader,
+  addPDFFooter,
+  addPDFWatermark,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
 
 export default function DatesheetPage() {
   const router = useRouter()
@@ -214,7 +222,7 @@ export default function DatesheetPage() {
     fetchCurrentSession()
   }, [currentUser])
 
-  // Fetch school info
+  // Fetch school info with logo
   useEffect(() => {
     const fetchSchoolInfo = async () => {
       if (!currentUser?.school_id) return
@@ -227,8 +235,31 @@ export default function DatesheetPage() {
           .single()
 
         if (error) throw error
-        setSchoolInfo(data)
-        console.log('🏫 School info loaded:', data)
+
+        // Convert logo URL to base64 if it exists
+        let logoBase64 = data.logo_url
+        if (data.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+          console.log('🔄 Converting logo URL to base64...')
+          logoBase64 = await convertImageToBase64(data.logo_url)
+          console.log('✅ Logo converted to base64:', logoBase64 ? 'Success' : 'Failed')
+        }
+
+        // Map to expected format for PDF
+        const schoolData = {
+          school_name: data.name,
+          name: data.name,
+          address: data.address,
+          phone: data.phone,
+          email: data.email,
+          website: data.website,
+          logo: logoBase64,
+          tagline: data.tagline,
+          principal_name: data.principal_name,
+          established_date: data.established_date
+        }
+
+        setSchoolInfo(schoolData)
+        console.log('🏫 School info loaded with logo')
       } catch (error) {
         console.error('Error fetching school info:', error)
       }
@@ -828,18 +859,21 @@ export default function DatesheetPage() {
       // Create PDF
       const doc = new jsPDF('landscape')
 
-      // Add title
-      doc.setFontSize(18)
-      doc.setFont('helvetica', 'bold')
-      doc.text(currentDatesheet.title || 'Date Sheet', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
-
-      doc.setFontSize(14)
-      doc.text(`Class: ${className}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' })
-
-      if (currentDatesheet.exam_center) {
-        doc.setFontSize(12)
-        doc.text(`Exam Center: ${currentDatesheet.exam_center}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' })
+      // Add professional header with logo
+      const headerOptions = {
+        subtitle: currentDatesheet.title || 'Date Sheet',
+        session: currentDatesheet.session,
+        info: `Class: ${className}`,
+        ...(currentDatesheet.exam_center && { examCenter: currentDatesheet.exam_center })
       }
+      let yPosition = addPDFHeader(doc, schoolInfo, 'EXAMINATION DATE SHEET', headerOptions)
+
+      // Add watermark
+      if (schoolInfo) {
+        addPDFWatermark(doc, schoolInfo)
+      }
+
+      yPosition += 5
 
       // Prepare table data
       const tableData = []
@@ -868,27 +902,40 @@ export default function DatesheetPage() {
 
       // Add table
       autoTable(doc, {
-        startY: currentDatesheet.exam_center ? 38 : 32,
+        startY: yPosition,
         head: [headers],
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [30, 58, 138], // blue-900
-          textColor: 255,
+          fillColor: PDF_COLORS.headerBg,
+          textColor: [255, 255, 255],
+          fontSize: 10,
           fontStyle: 'bold',
           halign: 'center'
         },
         bodyStyles: {
+          fontSize: 10,
+          cellPadding: 3,
           halign: 'center'
         },
         columnStyles: {
           0: { cellWidth: 20 },
-          1: { cellWidth: 50 },
+          1: { cellWidth: 50, fontStyle: 'bold' },
           2: { cellWidth: 50 },
-          3: { cellWidth: 80 },
+          3: { cellWidth: 80, halign: 'left' },
           4: { cellWidth: 70 }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
         }
       })
+
+      // Add professional footer
+      const pageCount = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        addPDFFooter(doc, i, pageCount)
+      }
 
       // Save PDF
       doc.save(`${currentDatesheet.title}_${className}_Datesheet.pdf`)
@@ -926,22 +973,25 @@ export default function DatesheetPage() {
 
         // Add new page for each class (except the first one)
         if (!isFirstPage) {
-          doc.addPage()
+          doc.addPage('landscape')
         }
         isFirstPage = false
 
-        // Add title for this class
-        doc.setFontSize(18)
-        doc.setFont('helvetica', 'bold')
-        doc.text(currentDatesheet.title || 'Date Sheet', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
-
-        doc.setFontSize(14)
-        doc.text(`Class: ${className}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' })
-
-        if (currentDatesheet.exam_center) {
-          doc.setFontSize(12)
-          doc.text(`Exam Center: ${currentDatesheet.exam_center}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' })
+        // Add professional header with logo
+        const headerOptions = {
+          subtitle: currentDatesheet.title || 'Date Sheet',
+          session: currentDatesheet.session,
+          info: `Class: ${className}`,
+          ...(currentDatesheet.exam_center && { examCenter: currentDatesheet.exam_center })
         }
+        let yPosition = addPDFHeader(doc, schoolInfo, 'EXAMINATION DATE SHEET', headerOptions)
+
+        // Add watermark
+        if (schoolInfo) {
+          addPDFWatermark(doc, schoolInfo)
+        }
+
+        yPosition += 5
 
         // Prepare table data
         const tableData = []
@@ -970,27 +1020,40 @@ export default function DatesheetPage() {
 
         // Add table
         autoTable(doc, {
-          startY: currentDatesheet.exam_center ? 38 : 32,
+          startY: yPosition,
           head: [headers],
           body: tableData,
           theme: 'grid',
           headStyles: {
-            fillColor: [30, 58, 138], // blue-900
-            textColor: 255,
+            fillColor: PDF_COLORS.headerBg,
+            textColor: [255, 255, 255],
+            fontSize: 10,
             fontStyle: 'bold',
             halign: 'center'
           },
           bodyStyles: {
+            fontSize: 10,
+            cellPadding: 3,
             halign: 'center'
           },
           columnStyles: {
             0: { cellWidth: 20 },
-            1: { cellWidth: 50 },
+            1: { cellWidth: 50, fontStyle: 'bold' },
             2: { cellWidth: 50 },
-            3: { cellWidth: 80 },
+            3: { cellWidth: 80, halign: 'left' },
             4: { cellWidth: 70 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 248, 248]
           }
         })
+      }
+
+      // Add professional footer to all pages
+      const pageCount = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        addPDFFooter(doc, i, pageCount)
       }
 
       // Save single PDF with all classes
@@ -1090,66 +1153,65 @@ export default function DatesheetPage() {
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
 
-      // Header - School Name
-      doc.setFontSize(18)
-      doc.setFont('helvetica', 'bold')
-      doc.text(currentUser?.school_name || 'SCHOOL NAME', pageWidth / 2, 20, { align: 'center' })
-
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 27, { align: 'center' })
-      doc.text('Ph: 03011016102', pageWidth / 2, 32, { align: 'center' })
-
-      // Title
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text('EXAM ENTRANCE SLIP', pageWidth / 2, 45, { align: 'center' })
-      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 52, { align: 'center' })
-
-      // Student Details Box
-      const leftMargin = 20
-      const boxTop = 60
-      const boxWidth = 120
-
-      // Student Info
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text("Student's Name", leftMargin, boxTop)
-      doc.setFont('helvetica', 'normal')
+      // Add professional header with logo
       const studentName = slip.students.first_name && slip.students.last_name
         ? `${slip.students.first_name} ${slip.students.last_name}`
         : slip.students.first_name || 'N/A'
+      const className = getClassName(slip.students.current_class_id)
+
+      const headerOptions = {
+        subtitle: datesheet.title.toUpperCase(),
+        session: datesheet.session
+      }
+      let yPosition = addPDFHeader(doc, schoolInfo, 'EXAM ENTRANCE SLIP', headerOptions)
+
+      // Add watermark
+      if (schoolInfo) {
+        addPDFWatermark(doc, schoolInfo)
+      }
+
+      yPosition += 5
+
+      // Student Details Box
+      const leftMargin = 20
+      const boxTop = yPosition
+
+      // Student Info
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.text("Student's Name", leftMargin, boxTop)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(studentName, leftMargin + 50, boxTop)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Father's Name", leftMargin, boxTop + 7)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(slip.students.father_name || 'N/A', leftMargin + 50, boxTop + 7)
 
-      const className = getClassName(slip.students.current_class_id)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Class", leftMargin, boxTop + 14)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(className, leftMargin + 50, boxTop + 14)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Admit", leftMargin + 90, boxTop + 14)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(slip.students.admission_number?.toString() || 'N/A', leftMargin + 110, boxTop + 14)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Session", leftMargin, boxTop + 21)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(datesheet.session || 'N/A', leftMargin + 50, boxTop + 21)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Roll #", leftMargin + 90, boxTop + 21)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(slip.students.roll_number?.toString() || 'N/A', leftMargin + 110, boxTop + 21)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Exam Center", leftMargin, boxTop + 28)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(datesheet.exam_center || 'N/A', leftMargin + 50, boxTop + 28)
 
       // Exam Schedule Table
@@ -1174,32 +1236,31 @@ export default function DatesheetPage() {
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [25, 49, 83],
-          textColor: 255,
+          fillColor: PDF_COLORS.headerBg,
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 9
+          fontSize: 9,
+          halign: 'center'
         },
-        styles: {
+        bodyStyles: {
           fontSize: 8,
           cellPadding: 2
         },
         columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 50 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 20 }
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 40, halign: 'left' },
+          2: { cellWidth: 50, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 25, halign: 'center' },
+          5: { cellWidth: 20, halign: 'center' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
         }
       })
 
-      const finalY = doc.lastAutoTable.finalY + 10
-
-      // Footer
-      const footerY = pageHeight - 20
-      doc.setFontSize(8)
-      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, leftMargin, footerY)
-      doc.text('Controller Examination', pageWidth - 60, footerY)
+      // Add professional footer
+      addPDFFooter(doc, 1, 1)
 
       // Save PDF
       const fileStudentName = slip.students.first_name && slip.students.last_name
@@ -1440,16 +1501,13 @@ export default function DatesheetPage() {
         return
       }
 
-      // Get school name from current user (you might want to fetch this from schools table)
-      const schoolName = currentUser?.school_name || 'School Name'
-
-      // Generate PDF
+      // Generate PDF with school data
       generateDatesheetPDF(
         datesheet,
         schedules,
         classes,
         subjects,
-        schoolName
+        schoolInfo
       )
 
       showToast('PDF generated successfully', 'success')
@@ -1507,37 +1565,25 @@ export default function DatesheetPage() {
       }
 
       const doc = new jsPDF()
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
 
-      // Header
-      doc.setFontSize(20)
-      doc.setFont('helvetica', 'bold')
-      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 20, { align: 'center' })
+      // Add professional header with logo
+      const headerOptions = {
+        subtitle: datesheet.title.toUpperCase(),
+        session: datesheet.session,
+        info: `Class: ${getClassName(classId)}`,
+        ...(datesheet.exam_center && { examCenter: datesheet.exam_center })
+      }
+      let yPosition = addPDFHeader(doc, schoolInfo, 'DATE SHEET SCHEDULE', headerOptions)
 
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 27, { align: 'center' })
-      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 32, { align: 'center' })
+      // Add watermark
+      if (schoolInfo) {
+        addPDFWatermark(doc, schoolInfo)
+      }
 
-      // Title
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text('DATE SHEET SCHEDULE', pageWidth / 2, 45, { align: 'center' })
-      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 52, { align: 'center' })
-
-      // Info Box
-      const leftMargin = 20
-      const boxTop = 60
-
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Class: ${getClassName(classId)}`, leftMargin, boxTop)
-      doc.text(`Session: ${datesheet.session}`, leftMargin, boxTop + 7)
-      doc.text(`Exam Center: ${datesheet.exam_center || 'skoolzoom demo software, BLOCK D STREET 29 ISLAMABAD'}`, leftMargin, boxTop + 14)
+      yPosition += 5
 
       // Schedule Table
-      const tableTop = boxTop + 25
+      const tableTop = yPosition
       const tableData = classSchedules?.map((schedule, index) => {
         const date = new Date(schedule.exam_date)
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -1561,32 +1607,31 @@ export default function DatesheetPage() {
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [25, 49, 83],
-          textColor: 255,
+          fillColor: PDF_COLORS.headerBg,
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 9
+          fontSize: 9,
+          halign: 'center'
         },
-        styles: {
+        bodyStyles: {
           fontSize: 8,
           cellPadding: 2
         },
         columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 50 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 20 }
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 50, halign: 'left' },
+          2: { cellWidth: 50, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 25, halign: 'center' },
+          5: { cellWidth: 20, halign: 'center' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
         }
       })
 
-      const finalY = doc.lastAutoTable.finalY + 15
-
-      // Footer
-      const footerY = pageHeight - 20
-      doc.setFontSize(8)
-      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, leftMargin, footerY)
-      doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
+      // Add professional footer
+      addPDFFooter(doc, 1, 1)
 
       // Save PDF
       const fileName = `${getClassName(classId)}_${datesheet.title}_Datesheet.pdf`
@@ -1649,24 +1694,22 @@ export default function DatesheetPage() {
       const classesInDatesheet = datesheet.class_ids || []
       const filteredClasses = classes.filter(c => classesInDatesheet.includes(c.id))
 
-      const doc = new jsPDF('l') // Landscape mode
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
+      const doc = new jsPDF('landscape')
 
-      // Header
-      doc.setFontSize(20)
-      doc.setFont('helvetica', 'bold')
-      doc.text(currentUser?.school_name || 'SKOOLZOOM DEMO SOFTWARE', pageWidth / 2, 15, { align: 'center' })
+      // Add professional header with logo
+      const headerOptions = {
+        subtitle: datesheet.title.toUpperCase(),
+        session: datesheet.session,
+        info: 'All Classes Examination Schedule'
+      }
+      let yPosition = addPDFHeader(doc, schoolInfo, 'EXAMINATION DATE SHEET', headerOptions)
 
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text('BLOCK D STREET 29 ISLAMABAD', pageWidth / 2, 22, { align: 'center' })
-      doc.text(`Ph: ${currentUser?.phone || '03011016102'}`, pageWidth / 2, 27, { align: 'center' })
+      // Add watermark
+      if (schoolInfo) {
+        addPDFWatermark(doc, schoolInfo)
+      }
 
-      // Title
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text(datesheet.title.toUpperCase(), pageWidth / 2, 37, { align: 'center' })
+      yPosition += 5
 
       // Build table data
       const tableHead = [
@@ -1694,7 +1737,7 @@ export default function DatesheetPage() {
         return row
       })
 
-      const tableTop = 45
+      const tableTop = yPosition
 
       autoTable(doc, {
         startY: tableTop,
@@ -1702,28 +1745,28 @@ export default function DatesheetPage() {
         body: tableBody,
         theme: 'grid',
         headStyles: {
-          fillColor: [25, 49, 83],
-          textColor: 255,
+          fillColor: PDF_COLORS.headerBg,
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 8
+          fontSize: 8,
+          halign: 'center'
         },
-        styles: {
+        bodyStyles: {
           fontSize: 7,
-          cellPadding: 2
+          cellPadding: 2,
+          halign: 'center'
         },
         columnStyles: {
           0: { cellWidth: 10 },
-          1: { cellWidth: 30 }
+          1: { cellWidth: 30, halign: 'left', fontStyle: 'bold' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
         }
       })
 
-      const finalY = doc.lastAutoTable.finalY + 10
-
-      // Footer
-      const footerY = pageHeight - 15
-      doc.setFontSize(8)
-      doc.text(`Dated: ${new Date().toLocaleDateString('en-GB')}`, 20, footerY)
-      doc.text('Controller Examination: _______________', pageWidth - 80, footerY)
+      // Add professional footer
+      addPDFFooter(doc, 1, 1)
 
       // Save PDF
       const fileName = `All_Classes_${datesheet.title}_Datesheet.pdf`
@@ -1773,7 +1816,7 @@ export default function DatesheetPage() {
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {tab === 'datesheets' ? 'Datesheets Management' : 'Reports & Slips'}
+              {tab === 'datesheets' ? 'Datesheets Management' : 'Slips'}
             </button>
           ))}
         </div>

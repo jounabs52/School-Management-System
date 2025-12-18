@@ -7,6 +7,14 @@ import { ArrowLeft, FileText, Download, Users, TrendingUp, Calendar, BookOpen, A
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
+import {
+  addPDFHeader,
+  addPDFFooter,
+  addPDFWatermark,
+  convertImageToBase64,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
 
 export default function ExamReportsPage() {
   const router = useRouter()
@@ -465,54 +473,68 @@ export default function ExamReportsPage() {
     setReportData({ topPerformers, needsAttention })
   }
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!reportData || (Array.isArray(reportData) && reportData.length === 0)) {
       toast.error('No data to export')
       return
     }
 
     try {
-      const pdf = new jsPDF()
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      let yPos = 20
-
-      // School header
-      if (schoolDetails?.logo_url) {
-        try {
-          pdf.addImage(schoolDetails.logo_url, 'PNG', 15, 10, 20, 20)
-        } catch (error) {
-          console.log('Could not add logo')
-        }
+      // Convert logo to base64
+      let logoBase64 = schoolDetails?.logo_url
+      if (schoolDetails?.logo_url && (schoolDetails.logo_url.startsWith('http://') || schoolDetails.logo_url.startsWith('https://'))) {
+        logoBase64 = await convertImageToBase64(schoolDetails.logo_url)
       }
 
-      pdf.setFontSize(18)
-      pdf.setFont(undefined, 'bold')
-      pdf.text(schoolDetails?.school_name || 'School', 40, yPos)
+      const schoolData = {
+        name: schoolDetails?.name || 'School',
+        logo: logoBase64
+      }
 
-      pdf.setFontSize(14)
-      pdf.text(getReportTitle(), 40, yPos + 8)
+      const pdf = new jsPDF()
+      const pageWidth = pdf.internal.pageSize.getWidth()
 
-      pdf.setFontSize(10)
-      pdf.setFont(undefined, 'normal')
-      pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 40, yPos + 15)
+      // Add professional header
+      const headerOptions = {
+        subtitle: getReportTitle()
+      }
+      let yPos = addPDFHeader(pdf, schoolData, 'EXAMINATION REPORT', headerOptions)
 
-      yPos += 25
-
-      // Add stats
-      pdf.setFontSize(11)
-      pdf.setFont(undefined, 'bold')
-      pdf.text('Summary Statistics:', 15, yPos)
-      yPos += 6
-
-      pdf.setFontSize(9)
-      pdf.setFont(undefined, 'normal')
-      Object.entries(stats).forEach(([key, value]) => {
-        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
-        pdf.text(`${label}: ${value}`, 15, yPos)
-        yPos += 5
-      })
+      // Add watermark
+      if (schoolData.logo) {
+        addPDFWatermark(pdf, schoolData)
+      }
 
       yPos += 5
+
+      // Add stats summary box
+      if (Object.keys(stats).length > 0) {
+        pdf.setFillColor(245, 245, 245)
+        const boxHeight = Math.min(Object.keys(stats).length * 6 + 10, 40)
+        pdf.rect(15, yPos, pageWidth - 30, boxHeight, 'F')
+
+        pdf.setDrawColor(...PDF_COLORS.border)
+        pdf.setLineWidth(0.5)
+        pdf.rect(15, yPos, pageWidth - 30, boxHeight, 'S')
+
+        pdf.setFont(PDF_FONTS.primary, 'bold')
+        pdf.setFontSize(11)
+        pdf.setTextColor(...PDF_COLORS.textDark)
+        pdf.text('SUMMARY STATISTICS', 20, yPos + 8)
+
+        pdf.setFont(PDF_FONTS.secondary, 'normal')
+        pdf.setFontSize(9)
+        pdf.setTextColor(...PDF_COLORS.textDark)
+
+        let statYPos = yPos + 16
+        Object.entries(stats).forEach(([key, value]) => {
+          const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
+          pdf.text(`${label}: ${value}`, 20, statYPos)
+          statYPos += 5
+        })
+
+        yPos += boxHeight + 10
+      }
 
       // Generate table based on active tab
       if (activeTab === 'test-results' && Array.isArray(reportData)) {
@@ -538,8 +560,30 @@ export default function ExamReportsPage() {
           head: [['#', 'Roll No.', 'Student Name', 'Obtained', 'Total', 'Percentage', 'Status']],
           body: tableData,
           theme: 'grid',
-          headStyles: { fillColor: [59, 130, 246] },
-          styles: { fontSize: 8 }
+          headStyles: {
+            fillColor: PDF_COLORS.headerBg,
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle'
+          },
+          bodyStyles: {
+            fontSize: 8,
+            valign: 'middle'
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10 },
+            1: { halign: 'center', cellWidth: 20 },
+            2: { halign: 'left', cellWidth: 50 },
+            3: { halign: 'center', cellWidth: 20 },
+            4: { halign: 'center', cellWidth: 20 },
+            5: { halign: 'center', cellWidth: 25 },
+            6: { halign: 'center', cellWidth: 25 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 248, 248]
+          }
         })
       } else if (activeTab === 'class-summary' && Array.isArray(reportData)) {
         autoTable(pdf, {
@@ -555,8 +599,30 @@ export default function ExamReportsPage() {
             `${item.passPercentage}%`
           ]),
           theme: 'grid',
-          headStyles: { fillColor: [59, 130, 246] },
-          styles: { fontSize: 8 }
+          headStyles: {
+            fillColor: PDF_COLORS.headerBg,
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle'
+          },
+          bodyStyles: {
+            fontSize: 8,
+            valign: 'middle'
+          },
+          columnStyles: {
+            0: { halign: 'left', cellWidth: 50 },
+            1: { halign: 'center', cellWidth: 20 },
+            2: { halign: 'center', cellWidth: 25 },
+            3: { halign: 'center', cellWidth: 20 },
+            4: { halign: 'center', cellWidth: 20 },
+            5: { halign: 'center', cellWidth: 20 },
+            6: { halign: 'center', cellWidth: 25 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 248, 248]
+          }
         })
       } else if (activeTab === 'subject-summary' && Array.isArray(reportData)) {
         autoTable(pdf, {
@@ -572,8 +638,30 @@ export default function ExamReportsPage() {
             `${item.averagePercentage}%`
           ]),
           theme: 'grid',
-          headStyles: { fillColor: [59, 130, 246] },
-          styles: { fontSize: 8 }
+          headStyles: {
+            fillColor: PDF_COLORS.headerBg,
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle'
+          },
+          bodyStyles: {
+            fontSize: 8,
+            valign: 'middle'
+          },
+          columnStyles: {
+            0: { halign: 'left', cellWidth: 50 },
+            1: { halign: 'center', cellWidth: 20 },
+            2: { halign: 'center', cellWidth: 25 },
+            3: { halign: 'center', cellWidth: 20 },
+            4: { halign: 'center', cellWidth: 20 },
+            5: { halign: 'center', cellWidth: 25 },
+            6: { halign: 'center', cellWidth: 25 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 248, 248]
+          }
         })
       } else if (activeTab === 'top-performers' && reportData.topPerformers) {
         // Top performers
@@ -589,14 +677,45 @@ export default function ExamReportsPage() {
             `${student.averagePercentage}%`
           ]),
           theme: 'grid',
-          headStyles: { fillColor: [34, 197, 94] },
-          styles: { fontSize: 8 }
+          headStyles: {
+            fillColor: [34, 197, 94],
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle'
+          },
+          bodyStyles: {
+            fontSize: 8,
+            valign: 'middle'
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 15 },
+            1: { halign: 'center', cellWidth: 25 },
+            2: { halign: 'left', cellWidth: 60 },
+            3: { halign: 'center', cellWidth: 20 },
+            4: { halign: 'center', cellWidth: 20 },
+            5: { halign: 'center', cellWidth: 30 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 248, 248]
+          }
         })
 
         if (reportData.needsAttention.length > 0) {
           yPos = pdf.lastAutoTable.finalY + 15
+
+          // Check if we need a new page
+          if (yPos > 240) {
+            pdf.addPage()
+            yPos = addPDFHeader(pdf, schoolData, 'EXAMINATION REPORT', headerOptions)
+            addPDFWatermark(pdf, schoolData)
+            yPos += 5
+          }
+
+          pdf.setFont(PDF_FONTS.primary, 'bold')
           pdf.setFontSize(11)
-          pdf.setFont(undefined, 'bold')
+          pdf.setTextColor(...PDF_COLORS.textDark)
           pdf.text('Students Needing Attention (Below 40%)', 15, yPos)
           yPos += 7
 
@@ -611,10 +730,37 @@ export default function ExamReportsPage() {
               `${student.averagePercentage}%`
             ]),
             theme: 'grid',
-            headStyles: { fillColor: [239, 68, 68] },
-            styles: { fontSize: 8 }
+            headStyles: {
+              fillColor: [239, 68, 68],
+              textColor: [255, 255, 255],
+              fontSize: 9,
+              fontStyle: 'bold',
+              halign: 'center',
+              valign: 'middle'
+            },
+            bodyStyles: {
+              fontSize: 8,
+              valign: 'middle'
+            },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 25 },
+              1: { halign: 'left', cellWidth: 70 },
+              2: { halign: 'center', cellWidth: 25 },
+              3: { halign: 'center', cellWidth: 25 },
+              4: { halign: 'center', cellWidth: 35 }
+            },
+            alternateRowStyles: {
+              fillColor: [248, 248, 248]
+            }
           })
         }
+      }
+
+      // Add professional footer to all pages
+      const pageCount = pdf.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i)
+        addPDFFooter(pdf, i, pageCount)
       }
 
       pdf.save(`${getReportTitle()}.pdf`)

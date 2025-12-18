@@ -7,6 +7,14 @@ import { AlertCircle, Printer, Download, Filter, ArrowLeft } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
+import {
+  addPDFHeader,
+  addPDFFooter,
+  addPDFWatermark,
+  formatCurrency,
+  convertImageToBase64,
+  PDF_COLORS
+} from '@/lib/pdfUtils'
 
 export default function SalaryPaidReport() {
   const router = useRouter()
@@ -46,12 +54,35 @@ export default function SalaryPaidReport() {
     try {
       const { data, error } = await supabase
         .from('schools')
-        .select('school_name, logo')
+        .select('*')
         .eq('id', currentUser.school_id)
         .single()
 
       if (error) throw error
-      setSchoolDetails(data)
+
+      // Convert logo URL to base64 if it exists
+      let logoBase64 = data.logo_url
+      if (data.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        console.log('🔄 Converting logo URL to base64...')
+        logoBase64 = await convertImageToBase64(data.logo_url)
+        console.log('✅ Logo converted to base64:', logoBase64 ? 'Success' : 'Failed')
+      }
+
+      // Map to expected format
+      const schoolData = {
+        school_name: data.name,
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        website: data.website,
+        logo: logoBase64,
+        tagline: data.tagline,
+        principal_name: data.principal_name,
+        established_date: data.established_date
+      }
+
+      setSchoolDetails(schoolData)
     } catch (error) {
       console.error('Error fetching school details:', error)
     }
@@ -132,51 +163,31 @@ export default function SalaryPaidReport() {
       return
     }
 
+    if (!schoolDetails) {
+      toast.error('School data not loaded. Please wait and try again.')
+      return
+    }
+
     try {
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
-      let yPos = 20
 
-      // Add school logo if available
-      if (schoolDetails?.logo) {
-        try {
-          const imgWidth = 20
-          const imgHeight = 20
-          const imgX = (pageWidth - imgWidth) / 2
-          pdf.addImage(schoolDetails.logo, 'PNG', imgX, yPos, imgWidth, imgHeight)
-          yPos += 25
-        } catch (error) {
-          console.error('Error adding logo:', error)
-          yPos += 5
-        }
-      }
-
-      // School Name
-      if (schoolDetails?.school_name) {
-        pdf.setFontSize(18)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(31, 78, 120)
-        pdf.text(schoolDetails.school_name, pageWidth / 2, yPos, { align: 'center' })
-        yPos += 8
-      }
-
-      // Title
-      pdf.setFontSize(16)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(0, 0, 0)
-      pdf.text('Salary Payment Report', pageWidth / 2, yPos, { align: 'center' })
-      yPos += 6
-
-      // Report period
-      pdf.setFontSize(11)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(100, 100, 100)
-      let subtitle = `Report for ${getMonthName(selectedMonth)} ${selectedYear}`
+      // Add professional header
+      let subtitle = `${getMonthName(selectedMonth)} ${selectedYear}`
       if (statusFilter !== 'all') {
-        subtitle += ` - Status: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`
+        subtitle += ` - ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`
       }
-      pdf.text(subtitle, pageWidth / 2, yPos, { align: 'center' })
-      yPos += 10
+
+      const headerOptions = {
+        subtitle: subtitle,
+        info: `Total Payments: ${filteredPayments.length}`
+      }
+      let yPos = addPDFHeader(pdf, schoolDetails, 'SALARY PAYMENT REPORT', headerOptions)
+
+      // Add watermark
+      addPDFWatermark(pdf, schoolDetails, 'CONFIDENTIAL')
+
+      yPos += 5
 
       // Prepare table data
       const tableData = filteredPayments.map((payment, index) => [
@@ -205,7 +216,7 @@ export default function SalaryPaidReport() {
         body: [...tableData, totals],
         theme: 'grid',
         headStyles: {
-          fillColor: [220, 38, 38],
+          fillColor: PDF_COLORS.headerBg,
           textColor: [255, 255, 255],
           fontSize: 10,
           fontStyle: 'bold',
@@ -233,12 +244,8 @@ export default function SalaryPaidReport() {
         }
       })
 
-      // Footer
-      const finalY = pdf.lastAutoTable.finalY + 10
-      pdf.setFontSize(8)
-      pdf.setFont('helvetica', 'italic')
-      pdf.setTextColor(150, 150, 150)
-      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, pageWidth / 2, finalY, { align: 'center' })
+      // Add professional footer
+      addPDFFooter(pdf, 1, 1)
 
       // Download PDF
       const fileName = `Salary-Payment-Report-${getMonthName(selectedMonth)}-${selectedYear}.pdf`

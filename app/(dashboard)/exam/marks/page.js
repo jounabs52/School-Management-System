@@ -5,9 +5,18 @@ import { supabase } from '@/lib/supabase'
 import { X, Plus, Search, Save, AlertCircle, CheckCircle, XCircle, FileText, Printer, Eye } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import {
+  addPDFHeader,
+  addPDFFooter,
+  addPDFWatermark,
+  convertImageToBase64,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
 
 export default function ExamMarksPage() {
   const [currentUser, setCurrentUser] = useState(null)
+  const [schoolData, setSchoolData] = useState(null)
   const [datesheets, setDatesheets] = useState([])
   const [completedDatesheets, setCompletedDatesheets] = useState([])
   const [classes, setClasses] = useState([])
@@ -52,6 +61,33 @@ export default function ExamMarksPage() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  const fetchSchoolData = async () => {
+    if (!currentUser?.school_id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+
+      // Convert logo URL to base64
+      let logoBase64 = data?.logo_url
+      if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        logoBase64 = await convertImageToBase64(data.logo_url)
+      }
+
+      setSchoolData({
+        name: data?.name || 'School',
+        logo: logoBase64
+      })
+    } catch (error) {
+      console.error('Error fetching school data:', error)
+    }
+  }
+
   useEffect(() => {
     const getCookie = (name) => {
       const value = `; ${document.cookie}`
@@ -73,6 +109,7 @@ export default function ExamMarksPage() {
 
   useEffect(() => {
     if (currentUser?.school_id) {
+      fetchSchoolData()
       fetchDatesheets()
       fetchCompletedDatesheets()
     }
@@ -385,14 +422,18 @@ export default function ExamMarksPage() {
 
   const fetchTotalMarks = async () => {
     try {
+      // Fetch subject-specific total marks from exam_schedules
       const { data, error } = await supabase
-        .from('exams')
+        .from('exam_schedules')
         .select('total_marks')
-        .eq('id', selectedDatesheet)
+        .eq('exam_id', selectedDatesheet)
+        .eq('class_id', selectedClass)
+        .eq('subject_id', selectedSubject)
         .single()
 
       if (error) {
-        // If no exam found, default to 100
+        // If no exam schedule found, default to 100
+        console.error('Error fetching total marks from exam_schedules:', error)
         setTotalMarks(100)
       } else {
         setTotalMarks(data?.total_marks || 100)
@@ -808,27 +849,19 @@ export default function ExamMarksPage() {
 
       const doc = new jsPDF()
 
-      // School Header
-      doc.setFontSize(18)
-      doc.setFont('helvetica', 'bold')
-      const schoolName = 'School Management System'
-      doc.text(schoolName, doc.internal.pageSize.width / 2, 15, { align: 'center' })
+      // Add professional header
+      const headerOptions = {
+        subtitle: 'Exam Marks Report',
+        info: `Exam: ${datesheet.exam_name || 'N/A'} | Class: ${classData.class_name || 'N/A'} | Subject: ${subject.subject_name || 'N/A'}`
+      }
+      let yPos = addPDFHeader(doc, schoolData, 'EXAMINATION MARKS', headerOptions)
 
-      doc.setFontSize(14)
-      doc.text('Exam Marks Report', doc.internal.pageSize.width / 2, 25, { align: 'center' })
+      // Add watermark
+      if (schoolData?.logo) {
+        addPDFWatermark(doc, schoolData)
+      }
 
-      // Exam Details
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-
-      doc.text(`Exam: ${datesheet.exam_name || 'N/A'}`, 14, 35)
-      doc.text(`Class: ${classData.class_name || 'N/A'}`, 14, 42)
-      doc.text(`Subject: ${subject.subject_name || 'N/A'}`, 120, 35)
-      doc.text(`Total Students: ${viewMarks.length}`, 120, 42)
-
-      // Draw line
-      doc.setLineWidth(0.5)
-      doc.line(14, 48, 196, 48)
+      yPos += 5
 
       // Get total marks from first record
       const examTotalMarks = viewMarks[0]?.total_marks || 100
@@ -864,20 +897,22 @@ export default function ExamMarksPage() {
 
       // Generate table
       autoTable(doc, {
-        startY: 54,
+        startY: yPos,
         head: [['Sr.', 'Roll No', 'Adm. No', 'Student Name', 'Father Name', 'Total', 'Obtained', 'Percentage', 'Status']],
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [30, 58, 138],
-          textColor: 255,
+          fillColor: PDF_COLORS.headerBg,
+          textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle'
         },
         bodyStyles: {
           fontSize: 8,
-          cellPadding: 2
+          cellPadding: 2,
+          valign: 'middle'
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
@@ -891,7 +926,7 @@ export default function ExamMarksPage() {
           8: { halign: 'center', cellWidth: 17 }
         },
         alternateRowStyles: {
-          fillColor: [249, 250, 251]
+          fillColor: [248, 248, 248]
         },
         didParseCell: function(data) {
           // Color code status column
@@ -911,13 +946,11 @@ export default function ExamMarksPage() {
         }
       })
 
-      // Footer
+      // Add professional footer to all pages
       const pageCount = doc.internal.getNumberOfPages()
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i)
-        doc.setFontSize(8)
-        const footerText = `Generated on: ${new Date().toLocaleDateString('en-GB')} | Page ${i} of ${pageCount}`
-        doc.text(footerText, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' })
+        addPDFFooter(doc, i, pageCount)
       }
 
       // Save PDF with sanitized filename
@@ -945,63 +978,59 @@ export default function ExamMarksPage() {
       const doc = new jsPDF()
       const { student, exam, class: classData, subjects, statistics } = resultCardData
 
-      // Header with border
-      doc.setDrawColor(30, 58, 138)
-      doc.setLineWidth(1)
-      doc.rect(10, 10, 190, 30)
+      // Add professional header
+      const headerOptions = {
+        subtitle: 'Examination Result Card',
+        info: `${student.first_name} ${student.last_name} | Class: ${classData.class_name || 'N/A'}`
+      }
+      let yPos = addPDFHeader(doc, schoolData, 'RESULT CARD', headerOptions)
 
-      // School Name
-      doc.setFontSize(20)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(30, 58, 138)
-      doc.text('School Management System', doc.internal.pageSize.width / 2, 20, { align: 'center' })
+      // Add watermark
+      if (schoolData?.logo) {
+        addPDFWatermark(doc, schoolData)
+      }
 
-      // Title
-      doc.setFontSize(14)
-      doc.text('EXAMINATION RESULT CARD', doc.internal.pageSize.width / 2, 32, { align: 'center' })
+      yPos += 5
 
       // Student Information Section
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(0, 0, 0)
-
-      let yPos = 50
+      doc.setTextColor(...PDF_COLORS.textDark)
 
       // Student Details - Left Column
-      doc.setFont('helvetica', 'bold')
       doc.text('Student Name:', 15, yPos)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(`${student.first_name} ${student.last_name}`, 55, yPos)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Father Name:', 15, yPos + 7)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(student.father_name || 'N/A', 55, yPos + 7)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Roll Number:', 15, yPos + 14)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(student.roll_number?.toString() || 'N/A', 55, yPos + 14)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Admission No:', 15, yPos + 21)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(student.admission_number || 'N/A', 55, yPos + 21)
 
       // Student Details - Right Column
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Class:', 120, yPos)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(classData.class_name || 'N/A', 150, yPos)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Exam:', 120, yPos + 7)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text(exam.exam_name || 'N/A', 150, yPos + 7)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Exam Date:', 120, yPos + 14)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       const examDate = exam.start_date
         ? new Date(exam.start_date).toLocaleDateString('en-GB', {
             day: '2-digit',
@@ -1011,9 +1040,9 @@ export default function ExamMarksPage() {
         : 'N/A'
       doc.text(examDate, 150, yPos + 14)
 
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Result Date:', 120, yPos + 21)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       const resultDate = exam.result_declaration_date
         ? new Date(exam.result_declaration_date).toLocaleDateString('en-GB', {
             day: '2-digit',
@@ -1025,6 +1054,7 @@ export default function ExamMarksPage() {
 
       // Divider line
       yPos += 28
+      doc.setDrawColor(...PDF_COLORS.border)
       doc.setLineWidth(0.5)
       doc.line(15, yPos, 195, yPos)
 
@@ -1048,15 +1078,17 @@ export default function ExamMarksPage() {
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [30, 58, 138],
-          textColor: 255,
+          fillColor: PDF_COLORS.headerBg,
+          textColor: [255, 255, 255],
           fontSize: 10,
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle'
         },
         bodyStyles: {
           fontSize: 9,
-          cellPadding: 3
+          cellPadding: 3,
+          valign: 'middle'
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 12 },
@@ -1068,7 +1100,7 @@ export default function ExamMarksPage() {
           6: { halign: 'center', cellWidth: 20 }
         },
         alternateRowStyles: {
-          fillColor: [249, 250, 251]
+          fillColor: [248, 248, 248]
         },
         didParseCell: function(data) {
           // Color code grade column
@@ -1122,7 +1154,7 @@ export default function ExamMarksPage() {
       // Final Result Box
       const finalY = doc.lastAutoTable.finalY + 10
       doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.primary, 'bold')
 
       // Result status with colored background
       const resultText = `Final Result: ${statistics.result}`
@@ -1135,22 +1167,19 @@ export default function ExamMarksPage() {
       doc.text(resultText, doc.internal.pageSize.width / 2, finalY + 2, { align: 'center' })
 
       // Grading Scale
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...PDF_COLORS.textDark)
       doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text('Grading Scale:', 15, finalY + 15)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.text('A+ (90-100%)  |  A (80-89%)  |  B (70-79%)  |  C (60-69%)  |  D (50-59%)  |  E (40-49%)  |  F (<40%)', 15, finalY + 21)
 
-      // Footer
-      doc.setFontSize(8)
-      doc.setTextColor(100, 100, 100)
-      const footerY = doc.internal.pageSize.height - 15
-      doc.text(`Generated on: ${new Date().toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })}`, doc.internal.pageSize.width / 2, footerY, { align: 'center' })
+      // Add professional footer
+      const pageCount = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        addPDFFooter(doc, i, pageCount)
+      }
 
       // Save PDF
       const fileName = `ResultCard_${student.first_name}_${student.last_name}_${exam.exam_name}.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_')

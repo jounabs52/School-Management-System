@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react'
 import { FileText, Loader2, AlertCircle, X, Download, Save, Check } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import {
+  addDecorativeBorder,
+  convertImageToBase64,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -131,7 +137,17 @@ export default function StudentCertificatesPage() {
         .single()
 
       if (error) throw error
-      setSchoolData(data)
+
+      // Convert logo URL to base64
+      let logoBase64 = data?.logo_url
+      if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        logoBase64 = await convertImageToBase64(data.logo_url)
+      }
+
+      setSchoolData({
+        ...data,
+        logo: logoBase64
+      })
     } catch (err) {
       console.error('Error fetching school data:', err)
     }
@@ -240,90 +256,118 @@ export default function StudentCertificatesPage() {
     const pageHeight = doc.internal.pageSize.getHeight()
     const margin = 15
 
-    // Border
-    doc.setDrawColor(30, 58, 138) // Blue color
-    doc.setLineWidth(1.5)
-    doc.rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin)
+    // Add decorative border (brown/gold)
+    addDecorativeBorder(doc, 'brown')
 
-    // Decorative border
-    doc.setLineWidth(0.5)
-    doc.rect(margin + 3, margin + 3, pageWidth - 2 * (margin + 3), pageHeight - 2 * (margin + 3))
+    // Add school logo if available
+    if (schoolData?.logo) {
+      try {
+        const logoSize = 25
+        const logoX = (pageWidth - logoSize) / 2
+        const logoY = margin + 5
+
+        // Determine image format
+        let format = 'PNG'
+        if (schoolData.logo.includes('data:image/jpeg') || schoolData.logo.includes('data:image/jpg')) {
+          format = 'JPEG'
+        }
+
+        doc.addImage(schoolData.logo, format, logoX, logoY, logoSize, logoSize)
+      } catch (error) {
+        console.error('Error adding logo:', error)
+      }
+    }
 
     // School Name
+    const nameY = schoolData?.logo ? margin + 35 : margin + 15
     doc.setFontSize(22)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(30, 58, 138)
-    doc.text(schoolData?.name || 'SCHOOL NAME', pageWidth / 2, margin + 15, { align: 'center' })
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...PDF_COLORS.secondary)
+    doc.text(schoolData?.name || 'SCHOOL NAME', pageWidth / 2, nameY, { align: 'center' })
 
     // School Address
     doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.text(schoolData?.address || 'School Address', pageWidth / 2, margin + 22, { align: 'center' })
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...PDF_COLORS.textDark)
+    doc.text(schoolData?.address || 'School Address', pageWidth / 2, nameY + 7, { align: 'center' })
 
     // Certificate Title
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(0, 0, 0)
-    doc.text('Character Certificate', pageWidth / 2, margin + 35, { align: 'center' })
+    const titleY = nameY + 15
+    doc.setFontSize(20)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...PDF_COLORS.accent)
+    doc.text('Character Certificate', pageWidth / 2, titleY, { align: 'center' })
 
     // Group/Class
     doc.setFontSize(12)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Group: ${getClassName(studentData.current_class_id)}`, pageWidth / 2, margin + 42, { align: 'center' })
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...PDF_COLORS.textDark)
+    doc.text(`Group: ${getClassName(studentData.current_class_id)}`, pageWidth / 2, titleY + 8, { align: 'center' })
 
     // Registration/Admission Number
     const regNo = `Registration No. ${studentData.admission_number || 'N/A'}`
     doc.setFontSize(11)
-    doc.text(regNo, pageWidth / 2, margin + 50, { align: 'center' })
+    doc.text(regNo, pageWidth / 2, titleY + 16, { align: 'center' })
 
     // Student Details
-    const startY = margin + 65
+    const startY = titleY + 30
     const labelX = margin + 25
     const valueX = margin + 85
 
     doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...PDF_COLORS.textDark)
 
     // Name
     doc.text('Name of Student:', labelX, startY)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...PDF_COLORS.primary)
     doc.text(`${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim() || 'N/A', valueX, startY)
 
     // Father's Name
-    doc.setFont('helvetica', 'normal')
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...PDF_COLORS.textDark)
     doc.text("Father's Name:", labelX, startY + 8)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...PDF_COLORS.primary)
     doc.text(studentData.father_name || 'N/A', valueX, startY + 8)
 
     // Date of Birth
-    doc.setFont('helvetica', 'normal')
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...PDF_COLORS.textDark)
     doc.text('Date of Birth:', labelX, startY + 16)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...PDF_COLORS.primary)
     doc.text(studentData.date_of_birth || 'N/A', valueX, startY + 16)
 
     // Conduct Statement
-    doc.setFont('helvetica', 'normal')
+    doc.setFont(PDF_FONTS.primary, 'normal')
     doc.setFontSize(11)
+    doc.setTextColor(...PDF_COLORS.textDark)
     const conductText = `During his/her stay at this school, his/her character and conduct was found ${conductValue}.`
     doc.text(conductText, labelX, startY + 32, { maxWidth: pageWidth - 2 * labelX })
 
     // Date
-    doc.setFont('helvetica', 'normal')
+    doc.setFont(PDF_FONTS.secondary, 'normal')
     doc.setFontSize(10)
+    doc.setTextColor(...PDF_COLORS.textDark)
     const currentDate = new Date().toLocaleDateString('en-GB')
     doc.text(`Date: ${currentDate}`, labelX, pageHeight - margin - 30)
 
     // Principal Signature
     doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...PDF_COLORS.textDark)
     doc.text('_____________________', pageWidth - margin - 50, pageHeight - margin - 30)
     doc.text('Principal Signature', pageWidth - margin - 50, pageHeight - margin - 25)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont(PDF_FONTS.secondary, 'normal')
     doc.setFontSize(10)
+    doc.setTextColor(...PDF_COLORS.textLight)
     doc.text(schoolData?.name || 'School Name', pageWidth - margin - 50, pageHeight - margin - 20)
 
     // Footer
     doc.setFontSize(8)
+    doc.setTextColor(...PDF_COLORS.textLight)
     doc.text(schoolData?.phone || '', pageWidth / 2, pageHeight - margin - 8, { align: 'center' })
 
     // Save PDF
