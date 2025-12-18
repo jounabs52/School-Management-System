@@ -403,14 +403,10 @@ export default function TestsPage() {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-              toast.type === 'success' ? 'bg-green-500' :
-              toast.type === 'error' ? 'bg-red-500' :
-              'bg-blue-500'
-            } text-white min-w-[300px]`}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg bg-green-600 text-white min-w-[300px]"
           >
             {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5" />}
+            {toast.type === 'error' && <XCircle className="w-5 h-5 text-red-400" />}
             {toast.type === 'info' && <AlertCircle className="w-5 h-5" />}
             <span className="flex-1">{toast.message}</span>
             <button onClick={() => removeToast(toast.id)} className="hover:bg-white/20 p-1 rounded">
@@ -505,42 +501,42 @@ export default function TestsPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-blue-600 text-white">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Class</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Subject</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Test Name</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Date</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Total Marks</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Students</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Result Date</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Status</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Options</th>
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Subject</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Test Name</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Date</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total Marks</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Students</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Result Date</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTests.map((test, index) => (
-                      <tr key={test.id} className="border-t border-gray-200 hover:bg-gray-50">
-                        <td className="px-3 py-2 text-sm">{index + 1}</td>
-                        <td className="px-3 py-2 text-sm">{test.classes?.class_name || 'N/A'}</td>
-                        <td className="px-3 py-2 text-sm">
+                      <tr key={test.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                        <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
+                        <td className="px-3 py-2.5 border border-gray-200">{test.classes?.class_name || 'N/A'}</td>
+                        <td className="px-3 py-2.5 border border-gray-200">
                           {test.test_subjects?.map(ts => ts.subjects?.subject_name).join(', ') || 'N/A'}
                         </td>
-                        <td className="px-3 py-2 text-sm font-medium">{test.test_name}</td>
-                        <td className="px-3 py-2 text-sm">
+                        <td className="px-3 py-2.5 border border-gray-200 font-medium">{test.test_name}</td>
+                        <td className="px-3 py-2.5 border border-gray-200">
                           {new Date(test.test_date).toLocaleDateString('en-GB', {
                             day: '2-digit',
                             month: 'short',
                             year: 'numeric'
                           })}
                         </td>
-                        <td className="px-3 py-2 text-sm">{test.total_marks}</td>
-                        <td className="px-3 py-2 text-sm">0</td>
-                        <td className="px-3 py-2 text-sm">
+                        <td className="px-3 py-2.5 border border-gray-200">{test.total_marks}</td>
+                        <td className="px-3 py-2.5 border border-gray-200">0</td>
+                        <td className="px-3 py-2.5 border border-gray-200">
                           {test.result_date
                             ? new Date(test.result_date).toLocaleDateString('en-GB', {
                                 day: '2-digit',
@@ -550,12 +546,12 @@ export default function TestsPage() {
                             : 'N/A'
                           }
                         </td>
-                        <td className="px-3 py-2 text-sm">
+                        <td className="px-3 py-2.5 border border-gray-200">
                           <select
                             value={test.status}
                             onChange={(e) => handleStatusChange(test.id, e.target.value)}
                             disabled={loading}
-                            className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer ${
                               test.status === 'opened' ? 'bg-green-100 text-green-800' :
                               test.status === 'closed' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
@@ -565,7 +561,7 @@ export default function TestsPage() {
                             <option value="closed">closed</option>
                           </select>
                         </td>
-                        <td className="px-3 py-2 text-sm">
+                        <td className="px-3 py-2.5 border border-gray-200">
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleEditTest(test)}

@@ -28,8 +28,18 @@ export default function ExamsPage() {
   const [selectedSection, setSelectedSection] = useState('')
   const [totalMarks, setTotalMarks] = useState('')
   const [selectedSubjects, setSelectedSubjects] = useState([])
+  const [subjectMarks, setSubjectMarks] = useState({}) // Store total marks per subject
   const [details, setDetails] = useState('')
   const [currentSession, setCurrentSession] = useState(null)
+
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmButtonColor: 'red' // 'red' for delete, 'blue' for others
+  })
 
   // Filter States
   const [filterExam, setFilterExam] = useState('')
@@ -53,9 +63,19 @@ export default function ExamsPage() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  const showConfirmDialog = (title, message, onConfirm, confirmButtonColor = 'red') => {
+    setConfirmDialog({ show: true, title, message, onConfirm, confirmButtonColor })
+  }
+
+  const hideConfirmDialog = () => {
+    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, confirmButtonColor: 'red' })
+  }
+
   // Apply blur effect to sidebar and disable background scrolling when modal is open
   useEffect(() => {
-    if (showModal) {
+    const anyModalOpen = showModal || confirmDialog.show
+
+    if (anyModalOpen) {
       document.body.style.overflow = 'hidden'
       const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
       if (sidebar) {
@@ -79,7 +99,7 @@ export default function ExamsPage() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showModal])
+  }, [showModal, confirmDialog.show])
 
   useEffect(() => {
     const getCookie = (name) => {
@@ -462,16 +482,42 @@ export default function ExamsPage() {
   const handleSubjectToggle = (subjectId) => {
     setSelectedSubjects(prev => {
       if (prev.includes(subjectId)) {
+        // Remove subject and its marks
+        setSubjectMarks(prevMarks => {
+          const newMarks = { ...prevMarks }
+          delete newMarks[subjectId]
+          return newMarks
+        })
         return prev.filter(id => id !== subjectId)
       } else {
+        // Add subject with empty marks
+        setSubjectMarks(prevMarks => ({
+          ...prevMarks,
+          [subjectId]: ''
+        }))
         return [...prev, subjectId]
       }
     })
   }
 
+  const handleSubjectMarksChange = (subjectId, marks) => {
+    setSubjectMarks(prev => ({
+      ...prev,
+      [subjectId]: marks
+    }))
+  }
+
   const handleSubmit = async () => {
-    if (!examName || !examDate || !selectedClass || selectedSubjects.length === 0 || !totalMarks) {
+    // Validate all required fields
+    if (!examName || !examDate || !selectedClass || selectedSubjects.length === 0) {
       showToast('Please fill all required fields', 'error')
+      return
+    }
+
+    // Validate that all selected subjects have marks
+    const missingMarks = selectedSubjects.some(subjectId => !subjectMarks[subjectId] || subjectMarks[subjectId] === '')
+    if (missingMarks) {
+      showToast('Please enter total marks for all selected subjects', 'error')
       return
     }
 
@@ -484,6 +530,11 @@ export default function ExamsPage() {
     try {
       let examId
 
+      // Calculate total marks as sum of all subject marks
+      const calculatedTotalMarks = selectedSubjects.reduce((sum, subjectId) => {
+        return sum + parseFloat(subjectMarks[subjectId] || 0)
+      }, 0)
+
       if (editMode && currentExamId) {
         // Update existing exam
         const newExamData = {
@@ -495,7 +546,7 @@ export default function ExamsPage() {
           result_declaration_date: resultDate || null,
           class_id: selectedClass,
           section_id: selectedSection || null,
-          total_marks: parseInt(totalMarks),
+          total_marks: calculatedTotalMarks,
           details: details || null,
           status: 'scheduled',
           created_by: currentUser.id
@@ -526,7 +577,7 @@ export default function ExamsPage() {
           result_declaration_date: resultDate || null,
           class_id: selectedClass,
           section_id: selectedSection || null,
-          total_marks: parseInt(totalMarks),
+          total_marks: calculatedTotalMarks,
           details: details || null,
           status: 'scheduled',
           created_by: currentUser.id
@@ -542,7 +593,7 @@ export default function ExamsPage() {
         examId = data.id
       }
 
-      // Always insert into exam_schedules
+      // Always insert into exam_schedules with subject-specific marks
       const schedules = selectedSubjects.map(subjectId => ({
         school_id: currentUser.school_id,
         exam_id: examId,
@@ -551,8 +602,8 @@ export default function ExamsPage() {
         exam_date: examDate,
         start_time: '09:00',
         end_time: '12:00',
-        total_marks: parseFloat(totalMarks),
-        passing_marks: parseFloat(totalMarks) * 0.4,
+        total_marks: parseFloat(subjectMarks[subjectId]),
+        passing_marks: parseFloat(subjectMarks[subjectId]) * 0.4,
         created_by: currentUser.id
       }))
 
@@ -596,15 +647,23 @@ export default function ExamsPage() {
     setTotalMarks(exam.total_marks?.toString() || '')
     setDetails(exam.details || '')
 
-    // Fetch schedules to get selected subjects
+    // Fetch schedules to get selected subjects and their marks
     try {
       const { data, error } = await supabase
         .from('exam_schedules')
-        .select('subject_id')
+        .select('subject_id, total_marks')
         .eq('exam_id', exam.id)
 
       if (error) throw error
-      setSelectedSubjects(data?.map(s => s.subject_id) || [])
+
+      const subjects = data?.map(s => s.subject_id) || []
+      const marks = {}
+      data?.forEach(s => {
+        marks[s.subject_id] = s.total_marks?.toString() || ''
+      })
+
+      setSelectedSubjects(subjects)
+      setSubjectMarks(marks)
     } catch (error) {
       console.error('Error fetching exam schedules:', error)
     }
@@ -613,40 +672,44 @@ export default function ExamsPage() {
   }
 
   const handleDeleteExam = async (examId) => {
-    if (!confirm('Are you sure you want to delete this exam? This will also delete all associated schedules and marks.')) {
-      return
-    }
+    showConfirmDialog(
+      'Delete Exam',
+      'Are you sure you want to delete this exam? This will also delete all associated schedules and marks.',
+      async () => {
+        hideConfirmDialog()
+        setLoading(true)
+        try {
+          // Delete schedules first
+          await supabase
+            .from('exam_schedules')
+            .delete()
+            .eq('exam_id', examId)
 
-    setLoading(true)
-    try {
-      // Delete schedules first
-      await supabase
-        .from('exam_schedules')
-        .delete()
-        .eq('exam_id', examId)
+          // Delete marks
+          await supabase
+            .from('exam_marks')
+            .delete()
+            .eq('exam_id', examId)
 
-      // Delete marks
-      await supabase
-        .from('exam_marks')
-        .delete()
-        .eq('exam_id', examId)
+          // Delete exam
+          const { error } = await supabase
+            .from('exams')
+            .delete()
+            .eq('id', examId)
 
-      // Delete exam
-      const { error } = await supabase
-        .from('exams')
-        .delete()
-        .eq('id', examId)
+          if (error) throw error
 
-      if (error) throw error
-
-      showToast('Exam deleted successfully', 'success')
-      fetchExams()
-    } catch (error) {
-      console.error('Error deleting exam:', error)
-      showToast('Failed to delete exam', 'error')
-    } finally {
-      setLoading(false)
-    }
+          showToast('Exam deleted successfully', 'success')
+          fetchExams()
+        } catch (error) {
+          console.error('Error deleting exam:', error)
+          showToast('Failed to delete exam', 'error')
+        } finally {
+          setLoading(false)
+        }
+      },
+      'red'
+    )
   }
 
   const handleStatusChange = async (examId, newStatus) => {
@@ -679,6 +742,7 @@ export default function ExamsPage() {
     setTotalMarks('')
     setDetails('')
     setSelectedSubjects([])
+    setSubjectMarks({})
     setEditMode(false)
     setCurrentExamId(null)
   }
@@ -698,14 +762,10 @@ export default function ExamsPage() {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg ${
-              toast.type === 'success' ? 'bg-green-500' :
-              toast.type === 'error' ? 'bg-red-500' :
-              'bg-blue-500'
-            } text-white`}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg bg-green-600 text-white"
           >
             {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
-            {toast.type === 'error' && <AlertCircle className="w-5 h-5" />}
+            {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-red-400" />}
             <span className="text-sm">{toast.message}</span>
             <button onClick={() => removeToast(toast.id)} className="ml-2">
               <X className="w-4 h-4" />
@@ -718,17 +778,6 @@ export default function ExamsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
           <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('list')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition ${
-                activeTab === 'list'
-                  ? 'bg-red-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Exams List
-            </button>
             <button
               onClick={() => {
                 resetForm()
@@ -811,40 +860,38 @@ export default function ExamsPage() {
               </div>
             )}
 
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-blue-600 text-white">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Sr.</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Exam Name</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Class</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Section</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Subjects</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Total Marks</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Exam Date</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Result Date</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Status</th>
-                      <th className="px-3 py-2 text-left text-sm font-semibold">Actions</th>
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Exam Name</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Section</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Subjects</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Exam Date</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Result Date</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody>
                     {filteredExams.length === 0 ? (
                       <tr>
-                        <td colSpan="10" className="px-3 py-6 text-center text-gray-500 text-sm">
+                        <td colSpan="9" className="px-3 py-6 text-center text-gray-500 border border-gray-200">
                           No exams found
                         </td>
                       </tr>
                     ) : (
                       filteredExams.map((exam, index) => (
-                        <tr key={exam.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-sm">{index + 1}</td>
-                          <td className="px-3 py-2 text-sm font-medium">{exam.exam_name}</td>
-                          <td className="px-3 py-2 text-sm">{exam.classes?.class_name || 'N/A'}</td>
-                          <td className="px-3 py-2 text-sm">{exam.sections?.section_name || 'All'}</td>
-                          <td className="px-3 py-2 text-sm max-w-xs truncate">{exam.subjects}</td>
-                          <td className="px-3 py-2 text-sm">{exam.total_marks || 'N/A'}</td>
-                          <td className="px-3 py-2 text-sm">
+                        <tr key={exam.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                          <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
+                          <td className="px-3 py-2.5 border border-gray-200 font-medium">{exam.exam_name}</td>
+                          <td className="px-3 py-2.5 border border-gray-200">{exam.classes?.class_name || 'N/A'}</td>
+                          <td className="px-3 py-2.5 border border-gray-200">{exam.sections?.section_name || 'All'}</td>
+                          <td className="px-3 py-2.5 border border-gray-200 max-w-xs truncate">{exam.subjects}</td>
+                          <td className="px-3 py-2.5 border border-gray-200">
                             {exam.start_date
                               ? new Date(exam.start_date).toLocaleDateString('en-GB', {
                                   day: '2-digit',
@@ -854,7 +901,7 @@ export default function ExamsPage() {
                               : 'N/A'
                             }
                           </td>
-                          <td className="px-3 py-2 text-sm">
+                          <td className="px-3 py-2.5 border border-gray-200">
                             {exam.result_declaration_date
                               ? new Date(exam.result_declaration_date).toLocaleDateString('en-GB', {
                                   day: '2-digit',
@@ -864,12 +911,12 @@ export default function ExamsPage() {
                               : 'N/A'
                             }
                           </td>
-                          <td className="px-3 py-2 text-sm">
+                          <td className="px-3 py-2.5 border border-gray-200">
                             <select
                               value={exam.status}
                               onChange={(e) => handleStatusChange(exam.id, e.target.value)}
                               disabled={loading}
-                              className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer ${
                                 exam.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
                                 exam.status === 'ongoing' ? 'bg-green-100 text-green-800' :
                                 exam.status === 'completed' ? 'bg-gray-100 text-gray-800' :
@@ -883,7 +930,7 @@ export default function ExamsPage() {
                               <option value="cancelled">Cancelled</option>
                             </select>
                           </td>
-                          <td className="px-3 py-2 text-sm">
+                          <td className="px-3 py-2.5 border border-gray-200">
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleEditExam(exam)}
@@ -969,19 +1016,6 @@ export default function ExamsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Total Marks <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={totalMarks}
-                    onChange={(e) => setTotalMarks(e.target.value)}
-                    placeholder="e.g., 100"
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Exam Date <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1040,27 +1074,45 @@ export default function ExamsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Subjects <span className="text-red-500">*</span>
+                  Select Subjects & Enter Total Marks <span className="text-red-500">*</span>
                 </label>
-                <div className="border border-gray-300 rounded p-4 max-h-48 overflow-y-auto">
+                <div className="border border-gray-300 rounded p-4 max-h-96 overflow-y-auto">
                   {subjects.length === 0 ? (
                     <p className="text-gray-500 text-sm">Please select a class first</p>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <div className="space-y-3">
                       {subjects.map(subject => (
-                        <label key={subject.id} className="flex items-center gap-2 cursor-pointer">
+                        <div key={subject.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
                           <input
                             type="checkbox"
                             checked={selectedSubjects.includes(subject.id)}
                             onChange={() => handleSubjectToggle(subject.id)}
-                            className="w-4 h-4 text-blue-600"
+                            className="w-4 h-4 text-blue-600 flex-shrink-0"
                           />
-                          <span className="text-sm">{subject.subject_name}</span>
-                        </label>
+                          <span className="text-sm font-medium flex-1">{subject.subject_name}</span>
+                          {selectedSubjects.includes(subject.id) && (
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-gray-600">Total Marks:</label>
+                              <input
+                                type="number"
+                                value={subjectMarks[subject.id] || ''}
+                                onChange={(e) => handleSubjectMarksChange(subject.id, e.target.value)}
+                                placeholder="100"
+                                className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
+                                min="1"
+                              />
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
+                {selectedSubjects.length > 0 && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    Total Marks: {selectedSubjects.reduce((sum, subjectId) => sum + (parseFloat(subjectMarks[subjectId]) || 0), 0)}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1098,6 +1150,35 @@ export default function ExamsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog.show && (
+        <>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={hideConfirmDialog} />
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl z-50 w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{confirmDialog.title}</h3>
+            <p className="text-gray-600 mb-6">{confirmDialog.message}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={hideConfirmDialog}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                className={`px-4 py-2 text-white rounded-lg transition ${
+                  confirmDialog.confirmButtonColor === 'red'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-blue-900 hover:bg-blue-800'
+                }`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

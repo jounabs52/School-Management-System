@@ -351,7 +351,7 @@ export default function AttendanceReportsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-1">
       <h1 className="text-2xl font-bold mb-6">Attendance Reports</h1>
 
       {/* Toast Notifications */}
@@ -410,7 +410,7 @@ export default function AttendanceReportsPage() {
       {/* Tabs */}
       {!activeReport && (
         <>
-          <div className="bg-white rounded-lg shadow mb-6">
+          <div className="bg-white rounded-lg shadow-sm mb-6">
             <div className="flex gap-2 p-2">
               <button
                 onClick={() => setActiveTab('student')}
@@ -436,27 +436,27 @@ export default function AttendanceReportsPage() {
           </div>
 
           {/* Reports Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-blue-900 text-white">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Report Name</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Description</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Action</th>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
+                    <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Report Name</th>
+                    <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Description</th>
+                    <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {(activeTab === 'student' ? studentReports : staffReports).map((report, index) => (
-                    <tr key={report.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-700">{index + 1}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{report.description}</td>
-                      <td className="px-4 py-3 text-center">
+                    <tr key={report.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                      <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
+                      <td className="border border-gray-200 px-3 py-2.5 font-medium text-gray-900">{report.name}</td>
+                      <td className="border border-gray-200 px-3 py-2.5 text-gray-600">{report.description}</td>
+                      <td className="border border-gray-200 px-3 py-2.5 text-center">
                         <button
                           onClick={() => handleViewReport(report.id)}
-                          className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                          className="px-4 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
                         >
                           View
                         </button>

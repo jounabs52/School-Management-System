@@ -58,6 +58,8 @@ export default function SalaryRegisterReport() {
     console.log('=== Loading Salary Structures ===')
     console.log('Current User:', currentUser)
     console.log('School ID:', currentUser?.school_id)
+    console.log('Selected Month:', selectedMonth)
+    console.log('Selected Year:', selectedYear)
 
     if (!currentUser?.school_id) {
       console.log('No school_id found, returning early')
@@ -67,6 +69,8 @@ export default function SalaryRegisterReport() {
     setLoading(true)
     try {
       console.log('Executing Supabase query...')
+
+      // Load all active salary structures for the school
       const { data, error } = await supabase
         .from('salary_structures')
         .select(`
@@ -381,14 +385,14 @@ export default function SalaryRegisterReport() {
           <div className="flex gap-2 print:hidden">
             <button
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
@@ -426,85 +430,85 @@ export default function SalaryRegisterReport() {
       </div>
 
       {/* Salary Register Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden print:shadow-none">
         {loading ? (
           <div className="text-center py-12 text-gray-500">Loading salary register...</div>
         ) : salaryStructures.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-gradient-to-r from-blue-900 to-blue-800 text-white print:bg-gray-800">
-                  <th className="px-2 py-2 text-left font-semibold text-xs">#</th>
-                  <th className="px-2 py-2 text-left font-semibold text-xs">Name</th>
-                  <th className="px-2 py-2 text-left font-semibold text-xs">Role</th>
-                  <th className="px-2 py-2 text-center font-semibold text-xs">Comp</th>
-                  <th className="px-2 py-2 text-center font-semibold text-xs">J.Date</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">Prov Fund</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">Basic</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">House</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">Medical</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">Transport</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">Other Allow</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs bg-blue-700">Gross</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">Tax</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs">Other Ded</th>
-                  <th className="px-2 py-2 text-right font-semibold text-xs bg-green-700">Net Salary</th>
+                <tr className="bg-blue-900 text-white print:bg-gray-800">
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">#</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Role</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Comp</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">J.Date</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Prov Fund</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Basic</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">House</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Medical</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Transport</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Other Allow</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Gross</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Tax</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Other Ded</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Net Salary</th>
                 </tr>
               </thead>
               <tbody>
                 {salaryStructures.map((structure, index) => (
-                  <tr key={structure.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-2 py-2 text-xs">{index + 1}</td>
-                    <td className="px-2 py-2 text-xs font-medium">
+                  <tr key={structure.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                    <td className="border border-gray-200 px-3 py-2.5">{index + 1}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 font-medium">
                       {structure.staff?.first_name} {structure.staff?.last_name}
                     </td>
-                    <td className="px-2 py-2 text-xs">{structure.staff?.designation || 'N/A'}</td>
-                    <td className="px-2 py-2 text-xs text-center">{structure.staff?.employee_number || 'N/A'}</td>
-                    <td className="px-2 py-2 text-xs text-center">
+                    <td className="border border-gray-200 px-3 py-2.5">{structure.staff?.designation || 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-center">{structure.staff?.employee_number || 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-center">
                       {structure.staff?.date_of_joining
                         ? new Date(structure.staff.date_of_joining).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                         : 'N/A'}
                     </td>
-                    <td className="px-2 py-2 text-xs text-right">{parseFloat(structure.provident_fund || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right font-medium">{parseFloat(structure.basic_salary || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right">{parseFloat(structure.house_allowance || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right">{parseFloat(structure.medical_allowance || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right">{parseFloat(structure.transport_allowance || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right">{parseFloat(structure.other_allowances || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right font-semibold bg-blue-50">{parseFloat(structure.gross_salary || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right text-red-600">{parseFloat(structure.tax_deduction || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right text-red-600">{parseFloat(structure.other_deductions || 0).toLocaleString()}</td>
-                    <td className="px-2 py-2 text-xs text-right font-bold text-green-700 bg-green-50">{parseFloat(structure.net_salary || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.provident_fund || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right font-medium">{parseFloat(structure.basic_salary || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.house_allowance || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.medical_allowance || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.transport_allowance || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.other_allowances || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold">{parseFloat(structure.gross_salary || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">{parseFloat(structure.tax_deduction || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">{parseFloat(structure.other_deductions || 0).toLocaleString()}</td>
+                    <td className="border border-gray-200 px-3 py-2.5 text-right font-bold text-green-700">{parseFloat(structure.net_salary || 0).toLocaleString()}</td>
                   </tr>
                 ))}
                 {/* Total Row */}
                 <tr className="bg-gray-200 font-bold">
-                  <td colSpan="6" className="px-2 py-2 text-xs text-right">TOTAL:</td>
-                  <td className="px-2 py-2 text-xs text-right">
+                  <td colSpan="6" className="border border-gray-200 px-3 py-2.5 text-right">TOTAL:</td>
+                  <td className="border border-gray-200 px-3 py-2.5 text-right">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.basic_salary || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.house_allowance || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.medical_allowance || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.transport_allowance || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_allowances || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right bg-blue-100">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.gross_salary || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right text-red-600">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.tax_deduction || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right text-red-600">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_deductions || 0), 0).toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-xs text-right text-green-700 bg-green-100">
+                  <td className="border border-gray-200 px-3 py-2.5 text-right text-green-700">
                     {salaryStructures.reduce((sum, s) => sum + parseFloat(s.net_salary || 0), 0).toLocaleString()}
                   </td>
                 </tr>
