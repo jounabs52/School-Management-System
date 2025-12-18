@@ -52,6 +52,9 @@ export default function AdmissionFeePolicyPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletingPolicyId, setDeletingPolicyId] = useState(null)
 
+  // Multiple fee policies state
+  const [multipleFees, setMultipleFees] = useState([{ feeType: '', amount: '' }])
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 10
@@ -367,6 +370,160 @@ export default function AdmissionFeePolicyPage() {
       showToast('Failed to delete fee policy', 'error')
       setShowDeleteModal(false)
       setDeletingPolicyId(null)
+    }
+  }
+
+  // Add a new row to the multiple fees form
+  const handleAddFeeRow = () => {
+    setMultipleFees([...multipleFees, { feeType: '', amount: '' }])
+  }
+
+  // Remove a row from the multiple fees form
+  const handleRemoveFeeRow = (index) => {
+    if (multipleFees.length > 1) {
+      setMultipleFees(multipleFees.filter((_, i) => i !== index))
+    }
+  }
+
+  // Update a fee row
+  const handleUpdateFeeRow = (index, field, value) => {
+    const updatedFees = [...multipleFees]
+    updatedFees[index][field] = value
+    setMultipleFees(updatedFees)
+  }
+
+  // Handle adding multiple fee policies at once
+  const handleAddMultipleFees = async () => {
+    // Validate that all rows have both fee type and amount
+    const validFees = multipleFees.filter(fee => fee.feeType.trim() && fee.amount)
+
+    if (validFees.length === 0) {
+      showToast('Please add at least one complete fee policy', 'warning')
+      return
+    }
+
+    try {
+      const user = getUserFromCookie()
+      if (!user) return
+
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('school_id', user.school_id)
+        .eq('is_current', true)
+        .single()
+
+      if (sessionError || !sessionData) {
+        showToast('No active session found. Please create an active session first.', 'error')
+        return
+      }
+
+      let addedCount = 0
+      let skippedCount = 0
+      const newPolicies = []
+
+      for (const fee of validFees) {
+        try {
+          // Get or create fee type
+          let feeTypeId = null
+          const { data: existingFeeType } = await supabase
+            .from('fee_types')
+            .select('id')
+            .eq('school_id', user.school_id)
+            .eq('fee_name', fee.feeType)
+            .eq('status', 'active')
+            .maybeSingle()
+
+          if (existingFeeType) {
+            feeTypeId = existingFeeType.id
+          } else {
+            const { data: newFeeType, error: feeTypeError } = await supabase
+              .from('fee_types')
+              .insert({
+                school_id: user.school_id,
+                fee_name: fee.feeType,
+                fee_code: fee.feeType.toUpperCase().replace(/\s+/g, '_'),
+                status: 'active'
+              })
+              .select('id')
+              .single()
+
+            if (feeTypeError) throw feeTypeError
+            feeTypeId = newFeeType.id
+          }
+
+          // Check if policy already exists
+          const { data: existingPolicy } = await supabase
+            .from('fee_structures')
+            .select('id')
+            .eq('school_id', user.school_id)
+            .eq('session_id', sessionData.id)
+            .eq('class_id', selectedClass.id)
+            .eq('fee_type_id', feeTypeId)
+            .eq('status', 'active')
+            .maybeSingle()
+
+          if (existingPolicy) {
+            skippedCount++
+            continue
+          }
+
+          // Insert new policy
+          const { data: newPolicy, error: insertError } = await supabase
+            .from('fee_structures')
+            .insert({
+              school_id: user.school_id,
+              session_id: sessionData.id,
+              class_id: selectedClass.id,
+              fee_type_id: feeTypeId,
+              amount: parseFloat(fee.amount),
+              status: 'active'
+            })
+            .select(`
+              id,
+              amount,
+              fee_types (
+                id,
+                fee_name,
+                fee_code
+              )
+            `)
+            .single()
+
+          if (insertError) throw insertError
+
+          if (newPolicy) {
+            newPolicies.push(newPolicy)
+            addedCount++
+          }
+        } catch (error) {
+          console.error(`Error adding fee ${fee.feeType}:`, error)
+          skippedCount++
+        }
+      }
+
+      // Update state with all new policies
+      if (newPolicies.length > 0) {
+        setFeePolicy(prevPolicies => [...prevPolicies, ...newPolicies])
+      }
+
+      // Show appropriate message
+      if (addedCount > 0 && skippedCount === 0) {
+        showToast(`${addedCount} fee ${addedCount === 1 ? 'policy' : 'policies'} added successfully!`, 'success')
+      } else if (addedCount > 0 && skippedCount > 0) {
+        showToast(`${addedCount} added, ${skippedCount} skipped (already exist)`, 'warning')
+      } else {
+        showToast('All fee policies already exist for this class', 'warning')
+        return
+      }
+
+      setShowAddPolicyModal(false)
+      setMultipleFees([{ feeType: '', amount: '' }])
+      setFeeTypeName('')
+      setFeeAmount('')
+    } catch (error) {
+      console.error('Error adding fee policies:', error)
+      showToast('Failed to add fee policies', 'error')
     }
   }
 
@@ -1043,36 +1200,71 @@ export default function AdmissionFeePolicyPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">
-                    Fee Type <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={feeTypeName}
-                    onChange={(e) => setFeeTypeName(e.target.value)}
-                    placeholder="e.g., Admission Fee, Lab Fee, Sports Fee"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                  />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+                    Fee Policies
+                  </h4>
+                  <button
+                    onClick={handleAddFeeRow}
+                    className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1"
+                  >
+                    <Plus size={16} />
+                    Add More
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">
-                    Amount (PKR) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={feeAmount}
-                    onChange={(e) => setFeeAmount(e.target.value)}
-                    placeholder="e.g., 5000"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                  />
+                {/* Multiple Fee Rows */}
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {multipleFees.map((fee, index) => (
+                    <div key={index} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 space-y-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              FEE TYPE <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={fee.feeType}
+                              onChange={(e) => handleUpdateFeeRow(index, 'feeType', e.target.value)}
+                              placeholder="e.g., Admission Fee, Lab Fee, Sports Fee"
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              AMOUNT (PKR) <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              value={fee.amount}
+                              onChange={(e) => handleUpdateFeeRow(index, 'amount', e.target.value)}
+                              placeholder="e.g., 5000"
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Delete Button */}
+                        {multipleFees.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveFeeRow(index)}
+                            className="mt-7 p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Remove"
+                          >
+                            <X size={20} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> This will add a new fee policy for the selected class. Make sure the fee type doesn't already exist for this class.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs text-blue-800">
+                    <strong>Note:</strong> This will add new fee policies for the selected class. Make sure the fee types don't already exist for this class.
                   </p>
                 </div>
               </div>
@@ -1084,6 +1276,7 @@ export default function AdmissionFeePolicyPage() {
                 <button
                   onClick={() => {
                     setShowAddPolicyModal(false)
+                    setMultipleFees([{ feeType: '', amount: '' }])
                     setFeeTypeName('')
                     setFeeAmount('')
                   }}
@@ -1092,11 +1285,11 @@ export default function AdmissionFeePolicyPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleAddFeePolicy}
+                  onClick={handleAddMultipleFees}
                   className="flex-1 px-8 py-2.5 bg-[#DC2626] text-white font-medium hover:bg-[#B91C1C] rounded-lg transition flex items-center justify-center gap-2"
                 >
                   <Plus size={18} />
-                  Add Policy
+                  Add {multipleFees.filter(f => f.feeType && f.amount).length > 1 ? 'Policies' : 'Policy'}
                 </button>
               </div>
             </div>

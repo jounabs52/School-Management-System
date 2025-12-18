@@ -43,7 +43,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -868,7 +868,7 @@ export default function SubjectsPage() {
       {/* Add Subject Sidebar */}
       {showSidebar && (
         <ModalOverlay onClose={() => setShowSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>
@@ -996,7 +996,7 @@ export default function SubjectsPage() {
       {/* Edit Subject Sidebar */}
       {showEditSidebar && (
         <ModalOverlay onClose={() => setShowEditSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>

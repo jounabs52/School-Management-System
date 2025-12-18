@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -15,7 +15,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[10001] flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-600 text-white' :
       type === 'error' ? 'bg-red-600 text-white' :
       'bg-blue-600 text-white'
@@ -79,6 +79,7 @@ export default function TimetablePage() {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
   const [showDeleteTimetableModal, setShowDeleteTimetableModal] = useState(false)
   const [timetableToDelete, setTimetableToDelete] = useState(null)
+  const [schoolData, setSchoolData] = useState({ name: '', logo_url: '' })
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
@@ -186,15 +187,49 @@ export default function TimetablePage() {
     initializeUser()
   }, [])
 
-  // Fetch initial data when user is available
+  // Fetch initial data when user is available - optimized with parallel loading
   useEffect(() => {
     if (user && user.school_id) {
-      fetchClasses()
-      fetchSessions()
-      fetchPeriods()
-      fetchTeachers()
+      // Fetch all data in parallel for faster loading
+      Promise.all([
+        fetchClasses(),
+        fetchSessions(),
+        fetchPeriods(),
+        fetchTeachers(),
+        fetchSchoolData()
+      ]).catch(error => {
+        console.error('Error loading initial data:', error)
+      })
     } else if (user) {
       setLoadingClasses(false)
+    }
+  }, [user])
+
+  // Real-time subscription for periods
+  useEffect(() => {
+    if (!user || !user.school_id || !supabase) return
+
+    const periodsSubscription = supabase
+      .channel('periods_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'periods',
+          filter: `school_id=eq.${user.school_id}`
+        },
+        (payload) => {
+          console.log('🔔 Real-time update received:', payload)
+          // Refresh periods without showing loader
+          fetchPeriods(false)
+        }
+      )
+      .subscribe()
+
+    // Cleanup subscription on unmount
+    return () => {
+      periodsSubscription.unsubscribe()
     }
   }, [user])
 
@@ -337,9 +372,13 @@ export default function TimetablePage() {
     }
   }
 
-  const fetchPeriods = async () => {
+  const fetchPeriods = useCallback(async (showLoader = true) => {
     try {
       if (!user || !user.school_id) return
+
+      if (showLoader) {
+        setLoading(true)
+      }
 
       const { data, error } = await supabase
         .from('periods')
@@ -353,11 +392,18 @@ export default function TimetablePage() {
       } else {
         setPeriods(data || [])
       }
+
+      if (showLoader) {
+        setLoading(false)
+      }
     } catch (error) {
       console.error('Error fetching periods:', error)
       setPeriods([])
+      if (showLoader) {
+        setLoading(false)
+      }
     }
-  }
+  }, [user])
 
   const fetchClassSubjects = async (classId) => {
     try {
@@ -382,6 +428,34 @@ export default function TimetablePage() {
     } catch (error) {
       console.error('Error fetching subjects:', error)
       setSubjects([])
+    }
+  }
+
+  const fetchSchoolData = async () => {
+    try {
+      if (!user || !user.school_id) {
+        console.log('❌ Cannot fetch school data - no user or school_id')
+        return
+      }
+
+      console.log('🔄 Fetching school data for school_id:', user.school_id)
+
+      const { data, error } = await supabase
+        .from('schools')
+        .select('name, logo_url')
+        .eq('id', user.school_id)
+        .single()
+
+      if (error) {
+        console.error('❌ Error fetching school data:', error)
+      } else if (data) {
+        console.log('✅ School data fetched successfully:', { name: data.name, hasLogo: !!data.logo_url })
+        setSchoolData({ name: data.name || '', logo_url: data.logo_url || '' })
+      } else {
+        console.log('⚠️ No school data found')
+      }
+    } catch (error) {
+      console.error('❌ Error fetching school data:', error)
     }
   }
 
@@ -729,15 +803,27 @@ export default function TimetablePage() {
 
   const handleChangeTimings = async () => {
     try {
+      console.log('🔄 handleChangeTimings called')
+
       if (!timingForm.start_time || !timingForm.period_duration) {
+        console.log('❌ Missing required fields')
         showToast('Please fill required fields (Start Time and Period Duration)', 'error')
         return
       }
 
       if (!user || !user.school_id) {
+        console.log('❌ User authentication error')
         showToast('User authentication error', 'error')
         return
       }
+
+      if (!periods || periods.length === 0) {
+        console.log('❌ No periods found')
+        showToast('No periods found to update. Please create periods first.', 'error')
+        return
+      }
+
+      console.log('✅ Validation passed, updating periods...')
 
       const periodDuration = parseInt(timingForm.period_duration)
       const periodGap = parseInt(timingForm.period_gap) || 0
@@ -752,41 +838,72 @@ export default function TimetablePage() {
         return `${String(newHours).padStart(2, '0')}:${String(newMins).padStart(2, '0')}`
       }
 
-      // Update all existing periods
+      // Prepare all updates in parallel for speed
+      const updatePromises = []
+      let updatedCount = 0
+
       for (const period of periods) {
         if (period.period_type !== 'break' && period.period_type !== 'lunch') {
           const startTime = currentTime
           const endTime = addMinutes(currentTime, periodDuration)
 
-          const { error } = await supabase
-            .from('periods')
-            .update({
-              start_time: startTime,
-              end_time: endTime
-            })
-            .eq('id', period.id)
-            .eq('school_id', user.school_id)
+          // Add update promise to array (don't await yet)
+          updatePromises.push(
+            supabase
+              .from('periods')
+              .update({
+                start_time: startTime,
+                end_time: endTime
+              })
+              .eq('id', period.id)
+              .eq('school_id', user.school_id)
+          )
 
-          if (error) {
-            console.error('Error updating period:', error)
-          }
-
+          updatedCount++
           currentTime = addMinutes(endTime, periodGap)
         }
       }
 
-      await fetchPeriods()
+      // Execute all updates in parallel for maximum speed
+      console.log(`🚀 Updating ${updatedCount} periods in parallel...`)
+      const results = await Promise.all(updatePromises)
+
+      // Check for any errors
+      const errors = results.filter(r => r.error)
+      if (errors.length > 0) {
+        console.error('❌ Some periods failed to update:', errors)
+        showToast(`Failed to update ${errors.length} period(s)`, 'error')
+        return
+      }
+
+      console.log(`✅ Successfully updated ${updatedCount} periods in parallel!`)
+
+      if (updatedCount === 0) {
+        showToast('No regular periods found to update', 'error')
+        return
+      }
+
+      // Refresh periods data (without showing loader for faster UI)
+      await fetchPeriods(false)
+
+      // Close modal
       setShowTimingModal(false)
+
+      // Reset form
       setTimingForm({
         start_time: '',
         period_duration: '',
         period_gap: '',
         break_duration: ''
       })
-      showToast('Period timings updated successfully!', 'success')
+
+      // Show success message
+      console.log('🎉 Showing success toast')
+      showToast(`Successfully updated ${updatedCount} period(s)!`, 'success')
+
     } catch (error) {
-      console.error('Error updating timings:', error)
-      showToast('An error occurred while updating', 'error')
+      console.error('❌ Error updating timings:', error)
+      showToast('An error occurred while updating: ' + error.message, 'error')
     }
   }
 
@@ -1174,18 +1291,68 @@ export default function TimetablePage() {
         doc.setFillColor(30, 58, 138) // #1E3A8A
         doc.rect(0, 0, doc.internal.pageSize.getWidth(), 35, 'F')
 
+        // Add school logo if available (in a circle)
+        if (schoolData.logo_url) {
+          try {
+            const img = new Image()
+            img.crossOrigin = 'anonymous'
+            img.src = schoolData.logo_url
+            await new Promise((resolve) => {
+              img.onload = () => {
+                try {
+                  // Draw circular background for logo
+                  const logoX = 22.5  // Center X of logo (10 + 25/2)
+                  const logoY = 17.5  // Center Y of logo (5 + 25/2)
+                  const logoRadius = 12.5 // Radius (25/2)
+
+                  // Draw white circle background
+                  doc.setFillColor(255, 255, 255)
+                  doc.circle(logoX, logoY, logoRadius, 'F')
+
+                  // Add image clipped to circle
+                  doc.addImage(img, 'PNG', 10, 5, 25, 25, undefined, 'NONE')
+
+                  // Draw circle border
+                  doc.setDrawColor(255, 255, 255)
+                  doc.setLineWidth(0.5)
+                  doc.circle(logoX, logoY, logoRadius, 'S')
+
+                  resolve()
+                } catch (e) {
+                  console.warn('Could not add logo to PDF:', e)
+                  resolve()
+                }
+              }
+              img.onerror = () => {
+                console.warn('Could not load logo image')
+                resolve()
+              }
+            })
+          } catch (error) {
+            console.warn('Error adding logo:', error)
+          }
+        }
+
+        // Add school name and title
         doc.setFontSize(22)
         doc.setTextColor(255, 255, 255)
         doc.setFont(undefined, 'bold')
-        doc.text('SCHOOL TIMETABLE', doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' })
+        const headerTitle = schoolData.name || 'SCHOOL TIMETABLE'
+        doc.text(headerTitle, doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' })
+
+        // Add "TIMETABLE" subtitle if school name is present
+        if (schoolData.name) {
+          doc.setFontSize(16)
+          doc.text('TIMETABLE', doc.internal.pageSize.getWidth() / 2, 19, { align: 'center' })
+        }
 
         doc.setFontSize(14)
         doc.setFont(undefined, 'bold')
-        doc.text(`${className}`, doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' })
+        doc.text(`${className}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 25 : 20, { align: 'center' })
 
         doc.setFontSize(11)
         doc.setFont(undefined, 'normal')
-        doc.text(`Academic Session: ${sessionName}`, doc.internal.pageSize.getWidth() / 2, 27, { align: 'center' })
+        doc.text(`Academic Session: ${sessionName}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 30 : 27, { align: 'center' })
 
         doc.setFontSize(9)
         const dateStr = new Date().toLocaleDateString('en-US', {
@@ -1194,7 +1361,7 @@ export default function TimetablePage() {
           month: 'long',
           day: 'numeric'
         })
-        doc.text(`Generated: ${dateStr}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' })
+        doc.text(`Generated: ${dateStr}`, doc.internal.pageSize.getWidth() - 10, 32, { align: 'right' })
 
         // Prepare table data
         const tableData = []
@@ -1394,24 +1561,79 @@ export default function TimetablePage() {
       // Get current session info
       const sessionName = currentSession?.name || 'Current Session'
 
+      console.log('📊 School Data:', schoolData)
+      console.log('📷 Logo URL:', schoolData.logo_url)
+      console.log('🏫 School Name:', schoolData.name)
+
       // Add decorative header background
       doc.setFillColor(30, 58, 138) // #1E3A8A
       doc.rect(0, 0, doc.internal.pageSize.getWidth(), 35, 'F')
 
-      // Add school name/logo area (you can customize this)
+      // Add school logo if available (in a circle)
+      if (schoolData.logo_url) {
+        console.log('🖼️ Attempting to add logo to PDF...')
+        try {
+          // Convert image URL to base64 and add to PDF
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = schoolData.logo_url
+          await new Promise((resolve, reject) => {
+            img.onload = () => {
+              try {
+                // Draw circular background for logo
+                const logoX = 22.5  // Center X of logo (10 + 25/2)
+                const logoY = 17.5  // Center Y of logo (5 + 25/2)
+                const logoRadius = 12.5 // Radius (25/2)
+
+                // Draw white circle background
+                doc.setFillColor(255, 255, 255)
+                doc.circle(logoX, logoY, logoRadius, 'F')
+
+                // Add image clipped to circle
+                doc.addImage(img, 'PNG', 10, 5, 25, 25, undefined, 'NONE')
+
+                // Draw circle border
+                doc.setDrawColor(255, 255, 255)
+                doc.setLineWidth(0.5)
+                doc.circle(logoX, logoY, logoRadius, 'S')
+
+                resolve()
+              } catch (e) {
+                console.warn('Could not add logo to PDF:', e)
+                resolve()
+              }
+            }
+            img.onerror = () => {
+              console.warn('Could not load logo image')
+              resolve()
+            }
+          })
+        } catch (error) {
+          console.warn('Error adding logo:', error)
+        }
+      }
+
+      // Add school name and title
       doc.setFontSize(22)
       doc.setTextColor(255, 255, 255)
       doc.setFont(undefined, 'bold')
-      doc.text('SCHOOL TIMETABLE', doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' })
+      const headerTitle = schoolData.name || 'SCHOOL TIMETABLE'
+      doc.text(headerTitle, doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' })
+
+      // Add "TIMETABLE" subtitle if school name is present
+      if (schoolData.name) {
+        doc.setFontSize(16)
+        doc.text('TIMETABLE', doc.internal.pageSize.getWidth() / 2, 19, { align: 'center' })
+      }
 
       // Add session and class info
       doc.setFontSize(14)
       doc.setFont(undefined, 'bold')
-      doc.text(`${selectedClassName}`, doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' })
+      doc.text(`${selectedClassName}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 25 : 20, { align: 'center' })
 
       doc.setFontSize(11)
       doc.setFont(undefined, 'normal')
-      doc.text(`Section: ${selectedSectionName} | Academic Session: ${sessionName}`, doc.internal.pageSize.getWidth() / 2, 27, { align: 'center' })
+      doc.text(`Section: ${selectedSectionName} | Academic Session: ${sessionName}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 30 : 27, { align: 'center' })
 
       // Add generation date in header
       doc.setFontSize(9)
@@ -1421,7 +1643,7 @@ export default function TimetablePage() {
         month: 'long',
         day: 'numeric'
       })
-      doc.text(`Generated: ${dateStr}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' })
+      doc.text(`Generated: ${dateStr}`, doc.internal.pageSize.getWidth() - 10, 32, { align: 'right' })
 
       console.log('Header added')
 
@@ -2611,6 +2833,11 @@ export default function TimetablePage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Enter time"
                   />
+                  {timingForm.start_time && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {formatTime(timingForm.start_time)}
+                    </p>
+                  )}
                 </div>
 
                 <div>

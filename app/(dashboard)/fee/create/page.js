@@ -186,28 +186,19 @@ export default function FeeCreatePage() {
           .eq('status', 'active')
           .order('admission_number', { ascending: true }),
 
-        // Fetch challans immediately - simplified query
+        // Fetch challans with optimized query
         supabase
           .from('fee_challans')
           .select(`
-            id,
-            challan_number,
-            issue_date,
-            due_date,
-            total_amount,
-            status,
-            student_id,
-            students (
+            *,
+            students!student_id (
               id,
               admission_number,
               first_name,
               last_name,
               father_name,
               current_class_id,
-              current_section_id,
-              base_fee,
-              discount_amount,
-              final_fee
+              current_section_id
             )
           `)
           .eq('school_id', user.school_id)
@@ -215,10 +206,12 @@ export default function FeeCreatePage() {
       ])
 
       if (classesResult.error) throw classesResult.error
-      setClasses(classesResult.data || [])
+      const classesData = classesResult.data || []
+      setClasses(classesData)
 
       if (sectionsResult.error) throw sectionsResult.error
-      setSections(sectionsResult.data || [])
+      const sectionsData = sectionsResult.data || []
+      setSections(sectionsData)
 
       if (feeTypesResult.error) throw feeTypesResult.error
       setFeeHeads(feeTypesResult.data || [])
@@ -226,22 +219,23 @@ export default function FeeCreatePage() {
       if (studentsResult.error) throw studentsResult.error
       setStudents(studentsResult.data || [])
 
-      // Process challans data with class/section lookup from already loaded data
+      // Process challans with efficient mapping
       if (!challansResult.error && challansResult.data) {
-        const enrichedData = challansResult.data.map((challan) => {
-          const classInfo = classesResult.data?.find(c => c.id === challan.students?.current_class_id)
-          const sectionInfo = sectionsResult.data?.find(s => s.id === challan.students?.current_section_id)
-          
-          return {
-            ...challan,
-            students: {
-              ...challan.students,
-              classes: { class_name: classInfo?.class_name || 'N/A' },
-              sections: { section_name: sectionInfo?.section_name || 'N/A' }
-            }
+        const classMap = {}
+        classesData.forEach(c => { classMap[c.id] = c })
+
+        const sectionMap = {}
+        sectionsData.forEach(s => { sectionMap[s.id] = s })
+
+        const enrichedData = challansResult.data.map((challan) => ({
+          ...challan,
+          students: {
+            ...challan.students,
+            classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
+            sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
           }
-        })
-        
+        }))
+
         setCreatedChallans(enrichedData)
       }
 
@@ -436,45 +430,38 @@ export default function FeeCreatePage() {
       const { data, error } = await supabase
         .from('fee_challans')
         .select(`
-          id,
-          challan_number,
-          issue_date,
-          due_date,
-          total_amount,
-          status,
-          student_id,
-          students (
+          *,
+          students!student_id (
             id,
             admission_number,
             first_name,
             last_name,
             father_name,
             current_class_id,
-            current_section_id,
-            base_fee,
-            discount_amount,
-            final_fee
+            current_section_id
           )
         `)
         .eq('school_id', user.school_id)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
-        // Enrich with class and section names from already loaded data
-        const enrichedData = data.map((challan) => {
-          const classInfo = classes.find(c => c.id === challan.students?.current_class_id)
-          const sectionInfo = sections.find(s => s.id === challan.students?.current_section_id)
-          
-          return {
-            ...challan,
-            students: {
-              ...challan.students,
-              classes: { class_name: classInfo?.class_name || 'N/A' },
-              sections: { section_name: sectionInfo?.section_name || 'N/A' }
-            }
+        // Create lookup maps for efficient matching
+        const classMap = {}
+        classes.forEach(c => { classMap[c.id] = c })
+
+        const sectionMap = {}
+        sections.forEach(s => { sectionMap[s.id] = s })
+
+        // Enrich with class and section data
+        const enrichedData = data.map((challan) => ({
+          ...challan,
+          students: {
+            ...challan.students,
+            classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
+            sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
           }
-        })
-        
+        }))
+
         setCreatedChallans(enrichedData)
       } else if (error) {
         console.error('Error fetching challans:', error)
@@ -570,7 +557,19 @@ export default function FeeCreatePage() {
 
       let studentsToProcess = []
       if (instantChallanForm.target === 'Single Student') {
-        studentsToProcess = [{ id: instantChallanForm.studentId }]
+        // Fetch the complete student data for single student
+        const { data: studentData, error: studentError } = await supabase
+          .from('students')
+          .select('id, admission_number')
+          .eq('id', instantChallanForm.studentId)
+          .single()
+
+        if (studentError) {
+          console.error('Error fetching student:', studentError)
+          throw studentError
+        }
+
+        studentsToProcess = [studentData]
       } else {
         let query = supabase
           .from('students')
@@ -606,31 +605,41 @@ export default function FeeCreatePage() {
           .eq('id', student.id)
           .single()
 
-        // Get the class fee_plan
-        const { data: classData } = await supabase
-          .from('classes')
-          .select('fee_plan')
-          .eq('id', studentData?.current_class_id)
-          .single()
-
         let totalAmount = 0
         let feeItems = []
 
+        // Get Monthly Fee type ID
+        const { data: monthlyFeeType } = await supabase
+          .from('fee_types')
+          .select('id')
+          .eq('school_id', user.school_id)
+          .eq('fee_code', 'MONTHLY_FEE')
+          .single()
+
         if (instantChallanForm.category === 'Monthly Fee') {
-          if (studentData && instantChallanForm.classFee) {
+          if (studentData && instantChallanForm.classFee && instantChallanForm.classFee > 0) {
             const classFee = instantChallanForm.classFee
             const classDiscount = instantChallanForm.classDiscount || 0
             const studentDiscount = parseFloat(studentData.discount_amount) || 0
             const monthlyFeeAmount = classFee - classDiscount - studentDiscount
 
-            totalAmount += monthlyFeeAmount
+            if (monthlyFeeAmount > 0) {
+              totalAmount += monthlyFeeAmount
 
-            feeItems.push({
-              school_id: user.school_id,
-              fee_type_id: null,
-              description: 'Monthly Fee',
-              amount: monthlyFeeAmount
-            })
+              // Add Monthly Fee as a fee item if we have the fee type
+              if (monthlyFeeType) {
+                feeItems.push({
+                  school_id: user.school_id,
+                  fee_type_id: monthlyFeeType.id,
+                  description: 'Monthly Fee',
+                  amount: monthlyFeeAmount
+                })
+              }
+            } else {
+              console.log('Monthly Fee is 0 after discounts for student:', student.admission_number)
+            }
+          } else {
+            console.log('Monthly Fee skipped - classFee:', instantChallanForm.classFee)
           }
         }
 
@@ -646,6 +655,11 @@ export default function FeeCreatePage() {
           }
         }
 
+        if (totalAmount === 0) {
+          console.log('Skipping challan - total amount is 0 for student:', student.admission_number)
+          continue
+        }
+
         const { data: challan, error: challanError } = await supabase
           .from('fee_challans')
           .insert([{
@@ -657,7 +671,6 @@ export default function FeeCreatePage() {
             due_date: dueDate.toISOString().split('T')[0],
             total_amount: totalAmount,
             status: 'pending',
-            fee_plan: classData?.fee_plan || 'monthly',
             created_by: user.id
           }])
           .select()
@@ -684,8 +697,11 @@ export default function FeeCreatePage() {
 
       showToast(`Successfully created ${createdCount} challan(s)!`, 'success')
 
+      // Refresh the challans list BEFORE closing modal
+      await fetchCreatedChallans()
+
       setShowChallanModal(false)
-      
+
       setInstantChallanForm({
         target: 'Single Student',
         category: 'Monthly Fee',
@@ -699,8 +715,6 @@ export default function FeeCreatePage() {
         classFee: 0,
         classDiscount: 0
       })
-
-      await fetchCreatedChallans()
     } catch (error) {
       console.error('Error creating instant challan:', error)
       showToast('Failed to create challan: ' + error.message, 'error')
@@ -1772,35 +1786,32 @@ export default function FeeCreatePage() {
                     </div>
                   </div>
                 )}
-
-                  {((instantChallanForm.target === 'Class-Wise' && instantChallanForm.classId) ||
-                    (instantChallanForm.target === 'Single Student' && instantChallanForm.studentId)) &&
-                   (instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0) && (
-                    <div className="flex justify-end mt-2">
-                      <button
-                        onClick={handleCreateInstantChallan}
-                        disabled={submitting}
-                        className="bg-[#DC2626] text-white px-6 py-2.5 rounded-lg font-medium hover:bg-[#B91C1C] transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Plus size={18} />
-                        {submitting ? (editingChallan ? 'Updating...' : 'Creating...') : (editingChallan ? 'Update Challan' : 'Save Challan')}
-                      </button>
-                    </div>
-                  )}
               </div>
             </div>
 
             {/* Footer */}
             <div className="border-t border-gray-200 px-6 py-4 bg-white">
-              <div className="flex gap-3 justify-end">
+              <div className="flex gap-3 justify-between">
                 <button
                   onClick={() => {
                     setShowChallanModal(false)
                     setEditingChallan(null)
                   }}
-                  className="px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300"
+                  className="flex-1 px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300"
                 >
                   Cancel
+                </button>
+                <button
+                  onClick={handleCreateInstantChallan}
+                  disabled={submitting ||
+                    !((instantChallanForm.target === 'Class-Wise' && instantChallanForm.classId) ||
+                      (instantChallanForm.target === 'Single Student' && instantChallanForm.studentId)) ||
+                    !(instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0)
+                  }
+                  className="flex-1 bg-[#DC2626] text-white px-6 py-2.5 rounded-lg font-medium hover:bg-[#B91C1C] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={18} />
+                  {submitting ? (editingChallan ? 'Updating...' : 'Creating...') : (editingChallan ? 'Update Challan' : 'Save Challan')}
                 </button>
               </div>
             </div>

@@ -45,7 +45,10 @@ export default function RoutesPage() {
   const [routeToDelete, setRouteToDelete] = useState(null)
   const [newStationName, setNewStationName] = useState('')
   const [newStationFare, setNewStationFare] = useState('')
-  
+
+  // Multiple stations state for bulk add
+  const [multipleStations, setMultipleStations] = useState([{ name: '', fare: '' }])
+
   // Toast state
   const [toast, setToast] = useState(null)
   
@@ -496,6 +499,87 @@ export default function RoutesPage() {
     } catch (error) {
       console.error('Error adding station:', error)
       showToast('Error adding station', 'error')
+    }
+  }
+
+  // Add a new row to the multiple stations form
+  const handleAddStationRow = () => {
+    setMultipleStations([...multipleStations, { name: '', fare: '' }])
+  }
+
+  // Remove a row from the multiple stations form
+  const handleRemoveStationRow = (index) => {
+    if (multipleStations.length > 1) {
+      setMultipleStations(multipleStations.filter((_, i) => i !== index))
+    }
+  }
+
+  // Update a station row
+  const handleUpdateStationRow = (index, field, value) => {
+    const updatedStations = [...multipleStations]
+    updatedStations[index][field] = value
+    setMultipleStations(updatedStations)
+  }
+
+  // Handle adding multiple stations at once
+  const handleAddMultipleStations = async () => {
+    // Validate that all rows have both name and fare
+    const validStations = multipleStations.filter(station => station.name.trim() && station.fare)
+
+    if (validStations.length === 0) {
+      showToast('Please add at least one complete station', 'error')
+      return
+    }
+
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        showToast('Unauthorized', 'error')
+        return
+      }
+
+      // Get the next order number
+      const maxOrder = stations.length > 0
+        ? Math.max(...stations.map(s => s.station_order || 0))
+        : 0
+
+      const stationsToInsert = validStations.map((station, index) => ({
+        school_id: user.school_id,
+        created_by: user.id,
+        route_id: selectedRoute.id,
+        station_name: station.name.trim(),
+        fare: parseInt(station.fare) || 0,
+        station_order: maxOrder + index + 1,
+        status: 'active'
+      }))
+
+      const { data, error } = await supabase
+        .from('stations')
+        .insert(stationsToInsert)
+        .select()
+
+      if (error) {
+        console.error('Error adding stations:', error)
+        showToast('Failed to add stations', 'error')
+        return
+      }
+
+      // Add stations to local state
+      setStations([...stations, ...data])
+
+      // Update route's station count in routes state
+      setRoutes(routes.map(route =>
+        route.id === selectedRoute.id
+          ? { ...route, stations_count: (route.stations_count || 0) + data.length }
+          : route
+      ))
+
+      // Reset form
+      setMultipleStations([{ name: '', fare: '' }])
+      showToast(`${data.length} station${data.length > 1 ? 's' : ''} added successfully!`, 'success')
+    } catch (error) {
+      console.error('Error adding stations:', error)
+      showToast('Error adding stations', 'error')
     }
   }
 
@@ -1130,6 +1214,7 @@ export default function RoutesPage() {
               setStations([])
               setNewStationName('')
               setNewStationFare('')
+              setMultipleStations([{ name: '', fare: '' }])
             }}
             style={{ backdropFilter: 'blur(4px)' }}
           />
@@ -1147,6 +1232,7 @@ export default function RoutesPage() {
                     setStations([])
                     setNewStationName('')
                     setNewStationFare('')
+                    setMultipleStations([{ name: '', fare: '' }])
                   }}
                   className="text-white hover:bg-white/10 p-2 rounded-full transition"
                 >
@@ -1156,48 +1242,83 @@ export default function RoutesPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              {/* Add New Station */}
+              {/* Add Multiple Stations */}
               <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6">
-                <label className="block text-gray-800 font-semibold mb-4 text-sm uppercase tracking-wide flex items-center gap-2">
-                  <MapPin size={16} className="text-blue-600" />
-                  Add New Station
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Station Name <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Station 1"
-                      value={newStationName}
-                      onChange={(e) => setNewStationName(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddStation()}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Fare Amount <span className="text-red-500">*</span></label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">Rs.</span>
-                        <input
-                          type="number"
-                          placeholder="1500"
-                          value={newStationFare}
-                          onChange={(e) => setNewStationFare(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && handleAddStation()}
-                          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                          min="0"
-                        />
+                <div className="flex items-center justify-between mb-4">
+                  <label className="text-gray-800 font-semibold text-sm uppercase tracking-wide flex items-center gap-2">
+                    <MapPin size={16} className="text-blue-600" />
+                    Add New Station
+                  </label>
+                  <button
+                    onClick={handleAddStationRow}
+                    className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1"
+                  >
+                    <Plus size={16} />
+                    Add More
+                  </button>
+                </div>
+
+                {/* Multiple Station Rows */}
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {multipleStations.map((station, index) => (
+                    <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-2">
+                              STATION NAME <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Jhan Khan"
+                              value={station.name}
+                              onChange={(e) => handleUpdateStationRow(index, 'name', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-2">
+                              FARE AMOUNT <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-xs">Rs.</span>
+                              <input
+                                type="number"
+                                placeholder="1500"
+                                value={station.fare}
+                                onChange={(e) => handleUpdateStationRow(index, 'fare', e.target.value)}
+                                className="w-full pl-12 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Delete Button */}
+                        {multipleStations.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveStationRow(index)}
+                            className="mt-7 p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Remove"
+                          >
+                            <X size={20} />
+                          </button>
+                        )}
                       </div>
-                      <button
-                        onClick={handleAddStation}
-                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg"
-                      >
-                        <Plus size={18} />
-                        Add
-                      </button>
                     </div>
-                  </div>
+                  ))}
+                </div>
+
+                {/* Add Button */}
+                <div className="mt-4">
+                  <button
+                    onClick={handleAddMultipleStations}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg"
+                  >
+                    <Plus size={18} />
+                    Add {multipleStations.filter(s => s.name && s.fare).length > 1 ? 'Stations' : 'Station'}
+                  </button>
                 </div>
               </div>
 
@@ -1273,6 +1394,7 @@ export default function RoutesPage() {
                   setStations([])
                   setNewStationName('')
                   setNewStationFare('')
+                  setMultipleStations([{ name: '', fare: '' }])
                 }}
                 className="w-full px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
               >

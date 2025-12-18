@@ -43,7 +43,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -222,7 +222,7 @@ export default function SectionsPage() {
         console.error('Error fetching sections:', error)
         setSections([])
       } else {
-        // Get teacher names for sections
+        // Get teacher names and student counts for sections
         const sectionsWithDetails = await Promise.all(
           (sections || []).map(async (section) => {
             let teacherName = null
@@ -239,6 +239,13 @@ export default function SectionsPage() {
               }
             }
 
+            // Get current student count for this section
+            const { count: studentCount } = await supabase
+              .from('students')
+              .select('*', { count: 'exact', head: true })
+              .eq('current_section_id', section.id)
+              .eq('status', 'active')
+
             return {
               id: section.id,
               section_name: section.section_name,
@@ -248,6 +255,7 @@ export default function SectionsPage() {
               teacher_name: teacherName,
               room_number: section.room_number,
               capacity: section.capacity,
+              current_students: studentCount || 0,
               status: section.status
             }
           })
@@ -294,6 +302,25 @@ export default function SectionsPage() {
         return
       }
 
+      // Check if room number is already taken
+      if (formData.roomNumber && formData.roomNumber.trim()) {
+        const { data: existingRoom, error: roomCheckError } = await supabase
+          .from('sections')
+          .select('id, section_name, classes!inner(class_name)')
+          .eq('school_id', user.school_id)
+          .eq('room_number', formData.roomNumber.trim())
+          .eq('status', 'active')
+          .limit(1)
+
+        if (roomCheckError) {
+          console.error('Error checking room number:', roomCheckError)
+        } else if (existingRoom && existingRoom.length > 0) {
+          const existing = existingRoom[0]
+          showToast(`Room number ${formData.roomNumber} is already assigned to ${existing.classes.class_name} - ${existing.section_name}`, 'error')
+          return
+        }
+      }
+
       const { data, error } = await supabase
         .from('sections')
         .insert([{
@@ -331,7 +358,8 @@ export default function SectionsPage() {
         setSections(prev => [...prev, {
           ...newSection,
           class_name: className,
-          teacher_name: teacherName
+          teacher_name: teacherName,
+          current_students: 0
         }])
       }
     } catch (error) {
@@ -360,6 +388,26 @@ export default function SectionsPage() {
       if (!user) {
         showToast('Unauthorized', 'error')
         return
+      }
+
+      // Check if room number is already taken (excluding current section)
+      if (editFormData.roomNumber && editFormData.roomNumber.trim()) {
+        const { data: existingRoom, error: roomCheckError } = await supabase
+          .from('sections')
+          .select('id, section_name, classes!inner(class_name)')
+          .eq('school_id', user.school_id)
+          .eq('room_number', editFormData.roomNumber.trim())
+          .eq('status', 'active')
+          .neq('id', selectedSection.id)
+          .limit(1)
+
+        if (roomCheckError) {
+          console.error('Error checking room number:', roomCheckError)
+        } else if (existingRoom && existingRoom.length > 0) {
+          const existing = existingRoom[0]
+          showToast(`Room number ${editFormData.roomNumber} is already assigned to ${existing.classes.class_name} - ${existing.section_name}`, 'error')
+          return
+        }
       }
 
       const { data, error } = await supabase
@@ -569,35 +617,61 @@ export default function SectionsPage() {
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class Name</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Section Name</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Incharge Name</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Room Number</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Capacity</th>
                 <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                     Loading sections...
                   </td>
                 </tr>
               ) : filteredSections.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                     No sections found
                   </td>
                 </tr>
               ) : (
-                paginatedSections.map((section, index) => (
-                  <tr
-                    key={section.id}
-                    className={`${
-                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    } hover:bg-blue-50 transition`}
-                  >
-                    <td className="px-4 py-3 border border-gray-200 text-blue-600">{startIndex + index + 1}</td>
-                    <td className="px-4 py-3 border border-gray-200 font-medium">{section.class_name}</td>
-                    <td className="px-4 py-3 border border-gray-200">{section.section_name}</td>
-                    <td className="px-4 py-3 border border-gray-200">{section.teacher_name || '-'}</td>
-                    <td className="px-4 py-3 border border-gray-200">
+                paginatedSections.map((section, index) => {
+                  const currentStudents = section.current_students || 0
+                  const capacity = section.capacity || 0
+                  const isFull = capacity > 0 && currentStudents >= capacity
+
+                  return (
+                    <tr
+                      key={section.id}
+                      className={`${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                      } hover:bg-blue-50 transition`}
+                    >
+                      <td className="px-4 py-3 border border-gray-200 text-blue-600">{startIndex + index + 1}</td>
+                      <td className="px-4 py-3 border border-gray-200 font-medium">{section.class_name}</td>
+                      <td className="px-4 py-3 border border-gray-200">{section.section_name}</td>
+                      <td className="px-4 py-3 border border-gray-200">{section.teacher_name || '-'}</td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        {section.room_number || '-'}
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        {capacity > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium ${isFull ? 'text-red-600' : 'text-blue-600'}`}>
+                              {currentStudents} / {capacity}
+                            </span>
+                            {isFull && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                                Full
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleToggleStatus(section)}
@@ -629,7 +703,8 @@ export default function SectionsPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -702,7 +777,7 @@ export default function SectionsPage() {
       {/* Add Section Sidebar */}
       {showSidebar && (
         <ModalOverlay onClose={() => setShowSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             {/* Sidebar Header */}
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
@@ -878,7 +953,7 @@ export default function SectionsPage() {
       {/* Edit Section Sidebar */}
       {showEditSidebar && (
         <ModalOverlay onClose={() => setShowEditSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             {/* Sidebar Header */}
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">

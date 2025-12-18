@@ -166,7 +166,7 @@ export default function FeeChallanPage() {
       if (classIds.length > 0) {
         const { data: classesData } = await supabase
           .from('classes')
-          .select('id, class_name')
+          .select('id, class_name, fee_plan')
           .in('id', classIds)
 
         if (classesData) {
