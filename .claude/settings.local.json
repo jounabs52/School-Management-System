@@ -1,17 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc:*)",
       "Bash(ls:*)",
-      "Bash(find:*)",
-      "Bash(npm run build:*)",
-      "Bash(npx eslint:*)",
-      "Bash(node -e:*)",
-      "Bash(psql:*)",
-      "Bash(npm run dev:*)",
-      "Bash(node -c:*)",
-      "Bash(curl:*)",
-      "Bash(taskkill:*)",
       "Bash(cat:*)"
     ]
   }

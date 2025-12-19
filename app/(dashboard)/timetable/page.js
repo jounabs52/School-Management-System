@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, CheckCircle } from 'lucide-react'
+import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, CheckCircle, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import { getPdfSettings, hexToRgb, getMarginValues, getCellPadding, getLineWidth, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
+import FeeChallans from './FeeChallans'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -1264,11 +1266,19 @@ export default function TimetablePage() {
         return
       }
 
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+      console.log('PDF Settings loaded:', pdfSettings)
+
       // Dynamically import jsPDF and autoTable
       const jsPDF = (await import('jspdf')).default
       const autoTable = (await import('jspdf-autotable')).default
 
-      const doc = new jsPDF('l', 'mm', 'a4') // landscape orientation
+      const doc = new jsPDF(
+        pdfSettings.orientation === 'landscape' ? 'l' : 'p',
+        'mm',
+        pdfSettings.pageSize.toLowerCase()
+      )
       console.log('jsPDF initialized for all classes')
 
       const sessionName = currentSession?.name || 'Current Session'
@@ -1287,12 +1297,19 @@ export default function TimetablePage() {
 
         console.log('Generating PDF for class:', className)
 
-        // Add decorative header background
-        doc.setFillColor(30, 58, 138) // #1E3A8A
-        doc.rect(0, 0, doc.internal.pageSize.getWidth(), 35, 'F')
+        // Fixed header height to match working code layout
+        const headerHeight = 35 // Fixed at 35mm like the working code
+        const logoSize = pdfSettings.includeLogo ? getLogoSize(pdfSettings.logoSize) : 25
 
-        // Add school logo if available (in a circle)
-        if (schoolData.logo_url) {
+        // Add decorative header background
+        if (pdfSettings.includeHeader) {
+          const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor)
+          doc.setFillColor(headerBgColor[0], headerBgColor[1], headerBgColor[2])
+          doc.rect(0, 0, doc.internal.pageSize.getWidth(), headerHeight, 'F')
+        }
+
+        // Add school logo if available
+        if (pdfSettings.includeLogo && schoolData.logo_url) {
           try {
             const img = new Image()
             img.crossOrigin = 'anonymous'
@@ -1300,22 +1317,50 @@ export default function TimetablePage() {
             await new Promise((resolve) => {
               img.onload = () => {
                 try {
-                  // Draw circular background for logo
-                  const logoX = 22.5  // Center X of logo (10 + 25/2)
-                  const logoY = 17.5  // Center Y of logo (5 + 25/2)
-                  const logoRadius = 12.5 // Radius (25/2)
+                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                  const logoX = pdfSettings.logoPosition === 'left' ? 10 :
+                               pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
+                               (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
+                  const logoY = (headerHeight - currentLogoSize) / 2 // Center vertically in header
 
-                  // Draw white circle background
-                  doc.setFillColor(255, 255, 255)
-                  doc.circle(logoX, logoY, logoRadius, 'F')
+                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                    // Create a canvas to clip the image
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const size = 200 // Higher resolution for better quality
+                    canvas.width = size
+                    canvas.height = size
 
-                  // Add image clipped to circle
-                  doc.addImage(img, 'PNG', 10, 5, 25, 25, undefined, 'NONE')
+                    // Draw clipped image on canvas
+                    ctx.beginPath()
+                    if (pdfSettings.logoStyle === 'circle') {
+                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                    } else {
+                      // Rounded corners
+                      const radius = size * 0.15
+                      ctx.moveTo(radius, 0)
+                      ctx.lineTo(size - radius, 0)
+                      ctx.quadraticCurveTo(size, 0, size, radius)
+                      ctx.lineTo(size, size - radius)
+                      ctx.quadraticCurveTo(size, size, size - radius, size)
+                      ctx.lineTo(radius, size)
+                      ctx.quadraticCurveTo(0, size, 0, size - radius)
+                      ctx.lineTo(0, radius)
+                      ctx.quadraticCurveTo(0, 0, radius, 0)
+                    }
+                    ctx.closePath()
+                    ctx.clip()
 
-                  // Draw circle border
-                  doc.setDrawColor(255, 255, 255)
-                  doc.setLineWidth(0.5)
-                  doc.circle(logoX, logoY, logoRadius, 'S')
+                    // Draw image
+                    ctx.drawImage(img, 0, 0, size, size)
+
+                    // Convert canvas to data URL and add to PDF
+                    const clippedImage = canvas.toDataURL('image/png')
+                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  } else {
+                    // Square logo
+                    doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  }
 
                   resolve()
                 } catch (e) {
@@ -1334,34 +1379,67 @@ export default function TimetablePage() {
         }
 
         // Add school name and title
-        doc.setFontSize(22)
-        doc.setTextColor(255, 255, 255)
-        doc.setFont(undefined, 'bold')
-        const headerTitle = schoolData.name || 'SCHOOL TIMETABLE'
-        doc.text(headerTitle, doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' })
+        if (pdfSettings.includeHeader) {
+          // Set font if specified
+          if (pdfSettings.fontFamily) {
+            try {
+              doc.setFont(pdfSettings.fontFamily.toLowerCase())
+            } catch (e) {
+              console.warn('Font not available:', pdfSettings.fontFamily)
+            }
+          }
 
-        // Add "TIMETABLE" subtitle if school name is present
-        if (schoolData.name) {
-          doc.setFontSize(16)
-          doc.text('TIMETABLE', doc.internal.pageSize.getWidth() / 2, 19, { align: 'center' })
+          const pageWidth = doc.internal.pageSize.getWidth()
+          const isPortrait = pdfSettings.orientation === 'portrait'
+
+          // Calculate text positions based on header height
+          const titleY = headerHeight * 0.25
+          const subtitleY = headerHeight * 0.40
+          const classY = headerHeight * 0.55
+          const sessionY = headerHeight * 0.70
+          const dateY = headerHeight - 5
+
+          doc.setFontSize(isPortrait ? 18 : 22)
+          doc.setTextColor(255, 255, 255)
+          doc.setFont(undefined, 'bold')
+          const headerTitle = pdfSettings.headerText || schoolData.name || 'SCHOOL TIMETABLE'
+          doc.text(headerTitle, pageWidth / 2, titleY, { align: 'center' })
+
+          // Add "TIMETABLE" subtitle if school name is present
+          if (schoolData.name) {
+            doc.setFontSize(isPortrait ? 13 : 16)
+            doc.text('TIMETABLE', pageWidth / 2, subtitleY, { align: 'center' })
+          }
+
+          doc.setFontSize(isPortrait ? 11 : 14)
+          doc.setFont(undefined, 'bold')
+          doc.text(`${className}`, pageWidth / 2, schoolData.name ? classY : titleY + 10, { align: 'center' })
+
+          // Add section text if enabled in settings
+          if (pdfSettings.includeSectionText) {
+            doc.setFontSize(parseInt(pdfSettings.sectionTextSize))
+            doc.setFont(undefined, 'normal')
+            doc.text(`Academic Session: ${sessionName}`, pageWidth / 2, schoolData.name ? sessionY : classY + 8, { align: 'center' })
+          }
+
+          // Add generation date in header (adjust position for portrait)
+          if (pdfSettings.includeGeneratedDate) {
+            doc.setFontSize(isPortrait ? 7 : 9)
+            const dateStr = new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+
+            if (isPortrait) {
+              // For portrait, place date on left side to avoid overlap
+              doc.text(`Generated: ${dateStr}`, 10, dateY, { align: 'left' })
+            } else {
+              doc.text(`Generated: ${dateStr}`, pageWidth - 10, dateY, { align: 'right' })
+            }
+          }
         }
-
-        doc.setFontSize(14)
-        doc.setFont(undefined, 'bold')
-        doc.text(`${className}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 25 : 20, { align: 'center' })
-
-        doc.setFontSize(11)
-        doc.setFont(undefined, 'normal')
-        doc.text(`Academic Session: ${sessionName}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 30 : 27, { align: 'center' })
-
-        doc.setFontSize(9)
-        const dateStr = new Date().toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        })
-        doc.text(`Generated: ${dateStr}`, doc.internal.pageSize.getWidth() - 10, 32, { align: 'right' })
 
         // Prepare table data
         const tableData = []
@@ -1431,95 +1509,123 @@ export default function TimetablePage() {
         }
 
         // Reset text color for table
-        doc.setTextColor(0, 0, 0)
+        const textColor = hexToRgb(pdfSettings.textColor)
+        doc.setTextColor(textColor[0], textColor[1], textColor[2])
 
         const pageHeight = doc.internal.pageSize.getHeight()
-        const availableHeight = pageHeight - 40 - 25
-        const rowHeight = Math.min(availableHeight / (tableData.length + 1), 23)
+        const pageWidth = doc.internal.pageSize.getWidth()
+        const margins = getMarginValues(pdfSettings.margin)
+        const footerSpace = pdfSettings.includeFooter ? 18 : 8 // Space for footer
+        const tableStartY = headerHeight + 10 // Start 10mm after header ends (35mm + 10mm = 45mm)
+
+        // Get autoTable styles from settings FIRST
+        const autoTableStyles = getAutoTableStyles(pdfSettings)
+        const headerColor = hexToRgb(pdfSettings.tableHeaderColor)
+
+        // Calculate dynamic header height based on content
+        const tableHeaderHeight = 7 // Compact header
+        const availableHeight = pageHeight - tableStartY - footerSpace - tableHeaderHeight - 2 // -2mm for safety margin
+
+        // Calculate row height to fit all periods on one page
+        const calculatedRowHeight = availableHeight / tableData.length
+        const rowHeight = calculatedRowHeight // Use exact calculated height, no minimum
+
+        // Dynamically adjust font size and padding based on row height
+        const dynamicFontSize = Math.min(parseInt(pdfSettings.fontSize), Math.max(4, rowHeight * 0.3))
+        const dynamicPadding = Math.min(autoTableStyles.styles.cellPadding, Math.max(0.3, rowHeight * 0.12))
+
+        // Calculate column widths to fit page width
+        const availableWidth = pageWidth - margins.left - margins.right
+        const periodColumnWidth = 35 // Fixed width for period column
+        const dayColumnWidth = (availableWidth - periodColumnWidth) / 6 // Divide remaining space equally among 6 days
+
+        console.log(`📊 Table calc: ${tableData.length} periods, page: ${pageHeight}mm, header: ${headerHeight}mm (FIXED), table start: ${tableStartY}mm (header + 10mm gap), available: ${availableHeight}mm, row: ${rowHeight.toFixed(2)}mm, font: ${dynamicFontSize.toFixed(1)}pt, padding: ${dynamicPadding.toFixed(1)}mm`)
 
         // Create the table
         autoTable(doc, {
           head: [['PERIOD', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']],
           body: tableData,
-          startY: 40,
-          theme: 'grid',
-          tableWidth: 'auto',
+          startY: tableStartY, // Start after header with 10mm gap
+          theme: autoTableStyles.theme,
+          tableWidth: 'wrap', // Use available width
           styles: {
-            fontSize: 8,
-            cellPadding: 2.5,
+            ...autoTableStyles.styles,
+            cellHeight: rowHeight, // Force exact row height
+            fontSize: dynamicFontSize, // Dynamically scaled based on row height
+            cellPadding: dynamicPadding, // Dynamically scaled based on row height
             overflow: 'linebreak',
             valign: 'middle',
-            halign: 'center',
-            lineColor: [200, 200, 200],
-            lineWidth: 0.3,
-            minCellHeight: rowHeight,
-            cellHeight: rowHeight
+            minCellHeight: rowHeight // Ensure minimum height
           },
           headStyles: {
-            fillColor: [30, 58, 138],
-            textColor: [255, 255, 255],
-            fontSize: 9,
-            fontStyle: 'bold',
-            halign: 'center',
-            valign: 'middle',
-            cellPadding: 3,
-            minCellHeight: 12
+            ...autoTableStyles.headStyles,
+            cellHeight: tableHeaderHeight, // Match calculated header height
+            cellPadding: 1,
+            fontSize: dynamicFontSize > 6 ? parseInt(pdfSettings.fontSize) - 1 : 6,
+            minCellHeight: tableHeaderHeight
           },
           columnStyles: {
             0: {
-              fillColor: [30, 58, 138],
+              fillColor: headerColor,
               textColor: [255, 255, 255],
               fontStyle: 'bold',
-              cellWidth: 38,
-              fontSize: 7.5,
+              cellWidth: periodColumnWidth,
+              fontSize: dynamicFontSize,
               halign: 'center'
             },
-            1: { cellWidth: 'auto' },
-            2: { cellWidth: 'auto' },
-            3: { cellWidth: 'auto' },
-            4: { cellWidth: 'auto' },
-            5: { cellWidth: 'auto' },
-            6: { cellWidth: 'auto' }
+            1: { cellWidth: dayColumnWidth },
+            2: { cellWidth: dayColumnWidth },
+            3: { cellWidth: dayColumnWidth },
+            4: { cellWidth: dayColumnWidth },
+            5: { cellWidth: dayColumnWidth },
+            6: { cellWidth: dayColumnWidth }
           },
-          alternateRowStyles: {
-            fillColor: [248, 250, 252]
-          },
-          margin: { top: 40, left: 8, right: 8, bottom: 25 }
+          alternateRowStyles: autoTableStyles.alternateRowStyles,
+          margin: { top: 0, left: margins.left, right: margins.right, bottom: footerSpace } // Use footer space as bottom margin
         })
       }
 
       // Add professional footer to all pages
-      const pageCount = doc.internal.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
+      if (pdfSettings.includeFooter) {
+        const pageCount = doc.internal.getNumberOfPages()
+        const footerColor = hexToRgb(pdfSettings.headerBackgroundColor)
 
-        doc.setDrawColor(30, 58, 138)
-        doc.setLineWidth(0.5)
-        doc.line(10, doc.internal.pageSize.getHeight() - 15, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 15)
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
 
-        doc.setFontSize(8)
-        doc.setTextColor(100, 100, 100)
-        doc.setFont(undefined, 'normal')
+          doc.setDrawColor(footerColor[0], footerColor[1], footerColor[2])
+          doc.setLineWidth(0.5)
+          doc.line(10, doc.internal.pageSize.getHeight() - 15, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 15)
 
-        doc.text(
-          'All Classes Timetable',
-          10,
-          doc.internal.pageSize.getHeight() - 8
-        )
+          doc.setFontSize(8)
+          doc.setTextColor(100, 100, 100)
+          doc.setFont(undefined, 'normal')
 
-        doc.text(
-          `Generated on ${new Date().toLocaleDateString()}`,
-          doc.internal.pageSize.getWidth() / 2,
-          doc.internal.pageSize.getHeight() - 8,
-          { align: 'center' }
-        )
+          const leftFooterText = pdfSettings.footerText || 'All Classes Timetable'
+          doc.text(
+            leftFooterText,
+            10,
+            doc.internal.pageSize.getHeight() - 8
+          )
 
-        doc.text(
-          `Page ${i} of ${pageCount}`,
-          doc.internal.pageSize.getWidth() - 10,
-          doc.internal.pageSize.getHeight() - 8,
-          { align: 'right' }
-        )
+          if (pdfSettings.includeDate) {
+            doc.text(
+              `Generated on ${new Date().toLocaleDateString()}`,
+              doc.internal.pageSize.getWidth() / 2,
+              doc.internal.pageSize.getHeight() - 8,
+              { align: 'center' }
+            )
+          }
+
+          if (pdfSettings.includePageNumbers) {
+            doc.text(
+              `Page ${i} of ${pageCount}`,
+              doc.internal.pageSize.getWidth() - 10,
+              doc.internal.pageSize.getHeight() - 8,
+              { align: 'right' }
+            )
+          }
+        }
       }
 
       // Save the PDF
@@ -1543,11 +1649,19 @@ export default function TimetablePage() {
         return
       }
 
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+      console.log('PDF Settings loaded:', pdfSettings)
+
       // Dynamically import jsPDF and autoTable
       const jsPDF = (await import('jspdf')).default
       const autoTable = (await import('jspdf-autotable')).default
 
-      const doc = new jsPDF('l', 'mm', 'a4') // landscape orientation
+      const doc = new jsPDF(
+        pdfSettings.orientation === 'landscape' ? 'l' : 'p',
+        'mm',
+        pdfSettings.pageSize.toLowerCase()
+      )
       console.log('jsPDF initialized')
 
       // Get selected class name
@@ -1565,37 +1679,74 @@ export default function TimetablePage() {
       console.log('📷 Logo URL:', schoolData.logo_url)
       console.log('🏫 School Name:', schoolData.name)
 
-      // Add decorative header background
-      doc.setFillColor(30, 58, 138) // #1E3A8A
-      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 35, 'F')
+      // Fixed header height to match working code layout
+      const headerHeight = 35 // Fixed at 35mm like the working code
+      const logoSize = pdfSettings.includeLogo ? getLogoSize(pdfSettings.logoSize) : 25
 
-      // Add school logo if available (in a circle)
-      if (schoolData.logo_url) {
+      console.log(`📐 Header dimensions: logoSize=${logoSize}mm, headerHeight=${headerHeight}mm (FIXED), pageWidth=${doc.internal.pageSize.getWidth()}mm`)
+
+      // Add decorative header background
+      if (pdfSettings.includeHeader) {
+        const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor)
+        doc.setFillColor(headerBgColor[0], headerBgColor[1], headerBgColor[2])
+        doc.rect(0, 0, doc.internal.pageSize.getWidth(), headerHeight, 'F')
+        console.log(`✅ Header background drawn: width=${doc.internal.pageSize.getWidth()}mm, height=${headerHeight}mm, color=RGB(${headerBgColor.join(',')})`)
+      }
+
+      // Add school logo if available
+      if (pdfSettings.includeLogo && schoolData.logo_url) {
         console.log('🖼️ Attempting to add logo to PDF...')
         try {
-          // Convert image URL to base64 and add to PDF
           const img = new Image()
           img.crossOrigin = 'anonymous'
           img.src = schoolData.logo_url
           await new Promise((resolve, reject) => {
             img.onload = () => {
               try {
-                // Draw circular background for logo
-                const logoX = 22.5  // Center X of logo (10 + 25/2)
-                const logoY = 17.5  // Center Y of logo (5 + 25/2)
-                const logoRadius = 12.5 // Radius (25/2)
+                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                const logoX = pdfSettings.logoPosition === 'left' ? 10 :
+                             pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
+                             (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
+                const logoY = (headerHeight - currentLogoSize) / 2 // Center vertically in header
 
-                // Draw white circle background
-                doc.setFillColor(255, 255, 255)
-                doc.circle(logoX, logoY, logoRadius, 'F')
+                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                  // Create a canvas to clip the image
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const size = 200 // Higher resolution for better quality
+                  canvas.width = size
+                  canvas.height = size
 
-                // Add image clipped to circle
-                doc.addImage(img, 'PNG', 10, 5, 25, 25, undefined, 'NONE')
+                  // Draw clipped image on canvas
+                  ctx.beginPath()
+                  if (pdfSettings.logoStyle === 'circle') {
+                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                  } else {
+                    // Rounded corners
+                    const radius = size * 0.15
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(size - radius, 0)
+                    ctx.quadraticCurveTo(size, 0, size, radius)
+                    ctx.lineTo(size, size - radius)
+                    ctx.quadraticCurveTo(size, size, size - radius, size)
+                    ctx.lineTo(radius, size)
+                    ctx.quadraticCurveTo(0, size, 0, size - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  }
+                  ctx.closePath()
+                  ctx.clip()
 
-                // Draw circle border
-                doc.setDrawColor(255, 255, 255)
-                doc.setLineWidth(0.5)
-                doc.circle(logoX, logoY, logoRadius, 'S')
+                  // Draw image
+                  ctx.drawImage(img, 0, 0, size, size)
+
+                  // Convert canvas to data URL and add to PDF
+                  const clippedImage = canvas.toDataURL('image/png')
+                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else {
+                  // Square logo
+                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                }
 
                 resolve()
               } catch (e) {
@@ -1614,36 +1765,76 @@ export default function TimetablePage() {
       }
 
       // Add school name and title
-      doc.setFontSize(22)
-      doc.setTextColor(255, 255, 255)
-      doc.setFont(undefined, 'bold')
-      const headerTitle = schoolData.name || 'SCHOOL TIMETABLE'
-      doc.text(headerTitle, doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' })
+      if (pdfSettings.includeHeader) {
+        // Set font if specified
+        if (pdfSettings.fontFamily) {
+          try {
+            doc.setFont(pdfSettings.fontFamily.toLowerCase())
+          } catch (e) {
+            console.warn('Font not available:', pdfSettings.fontFamily)
+          }
+        }
 
-      // Add "TIMETABLE" subtitle if school name is present
-      if (schoolData.name) {
-        doc.setFontSize(16)
-        doc.text('TIMETABLE', doc.internal.pageSize.getWidth() / 2, 19, { align: 'center' })
+        const pageWidth = doc.internal.pageSize.getWidth()
+        const isPortrait = pdfSettings.orientation === 'portrait'
+
+        // Calculate text positions based on header height
+        const titleY = headerHeight * 0.25
+        const subtitleY = headerHeight * 0.40
+        const classY = headerHeight * 0.55
+        const sessionY = headerHeight * 0.70
+        const session2Y = headerHeight * 0.85
+        const dateY = headerHeight - 5
+
+        doc.setFontSize(isPortrait ? 18 : 22)
+        doc.setTextColor(255, 255, 255)
+        doc.setFont(undefined, 'bold')
+        const headerTitle = pdfSettings.headerText || schoolData.name || 'SCHOOL TIMETABLE'
+        doc.text(headerTitle, pageWidth / 2, titleY, { align: 'center' })
+
+        // Add "TIMETABLE" subtitle if school name is present
+        if (schoolData.name) {
+          doc.setFontSize(isPortrait ? 13 : 16)
+          doc.text('TIMETABLE', pageWidth / 2, subtitleY, { align: 'center' })
+        }
+
+        // Add session and class info
+        doc.setFontSize(isPortrait ? 11 : 14)
+        doc.setFont(undefined, 'bold')
+        doc.text(`${selectedClassName}`, pageWidth / 2, schoolData.name ? classY : titleY + 10, { align: 'center' })
+
+        // Add section text if enabled in settings
+        if (pdfSettings.includeSectionText) {
+          doc.setFontSize(parseInt(pdfSettings.sectionTextSize))
+          doc.setFont(undefined, 'normal')
+
+          // For portrait, split the session info into two lines to avoid overlap
+          if (isPortrait) {
+            doc.text(`Section: ${selectedSectionName}`, pageWidth / 2, schoolData.name ? sessionY : classY + 8, { align: 'center' })
+            doc.text(`Academic Session: ${sessionName}`, pageWidth / 2, schoolData.name ? session2Y : sessionY + 5, { align: 'center' })
+          } else {
+            doc.text(`Section: ${selectedSectionName} | Academic Session: ${sessionName}`, pageWidth / 2, schoolData.name ? sessionY : classY + 8, { align: 'center' })
+          }
+        }
+
+        // Add generation date in header (adjust position for portrait)
+        if (pdfSettings.includeGeneratedDate) {
+          doc.setFontSize(isPortrait ? 7 : 9)
+          const dateStr = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+
+          if (isPortrait) {
+            // For portrait, place date on left side to avoid overlap
+            doc.text(`Generated: ${dateStr}`, 10, dateY, { align: 'left' })
+          } else {
+            doc.text(`Generated: ${dateStr}`, pageWidth - 10, dateY, { align: 'right' })
+          }
+        }
       }
-
-      // Add session and class info
-      doc.setFontSize(14)
-      doc.setFont(undefined, 'bold')
-      doc.text(`${selectedClassName}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 25 : 20, { align: 'center' })
-
-      doc.setFontSize(11)
-      doc.setFont(undefined, 'normal')
-      doc.text(`Section: ${selectedSectionName} | Academic Session: ${sessionName}`, doc.internal.pageSize.getWidth() / 2, schoolData.name ? 30 : 27, { align: 'center' })
-
-      // Add generation date in header
-      doc.setFontSize(9)
-      const dateStr = new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-      doc.text(`Generated: ${dateStr}`, doc.internal.pageSize.getWidth() - 10, 32, { align: 'right' })
 
       console.log('Header added')
 
@@ -1683,61 +1874,88 @@ export default function TimetablePage() {
       console.log('Table data prepared, rows:', tableData.length)
 
       // Reset text color for table
-      doc.setTextColor(0, 0, 0)
+      const textColor = hexToRgb(pdfSettings.textColor)
+      doc.setTextColor(textColor[0], textColor[1], textColor[2])
 
-      // Calculate available height for table to fit on one page
+      // Fixed table positioning to match working code layout
       const pageHeight = doc.internal.pageSize.getHeight()
-      const availableHeight = pageHeight - 40 - 25 // header and footer space
-      const rowHeight = Math.min(availableHeight / (tableData.length + 1), 23) // +1 for header row, max 23mm
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margins = getMarginValues(pdfSettings.margin)
+      const footerSpace = pdfSettings.includeFooter ? 18 : 8 // Space for footer
+      const tableStartY = headerHeight + 10 // Start 10mm after header ends (35mm + 10mm = 45mm)
+
+      // Get autoTable styles from settings FIRST
+      const autoTableStyles = getAutoTableStyles(pdfSettings)
+      const headerColor = hexToRgb(pdfSettings.tableHeaderColor)
+
+      // Calculate dynamic header height based on content
+      const tableHeaderHeight = 7 // Compact header
+      const availableHeight = pageHeight - tableStartY - footerSpace - tableHeaderHeight - 2 // -2mm for safety margin
+
+      // Calculate row height to fit all periods on one page
+      const calculatedRowHeight = availableHeight / tableData.length
+      const rowHeight = calculatedRowHeight // Use exact calculated height, no minimum
+
+      // Dynamically adjust font size and padding based on row height
+      const dynamicFontSize = Math.min(parseInt(pdfSettings.fontSize), Math.max(4, rowHeight * 0.3))
+      const dynamicPadding = Math.min(autoTableStyles.styles.cellPadding, Math.max(0.3, rowHeight * 0.12))
+
+      console.log(`📊 TABLE POSITIONING:`)
+      console.log(`   Page height: ${pageHeight}mm`)
+      console.log(`   Header height: ${headerHeight}mm (FIXED at 35mm)`)
+      console.log(`   Table will start at Y: ${tableStartY}mm (header + 10mm gap)`)
+      console.log(`   ${tableData.length} periods, ${availableHeight}mm available, ${rowHeight.toFixed(2)}mm per row`)
+      console.log(`   Dynamic font: ${dynamicFontSize.toFixed(1)}pt, padding: ${dynamicPadding.toFixed(1)}mm`)
+      console.log(`   Margins:`, margins)
+
+      console.log(`🎨 About to draw table at startY=${tableStartY}mm`)
+
+      // Calculate column widths to fit page width
+      const availableWidth = pageWidth - margins.left - margins.right
+      const periodColumnWidth = 35 // Fixed width for period column
+      const dayColumnWidth = (availableWidth - periodColumnWidth) / 6 // Divide remaining space equally among 6 days
 
       // Create the table using autoTable - optimized to fit on one page
       autoTable(doc, {
         head: [['PERIOD', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']],
         body: tableData,
-        startY: 40,
-        theme: 'grid',
-        tableWidth: 'auto',
+        startY: tableStartY, // Start after header with 10mm gap
+        theme: autoTableStyles.theme,
+        tableWidth: 'wrap', // Use available width
         styles: {
-          fontSize: 8,
-          cellPadding: 2.5,
+          ...autoTableStyles.styles,
+          cellHeight: rowHeight, // Force exact row height
+          fontSize: dynamicFontSize, // Dynamically scaled based on row height
+          cellPadding: dynamicPadding, // Dynamically scaled based on row height
           overflow: 'linebreak',
           valign: 'middle',
-          halign: 'center',
-          lineColor: [200, 200, 200],
-          lineWidth: 0.3,
-          minCellHeight: rowHeight,
-          cellHeight: rowHeight
+          minCellHeight: rowHeight // Ensure minimum height
         },
         headStyles: {
-          fillColor: [30, 58, 138], // #1E3A8A
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: 'bold',
-          halign: 'center',
-          valign: 'middle',
-          cellPadding: 3,
-          minCellHeight: 12
+          ...autoTableStyles.headStyles,
+          cellHeight: tableHeaderHeight, // Match calculated header height
+          cellPadding: 1,
+          fontSize: dynamicFontSize > 6 ? parseInt(pdfSettings.fontSize) - 1 : 6,
+          minCellHeight: tableHeaderHeight
         },
         columnStyles: {
           0: {
-            fillColor: [30, 58, 138],
+            fillColor: headerColor,
             textColor: [255, 255, 255],
             fontStyle: 'bold',
-            cellWidth: 38,
-            fontSize: 7.5,
+            cellWidth: periodColumnWidth,
+            fontSize: dynamicFontSize,
             halign: 'center'
           },
-          1: { cellWidth: 'auto' },
-          2: { cellWidth: 'auto' },
-          3: { cellWidth: 'auto' },
-          4: { cellWidth: 'auto' },
-          5: { cellWidth: 'auto' },
-          6: { cellWidth: 'auto' }
+          1: { cellWidth: dayColumnWidth },
+          2: { cellWidth: dayColumnWidth },
+          3: { cellWidth: dayColumnWidth },
+          4: { cellWidth: dayColumnWidth },
+          5: { cellWidth: dayColumnWidth },
+          6: { cellWidth: dayColumnWidth }
         },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252]
-        },
-        margin: { top: 40, left: 8, right: 8, bottom: 25 },
+        alternateRowStyles: autoTableStyles.alternateRowStyles,
+        margin: { top: 0, left: margins.left, right: margins.right, bottom: footerSpace }, // Use footer space as bottom margin
         didDrawCell: function(data) {
           // Add subtle borders
           if (data.row.section === 'body' && data.column.index > 0) {
@@ -1755,42 +1973,51 @@ export default function TimetablePage() {
       console.log('autoTable completed')
 
       // Add professional footer
-      const pageCount = doc.internal.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
+      if (pdfSettings.includeFooter) {
+        const pageCount = doc.internal.getNumberOfPages()
+        const footerColor = hexToRgb(pdfSettings.headerBackgroundColor)
 
-        // Footer line
-        doc.setDrawColor(30, 58, 138)
-        doc.setLineWidth(0.5)
-        doc.line(10, doc.internal.pageSize.getHeight() - 15, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 15)
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
 
-        // Footer text
-        doc.setFontSize(8)
-        doc.setTextColor(100, 100, 100)
-        doc.setFont(undefined, 'normal')
+          // Footer line
+          doc.setDrawColor(footerColor[0], footerColor[1], footerColor[2])
+          doc.setLineWidth(0.5)
+          doc.line(10, doc.internal.pageSize.getHeight() - 15, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 15)
 
-        // Left side - Document info
-        doc.text(
-          `Timetable - ${selectedClassName}`,
-          10,
-          doc.internal.pageSize.getHeight() - 8
-        )
+          // Footer text
+          doc.setFontSize(8)
+          doc.setTextColor(100, 100, 100)
+          doc.setFont(undefined, 'normal')
 
-        // Center - Generation date
-        doc.text(
-          `Generated on ${new Date().toLocaleDateString()}`,
-          doc.internal.pageSize.getWidth() / 2,
-          doc.internal.pageSize.getHeight() - 8,
-          { align: 'center' }
-        )
+          // Left side - Document info
+          const leftFooterText = pdfSettings.footerText || `Timetable - ${selectedClassName}`
+          doc.text(
+            leftFooterText,
+            10,
+            doc.internal.pageSize.getHeight() - 8
+          )
 
-        // Right side - Page number
-        doc.text(
-          `Page ${i} of ${pageCount}`,
-          doc.internal.pageSize.getWidth() - 10,
-          doc.internal.pageSize.getHeight() - 8,
-          { align: 'right' }
-        )
+          // Center - Generation date
+          if (pdfSettings.includeDate) {
+            doc.text(
+              `Generated on ${new Date().toLocaleDateString()}`,
+              doc.internal.pageSize.getWidth() / 2,
+              doc.internal.pageSize.getHeight() - 8,
+              { align: 'center' }
+            )
+          }
+
+          // Right side - Page number
+          if (pdfSettings.includePageNumbers) {
+            doc.text(
+              `Page ${i} of ${pageCount}`,
+              doc.internal.pageSize.getWidth() - 10,
+              doc.internal.pageSize.getHeight() - 8,
+              { align: 'right' }
+            )
+          }
+        }
       }
 
       console.log('Footer added')
@@ -1893,6 +2120,23 @@ export default function TimetablePage() {
         >
           <CalendarDays size={16} />
           Periods
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('fee-challans')
+            setShowPeriodModal(false)
+            setShowBulkPeriodModal(false)
+            setShowTimingModal(false)
+            setShowDeleteConfirm(false)
+          }}
+          className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 text-sm ${
+            activeTab === 'fee-challans'
+              ? 'bg-[#DC2626] text-white shadow-lg'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          <FileText size={16} />
+          Fee Challans
         </button>
       </div>
 
@@ -2302,7 +2546,7 @@ export default function TimetablePage() {
             </>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'periods' ? (
         <div className="bg-white rounded-xl shadow-lg p-4">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-gray-800 mb-3">Periods</h2>
@@ -2516,7 +2760,14 @@ export default function TimetablePage() {
             </div>
           )}
         </div>
-      )}
+      ) : activeTab === 'fee-challans' ? (
+        <FeeChallans
+          user={user}
+          classes={classes}
+          schoolData={schoolData}
+          showToast={showToast}
+        />
+      ) : null}
 
       {/* Add Period Modal */}
       {showPeriodModal && (

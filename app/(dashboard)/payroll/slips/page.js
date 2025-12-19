@@ -7,6 +7,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
 import {
+<<<<<<< HEAD
   addPDFHeader,
   addPDFWatermark,
   addPDFFooter,
@@ -17,6 +18,14 @@ import {
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
+=======
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  getLogoSize,
+  applyPdfSettings
+} from '@/lib/pdfSettings'
+>>>>>>> 631fd13 (By Naeem)
 
 export default function SalarySlipsPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -281,6 +290,7 @@ export default function SalarySlipsPage() {
     console.log('School Details for PDF:', schoolDetails)
 
     try {
+<<<<<<< HEAD
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
@@ -478,6 +488,266 @@ export default function SalarySlipsPage() {
       // Auto download PDF
       const fileName = `Salary-Slip-${payment.staff?.first_name || 'Staff'}-${payment.staff?.last_name || ''}-${getMonthName(payment.payment_month)}-${payment.payment_year}.pdf`
       pdf.save(fileName)
+=======
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+
+      // Create PDF - LANDSCAPE orientation like transport slip
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Get colors from settings
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
+      // Get employee details
+      const staffName = `${payment.staff?.first_name || ''} ${payment.staff?.last_name || ''}`.trim() || 'N/A'
+      const employeeNumber = payment.staff?.employee_number || 'N/A'
+      const designation = payment.staff?.designation || 'N/A'
+      const department = payment.staff?.department || 'N/A'
+      const paymentMonth = getMonthName(payment.payment_month)
+      const paymentYear = payment.payment_year
+
+      // Payment date calculation
+      const paymentDate = payment.payment_date ? new Date(payment.payment_date) : new Date()
+      const formatDate = (date) => {
+        const day = date.getDate().toString().padStart(2, '0')
+        const month = (date.getMonth() + 1).toString().padStart(2, '0')
+        const year = date.getFullYear()
+        return `${day}-${month}-${year}`
+      }
+      const paymentDateStr = formatDate(paymentDate)
+
+      // School info
+      const schoolName = schoolDetails?.school_name?.toUpperCase() || 'SCHOOL MANAGEMENT SYSTEM'
+      const bankName = schoolDetails?.bank_name || 'Bank Name Not Set'
+
+      // Amounts
+      const basicSalary = parseFloat(payment.basic_salary || 0)
+      const totalAllowances = parseFloat(payment.total_allowances || 0)
+      const grossSalary = parseFloat(payment.gross_salary || 0)
+      const totalDeductions = parseFloat(payment.total_deductions || 0)
+      const netSalary = parseFloat(payment.net_salary || 0)
+
+      // Convert number to words
+      const numberToWords = (num) => {
+        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+        const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+
+        if (num === 0) return 'Zero'
+        if (num < 10) return ones[num]
+        if (num < 20) return teens[num - 10]
+        if (num < 100) {
+          const tensDigit = Math.floor(num / 10)
+          const onesDigit = num % 10
+          return tens[tensDigit] + (onesDigit !== 0 ? ' ' + ones[onesDigit] : '')
+        }
+        if (num < 1000) {
+          const hundreds = Math.floor(num / 100)
+          const remainder = num % 100
+          return ones[hundreds] + ' Hundred' + (remainder !== 0 ? ' ' + numberToWords(remainder) : '')
+        }
+        if (num < 100000) {
+          const thousands = Math.floor(num / 1000)
+          const remainder = num % 1000
+          return numberToWords(thousands) + ' Thousand' + (remainder !== 0 ? ' ' + numberToWords(remainder) : '')
+        }
+        if (num < 10000000) {
+          const lakhs = Math.floor(num / 100000)
+          const remainder = num % 100000
+          return numberToWords(lakhs) + ' Lakh' + (remainder !== 0 ? ' ' + numberToWords(remainder) : '')
+        }
+        return num.toString()
+      }
+
+      const amountInWords = numberToWords(Math.round(netSalary)) + ' Only'
+
+      // Four copies layout - same as transport slip
+      const copies = [
+        { title: 'Copy of Employee', x: 8 },
+        { title: 'Copy of Department', x: 81 },
+        { title: 'Copy of Accounts', x: 154 },
+        { title: 'Copy of Finance', x: 227 }
+      ]
+
+      copies.forEach((copy, index) => {
+        const startX = copy.x
+        const startY = 8
+        const copyWidth = 68
+
+        // Header
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...textColor)
+        doc.text(schoolName, startX + copyWidth / 2, startY + 3, { align: 'center' })
+
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.text(bankName, startX + copyWidth / 2, startY + 8, { align: 'center' })
+
+        doc.setFontSize(7.5)
+        doc.setFont('helvetica', 'italic')
+        doc.text(copy.title, startX + copyWidth / 2, startY + 12, { align: 'center' })
+
+        // Salary Slip Title
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        let currentY = startY + 18
+        doc.text('Salary Slip', startX + 1, currentY)
+
+        // Details section
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'bold')
+        const lineHeight = 4.5
+        currentY += 6
+
+        // Employee Name
+        doc.text('Employee Name', startX + 1, currentY)
+        doc.setFont('helvetica', 'normal')
+        const maxNameLength = 35
+        const displayName = staffName.length > maxNameLength ? staffName.substring(0, maxNameLength) + '...' : staffName
+        doc.text(displayName, startX + 26, currentY)
+
+        // Employee No
+        currentY += lineHeight
+        doc.setFont('helvetica', 'bold')
+        doc.text('Employee No', startX + 1, currentY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(employeeNumber, startX + 26, currentY)
+
+        // Designation
+        currentY += lineHeight
+        doc.setFont('helvetica', 'bold')
+        doc.text('Designation', startX + 1, currentY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(designation, startX + 26, currentY)
+
+        // Department
+        currentY += lineHeight
+        doc.setFont('helvetica', 'bold')
+        doc.text('Department', startX + 1, currentY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(department, startX + 26, currentY)
+
+        // Payment Date
+        currentY += lineHeight
+        doc.setFont('helvetica', 'bold')
+        doc.text('Payment Date', startX + 1, currentY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(paymentDateStr, startX + 26, currentY)
+
+        // Salary Period
+        currentY += lineHeight
+        doc.setFont('helvetica', 'bold')
+        doc.text('Salary Period', startX + 1, currentY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`${paymentMonth} ${paymentYear}`, startX + 26, currentY)
+
+        // Table
+        currentY += 7
+        const tableStartY = currentY
+
+        // Table header - use settings background color
+        doc.setFillColor(...headerBgColor)
+        doc.setDrawColor(...textColor)
+        doc.rect(startX + 1, tableStartY, 9, 5, 'FD')
+        doc.rect(startX + 10, tableStartY, 42, 5, 'FD')
+        doc.rect(startX + 52, tableStartY, 15, 5, 'FD')
+
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'bold')
+        doc.text('No', startX + 5.5, tableStartY + 3.5, { align: 'center' })
+        doc.text('Particulars', startX + 31, tableStartY + 3.5, { align: 'center' })
+        doc.text('Amount', startX + 59.5, tableStartY + 3.5, { align: 'center' })
+
+        // Table row 1 - Basic Salary
+        currentY = tableStartY + 5
+        doc.setTextColor(...textColor)
+        doc.setFont('helvetica', 'normal')
+        doc.setDrawColor(0, 0, 0)
+        doc.rect(startX + 1, currentY, 9, 6, 'S')
+        doc.rect(startX + 10, currentY, 42, 6, 'S')
+        doc.rect(startX + 52, currentY, 15, 6, 'S')
+
+        doc.setFontSize(6.5)
+        doc.text('1', startX + 5.5, currentY + 3.8, { align: 'center' })
+        doc.text('Basic Salary', startX + 31, currentY + 3.8, { align: 'center' })
+        doc.text(basicSalary.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
+
+        // Table row 2 - Allowances
+        currentY += 6
+        doc.rect(startX + 1, currentY, 9, 6, 'S')
+        doc.rect(startX + 10, currentY, 42, 6, 'S')
+        doc.rect(startX + 52, currentY, 15, 6, 'S')
+
+        doc.text('2', startX + 5.5, currentY + 3.8, { align: 'center' })
+        doc.text('Total Allowances', startX + 31, currentY + 3.8, { align: 'center' })
+        doc.text(totalAllowances.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
+
+        // Table row 3 - Gross Salary
+        currentY += 6
+        doc.rect(startX + 1, currentY, 9, 6, 'S')
+        doc.rect(startX + 10, currentY, 42, 6, 'S')
+        doc.rect(startX + 52, currentY, 15, 6, 'S')
+
+        doc.text('3', startX + 5.5, currentY + 3.8, { align: 'center' })
+        doc.text('Gross Salary', startX + 31, currentY + 3.8, { align: 'center' })
+        doc.text(grossSalary.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
+
+        // Table row 4 - Deductions
+        currentY += 6
+        doc.rect(startX + 1, currentY, 9, 6, 'S')
+        doc.rect(startX + 10, currentY, 42, 6, 'S')
+        doc.rect(startX + 52, currentY, 15, 6, 'S')
+
+        doc.text('4', startX + 5.5, currentY + 3.8, { align: 'center' })
+        doc.text('Total Deductions', startX + 31, currentY + 3.8, { align: 'center' })
+        doc.text(`-${totalDeductions.toLocaleString()}`, startX + 59.5, currentY + 3.8, { align: 'center' })
+
+        // Net Salary row
+        currentY += 6
+        doc.setDrawColor(0, 0, 0)
+        doc.rect(startX + 1, currentY, 51, 5.5, 'S')
+        doc.rect(startX + 52, currentY, 15, 5.5, 'S')
+
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(7.5)
+        doc.text('Net Salary', startX + 26.5, currentY + 3.8, { align: 'center' })
+        doc.text(netSalary.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
+
+        // Amount in words
+        currentY += 8
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'normal')
+        doc.text(amountInWords, startX + copyWidth / 2, currentY, { align: 'center' })
+
+        // Footer note
+        currentY += 6
+        doc.setFontSize(5.5)
+        doc.setFont('helvetica', 'italic')
+        doc.text('This is a computer-generated salary slip', startX + copyWidth / 2, currentY, { align: 'center' })
+
+        // Vertical separator line (except for last copy)
+        if (index < 3) {
+          doc.setDrawColor(180, 180, 180)
+          doc.setLineDash([3, 2])
+          doc.line(startX + copyWidth + 2.5, 5, startX + copyWidth + 2.5, 95)
+          doc.setLineDash([])
+        }
+      })
+
+      // Save PDF
+      const fileName = `Salary_Slip_${staffName.replace(/\s+/g, '_')}_${paymentMonth}_${paymentYear}.pdf`
+      doc.save(fileName)
+>>>>>>> 631fd13 (By Naeem)
       toast.success('Salary slip downloaded successfully!')
     } catch (error) {
       console.error('Error generating PDF:', error)

@@ -1,10 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, X, Trash2, Printer, CheckCircle, AlertCircle } from 'lucide-react'
+import { Plus, Search, Edit2, X, Trash2, Printer, CheckCircle, AlertCircle, ArrowRightLeft, RefreshCw } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import {
+  getPdfSettings,
+  hexToRgb,
+  applyPdfSettings,
+  getLogoSize,
+  getMarginValues
+} from '@/lib/pdfSettings'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -133,7 +141,8 @@ export default function PassengersPage() {
     identifier: '',
     route: '',
     station: '',
-    vehicle: ''
+    vehicle: '',
+    due_date: ''
   })
 
   // Station and fare calculation states
@@ -391,7 +400,7 @@ export default function PassengersPage() {
   const resetAddModalState = () => {
     setShowModal(false)
     setActiveButton(null) // Reset active button
-    setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '' })
+    setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '', due_date: '' })
     setFilteredStudents([])
     setFilteredStaff([])
     setStudentSearchTerm('')
@@ -439,22 +448,10 @@ export default function PassengersPage() {
     }
 
     const baseFare = parseInt(station.fare) || 0
-    let discountPercent = 0
+    const discountPercent = 0  // Start with 0% discount - user can manually adjust
 
-    // Apply discount based on passenger type
-    switch (passengerType) {
-      case 'STUDENT':
-        discountPercent = 30
-        break
-      case 'STAFF':
-        discountPercent = 50
-        break
-      default:
-        discountPercent = 0
-    }
-
-    const discountAmount = Math.round((baseFare * discountPercent) / 100)
-    const finalFare = baseFare - discountAmount
+    const discountAmount = 0
+    const finalFare = baseFare
 
     setFareCalculation({
       baseFare,
@@ -677,6 +674,11 @@ export default function PassengersPage() {
         return
       }
 
+      if (!formData.due_date) {
+        showToast('Please select a due date', 'error')
+        return
+      }
+
       // Get the selected student or staff ID
       let studentId = null
       let staffId = null
@@ -786,6 +788,7 @@ export default function PassengersPage() {
           base_fare: fareCalculation.baseFare,
           discount_percent: fareCalculation.discountPercent,
           final_fare: fareCalculation.finalFare,
+          due_date: formData.due_date,
           status: 'active'
         }])
         .select()
@@ -863,6 +866,13 @@ export default function PassengersPage() {
   const handleEdit = async (passenger) => {
     setSelectedPassenger(passenger)
 
+    // Format due_date to YYYY-MM-DD for HTML date input
+    let formattedDueDate = ''
+    if (passenger.due_date) {
+      const date = new Date(passenger.due_date)
+      formattedDueDate = date.toISOString().split('T')[0]
+    }
+
     // Set form data with passenger's current values
     setFormData({
       type: passenger.type || 'STUDENT',
@@ -875,7 +885,8 @@ export default function PassengersPage() {
         : passenger.staff?.computer_no || '',
       route: passenger.route_id || '',
       station: passenger.station_id || '',
-      vehicle: passenger.vehicle_id || ''
+      vehicle: passenger.vehicle_id || '',
+      due_date: formattedDueDate
     })
 
     // Load stations for the route if route exists
@@ -913,6 +924,11 @@ export default function PassengersPage() {
 
       if (!formData.route) {
         showToast('Route is required', 'error')
+        return
+      }
+
+      if (!formData.due_date) {
+        showToast('Please select a due date', 'error')
         return
       }
 
@@ -965,6 +981,7 @@ export default function PassengersPage() {
           base_fare: fareCalculation.baseFare,
           discount_percent: fareCalculation.discountPercent,
           final_fare: fareCalculation.finalFare,
+          due_date: formData.due_date,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedPassenger.id)
@@ -975,8 +992,9 @@ export default function PassengersPage() {
         console.error('Error updating passenger:', error)
         showToast('Failed to update passenger', 'error')
       } else {
-        // Get updated route and vehicle info
+        // Get updated route, station, and vehicle info
         let routeInfo = null
+        let stationInfo = null
         let vehicleInfo = null
 
         if (formData.route) {
@@ -985,6 +1003,16 @@ export default function PassengersPage() {
             routeInfo = {
               route_name: route.route_name,
               fare: route.fare
+            }
+          }
+        }
+
+        if (formData.station) {
+          const station = routeStations.find(s => s.id === formData.station)
+          if (station) {
+            stationInfo = {
+              station_name: station.station_name,
+              fare: station.fare
             }
           }
         }
@@ -1001,20 +1029,26 @@ export default function PassengersPage() {
         }
 
         // Update passenger in state
-        setPassengers(passengers.map(passenger => 
-          passenger.id === selectedPassenger.id 
+        setPassengers(passengers.map(passenger =>
+          passenger.id === selectedPassenger.id
             ? {
                 ...passenger,
                 route_id: formData.route,
+                station_id: formData.station || null,
                 vehicle_id: formData.vehicle || null,
+                base_fare: fareCalculation.baseFare,
+                discount_percent: fareCalculation.discountPercent,
+                final_fare: fareCalculation.finalFare,
+                due_date: formData.due_date,
                 routes: routeInfo,
+                stations: stationInfo,
                 vehicles: vehicleInfo
               }
             : passenger
         ))
 
         setShowEditModal(false)
-        setFormData({ type: 'STUDENT', identifier: '', route: '', vehicle: '' })
+        setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '', due_date: '' })
         setSelectedPassenger(null)
         showToast('Passenger updated successfully!', 'success')
       }
@@ -1027,6 +1061,50 @@ export default function PassengersPage() {
   const handleDelete = (passenger) => {
     setPassengerToDelete(passenger)
     setShowDeleteModal(true)
+  }
+
+  const handleStatusChange = async (passengerId, currentStatus) => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        showToast('Unauthorized', 'error')
+        return
+      }
+
+      // Toggle between pending and paid
+      const newStatus = currentStatus === 'paid' ? 'pending' : 'paid'
+
+      const { error } = await supabase
+        .from('passengers')
+        .update({
+          payment_status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', passengerId)
+        .eq('school_id', user.school_id)
+
+      if (error) {
+        console.error('Error updating payment status:', error)
+        showToast('Failed to update payment status', 'error')
+      } else {
+        // Update passenger in state
+        setPassengers(passengers.map(passenger =>
+          passenger.id === passengerId
+            ? { ...passenger, payment_status: newStatus }
+            : passenger
+        ))
+        showToast(`Payment status updated to ${newStatus}!`, 'success')
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error)
+      showToast('Error updating payment status', 'error')
+    }
+  }
+
+  const handleTransferPassenger = (passenger) => {
+    // Open edit modal with transfer mode
+    handleEdit(passenger)
+    showToast('Update route, station, or vehicle to transfer passenger', 'info')
   }
 
   const confirmDelete = async () => {
@@ -1108,19 +1186,37 @@ export default function PassengersPage() {
 
       const feeType = 'Transport Fee (Monthly)'
 
-      // Calculate due date (20 days from now)
-      const dueDate = new Date()
-      dueDate.setDate(dueDate.getDate() + 20)
+      // Use stored due date from passenger record
+      let dueDate
+      let dueDateStr = ''
+      let dayName = ''
 
-      const formatDate = (date) => {
-        const day = date.getDate().toString().padStart(2, '0')
-        const month = (date.getMonth() + 1).toString().padStart(2, '0')
-        const year = date.getFullYear()
-        return `${day}-${month}-${year}`
+      if (passenger.due_date) {
+        // Parse the date as UTC to avoid timezone issues
+        const dateParts = passenger.due_date.split('-')
+        dueDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+
+        const formatDate = (date) => {
+          const day = date.getDate().toString().padStart(2, '0')
+          const month = (date.getMonth() + 1).toString().padStart(2, '0')
+          const year = date.getFullYear()
+          return `${day}-${month}-${year}`
+        }
+
+        dueDateStr = formatDate(dueDate)
+        dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dueDate.getDay()]
+      } else {
+        // Fallback to current date if no due_date is set
+        dueDate = new Date()
+        const formatDate = (date) => {
+          const day = date.getDate().toString().padStart(2, '0')
+          const month = (date.getMonth() + 1).toString().padStart(2, '0')
+          const year = date.getFullYear()
+          return `${day}-${month}-${year}`
+        }
+        dueDateStr = formatDate(dueDate)
+        dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dueDate.getDay()]
       }
-
-      const dueDateStr = formatDate(dueDate)
-      const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dueDate.getDay()]
 
       // Use school's bank details from database
       const schoolName = schoolData?.school_name || 'School Management System'
@@ -1161,173 +1257,339 @@ export default function PassengersPage() {
 
       const amountInWords = numberToWords(finalFare) + ' Only'
 
-      // Create PDF
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+
+      // Create PDF with settings from PAGE SETTINGS
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: pdfSettings.orientation || 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
       })
 
-      const copies = [
-        { title: 'Copy of Student', x: 8 },
-        { title: 'Copy of Department', x: 81 },
-        { title: 'Copy of Treasurer', x: 154 },
-        { title: 'Copy of Bank', x: 227 }
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Get colors from settings
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
+      // Get margin values from settings
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
+      const topMargin = margins.top
+      const bottomMargin = margins.bottom
+
+      let yPos = topMargin
+      const centerX = pageWidth / 2
+
+      // Header Section (if enabled)
+      if (pdfSettings.includeHeader) {
+        // Header Background with color from settings
+        const headerHeight = 40
+        doc.setFillColor(...headerBgColor)
+        doc.rect(0, 0, pageWidth, headerHeight, 'F')
+
+        // Add school logo if available
+        if (pdfSettings.includeLogo) {
+          try {
+            // Fetch school logo from supabase
+            const { data: schoolLogoData } = await supabase
+              .from('schools')
+              .select('logo_url')
+              .eq('id', user.school_id)
+              .single()
+
+            if (schoolLogoData?.logo_url) {
+              const img = new Image()
+              img.crossOrigin = 'anonymous'
+              img.src = schoolLogoData.logo_url
+
+              await new Promise((resolve) => {
+                img.onload = () => {
+                  try {
+                    const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                    // Center logo vertically in header
+                    const logoY = (headerHeight - currentLogoSize) / 2
+                    let logoX = 10 // Default to left with 10mm margin
+
+                    // Position logo based on settings
+                    if (pdfSettings.logoPosition === 'center') {
+                      // Center logo - but this will overlap with text, so skip if center
+                      logoX = 10 // Keep on left
+                    } else if (pdfSettings.logoPosition === 'right') {
+                      logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                    }
+
+                    // Add logo with style
+                    if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                      // Create a canvas to clip the image
+                      const canvas = document.createElement('canvas')
+                      const ctx = canvas.getContext('2d')
+                      const size = 200 // Higher resolution for better quality
+                      canvas.width = size
+                      canvas.height = size
+
+                      // Draw clipped image on canvas
+                      ctx.beginPath()
+                      if (pdfSettings.logoStyle === 'circle') {
+                        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                      } else {
+                        // Rounded corners
+                        const radius = size * 0.15
+                        ctx.moveTo(radius, 0)
+                        ctx.lineTo(size - radius, 0)
+                        ctx.quadraticCurveTo(size, 0, size, radius)
+                        ctx.lineTo(size, size - radius)
+                        ctx.quadraticCurveTo(size, size, size - radius, size)
+                        ctx.lineTo(radius, size)
+                        ctx.quadraticCurveTo(0, size, 0, size - radius)
+                        ctx.lineTo(0, radius)
+                        ctx.quadraticCurveTo(0, 0, radius, 0)
+                      }
+                      ctx.closePath()
+                      ctx.clip()
+
+                      // Draw image
+                      ctx.drawImage(img, 0, 0, size, size)
+
+                      // Convert canvas to data URL and add to PDF
+                      const clippedImage = canvas.toDataURL('image/png')
+                      doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                    } else {
+                      // Square logo
+                      doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                    }
+
+                    resolve()
+                  } catch (e) {
+                    console.warn('Could not add logo to PDF:', e)
+                    resolve()
+                  }
+                }
+                img.onerror = () => {
+                  console.warn('Could not load logo image')
+                  resolve()
+                }
+              })
+            }
+          } catch (error) {
+            console.error('Error adding logo:', error)
+          }
+        }
+
+        // Header Text (from settings) or School Name
+        yPos = 18
+        const headerTextToShow = pdfSettings.headerText || schoolName.toUpperCase()
+
+        doc.setFontSize(16)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(headerTextToShow, centerX, yPos, { align: 'center' })
+        yPos += 8
+
+        // Transport Fee Challan - Hardcoded text
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text('TRANSPORT FEE CHALLAN', centerX, yPos, { align: 'center' })
+
+        // Generated date in header
+        if (pdfSettings.includeGeneratedDate) {
+          doc.setFontSize(7)
+          doc.setTextColor(220, 220, 220)
+
+          // If logo is on right, put date on left to avoid overlap
+          const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
+          const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
+
+          doc.text(`Generated: ${new Date().toLocaleDateString('en-GB', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}`, dateX, 35, { align: dateAlign })
+        }
+
+        yPos = 50
+      } else {
+        yPos = 15
+      }
+
+      // Get base font size from settings
+      const baseFontSize = parseInt(pdfSettings.fontSize) || 9
+
+      // Student/Staff Information Section
+      doc.setFontSize(baseFontSize + 5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text('STUDENT INFORMATION', leftMargin, yPos)
+      yPos += 8
+
+      // Student details in a table format
+      const studentInfoData = [
+        ['Student Name:', name, 'Student Roll#:', identifier],
+        ['Route:', route, 'Drop Station:', stationName],
+        ['Due Date:', `${dueDateStr} ${dayName}`, 'Fee Type:', feeType]
       ]
 
-      copies.forEach((copy, index) => {
-        const startX = copy.x
-        const startY = 8
-        const copyWidth = 68
-
-        // Header
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'bold')
-        doc.text(schoolName.toUpperCase(), startX + copyWidth / 2, startY + 3, { align: 'center' })
-
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.text(bankName, startX + copyWidth / 2, startY + 8, { align: 'center' })
-
-        doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'italic')
-        doc.text(copy.title, startX + copyWidth / 2, startY + 12, { align: 'center' })
-
-        // Bank Deposit Slip
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'bold')
-        let currentY = startY + 18
-        doc.text('Bank Deposit Slip', startX + 1, currentY)
-
-        // Details section with better alignment
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'bold')
-        const lineHeight = 4.5
-        currentY += 6
-
-        // Collection A/C#
-        doc.text('Collection A/C#', startX + 1, currentY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(collectionAC, startX + 26, currentY)
-
-        // Due Date
-        currentY += lineHeight
-        doc.setFont('helvetica', 'bold')
-        doc.text('Due Date', startX + 1, currentY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(`${dueDateStr} ${dayName}`, startX + 26, currentY)
-
-        // Student/Staff Name
-        currentY += lineHeight
-        doc.setFont('helvetica', 'bold')
-        doc.text('Student Name', startX + 1, currentY)
-        doc.setFont('helvetica', 'normal')
-        const maxNameLength = 40
-        const displayName = name.length > maxNameLength ? name.substring(0, maxNameLength) + '...' : name
-        doc.text(displayName, startX + 26, currentY)
-
-        // Student Roll# / Staff ID
-        currentY += lineHeight
-        doc.setFont('helvetica', 'bold')
-        doc.text('Student Roll#', startX + 1, currentY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(identifier, startX + 26, currentY)
-
-        // Route
-        currentY += lineHeight
-        doc.setFont('helvetica', 'bold')
-        doc.text('Route', startX + 1, currentY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(route, startX + 26, currentY)
-
-        // Drop Station
-        currentY += lineHeight
-        doc.setFont('helvetica', 'bold')
-        doc.text('Drop Station', startX + 1, currentY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(stationName, startX + 26, currentY)
-
-        // Fee Type
-        currentY += lineHeight
-        doc.setFont('helvetica', 'bold')
-        doc.text('Fee Type:', startX + 1, currentY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(feeType, startX + 26, currentY)
-
-        // Table
-        currentY += 7
-        const tableStartY = currentY
-
-        // Table header - black background
-        doc.setFillColor(0, 0, 0)
-        doc.setDrawColor(0, 0, 0)
-        doc.rect(startX + 1, tableStartY, 9, 5, 'FD')
-        doc.rect(startX + 10, tableStartY, 42, 5, 'FD')
-        doc.rect(startX + 52, tableStartY, 15, 5, 'FD')
-
-        doc.setTextColor(255, 255, 255)
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'bold')
-        doc.text('No', startX + 5.5, tableStartY + 3.5, { align: 'center' })
-        doc.text('Particulars', startX + 31, tableStartY + 3.5, { align: 'center' })
-        doc.text('Amount', startX + 59.5, tableStartY + 3.5, { align: 'center' })
-
-        // Table row 1 - Base Transport Fee
-        currentY = tableStartY + 5
-        doc.setTextColor(0, 0, 0)
-        doc.setFont('helvetica', 'normal')
-        doc.setDrawColor(0, 0, 0)
-        doc.rect(startX + 1, currentY, 9, 6, 'S')
-        doc.rect(startX + 10, currentY, 42, 6, 'S')
-        doc.rect(startX + 52, currentY, 15, 6, 'S')
-
-        doc.setFontSize(6.5)
-        doc.text('1', startX + 5.5, currentY + 3.8, { align: 'center' })
-        doc.text('Transport Fee (Base)', startX + 31, currentY + 3.8, { align: 'center' })
-        doc.text(baseFare.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
-
-        // Table row 2 - Discount
-        currentY += 6
-        doc.rect(startX + 1, currentY, 9, 6, 'S')
-        doc.rect(startX + 10, currentY, 42, 6, 'S')
-        doc.rect(startX + 52, currentY, 15, 6, 'S')
-
-        doc.text('2', startX + 5.5, currentY + 3.8, { align: 'center' })
-        const discountAmount = Math.round((baseFare * discountPercent) / 100)
-        doc.text(`Discount (${discountPercent}%)`, startX + 31, currentY + 3.8, { align: 'center' })
-        doc.text(`-${discountAmount.toLocaleString()}`, startX + 59.5, currentY + 3.8, { align: 'center' })
-
-        // Total Fee row
-        currentY += 6
-        doc.setDrawColor(0, 0, 0)
-        doc.rect(startX + 1, currentY, 51, 5.5, 'S')
-        doc.rect(startX + 52, currentY, 15, 5.5, 'S')
-
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(7.5)
-        doc.text('Total Fee', startX + 26.5, currentY + 3.8, { align: 'center' })
-        doc.text(finalFare.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
-
-        // Amount in words
-        currentY += 8
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'normal')
-        doc.text(amountInWords, startX + copyWidth / 2, currentY, { align: 'center' })
-
-        // Urdu note at bottom
-        currentY += 6
-        doc.setFontSize(5.5)
-        doc.setFont('helvetica', 'normal')
-        doc.text('نوٹ: یہ رسید آپ کو اس وقت تک کسی بھی قسم کی فیس کی ادائیگی کے لیے محفوظ رکھیں جب تک', startX + copyWidth / 2, currentY, { align: 'center' })
-
-        // Vertical separator line (except for last copy)
-        if (index < 3) {
-          doc.setDrawColor(180, 180, 180)
-          doc.setLineDash([3, 2])
-          doc.line(startX + copyWidth + 2.5, 5, startX + copyWidth + 2.5, 95)
-          doc.setLineDash([])
-        }
+      autoTable(doc, {
+        startY: yPos,
+        body: studentInfoData,
+        theme: 'plain',
+        styles: {
+          fontSize: baseFontSize + 2,
+          cellPadding: 3,
+          fontStyle: 'bold',
+          textColor: textColor
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 35, textColor: [80, 80, 80] },
+          1: { fontStyle: 'bold', cellWidth: 60, textColor: textColor },
+          2: { fontStyle: 'bold', cellWidth: 35, textColor: [80, 80, 80] },
+          3: { fontStyle: 'bold', cellWidth: 'auto', textColor: textColor }
+        },
+        margin: { left: leftMargin, right: leftMargin }
       })
+
+      yPos = doc.lastAutoTable.finalY + 12
+
+      // Fee Breakdown Section
+      doc.setFontSize(baseFontSize + 2)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text('FEE BREAKDOWN', leftMargin, yPos)
+      yPos += 5
+
+      const discountAmount = Math.round((baseFare * discountPercent) / 100)
+
+      // Fee breakdown table
+      const feeData = [
+        ['Transport Fee (Base)', `Rs. ${baseFare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        [`Discount (${discountPercent}%)`, `Rs. -${discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]
+      ]
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Particulars', 'Amount']],
+        body: feeData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: headerBgColor,
+          textColor: [255, 255, 255],
+          fontSize: baseFontSize + 1,
+          fontStyle: 'bold',
+          halign: 'left'
+        },
+        styles: {
+          fontSize: baseFontSize,
+          cellPadding: 4,
+          textColor: textColor
+        },
+        columnStyles: {
+          0: { cellWidth: 130, fontStyle: 'normal' },
+          1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+        },
+        didParseCell: function(data) {
+          // Color discount red
+          if (data.row.index === 1 && data.section === 'body' && data.column.index === 1) {
+            data.cell.styles.textColor = [198, 40, 40]
+          }
+        },
+        margin: { left: leftMargin, right: leftMargin }
+      })
+
+      yPos = doc.lastAutoTable.finalY
+
+      // TOTAL FEE PAYABLE - Highlighted section
+      const totalFeeData = [
+        ['TOTAL FEE PAYABLE', `Rs. ${finalFare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]
+      ]
+
+      autoTable(doc, {
+        startY: yPos,
+        body: totalFeeData,
+        theme: 'grid',
+        styles: {
+          fontSize: baseFontSize + 2,
+          cellPadding: 5,
+          fontStyle: 'bold',
+          fillColor: [232, 245, 233],
+          textColor: [27, 94, 32]
+        },
+        columnStyles: {
+          0: { cellWidth: 130, halign: 'left' },
+          1: { cellWidth: 'auto', halign: 'right' }
+        },
+        margin: { left: leftMargin, right: leftMargin }
+      })
+
+      yPos = doc.lastAutoTable.finalY + 10
+
+      // Amount in words
+      doc.setFontSize(baseFontSize)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text('Amount in Words:', leftMargin, yPos)
+      yPos += 5
+      doc.setFont('helvetica', 'normal')
+      doc.text(amountInWords, leftMargin, yPos)
+      yPos += 10
+
+      // Payment Status
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text('Payment Status:', leftMargin, yPos)
+
+      const paymentStatus = passenger.payment_status === 'paid' ? 'Paid' : 'Pending'
+      const statusColor = passenger.payment_status === 'paid' ? [27, 94, 32] : [255, 152, 0]
+
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...statusColor)
+      doc.text(paymentStatus, leftMargin + 35, yPos)
+
+      // Footer section
+      if (pdfSettings.includeFooter) {
+        let footerY = pageHeight - 20
+
+        // Horizontal line above footer
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.5)
+        doc.line(leftMargin, footerY, rightMargin, footerY)
+
+        footerY += 4
+
+        // Page numbers (if enabled)
+        if (pdfSettings.includePageNumbers) {
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(120, 120, 120)
+          doc.text('Page 1 of 1', leftMargin, footerY, { align: 'left' })
+        }
+
+        // Print date (if enabled)
+        if (pdfSettings.includeDate) {
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(120, 120, 120)
+          const printDate = new Date().toLocaleDateString('en-GB')
+          doc.text(`Printed: ${printDate}`, rightMargin, footerY, { align: 'right' })
+        }
+
+        footerY += 4
+
+        // Footer text from settings or default
+        const footerTextToShow = pdfSettings.footerText || 'Developed by: airoxlab.com'
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'italic')
+        doc.setTextColor(120, 120, 120)
+        doc.text(footerTextToShow, centerX, footerY, { align: 'center' })
+      }
 
       // Save PDF
       doc.save(`Transport_Fee_${name.replace(/\s+/g, '_')}_${dueDateStr}.pdf`)
@@ -1423,11 +1685,7 @@ export default function PassengersPage() {
               setShowStaffDropdown(false);
               setShowDepartmentDropdown(false);
             }}
-            className={`px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap ${
-              activeButton === 'STUDENT'
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
           >
             <Plus size={12} />
             Add Student
@@ -1446,11 +1704,7 @@ export default function PassengersPage() {
               setShowStaffDropdown(false);
               setShowDepartmentDropdown(false);
             }}
-            className={`px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap ${
-              activeButton === 'STAFF'
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
           >
             <Plus size={12} />
             Add Staff
@@ -1508,19 +1762,20 @@ export default function PassengersPage() {
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Discount</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Final Fare</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Type</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="11" className="px-3 py-6 text-center text-gray-500">
                     Loading passengers...
                   </td>
                 </tr>
               ) : currentPassengers.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="11" className="px-3 py-6 text-center text-gray-500">
                     No passengers found
                   </td>
                 </tr>
@@ -1579,28 +1834,56 @@ export default function PassengersPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          passenger.payment_status === 'paid'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {passenger.payment_status === 'paid' ? 'Paid' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handlePrintChallan(passenger)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                            title="Print Challan"
-                          >
-                            <Printer size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(passenger)}
-                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
-                            title="Edit"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(passenger)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {passenger.payment_status === 'paid' ? (
+                            <button
+                              onClick={() => handlePrintChallan(passenger)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                              title="Print Challan"
+                            >
+                              <Printer size={16} />
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleStatusChange(passenger.id, passenger.payment_status)}
+                                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition"
+                                title="Mark as Paid"
+                              >
+                                <RefreshCw size={16} />
+                              </button>
+                              <button
+                                onClick={() => handlePrintChallan(passenger)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                title="Print Challan"
+                              >
+                                <Printer size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleEdit(passenger)}
+                                className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                                title="Edit"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(passenger)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2022,6 +2305,18 @@ export default function PassengersPage() {
                   })}
                 </select>
               </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  Due Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                />
+              </div>
             </div>
           </div>
           <div className="border-t border-gray-200 px-6 py-3 bg-white">
@@ -2222,6 +2517,18 @@ export default function PassengersPage() {
                   </div>
                 </div>
               )}
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  Due Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                />
+              </div>
             </div>
           </div>
           <div className="border-t border-gray-200 px-6 py-3 bg-white">
