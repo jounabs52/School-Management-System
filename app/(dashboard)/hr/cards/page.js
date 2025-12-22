@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react'
 import { CreditCard, ChevronDown, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import jsPDF from 'jspdf'
-import JsBarcode from 'jsbarcode'
+import QRCode from 'qrcode'
+import { convertImageToBase64 } from '@/lib/pdfUtils'
 
 export default function StaffIDCardsPage() {
   const [validityUpto, setValidityUpto] = useState('')
-  const [backgroundColor, setBackgroundColor] = useState('#2c5282')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStaffId, setSelectedStaffId] = useState('')
   const [currentUser, setCurrentUser] = useState(null)
@@ -20,16 +20,6 @@ export default function StaffIDCardsPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toasts, setToasts] = useState([])
-
-  // Background color options
-  const colorOptions = [
-    { name: 'Navy Blue', value: '#2c5282' },
-    { name: 'Dark Blue', value: '#1e3a8a' },
-    { name: 'Teal', value: '#0f766e' },
-    { name: 'Purple', value: '#6b21a8' },
-    { name: 'Green', value: '#065f46' },
-    { name: 'Red', value: '#991b1b' }
-  ]
 
   // Toast notification
   const showToast = (message, type = 'info') => {
@@ -138,25 +128,6 @@ export default function StaffIDCardsPage() {
     setShowDropdown(false)
   }
 
-  // Generate Barcode as Base64
-  const generateBarcode = (text) => {
-    try {
-      const canvas = document.createElement('canvas')
-      JsBarcode(canvas, text, {
-        format: 'CODE128',
-        width: 2,
-        height: 50,
-        displayValue: true,
-        fontSize: 14,
-        margin: 0
-      })
-      return canvas.toDataURL('image/png')
-    } catch (error) {
-      console.error('Error generating barcode:', error)
-      return null
-    }
-  }
-
   // Convert image URL to base64
   const getImageAsBase64 = async (url) => {
     try {
@@ -179,32 +150,45 @@ export default function StaffIDCardsPage() {
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
-      
-      // Set canvas size
+
       canvas.width = size
       canvas.height = size
-      
-      // Create circular clipping path
+
       ctx.beginPath()
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
       ctx.closePath()
       ctx.clip()
-      
-      // Draw image
+
       const img = new Image()
       img.onload = () => {
-        // Calculate dimensions to cover the circle (crop to fit)
         const scale = Math.max(size / img.width, size / img.height)
         const scaledWidth = img.width * scale
         const scaledHeight = img.height * scale
         const x = (size - scaledWidth) / 2
         const y = (size - scaledHeight) / 2
-        
+
         ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
         resolve(canvas.toDataURL('image/png'))
       }
       img.src = base64Image
     })
+  }
+
+  // Generate QR Code
+  const generateQRCode = async (text) => {
+    try {
+      return await QRCode.toDataURL(text, {
+        width: 200,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      })
+    } catch (error) {
+      console.error('Error generating QR code:', error)
+      return null
+    }
   }
 
   // Generate ID Card PDF
@@ -217,6 +201,12 @@ export default function StaffIDCardsPage() {
     try {
       setSaving(true)
 
+      // Load school logo if available
+      let logoBase64 = null
+      if (schoolData.logo) {
+        logoBase64 = await convertImageToBase64(schoolData.logo)
+      }
+
       // Create PDF - ID Card size (85.6mm x 53.98mm / 3.375" x 2.125")
       const doc = new jsPDF({
         orientation: 'landscape',
@@ -227,128 +217,230 @@ export default function StaffIDCardsPage() {
       const cardWidth = 85.6
       const cardHeight = 53.98
 
-      // Background color with rounded corners effect
-      doc.setFillColor(backgroundColor)
+      // ========== FRONT SIDE ==========
+
+      // White background
+      doc.setFillColor(255, 255, 255)
       doc.rect(0, 0, cardWidth, cardHeight, 'F')
 
-      // Header section with school name
-      doc.setFillColor(backgroundColor)
-      doc.roundedRect(2, 2, cardWidth - 4, 15, 2, 2, 'F')
-      
+      // Teal header background
+      doc.setFillColor(0, 102, 102) // Teal color matching the image
+      doc.rect(0, 0, cardWidth, 12, 'F')
+
+      // School logo circle - left side of header
+      if (logoBase64) {
+        try {
+          // White circle background for logo
+          doc.setFillColor(255, 255, 255)
+          doc.circle(6, 6, 4, 'F')
+
+          // Add logo inside the circle
+          const logoSize = 7
+          const logoX = 6 - logoSize/2
+          const logoY = 6 - logoSize/2
+
+          let format = 'PNG'
+          if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) {
+            format = 'JPEG'
+          }
+
+          doc.addImage(logoBase64, format, logoX, logoY, logoSize, logoSize)
+        } catch (error) {
+          console.log('Could not add logo:', error)
+          // Fallback to white circle
+          doc.setFillColor(255, 255, 255)
+          doc.circle(6, 6, 4, 'F')
+        }
+      } else {
+        // Placeholder circle if no logo
+        doc.setFillColor(255, 255, 255)
+        doc.circle(6, 6, 4, 'F')
+      }
+
+      // School name in header
       doc.setTextColor(255, 255, 255)
-      doc.setFontSize(11)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       const schoolName = schoolData.name?.toUpperCase() || 'SCHOOL NAME'
-      doc.text(schoolName, cardWidth / 2, 8, { align: 'center' })
-      
-      // "STAFF ID CARD" text in gold/yellow
-      doc.setTextColor(218, 165, 32) // Gold color
-      doc.setFontSize(9)
+      doc.text(schoolName, cardWidth / 2, 7, { align: 'center' })
+
+      // "STAFF ID CARD" subtitle
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.text('STAFF ID CARD', cardWidth / 2, 10.5, { align: 'center' })
+
+      // Left side - Staff information
+      const leftMargin = 5
+      let yPos = 18
+
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+
+      // Name
+      doc.text('Name', leftMargin, yPos)
+      doc.text(':', leftMargin + 20, yPos)
       doc.setFont('helvetica', 'bold')
-      doc.text('STAFF ID CARD', cardWidth / 2, 14, { align: 'center' })
+      const staffName = `${staffData.first_name} ${staffData.last_name || ''}`
+      doc.text(staffName, leftMargin + 22, yPos)
 
-      // White background for content area
-      doc.setFillColor(255, 255, 255)
-      doc.roundedRect(2, 18, cardWidth - 4, cardHeight - 20, 2, 2, 'F')
+      // Employee No
+      yPos += 5
+      doc.setFont('helvetica', 'normal')
+      doc.text('Employee No', leftMargin, yPos)
+      doc.text(':', leftMargin + 20, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.text(staffData.employee_number || 'N/A', leftMargin + 22, yPos)
 
-      // Photo circle with gold border
-      const photoX = 10
-      const photoY = 23
-      const photoSize = 18
-      const photoRadius = photoSize / 2
-      const photoCenterX = photoX + photoRadius
-      const photoCenterY = photoY + photoRadius
+      // Designation
+      yPos += 5
+      doc.setFont('helvetica', 'normal')
+      doc.text('Designation', leftMargin, yPos)
+      doc.text(':', leftMargin + 20, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.text(staffData.designation || 'Staff', leftMargin + 22, yPos)
 
-      // Add staff photo if available with circular clipping
+      // Joining Date (if available)
+      if (staffData.joining_date) {
+        yPos += 5
+        doc.setFont('helvetica', 'normal')
+        doc.text('Joining', leftMargin, yPos)
+        doc.text(':', leftMargin + 20, yPos)
+        doc.setFont('helvetica', 'bold')
+        const joiningDate = new Date(staffData.joining_date).getFullYear()
+        doc.text(joiningDate.toString(), leftMargin + 22, yPos)
+      }
+
+      // Right side - Photo (circular)
+      const photoX = 60
+      const photoY = 17
+      const photoSize = 20
+
       if (staffData.photo_url) {
         try {
           const photoBase64 = await getImageAsBase64(staffData.photo_url)
           if (photoBase64) {
-            // Create circular version of the image
-            const circularPhoto = await createCircularImage(photoBase64, 200) // High res for quality
-            
-            // Add the circular image
+            const circularPhoto = await createCircularImage(photoBase64, 200)
             doc.addImage(circularPhoto, 'PNG', photoX, photoY, photoSize, photoSize)
           }
         } catch (error) {
-          console.log('Could not load photo, using placeholder')
+          console.log('Could not load photo')
         }
+      } else {
+        // Placeholder circle
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.5)
+        doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
       }
 
-      // Gold circle border (drawn after photo to create clean edge)
-      doc.setDrawColor(184, 134, 11) // Dark gold
-      doc.setLineWidth(1.8)
-      doc.circle(photoCenterX, photoCenterY, photoRadius, 'S')
+      // Expiry badge at bottom left
+      doc.setFillColor(255, 140, 0) // Orange color
+      doc.roundedRect(5, cardHeight - 10, 25, 6, 1, 1, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      const expiryDate = validityUpto ? new Date(validityUpto).toLocaleDateString('en-GB').replace(/\//g, '-') : '01-01-25'
+      doc.text(`Expiry: ${expiryDate}`, 17.5, cardHeight - 6, { align: 'center' })
 
-      // Staff Name below photo in gold
-      doc.setTextColor(184, 134, 11) // Gold
+      // Issuing Authority text at bottom right
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(6)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Issuing Authority', cardWidth - 5, cardHeight - 3, { align: 'right' })
+
+      // ========== BACK SIDE ==========
+      doc.addPage()
+
+      // White background
+      doc.setFillColor(255, 255, 255)
+      doc.rect(0, 0, cardWidth, cardHeight, 'F')
+
+      // Teal header background
+      doc.setFillColor(0, 102, 102)
+      doc.rect(0, 0, cardWidth, 12, 'F')
+
+      // School logo circle - left side of header
+      if (logoBase64) {
+        try {
+          // White circle background for logo
+          doc.setFillColor(255, 255, 255)
+          doc.circle(6, 6, 4, 'F')
+
+          // Add logo inside the circle
+          const logoSize = 7
+          const logoX = 6 - logoSize/2
+          const logoY = 6 - logoSize/2
+
+          let format = 'PNG'
+          if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) {
+            format = 'JPEG'
+          }
+
+          doc.addImage(logoBase64, format, logoX, logoY, logoSize, logoSize)
+        } catch (error) {
+          console.log('Could not add logo on back:', error)
+          // Fallback to white circle
+          doc.setFillColor(255, 255, 255)
+          doc.circle(6, 6, 4, 'F')
+        }
+      } else {
+        // Placeholder circle if no logo
+        doc.setFillColor(255, 255, 255)
+        doc.circle(6, 6, 4, 'F')
+      }
+
+      // School name
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text(schoolName, cardWidth / 2, 8.5, { align: 'center' })
+
+      // TERMS & CONDITIONS title
+      doc.setTextColor(0, 0, 0)
       doc.setFontSize(9)
       doc.setFont('helvetica', 'bold')
-      const staffName = `${staffData.first_name} ${staffData.last_name || ''}`.toUpperCase()
-      doc.text(staffName, photoX + photoSize / 2, photoY + photoSize + 4, { align: 'center' })
+      doc.text('TERMS & CONDITIONS', cardWidth / 2, 18, { align: 'center' })
 
-      // Right side information
-      const infoX = 32
-      let infoY = 24
-
-      doc.setTextColor(100, 100, 100)
-      doc.setFontSize(7)
-      doc.setFont('helvetica', 'normal')
-
-      // ID Number
-      doc.text('ID Number:', infoX, infoY)
-      doc.setTextColor(30, 58, 138) // Dark blue
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      doc.text(staffData.employee_number, infoX + 20, infoY)
-
-      // Father's Name
-      infoY += 6
-      doc.setTextColor(100, 100, 100)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7)
-      doc.text("Father's Name:", infoX, infoY)
-      doc.setTextColor(30, 58, 138)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      const fatherName = staffData.father_name || 'N/A'
-      doc.text(fatherName, infoX + 20, infoY)
-
-      // Issue Date
-      infoY += 6
-      doc.setTextColor(100, 100, 100)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7)
-      doc.text('Issue Date:', infoX, infoY)
-      doc.setTextColor(30, 58, 138)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      const issueDate = new Date().toLocaleDateString('en-GB')
-      doc.text(issueDate, infoX + 20, infoY)
-
-      // Expiry Date
-      infoY += 6
-      doc.setTextColor(100, 100, 100)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7)
-      doc.text('Expiry Date:', infoX, infoY)
-      doc.setTextColor(30, 58, 138)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      const expiryDate = validityUpto ? new Date(validityUpto).toLocaleDateString('en-GB') : 'N/A'
-      doc.text(expiryDate, infoX + 20, infoY)
-
-      // Generate and add barcode
-      const barcodeBase64 = generateBarcode(staffData.employee_number)
-      if (barcodeBase64) {
-        doc.addImage(barcodeBase64, 'PNG', 7, cardHeight - 12, 30, 8)
-      }
-
-      // Principal's Signature text
-      doc.setTextColor(120, 120, 120)
+      // Terms bullets
+      const termsX = 8
+      let termsY = 24
       doc.setFontSize(6)
-      doc.setFont('helvetica', 'italic')
-      doc.text("Principal's Signature", cardWidth - 5, cardHeight - 3, { align: 'right' })
+      doc.setFont('helvetica', 'normal')
+
+      const terms = [
+        'This card is property of the institution.',
+        'If found, should be returned posted to following',
+        'address:',
+        `Incharge: Institution Address,  ${schoolData.address || 'SCHOOL ADDRESS'}`,
+        `Ph: ${schoolData.phone || '092341-407986'} Email: ${schoolData.email || 'info@institution.edu.pk'}`
+      ]
+
+      terms.forEach((term, index) => {
+        if (index === 0 || index === 1) {
+          doc.text('•', termsX, termsY)
+          doc.text(term, termsX + 3, termsY)
+          termsY += 4
+        } else if (index === 2) {
+          doc.text('•', termsX, termsY)
+          doc.text(term, termsX + 3, termsY)
+          termsY += 4
+        } else {
+          doc.setFontSize(5.5)
+          doc.text(term, termsX + 3, termsY)
+          termsY += 3.5
+        }
+      })
+
+      // QR Code
+      const qrData = `Staff ID: ${staffData.employee_number}\nName: ${staffName}\nSchool: ${schoolName}`
+      const qrCode = await generateQRCode(qrData)
+
+      if (qrCode) {
+        const qrSize = 22
+        const qrX = cardWidth - qrSize - 8
+        const qrY = 20
+        doc.addImage(qrCode, 'PNG', qrX, qrY, qrSize, qrSize)
+      }
 
       // Save PDF
       const fileName = `Staff_ID_Card_${staffData.employee_number}_${Date.now()}.pdf`
@@ -370,7 +462,7 @@ export default function StaffIDCardsPage() {
   const saveIDCardRecord = async () => {
     try {
       const cardNumber = `ID-${staffData.employee_number}-${Date.now()}`
-      
+
       const { error } = await supabase
         .from('staff_id_cards')
         .insert({
@@ -399,7 +491,7 @@ export default function StaffIDCardsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Staff ID Cards</h1>
-            <p className="text-sm text-gray-500">Generate staff identification cards</p>
+            <p className="text-sm text-gray-500">Generate professional staff identification cards</p>
           </div>
         </div>
       </div>
@@ -407,10 +499,10 @@ export default function StaffIDCardsPage() {
       {/* Main Content */}
       <div className="p-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          
+
           {/* Configuration Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
             {/* Staff Search */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -455,24 +547,6 @@ export default function StaffIDCardsPage() {
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Background Color */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Card Background Color
-              </label>
-              <select
-                value={backgroundColor}
-                onChange={(e) => setBackgroundColor(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              >
-                {colorOptions.map((color) => (
-                  <option key={color.value} value={color.value}>
-                    {color.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Validity Date */}

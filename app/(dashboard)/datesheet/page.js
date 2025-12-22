@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { X, Calendar, Pencil, Trash2, Clock, FileText, AlertCircle, Download, Plus, CheckCircle, XCircle, Briefcase } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -36,6 +36,8 @@ export default function DatesheetPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditExamModal, setShowEditExamModal] = useState(false)
   const [showEditScheduleModal, setShowEditScheduleModal] = useState(false)
+  const [createModalSection, setCreateModalSection] = useState('basic') // 'basic' or 'subjects'
+  const [editModalSection, setEditModalSection] = useState('basic') // 'basic' or 'subjects' for edit modal
 
   // Form States
   const [selectedClasses, setSelectedClasses] = useState([])
@@ -47,6 +49,15 @@ export default function DatesheetPage() {
   const [saturdayOff, setSaturdayOff] = useState(true)
   const [sundayOff, setSundayOff] = useState(true)
   const [examCenter, setExamCenter] = useState('')
+
+  // New Create Datesheet Form States (for new UI)
+  const [selectedClassForDatesheet, setSelectedClassForDatesheet] = useState('')
+  const [addedSubjects, setAddedSubjects] = useState([]) // Array of {subject_id, subject_name, date, start_time, end_time}
+  const [currentSubject, setCurrentSubject] = useState('') // Currently selected subject in dropdown
+  const [currentSubjectDate, setCurrentSubjectDate] = useState('')
+  const [currentSubjectStartTime, setCurrentSubjectStartTime] = useState('09:00')
+  const [currentSubjectEndTime, setCurrentSubjectEndTime] = useState('11:00')
+  const [editingSubjectIndex, setEditingSubjectIndex] = useState(null) // Index of subject being edited (null if adding new)
 
   // Removed: examType, examEndDate (not in datesheets table)
 
@@ -66,6 +77,14 @@ export default function DatesheetPage() {
   const [classSubjectsMap, setClassSubjectsMap] = useState({}) // Map of classId -> array of subject IDs
   // Removed: editTotalMarks, editPassingMarks (not in datesheet_schedules)
 
+  // Calendar View States
+  const [viewMode, setViewMode] = useState('grid') // 'grid' or 'calendar'
+  const [activeClassTab, setActiveClassTab] = useState(null) // Currently active class ID for calendar view
+  const [draggedSchedule, setDraggedSchedule] = useState(null) // Schedule being dragged
+  const [dropTargetDate, setDropTargetDate] = useState(null) // Date column being hovered during drag
+  const [isDragging, setIsDragging] = useState(false) // Global drag state for styling
+  const [calendarDateRange, setCalendarDateRange] = useState([]) // Full date range for calendar
+
   // Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState({
     show: false,
@@ -80,6 +99,7 @@ export default function DatesheetPage() {
   const [showGeneratedSlipsModal, setShowGeneratedSlipsModal] = useState(false)
   const [reportType, setReportType] = useState('') // 'datesheet', 'rollno', 'admit-card'
   const [reportConfig, setReportConfig] = useState({
+    selectedDatesheet: null,
     selectedClass: 'all',
     genderFilter: 'all',
     showRoomNumber: true,
@@ -90,10 +110,15 @@ export default function DatesheetPage() {
   const [generatedSlips, setGeneratedSlips] = useState([])
   const [filteredStudents, setFilteredStudents] = useState([])
   const [studentSearchQuery, setStudentSearchQuery] = useState('')
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false)
+
+  // Slip Filter State
+  const [slipDatesheetFilter, setSlipDatesheetFilter] = useState('')
+  const [slipClassFilter, setSlipClassFilter] = useState('')
+  const [fetchedSlips, setFetchedSlips] = useState([])
 
   // Datesheet PDF generation state
   const [showDatesheetClassModal, setShowDatesheetClassModal] = useState(false)
-  const [selectedClassForDatesheet, setSelectedClassForDatesheet] = useState('')
 
   // Toast notification function (matching HR design)
   const showToast = (message, type = 'info') => {
@@ -141,6 +166,21 @@ export default function DatesheetPage() {
       }
     }
   }, [showCreateModal, showEditExamModal, showEditScheduleModal, showReportConfigModal, showGeneratedSlipsModal, showDatesheetClassModal, confirmDialog.show])
+
+  // Close student dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isStudentDropdownOpen && !event.target.closest('.student-dropdown-container')) {
+        setIsStudentDropdownOpen(false)
+        setStudentSearchQuery('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isStudentDropdownOpen])
 
   const showConfirmDialog = (title, message, onConfirm) => {
     setConfirmDialog({ show: true, title, message, onConfirm })
@@ -268,17 +308,28 @@ export default function DatesheetPage() {
     fetchSchoolInfo()
   }, [currentUser])
 
-  // Fetch data
-  useEffect(() => {
-    if (currentUser?.school_id) {
-      fetchDatesheets()
-      fetchClasses()
-      fetchSubjects()
-      fetchStudents()
-    }
-  }, [currentUser, session])
+  // Generate complete date range for calendar view (including empty days)
+  const generateCalendarDateRange = useCallback(() => {
+    if (!schedules || schedules.length === 0) return []
 
-  const fetchDatesheets = async () => {
+    const examDates = schedules.map(s => s.exam_date).filter(Boolean).sort()
+    if (examDates.length === 0) return []
+
+    const startDate = new Date(examDates[0])
+    const endDate = new Date(examDates[examDates.length - 1])
+    const dateRange = []
+    let currentDate = new Date(startDate)
+
+    while (currentDate <= endDate) {
+      dateRange.push(currentDate.toISOString().split('T')[0])
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    return dateRange
+  }, [schedules])
+
+  // Define all fetch functions with useCallback
+  const fetchDatesheets = useCallback(async () => {
     if (!currentUser?.school_id || !session?.name) {
       console.log('⚠️ fetchDatesheets skipped - missing data:', {
         school_id: currentUser?.school_id,
@@ -312,9 +363,9 @@ export default function DatesheetPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentUser?.school_id, session?.name])
 
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     if (!currentUser?.school_id) return
 
     try {
@@ -330,9 +381,9 @@ export default function DatesheetPage() {
     } catch (error) {
       console.error('Error fetching classes:', error)
     }
-  }
+  }, [currentUser?.school_id])
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = useCallback(async () => {
     if (!currentUser?.school_id) return
 
     try {
@@ -348,9 +399,9 @@ export default function DatesheetPage() {
     } catch (error) {
       console.error('Error fetching subjects:', error)
     }
-  }
+  }, [currentUser?.school_id])
 
-  const fetchSubjectsForClass = async (classId) => {
+  const fetchSubjectsForClass = useCallback(async (classId) => {
     if (!currentUser?.school_id || !classId) {
       setClassSubjects([])
       return
@@ -379,9 +430,9 @@ export default function DatesheetPage() {
       console.error('Error fetching class subjects:', error)
       setClassSubjects([])
     }
-  }
+  }, [currentUser?.school_id])
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     if (!currentUser?.school_id) return
 
     try {
@@ -397,7 +448,112 @@ export default function DatesheetPage() {
     } catch (error) {
       console.error('Error fetching students:', error)
     }
-  }
+  }, [currentUser?.school_id])
+
+  // Fetch data when user and session are available
+  useEffect(() => {
+    if (currentUser?.school_id) {
+      fetchDatesheets()
+      fetchClasses()
+      fetchSubjects()
+      fetchStudents()
+    }
+  }, [fetchDatesheets, fetchClasses, fetchSubjects, fetchStudents, currentUser?.school_id])
+
+  // Fetch subjects when class is selected in create modal
+  useEffect(() => {
+    if (selectedClassForDatesheet) {
+      fetchSubjectsForClass(selectedClassForDatesheet)
+    } else {
+      setClassSubjects([])
+    }
+  }, [selectedClassForDatesheet, fetchSubjectsForClass])
+
+  // Update calendar date range when switching to calendar view
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      const dateRange = generateCalendarDateRange()
+      setCalendarDateRange(dateRange)
+
+      // Set first selected class as active tab if not set
+      if (!activeClassTab && selectedClasses.length > 0) {
+        setActiveClassTab(selectedClasses[0])
+      }
+    }
+  }, [viewMode, schedules, selectedClasses, activeClassTab, generateCalendarDateRange])
+
+  // Fetch slips by datesheet and class filters
+  const fetchSlipsByFilters = useCallback(async (datesheetId, classId = null) => {
+    if (!datesheetId) {
+      setFetchedSlips([])
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('roll_no_slips')
+        .select(`
+          *,
+          students (
+            first_name,
+            last_name,
+            roll_number,
+            admission_number,
+            current_class_id
+          )
+        `)
+        .eq('datesheet_id', datesheetId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      // Filter by class on the client side if classId is provided
+      let filteredData = data
+      if (classId) {
+        filteredData = data.filter(slip => slip.students?.current_class_id === classId)
+      }
+
+      // Get class names from the classes state
+      const formattedSlips = filteredData.map(slip => {
+        const classInfo = classes.find(c => c.id === slip.students?.current_class_id)
+        const studentName = slip.students?.first_name && slip.students?.last_name
+          ? `${slip.students.first_name} ${slip.students.last_name}`
+          : slip.students?.first_name || 'N/A'
+
+        return {
+          id: slip.id,
+          student_name: studentName,
+          roll_number: slip.students?.roll_number || 'N/A',
+          class_name: classInfo?.class_name || 'N/A',
+          slip_number: slip.slip_number,
+          datesheet_id: slip.datesheet_id,
+          student_id: slip.student_id
+        }
+      })
+
+      setFetchedSlips(formattedSlips)
+    } catch (error) {
+      console.error('Error fetching slips:', error)
+      showToast('Failed to load slips', 'error')
+      setFetchedSlips([])
+    }
+  }, [classes])
+
+  // Auto-select first datesheet when on reports tab and none selected
+  useEffect(() => {
+    if (activeTab === 'reports' && !selectedExamForReport && datesheets.length > 0) {
+      setSelectedExamForReport(datesheets[0].id)
+    }
+  }, [activeTab, selectedExamForReport, datesheets])
+
+  // Fetch slips when filters change
+  useEffect(() => {
+    if (selectedExamForReport) {
+      fetchSlipsByFilters(selectedExamForReport, slipClassFilter || null)
+    } else {
+      setFetchedSlips([])
+    }
+  }, [selectedExamForReport, slipClassFilter, fetchSlipsByFilters])
 
   const fetchSchedules = async (datesheetId, classIds = []) => {
     if (!currentUser?.school_id) return
@@ -501,6 +657,90 @@ export default function DatesheetPage() {
     return dates
   }
 
+  // Helper function to add or update a subject
+  const handleAddSubject = () => {
+    // Validation
+    if (!currentSubject) {
+      showToast('Please select a subject', 'warning')
+      return
+    }
+    if (!currentSubjectDate) {
+      showToast('Please select a date for the subject', 'warning')
+      return
+    }
+    if (!currentSubjectStartTime || !currentSubjectEndTime) {
+      showToast('Please enter start and end time', 'warning')
+      return
+    }
+
+    // Get subject name
+    const subject = subjects.find(s => s.id === currentSubject)
+    if (!subject) {
+      showToast('Subject not found', 'error')
+      return
+    }
+
+    const subjectData = {
+      subject_id: currentSubject,
+      subject_name: subject.subject_name,
+      date: currentSubjectDate,
+      start_time: currentSubjectStartTime,
+      end_time: currentSubjectEndTime
+    }
+
+    if (editingSubjectIndex !== null) {
+      // Update existing subject
+      const updatedSubjects = [...addedSubjects]
+      updatedSubjects[editingSubjectIndex] = subjectData
+      setAddedSubjects(updatedSubjects)
+      showToast('Subject updated successfully', 'success')
+    } else {
+      // Add new subject
+      setAddedSubjects([...addedSubjects, subjectData])
+      showToast('Subject added successfully', 'success')
+    }
+
+    // Reset form fields
+    setCurrentSubject('')
+    setCurrentSubjectDate('')
+    setCurrentSubjectStartTime('09:00')
+    setCurrentSubjectEndTime('11:00')
+    setEditingSubjectIndex(null)
+  }
+
+  // Helper function to start editing a subject
+  const handleEditSubject = (index) => {
+    const subject = addedSubjects[index]
+    setCurrentSubject(subject.subject_id)
+    setCurrentSubjectDate(subject.date)
+    setCurrentSubjectStartTime(subject.start_time)
+    setCurrentSubjectEndTime(subject.end_time)
+    setEditingSubjectIndex(index)
+  }
+
+  // Helper function to cancel editing
+  const handleCancelEdit = () => {
+    setCurrentSubject('')
+    setCurrentSubjectDate('')
+    setCurrentSubjectStartTime('09:00')
+    setCurrentSubjectEndTime('11:00')
+    setEditingSubjectIndex(null)
+  }
+
+  // Helper function to remove a subject
+  const handleRemoveSubject = (index) => {
+    const newAddedSubjects = addedSubjects.filter((_, i) => i !== index)
+    setAddedSubjects(newAddedSubjects)
+    // If we were editing this subject, cancel the edit
+    if (editingSubjectIndex === index) {
+      handleCancelEdit()
+    } else if (editingSubjectIndex > index) {
+      // Adjust the editing index if we removed a subject before it
+      setEditingSubjectIndex(editingSubjectIndex - 1)
+    }
+    showToast('Subject removed', 'info')
+  }
+
   const handleCreateDatesheet = async () => {
     // Detailed validation with specific error messages
     if (!currentUser?.school_id) {
@@ -515,13 +755,18 @@ export default function DatesheetPage() {
       return
     }
 
-    if (selectedClasses.length === 0) {
-      showToast('Please select at least one class', 'warning')
+    if (!selectedClassForDatesheet) {
+      showToast('Please select a class', 'warning')
       return
     }
 
-    if (!datesheetTitle || !examStartDate) {
-      showToast('Please fill all required fields', 'warning')
+    if (!datesheetTitle) {
+      showToast('Please enter datesheet title', 'warning')
+      return
+    }
+
+    if (addedSubjects.length === 0) {
+      showToast('Please add at least one subject', 'warning')
       return
     }
 
@@ -529,8 +774,8 @@ export default function DatesheetPage() {
       school_id: currentUser.school_id,
       session: session.name,
       datesheetTitle,
-      examStartDate,
-      selectedClasses: selectedClasses.length
+      class: selectedClassForDatesheet,
+      subjects: addedSubjects.length
     })
 
     setLoading(true)
@@ -540,14 +785,14 @@ export default function DatesheetPage() {
         school_id: currentUser.school_id,
         session: session.name, // String, not UUID
         title: datesheetTitle,
-        start_date: examStartDate,
-        default_start_time: defaultStartTime,
-        default_end_time: defaultEndTime,
-        interval_days: interval,
-        saturday_off: saturdayOff,
-        sunday_off: sundayOff,
+        start_date: addedSubjects[0]?.date || new Date().toISOString().split('T')[0], // Use first subject's date as start date
+        default_start_time: '09:00',
+        default_end_time: '11:00',
+        interval_days: 1,
+        saturday_off: false,
+        sunday_off: false,
         exam_center: examCenter,
-        class_ids: selectedClasses, // Array
+        class_ids: [selectedClassForDatesheet], // Single class
         created_by: currentUser.id
       }
 
@@ -566,72 +811,29 @@ export default function DatesheetPage() {
 
       console.log('✅ Datesheet created successfully:', datesheet)
 
-      // Generate schedule dates (we need an estimated end date for initial schedule creation)
-      // Let's assume 30 days as default duration if user doesn't specify
-      const estimatedEndDate = new Date(examStartDate)
-      estimatedEndDate.setDate(estimatedEndDate.getDate() + 30)
+      // Create schedule records from added subjects
+      const scheduleRecords = addedSubjects.map(subject => ({
+        datesheet_id: datesheet.id,
+        school_id: currentUser.school_id,
+        class_id: selectedClassForDatesheet,
+        subject_id: subject.subject_id,
+        exam_date: subject.date,
+        start_time: subject.start_time,
+        end_time: subject.end_time,
+        room_number: examCenter,
+        created_by: currentUser.id
+      }))
 
-      const dates = generateScheduleDates(examStartDate, estimatedEndDate.toISOString().split('T')[0], interval, saturdayOff, sundayOff)
-      console.log(`📅 Generated ${dates.length} schedule dates`)
-
-      // Fetch subjects for each class and auto-assign to dates
-      const scheduleRecords = []
-
-      for (const classId of selectedClasses) {
-        // Get subjects for this class
-        const { data: classSubjectsData, error: subjectsError } = await supabase
-          .from('class_subjects')
-          .select('subject_id')
-          .eq('school_id', currentUser.school_id)
-          .eq('class_id', classId)
-          .order('created_at')
-
-        if (subjectsError) {
-          console.error('Error fetching class subjects:', subjectsError)
-          continue
-        }
-
-        const classSubjectIds = classSubjectsData?.map(cs => cs.subject_id) || []
-        console.log(`📚 Class ${classId} has ${classSubjectIds.length} subjects`)
-
-        // Assign subjects to dates (don't cycle - leave extra dates empty)
-        dates.forEach((date, index) => {
-          // Only assign subject if we have enough subjects, otherwise leave empty
-          const subjectId = index < classSubjectIds.length
-            ? classSubjectIds[index]
-            : null
-
-          scheduleRecords.push({
-            datesheet_id: datesheet.id,
-            school_id: currentUser.school_id,
-            class_id: classId,
-            subject_id: subjectId, // Auto-assigned subject or null for empty dates
-            exam_date: date.toISOString().split('T')[0],
-            start_time: defaultStartTime,
-            end_time: defaultEndTime,
-            room_number: examCenter,
-            created_by: currentUser.id
-          })
-        })
-      }
-
-      console.log(`📋 Creating ${scheduleRecords.length} schedule records for ${selectedClasses.length} classes`)
+      console.log(`📋 Creating ${scheduleRecords.length} schedule records`)
 
       if (scheduleRecords.length > 0) {
-        // Insert schedules in batches to avoid timeout
-        const batchSize = 50
-        for (let i = 0; i < scheduleRecords.length; i += batchSize) {
-          const batch = scheduleRecords.slice(i, i + batchSize)
-          console.log(`📤 Inserting batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(scheduleRecords.length / batchSize)} (${batch.length} records)`)
+        const { error: scheduleError } = await supabase
+          .from('datesheet_schedules')
+          .insert(scheduleRecords)
 
-          const { error: scheduleError } = await supabase
-            .from('datesheet_schedules')
-            .insert(batch)
-
-          if (scheduleError) {
-            console.error('❌ Schedule insert error:', scheduleError)
-            throw scheduleError
-          }
+        if (scheduleError) {
+          console.error('❌ Schedule insert error:', scheduleError)
+          throw scheduleError
         }
         console.log('✅ All schedules created successfully')
       }
@@ -698,7 +900,7 @@ export default function DatesheetPage() {
     setActiveTab('schedule')
   }
 
-  const handleOpenEditDatesheet = (datesheet) => {
+  const handleOpenEditDatesheet = async (datesheet) => {
     setCurrentDatesheet(datesheet)
     setDatesheetTitle(datesheet.title)
     setExamStartDate(datesheet.start_date)
@@ -708,28 +910,120 @@ export default function DatesheetPage() {
     setSaturdayOff(datesheet.saturday_off !== false)
     setSundayOff(datesheet.sunday_off !== false)
     setExamCenter(datesheet.exam_center || '')
+
+    // Set the class for the datesheet (assuming single class from class_ids array)
+    const classId = datesheet.class_ids && datesheet.class_ids.length > 0 ? datesheet.class_ids[0] : ''
+    setSelectedClassForDatesheet(classId)
+
+    // Fetch subjects for this class
+    if (classId) {
+      await fetchSubjectsForClass(classId)
+    }
+
+    // Fetch existing subjects from datesheet_schedules
+    try {
+      const { data: scheduleData, error } = await supabase
+        .from('datesheet_schedules')
+        .select(`
+          *,
+          subjects (
+            id,
+            subject_name
+          )
+        `)
+        .eq('datesheet_id', datesheet.id)
+        .order('exam_date')
+
+      if (error) throw error
+
+      // Transform schedule data to addedSubjects format
+      const existingSubjects = scheduleData
+        .filter(schedule => schedule.subject_id) // Only include schedules with subjects
+        .map(schedule => ({
+          subject_id: schedule.subject_id,
+          subject_name: schedule.subjects?.subject_name || '',
+          date: schedule.exam_date,
+          start_time: schedule.start_time,
+          end_time: schedule.end_time
+        }))
+
+      setAddedSubjects(existingSubjects)
+    } catch (error) {
+      console.error('Error fetching datesheet subjects:', error)
+      setAddedSubjects([])
+    }
+
+    setEditModalSection('basic') // Reset to basic section
     setShowEditExamModal(true)
   }
 
   const handleUpdateDatesheet = async () => {
     if (!currentDatesheet) return
 
+    // Validation
+    if (!selectedClassForDatesheet) {
+      showToast('Please select a class', 'warning')
+      return
+    }
+
+    if (!datesheetTitle) {
+      showToast('Please enter datesheet title', 'warning')
+      return
+    }
+
+    if (addedSubjects.length === 0) {
+      showToast('Please add at least one subject', 'warning')
+      return
+    }
+
+    setLoading(true)
     try {
-      const { error } = await supabase
+      // Update datesheet basic data
+      const { error: datesheetError } = await supabase
         .from('datesheets')
         .update({
           title: datesheetTitle,
-          start_date: examStartDate,
-          default_start_time: defaultStartTime,
-          default_end_time: defaultEndTime,
-          interval_days: interval,
-          saturday_off: saturdayOff,
-          sunday_off: sundayOff,
-          exam_center: examCenter
+          start_date: addedSubjects[0]?.date || examStartDate,
+          default_start_time: '09:00',
+          default_end_time: '11:00',
+          interval_days: 1,
+          saturday_off: false,
+          sunday_off: false,
+          exam_center: examCenter,
+          class_ids: [selectedClassForDatesheet]
         })
         .eq('id', currentDatesheet.id)
 
-      if (error) throw error
+      if (datesheetError) throw datesheetError
+
+      // Delete existing schedule records for this datesheet
+      const { error: deleteError } = await supabase
+        .from('datesheet_schedules')
+        .delete()
+        .eq('datesheet_id', currentDatesheet.id)
+
+      if (deleteError) throw deleteError
+
+      // Create new schedule records from added subjects
+      const scheduleRecords = addedSubjects.map(subject => ({
+        datesheet_id: currentDatesheet.id,
+        school_id: currentUser.school_id,
+        class_id: selectedClassForDatesheet,
+        subject_id: subject.subject_id,
+        exam_date: subject.date,
+        start_time: subject.start_time,
+        end_time: subject.end_time,
+        room_number: examCenter,
+        created_by: currentUser.id
+      }))
+
+      if (scheduleRecords.length > 0) {
+        const { error: scheduleError } = await supabase
+          .from('datesheet_schedules')
+          .insert(scheduleRecords)
+
+        if (scheduleError) throw scheduleError
+      }
 
       showToast('Datesheet updated successfully', 'success')
       setShowEditExamModal(false)
@@ -738,6 +1032,8 @@ export default function DatesheetPage() {
     } catch (error) {
       console.error('Error updating datesheet:', error)
       showToast('Failed to update datesheet', 'error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -804,6 +1100,63 @@ export default function DatesheetPage() {
         }
       }
     )
+  }
+
+  // Move schedule to a new date (for calendar drag-and-drop)
+  const handleMoveToDate = async (schedule, newDate) => {
+    try {
+      const originalSchedules = [...schedules]
+      setSchedules(prevSchedules =>
+        prevSchedules.map(s =>
+          s.id === schedule.id ? { ...s, exam_date: newDate } : s
+        )
+      )
+
+      const { error } = await supabase
+        .from('datesheet_schedules')
+        .update({ exam_date: newDate })
+        .eq('id', schedule.id)
+
+      if (error) throw error
+
+      showToast('Subject moved successfully', 'success')
+      await fetchSchedules(currentDatesheet.id, selectedClasses)
+    } catch (error) {
+      setSchedules(originalSchedules)
+      console.error('Error moving schedule:', error)
+      showToast('Failed to move subject', 'error')
+      throw error
+    }
+  }
+
+  // Swap dates between two schedules (for calendar drag-and-drop)
+  const handleSwapDates = async (schedule1, schedule2) => {
+    try {
+      const originalSchedules = [...schedules]
+      setSchedules(prevSchedules =>
+        prevSchedules.map(s => {
+          if (s.id === schedule1.id) return { ...s, exam_date: schedule2.exam_date }
+          if (s.id === schedule2.id) return { ...s, exam_date: schedule1.exam_date }
+          return s
+        })
+      )
+
+      const [update1, update2] = await Promise.all([
+        supabase.from('datesheet_schedules').update({ exam_date: schedule2.exam_date }).eq('id', schedule1.id),
+        supabase.from('datesheet_schedules').update({ exam_date: schedule1.exam_date }).eq('id', schedule2.id)
+      ])
+
+      if (update1.error) throw update1.error
+      if (update2.error) throw update2.error
+
+      showToast('Subjects swapped successfully', 'success')
+      await fetchSchedules(currentDatesheet.id, selectedClasses)
+    } catch (error) {
+      setSchedules(originalSchedules)
+      console.error('Error swapping schedules:', error)
+      showToast('Failed to swap subjects', 'error')
+      throw error
+    }
   }
 
   const handleDeleteClassFromSchedule = async (classId) => {
@@ -1076,6 +1429,15 @@ export default function DatesheetPage() {
     setSundayOff(true)
     setExamCenter('')
     setCurrentDatesheet(null)
+    // Reset new form fields
+    setSelectedClassForDatesheet('')
+    setAddedSubjects([])
+    setCurrentSubject('')
+    setCurrentSubjectDate('')
+    setCurrentSubjectStartTime('09:00')
+    setCurrentSubjectEndTime('11:00')
+    setEditingSubjectIndex(null) // Reset editing index
+    setCreateModalSection('basic') // Reset to basic section
   }
 
   const getClassName = (classId) => {
@@ -1114,6 +1476,59 @@ export default function DatesheetPage() {
 
   const getScheduleForClassAndDate = (classId, date) => {
     return schedules.find(s => s.class_id === classId && s.exam_date === date)
+  }
+
+  // Drag-and-Drop Event Handlers for Calendar View
+  const handleDragStart = (e, schedule) => {
+    setDraggedSchedule(schedule)
+    setIsDragging(true)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', schedule.id)
+  }
+
+  const handleDragOver = (e, targetDate) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDropTargetDate(targetDate)
+  }
+
+  const handleDragLeave = (e) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return
+    setDropTargetDate(null)
+  }
+
+  const handleDrop = async (e, targetDate) => {
+    e.preventDefault()
+    setDropTargetDate(null)
+    setIsDragging(false)
+
+    if (!draggedSchedule || draggedSchedule.exam_date === targetDate) {
+      setDraggedSchedule(null)
+      return
+    }
+
+    try {
+      const targetSchedule = schedules.find(
+        s => s.class_id === draggedSchedule.class_id && s.exam_date === targetDate
+      )
+
+      if (targetSchedule && targetSchedule.subject_id) {
+        await handleSwapDates(draggedSchedule, targetSchedule)
+      } else {
+        await handleMoveToDate(draggedSchedule, targetDate)
+      }
+    } catch (error) {
+      console.error('Error during drop:', error)
+      showToast('Failed to update schedule', 'error')
+    } finally {
+      setDraggedSchedule(null)
+    }
+  }
+
+  const handleDragEnd = () => {
+    setDraggedSchedule(null)
+    setDropTargetDate(null)
+    setIsDragging(false)
   }
 
   // Generate PDF for Roll No Slip or Admit Card
@@ -1361,15 +1776,21 @@ export default function DatesheetPage() {
   }
 
   const handleOpenReportConfig = (type) => {
-    if (!selectedExamForReport) {
-      showToast('Please select an exam first', 'warning')
-      return
-    }
+    // Pre-select datesheet and class if available
+    const examId = selectedExamForReport || null
+    const classFilter = slipClassFilter || 'all'
+
+    setReportConfig(prev => ({
+      ...prev,
+      selectedDatesheet: examId,
+      selectedClass: classFilter
+    }))
+
     setReportType(type)
 
     // Filter students based on selected class
-    if (reportConfig.selectedClass !== 'all') {
-      const classStudents = students.filter(s => s.current_class_id === reportConfig.selectedClass)
+    if (classFilter && classFilter !== 'all') {
+      const classStudents = students.filter(s => s.current_class_id === classFilter)
       setFilteredStudents(classStudents)
     } else {
       setFilteredStudents(students)
@@ -1378,15 +1799,25 @@ export default function DatesheetPage() {
     setShowReportConfigModal(true)
   }
 
+  const handleViewSlip = async (slip) => {
+    try {
+      // Generate PDF for the single slip
+      await generateRollNoSlipPDF(slip)
+    } catch (error) {
+      console.error('Error viewing slip:', error)
+      showToast('Error viewing slip', 'error')
+    }
+  }
+
   const handleGenerateReport = async () => {
-    if (!selectedExamForReport || !currentUser?.school_id || !currentUser?.id) {
-      showToast('Missing required information', 'error')
+    if (!reportConfig.selectedDatesheet || (typeof reportConfig.selectedDatesheet === 'string' && reportConfig.selectedDatesheet.trim() === '') || !currentUser?.school_id || !currentUser?.id) {
+      showToast('Please select a datesheet first', 'error')
       return
     }
 
     try {
       // Get the selected datesheet details
-      const selectedDatesheet = datesheets.find(d => d.id === selectedExamForReport)
+      const selectedDatesheet = datesheets.find(d => d.id === reportConfig.selectedDatesheet)
       if (!selectedDatesheet) {
         showToast('Selected datesheet not found', 'error')
         return
@@ -1401,12 +1832,12 @@ export default function DatesheetPage() {
           .from('datesheet_reports')
           .insert({
             school_id: currentUser.school_id,
-            datesheet_id: selectedExamForReport, // Changed from exam_id
+            datesheet_id: reportConfig.selectedDatesheet,
             report_name: `${selectedDatesheet.title} - Date Sheet`,
             report_type: 'datesheet',
             class_id: reportConfig.selectedClass !== 'all' ? reportConfig.selectedClass : null,
-            gender_filter: reportConfig.genderFilter || null,
-            file_url: `/reports/datesheet/${selectedExamForReport}`,
+            gender_filter: null,
+            file_url: `/reports/datesheet/${reportConfig.selectedDatesheet}`,
             configuration: reportConfig,
             generated_by: currentUser.id,
             status: 'generated'
@@ -1432,25 +1863,20 @@ export default function DatesheetPage() {
             : students
         }
 
-        // Filter by gender if specified
-        const filteredStudents = reportConfig.genderFilter && reportConfig.genderFilter !== 'all'
-          ? studentsToProcess.filter(s => s.gender?.toLowerCase() === reportConfig.genderFilter)
-          : studentsToProcess
-
-        if (filteredStudents.length === 0) {
+        if (studentsToProcess.length === 0) {
           showToast('No students found with the selected filters', 'warning')
           return
         }
 
         // Create roll no slips for all students
-        const slips = filteredStudents.map(student => ({
+        const slips = studentsToProcess.map(student => ({
           school_id: currentUser.school_id,
-          datesheet_id: selectedExamForReport, // Changed from exam_id
+          datesheet_id: reportConfig.selectedDatesheet,
           student_id: student.id,
           slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
           slip_type: reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip',
           gender: student.gender,
-          file_url: `/reports/${reportType}/${selectedExamForReport}/${student.id}`,
+          file_url: `/reports/${reportType}/${reportConfig.selectedDatesheet}/${student.id}`,
           generated_by: currentUser.id,
           configuration: reportConfig,
           status: 'generated'
@@ -1465,7 +1891,9 @@ export default function DatesheetPage() {
         error = result.error
 
         if (!error) {
-          showToast(`${reportType} generated for ${filteredStudents.length} students and saved successfully`, 'success')
+          showToast(`${reportType} generated for ${studentsToProcess.length} students and saved successfully`, 'success')
+          // Refresh the slips
+          await fetchSlipsByFilters(reportConfig.selectedDatesheet, slipClassFilter || null)
         }
       }
 
@@ -1479,6 +1907,98 @@ export default function DatesheetPage() {
     } catch (error) {
       console.error('❌ Error saving report:', error)
       showToast(`Failed to save report: ${error.message}`, 'error')
+    }
+  }
+
+  const handleGenerateAllClassSlips = async () => {
+    if (!reportConfig.selectedDatesheet || (typeof reportConfig.selectedDatesheet === 'string' && reportConfig.selectedDatesheet.trim() === '') || !currentUser?.school_id || !currentUser?.id) {
+      showToast('Please select a datesheet first', 'error')
+      return
+    }
+
+    if (!reportConfig.selectedClass || reportConfig.selectedClass === 'all') {
+      showToast('Please select a specific class to generate all slips', 'warning')
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      // Get the selected datesheet details
+      const selectedDatesheet = datesheets.find(d => d.id === reportConfig.selectedDatesheet)
+      if (!selectedDatesheet) {
+        showToast('Selected datesheet not found', 'error')
+        return
+      }
+
+      // Get all students in the selected class
+      const classStudents = students.filter(s => s.current_class_id === reportConfig.selectedClass)
+
+      if (classStudents.length === 0) {
+        showToast('No students found in the selected class', 'warning')
+        return
+      }
+
+      // Check which students already have slips for this datesheet
+      const slipType = reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip'
+      const { data: existingSlips, error: fetchError } = await supabase
+        .from('roll_no_slips')
+        .select('student_id')
+        .eq('school_id', currentUser.school_id)
+        .eq('datesheet_id', reportConfig.selectedDatesheet)
+        .eq('slip_type', slipType)
+
+      if (fetchError) throw fetchError
+
+      // Get IDs of students who already have slips
+      const existingStudentIds = new Set(existingSlips?.map(slip => slip.student_id) || [])
+
+      // Filter out students who already have slips
+      const studentsNeedingSlips = classStudents.filter(student => !existingStudentIds.has(student.id))
+
+      if (studentsNeedingSlips.length === 0) {
+        showToast('All students in this class already have slips for this datesheet', 'info')
+        setShowReportConfigModal(false)
+        return
+      }
+
+      // Create roll no slips only for students who don't have them
+      const slips = studentsNeedingSlips.map(student => ({
+        school_id: currentUser.school_id,
+        datesheet_id: reportConfig.selectedDatesheet,
+        student_id: student.id,
+        slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
+        slip_type: slipType,
+        gender: student.gender,
+        file_url: `/reports/${reportType}/${reportConfig.selectedDatesheet}/${student.id}`,
+        generated_by: currentUser.id,
+        configuration: reportConfig,
+        status: 'generated'
+      }))
+
+      const { data, error } = await supabase
+        .from('roll_no_slips')
+        .insert(slips)
+        .select()
+
+      if (error) throw error
+
+      const skippedCount = classStudents.length - studentsNeedingSlips.length
+      const message = skippedCount > 0
+        ? `Generated ${studentsNeedingSlips.length} new slips (${skippedCount} students already had slips)`
+        : `Successfully generated slips for all ${studentsNeedingSlips.length} students in the class`
+
+      showToast(message, 'success')
+
+      // Refresh the slips
+      await fetchSlipsByFilters(reportConfig.selectedDatesheet, slipClassFilter || null)
+
+      setShowReportConfigModal(false)
+    } catch (error) {
+      console.error('❌ Error generating all class slips:', error)
+      showToast(`Failed to generate all class slips: ${error.message}`, 'error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -1930,7 +2450,7 @@ export default function DatesheetPage() {
       {showCreateModal && (
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => { setShowCreateModal(false); resetForm(); }} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+          <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
               <h2 className="text-xl font-semibold">Create New Datesheet</h2>
               <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="hover:bg-blue-800 p-1 rounded">
@@ -1938,143 +2458,241 @@ export default function DatesheetPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              {/* Class Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Class <span className="text-gray-500">(Leave blank for all classes)</span>
-                </label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {selectedClasses.map(classId => {
-                    const cls = classes.find(c => c.id === classId)
-                    return (
-                      <div key={classId} className="bg-gray-600 text-white px-3 py-1 rounded flex items-center gap-2">
-                        {cls?.class_name}
-                        <button onClick={() => removeClassChip(classId)} className="hover:text-gray-300">
-                          <X className="w-4 h-4" />
+            {/* Section Tabs */}
+            <div className="bg-gray-100 px-6 py-3 border-b border-gray-300">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCreateModalSection('basic')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    createModalSection === 'basic'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Basic Class Data
+                  </div>
+                </button>
+                <button
+                  onClick={() => setCreateModalSection('subjects')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    createModalSection === 'subjects'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    Subjects ({addedSubjects.length})
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* SECTION 1: Basic Class Data */}
+              {createModalSection === 'basic' && (
+                <div className="space-y-4">
+                  {/* Class Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Class <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedClassForDatesheet}
+                      onChange={(e) => setSelectedClassForDatesheet(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select a class</option>
+                      {classes.map(cls => (
+                        <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Datesheet Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Datesheet Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Mid term exam"
+                      value={datesheetTitle}
+                      onChange={(e) => setDatesheetTitle(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Center/Room No */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Center / Room No
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Room 101"
+                      value={examCenter}
+                      onChange={(e) => setExamCenter(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION 2: Subjects Section */}
+              {createModalSection === 'subjects' && (
+                <div className="space-y-4">
+                  {/* Subject Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Subject <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={currentSubject}
+                      onChange={(e) => setCurrentSubject(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={!selectedClassForDatesheet}
+                    >
+                      <option value="">
+                        {selectedClassForDatesheet ? 'Select a subject' : 'Please select a class first'}
+                      </option>
+                      {classSubjects
+                        .filter(subject => {
+                          // Get already added subject IDs (excluding the one being edited)
+                          const addedSubjectIds = addedSubjects
+                            .filter((_, index) => index !== editingSubjectIndex)
+                            .map(s => s.subject_id)
+                          // Show only subjects that haven't been added yet
+                          return !addedSubjectIds.includes(subject.id)
+                        })
+                        .map(subject => (
+                          <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+
+                  {/* Show fields when subject is selected */}
+                  {currentSubject && (
+                    <div className="space-y-4 bg-white p-4 rounded-lg border border-blue-200">
+                      {/* Date */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={currentSubjectDate}
+                          onChange={(e) => setCurrentSubjectDate(e.target.value)}
+                          className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Start Time */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Start Time <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            value={currentSubjectStartTime}
+                            onChange={(e) => setCurrentSubjectStartTime(e.target.value)}
+                            className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        {/* End Time */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            End Time <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            value={currentSubjectEndTime}
+                            onChange={(e) => setCurrentSubjectEndTime(e.target.value)}
+                            className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Add/Update Button */}
+                      <div className="flex gap-2">
+                        {editingSubjectIndex !== null && (
+                          <button
+                            onClick={handleCancelEdit}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        )}
+                        <button
+                          onClick={handleAddSubject}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {editingSubjectIndex !== null ? 'Update Subject' : 'Add Subject'}
                         </button>
                       </div>
-                    )
-                  })}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {classes.filter(c => !selectedClasses.includes(c.id)).map(cls => (
-                    <button
-                      key={cls.id}
-                      onClick={() => toggleClassSelection(cls.id)}
-                      className="bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200 text-sm"
-                    >
-                      {cls.class_name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    </div>
+                  )}
 
-              {/* Datesheet Title */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Datesheet Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mid term exam"
-                  value={datesheetTitle}
-                  onChange={(e) => setDatesheetTitle(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Exam Start Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Start Date <span className="text-red-500">*</span></label>
-                  <input
-                    type="date"
-                    value={examStartDate}
-                    onChange={(e) => setExamStartDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
+                  {/* Display Added Subjects */}
+                  {addedSubjects.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Added Subjects ({addedSubjects.length})
+                      </label>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {addedSubjects.map((subject, index) => (
+                          <div
+                            key={index}
+                            className="bg-blue-50 border border-blue-300 rounded-lg p-3 flex items-start justify-between"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-blue-900">{subject.subject_name}</span>
+                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded">
+                                  #{index + 1}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-700 space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                                  <span>{new Date(subject.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-3.5 h-3.5 text-gray-500" />
+                                  <span>{subject.start_time} - {subject.end_time}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 ml-2">
+                              <button
+                                onClick={() => handleEditSubject(index)}
+                                className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-100 transition"
+                                title="Edit subject"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleRemoveSubject(index)}
+                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-100 transition"
+                                title="Remove subject"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Exam Center */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Center / Room</label>
-                  <input
-                    type="text"
-                    placeholder="Room number or location"
-                    value={examCenter}
-                    onChange={(e) => setExamCenter(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                {/* Default Start Time */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Default Start Time</label>
-                  <input
-                    type="time"
-                    value={defaultStartTime}
-                    onChange={(e) => setDefaultStartTime(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
-
-                {/* Default End Time */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Default End Time</label>
-                  <input
-                    type="time"
-                    value={defaultEndTime}
-                    onChange={(e) => setDefaultEndTime(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
-
-                {/* Interval */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Interval</label>
-                  <select
-                    value={interval}
-                    onChange={(e) => setInterval(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  >
-                    <option value={1}>Every Day</option>
-                    <option value={2}>Every 2nd Day</option>
-                    <option value={3}>Every 3rd Day</option>
-                    <option value={4}>Every 4th Day</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Saturday Off */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Saturday Off</label>
-                  <select
-                    value={saturdayOff ? 'yes' : 'no'}
-                    onChange={(e) => setSaturdayOff(e.target.value === 'yes')}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  >
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </div>
-
-                {/* Sunday Off */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sunday Off</label>
-                  <select
-                    value={sundayOff ? 'yes' : 'no'}
-                    onChange={(e) => setSundayOff(e.target.value === 'yes')}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  >
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
@@ -2086,10 +2704,10 @@ export default function DatesheetPage() {
               </button>
               <button
                 onClick={handleCreateDatesheet}
-                disabled={loading}
+                disabled={loading || addedSubjects.length === 0}
                 className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
-                {loading ? 'Creating...' : 'Save'} <span className="text-xl">→</span>
+                {loading ? 'Creating...' : 'Save Datesheet'} <span className="text-xl">→</span>
               </button>
             </div>
           </div>
@@ -2115,13 +2733,6 @@ export default function DatesheetPage() {
                 Update Date Sheet Schedule - {currentDatesheet.title}
               </h2>
             </div>
-            <button
-              onClick={handleDownloadAllDatesheets}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-            >
-              <Download className="w-4 h-4" />
-              Download All Classes
-            </button>
           </div>
 
           {/* Schedule Table */}
@@ -2152,37 +2763,74 @@ export default function DatesheetPage() {
                     </td>
                     {scheduleDates.map(date => {
                       const schedule = getScheduleForClassAndDate(classId, date)
+                      const isDropTarget = dropTargetDate === date && draggedSchedule?.class_id === classId
                       return (
-                        <td key={date} className="border border-gray-200 px-2 py-2.5">
+                        <td
+                          key={date}
+                          className={`border border-gray-200 px-2 py-2.5 min-h-[100px] transition-all ${
+                            isDropTarget ? 'bg-blue-100 border-blue-500' : ''
+                          }`}
+                          onDragOver={(e) => {
+                            if (draggedSchedule?.class_id === classId) {
+                              handleDragOver(e, date)
+                            }
+                          }}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => {
+                            if (draggedSchedule?.class_id === classId) {
+                              handleDrop(e, date)
+                            }
+                          }}
+                        >
                           {schedule?.subject_id ? (
-                            <div className="flex flex-col gap-1">
-                              <div className="font-medium text-blue-600">
+                            <div
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, schedule)}
+                              onDragEnd={handleDragEnd}
+                              className={`flex flex-col gap-1 bg-blue-50 border border-blue-300 rounded-lg p-2 cursor-move hover:shadow-md transition ${
+                                draggedSchedule?.id === schedule.id ? 'opacity-50' : ''
+                              }`}
+                            >
+                              <div className="font-semibold text-blue-800 text-sm">
                                 {getSubjectName(schedule.subject_id)}
                               </div>
-                              <div className="flex gap-1">
+                              <div className="flex items-center gap-1 text-xs text-gray-600">
+                                <Clock className="w-3 h-3" />
+                                <span>{schedule.start_time} - {schedule.end_time}</span>
+                              </div>
+                              {schedule.room_number && (
+                                <div className="text-xs text-gray-600">
+                                  Room: {schedule.room_number}
+                                </div>
+                              )}
+                              <div className="flex gap-1 mt-1">
                                 <button
-                                  onClick={() => handleEditSchedule(schedule)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEditSchedule(schedule)
+                                  }}
                                   className="text-blue-600 hover:text-blue-800 p-1"
+                                  title="Edit schedule"
                                 >
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteSchedule(schedule.id)}
-                                  className="text-red-600 hover:text-red-800 p-1"
-                                >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Pencil className="w-3 h-3" />
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            schedule && hasUnscheduledSubjects(classId) && (
-                              <button
-                                onClick={() => handleEditSchedule(schedule)}
-                                className="text-blue-500 hover:text-blue-700 text-xs"
-                              >
-                                + Add Subject
-                              </button>
-                            )
+                            <div className={`min-h-[80px] flex items-center justify-center text-xs text-gray-400 rounded border-2 border-dashed ${
+                              isDropTarget ? 'border-blue-500' : 'border-gray-300'
+                            }`}>
+                              {isDropTarget ? 'Drop here' : (
+                                schedule && hasUnscheduledSubjects(classId) && (
+                                  <button
+                                    onClick={() => handleEditSchedule(schedule)}
+                                    className="text-blue-500 hover:text-blue-700"
+                                  >
+                                    + Add Subject
+                                  </button>
+                                )
+                              )}
+                            </div>
                           )}
                         </td>
                       )
@@ -2195,13 +2843,6 @@ export default function DatesheetPage() {
                           title="Download Datesheet"
                         >
                           <Download className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClassFromSchedule(classId)}
-                          className="text-red-600 hover:text-red-800 p-1"
-                          title="Delete Class"
-                        >
-                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -2216,98 +2857,265 @@ export default function DatesheetPage() {
       {/* Edit Datesheet Modal */}
       {showEditExamModal && currentDatesheet && (
         <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowEditExamModal(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => { setShowEditExamModal(false); resetForm(); }} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">Update Date Sheet ({currentDatesheet.title})</h2>
-              <button onClick={() => setShowEditExamModal(false)} className="hover:bg-blue-800 p-1 rounded">
+              <h2 className="text-xl font-semibold">Update Datesheet</h2>
+              <button onClick={() => { setShowEditExamModal(false); resetForm(); }} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Datesheet Title</label>
-                <input
-                  type="text"
-                  value={datesheetTitle}
-                  onChange={(e) => setDatesheetTitle(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                />
+            {/* Section Tabs */}
+            <div className="bg-gray-100 px-6 py-3 border-b border-gray-300">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditModalSection('basic')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    editModalSection === 'basic'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Basic Class Data
+                  </div>
+                </button>
+                <button
+                  onClick={() => setEditModalSection('subjects')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    editModalSection === 'subjects'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    Subjects ({addedSubjects.length})
+                  </div>
+                </button>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                  <input
-                    type="date"
-                    value={examStartDate}
-                    onChange={(e) => setExamStartDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
+            <div className="p-6 space-y-6">
+              {/* SECTION 1: Basic Class Data */}
+              {editModalSection === 'basic' && (
+                <div className="space-y-4">
+                  {/* Class Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Class <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedClassForDatesheet}
+                      onChange={(e) => setSelectedClassForDatesheet(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select a class</option>
+                      {classes.map(cls => (
+                        <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Exam Center</label>
-                  <input
-                    type="text"
-                    value={examCenter}
-                    onChange={(e) => setExamCenter(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
-              </div>
+                  {/* Datesheet Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Datesheet Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Mid term exam"
+                      value={datesheetTitle}
+                      onChange={(e) => setDatesheetTitle(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
-                  <input
-                    type="time"
-                    value={defaultStartTime}
-                    onChange={(e) => setDefaultStartTime(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
+                  {/* Center/Room No */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Center / Room No
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Room 101"
+                      value={examCenter}
+                      onChange={(e) => setExamCenter(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
-                  <input
-                    type="time"
-                    value={defaultEndTime}
-                    onChange={(e) => setDefaultEndTime(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  />
-                </div>
+              {/* SECTION 2: Subjects Section */}
+              {editModalSection === 'subjects' && (
+                <div className="space-y-4">
+                  {/* Subject Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Subject <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={currentSubject}
+                      onChange={(e) => setCurrentSubject(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={!selectedClassForDatesheet}
+                    >
+                      <option value="">
+                        {selectedClassForDatesheet ? 'Select a subject' : 'Please select a class first'}
+                      </option>
+                      {classSubjects
+                        .filter(subject => {
+                          // Get already added subject IDs (excluding the one being edited)
+                          const addedSubjectIds = addedSubjects
+                            .filter((_, index) => index !== editingSubjectIndex)
+                            .map(s => s.subject_id)
+                          // Show only subjects that haven't been added yet
+                          return !addedSubjectIds.includes(subject.id)
+                        })
+                        .map(subject => (
+                          <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Interval</label>
-                  <select
-                    value={interval}
-                    onChange={(e) => setInterval(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                  >
-                    <option value={1}>Every Day</option>
-                    <option value={2}>Every 2nd Day</option>
-                    <option value={3}>Every 3rd Day</option>
-                    <option value={4}>Every 4th Day</option>
-                  </select>
+                  {/* Show fields when subject is selected */}
+                  {currentSubject && (
+                    <div className="space-y-4 bg-white p-4 rounded-lg border border-blue-200">
+                      {/* Date */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={currentSubjectDate}
+                          onChange={(e) => setCurrentSubjectDate(e.target.value)}
+                          className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Start Time */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Start Time <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            value={currentSubjectStartTime}
+                            onChange={(e) => setCurrentSubjectStartTime(e.target.value)}
+                            className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        {/* End Time */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            End Time <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            value={currentSubjectEndTime}
+                            onChange={(e) => setCurrentSubjectEndTime(e.target.value)}
+                            className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Add/Update Button */}
+                      <div className="flex gap-2">
+                        {editingSubjectIndex !== null && (
+                          <button
+                            onClick={handleCancelEdit}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        )}
+                        <button
+                          onClick={handleAddSubject}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {editingSubjectIndex !== null ? 'Update Subject' : 'Add Subject'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Display Added Subjects */}
+                  {addedSubjects.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Added Subjects ({addedSubjects.length})
+                      </label>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {addedSubjects.map((subject, index) => (
+                          <div
+                            key={index}
+                            className="bg-blue-50 border border-blue-300 rounded-lg p-3 flex items-start justify-between"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-blue-900">{subject.subject_name}</span>
+                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded">
+                                  #{index + 1}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-700 space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                                  <span>{new Date(subject.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-3.5 h-3.5 text-gray-500" />
+                                  <span>{subject.start_time} - {subject.end_time}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 ml-2">
+                              <button
+                                onClick={() => handleEditSubject(index)}
+                                className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-100 transition"
+                                title="Edit subject"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleRemoveSubject(index)}
+                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-100 transition"
+                                title="Remove subject"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
-                onClick={() => setShowEditExamModal(false)}
+                onClick={() => { setShowEditExamModal(false); resetForm(); }}
                 className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
               </button>
               <button
                 onClick={handleUpdateDatesheet}
-                disabled={loading}
+                disabled={loading || addedSubjects.length === 0}
                 className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
-                {loading ? 'Updating...' : 'Save'} <span className="text-xl">→</span>
+                {loading ? 'Updating...' : 'Update Datesheet'} <span className="text-xl">→</span>
               </button>
             </div>
           </div>
@@ -2432,60 +3240,84 @@ export default function DatesheetPage() {
       {/* REPORTS TAB */}
       {activeTab === 'reports' && (
         <div className="bg-white rounded-lg shadow-md p-2">
-          {/* Datesheet Selection */}
-          <div className="mb-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Datesheet</label>
-            <select
-              value={selectedExamForReport}
-              onChange={(e) => setSelectedExamForReport(e.target.value)}
-              className="w-full md:w-1/2 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          {/* Header with Generate New Slips Button */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">Reports & Slips</h2>
+            <button
+              onClick={() => handleOpenReportConfig('rollno')}
+              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
             >
-              <option value="">Select a datesheet</option>
-              {datesheets.map(datesheet => (
-                <option key={datesheet.id} value={datesheet.id}>{datesheet.title}</option>
-              ))}
-            </select>
-            {datesheets.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">No datesheets found for current session</p>
-            )}
+              <Plus className="w-5 h-5" />
+              Generate New Slips
+            </button>
           </div>
 
-          {/* Reports Table */}
+          {/* Current Datesheet Indicator */}
+          {selectedExamForReport && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Viewing slips for:</span>
+                <span className="text-sm font-semibold text-blue-700">
+                  {datesheets.find(d => d.id === selectedExamForReport)?.title || 'Unknown Datesheet'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Class Filter */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Class (Optional)</label>
+            <select
+              value={slipClassFilter}
+              onChange={(e) => setSlipClassFilter(e.target.value)}
+              className="w-full md:w-1/2 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Classes</option>
+              {classes.map(cls => (
+                <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Slips Table */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
                   <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Report Type</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Student Name</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Roll Number</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Class</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Slip Number</th>
                   <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="bg-gray-200">
-                  <td colSpan="3" className="border border-gray-200 px-3 py-1 font-semibold text-gray-700">
-                    Roll No Slips
-                  </td>
-                </tr>
-                <tr className="bg-white hover:bg-blue-50 transition">
-                  <td className="border border-gray-200 px-3 py-2.5">1</td>
-                  <td className="border border-gray-200 px-3 py-2.5 font-medium">Roll No Slips</td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-center">
-                    <div className="flex gap-2 justify-center">
-                      <button
-                        onClick={() => handleViewGeneratedSlips('rollno')}
-                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
-                      >
-                        View Generated
-                      </button>
-                      <button
-                        onClick={() => handleOpenReportConfig('rollno')}
-                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm font-medium transition-colors"
-                      >
-                        Generate New
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                {fetchedSlips.length > 0 ? (
+                  fetchedSlips.map((slip, index) => (
+                    <tr key={slip.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                      <td className="border border-gray-200 px-3 py-2.5">{index + 1}</td>
+                      <td className="border border-gray-200 px-3 py-2.5 font-medium">{slip.student_name}</td>
+                      <td className="border border-gray-200 px-3 py-2.5">{slip.roll_number}</td>
+                      <td className="border border-gray-200 px-3 py-2.5">{slip.class_name}</td>
+                      <td className="border border-gray-200 px-3 py-2.5">{slip.slip_number}</td>
+                      <td className="border border-gray-200 px-3 py-2.5 text-center">
+                        <button
+                          onClick={() => handleViewSlip(slip)}
+                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="border border-gray-200 px-3 py-8 text-center text-gray-500">
+                      {selectedExamForReport ? (slipClassFilter ? 'No slips found for this class' : 'No slips generated yet. Click "Generate New Slips" to create slips.') : 'Please select a datesheet from the Schedule tab first'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -2590,6 +3422,23 @@ export default function DatesheetPage() {
             </div>
             <div className="p-6 space-y-4">
                 <div className="space-y-4">
+                  {/* Datesheet Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Datesheet <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={reportConfig.selectedDatesheet}
+                      onChange={(e) => setReportConfig({ ...reportConfig, selectedDatesheet: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="">Select a datesheet</option>
+                      {datesheets.map(datesheet => (
+                        <option key={datesheet.id} value={datesheet.id}>{datesheet.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Class Filter */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
@@ -2617,64 +3466,109 @@ export default function DatesheetPage() {
 
                   {/* Student Selection with Search */}
                   {(reportType === 'rollno' || reportType === 'admit-card') && (
-                    <div>
+                    <div className="relative">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Select Student</label>
-                      {/* Search Input */}
-                      <input
-                        type="text"
-                        placeholder="Search student by name or roll number..."
-                        value={studentSearchQuery}
-                        onChange={(e) => setStudentSearchQuery(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
-                      />
-                      {/* Student Dropdown */}
-                      <select
-                        value={reportConfig.selectedStudent}
-                        onChange={(e) => setReportConfig({ ...reportConfig, selectedStudent: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                        
-                      >
-                        <option value="all">All Students</option>
-                        {filteredStudents
-                          .filter(student => {
-                            if (!studentSearchQuery) return true
-                            const searchLower = studentSearchQuery.toLowerCase()
-                            const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
-                            return (
-                              fullName.toLowerCase().includes(searchLower) ||
-                              student.roll_number?.toString().includes(searchLower) ||
-                              student.admission_number?.toString().includes(searchLower)
-                            )
-                          })
-                          .map(student => {
-                            const displayName = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Unnamed'
-                            return (
-                              <option key={student.id} value={student.id}>
-                                {displayName} - Roll: {student.roll_number} - Adm: {student.admission_number}
-                              </option>
-                            )
-                          })}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {filteredStudents.length} students found
-                        {studentSearchQuery && ` (filtered by: "${studentSearchQuery}")`}
-                      </p>
-                    </div>
-                  )}
 
-                  {/* Gender Filter */}
-                  {(reportType === 'rollno' || reportType === 'admit-card') && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Gender Filter</label>
-                      <select
-                        value={reportConfig.genderFilter}
-                        onChange={(e) => setReportConfig({ ...reportConfig, genderFilter: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      >
-                        <option value="all">All Students</option>
-                        <option value="male">Boys Only</option>
-                        <option value="female">Girls Only</option>
-                      </select>
+                      {/* Custom Searchable Dropdown */}
+                      <div className="relative student-dropdown-container">
+                        <div
+                          onClick={() => setIsStudentDropdownOpen(!isStudentDropdownOpen)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white cursor-pointer flex items-center justify-between hover:border-gray-400 transition"
+                        >
+                          <span className={reportConfig.selectedStudent === 'all' || !reportConfig.selectedStudent ? 'text-gray-500' : 'text-gray-900'}>
+                            {(() => {
+                              if (reportConfig.selectedStudent === 'all') return 'All Students'
+                              const student = filteredStudents.find(s => s.id === reportConfig.selectedStudent)
+                              if (student) {
+                                const displayName = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Unnamed'
+                                return `${displayName} - Roll: ${student.roll_number}`
+                              }
+                              return 'Select a student'
+                            })()}
+                          </span>
+                          <svg className={`w-4 h-4 transition-transform ${isStudentDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+
+                        {/* Dropdown Menu */}
+                        {isStudentDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                            {/* Search Input */}
+                            <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
+                              <input
+                                type="text"
+                                placeholder="Search by name or roll number..."
+                                value={studentSearchQuery}
+                                onChange={(e) => setStudentSearchQuery(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+
+                            {/* Options List */}
+                            <div className="overflow-y-auto max-h-64">
+                              <div
+                                onClick={() => {
+                                  setReportConfig({ ...reportConfig, selectedStudent: 'all' })
+                                  setIsStudentDropdownOpen(false)
+                                  setStudentSearchQuery('')
+                                }}
+                                className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${
+                                  reportConfig.selectedStudent === 'all' ? 'bg-blue-100 text-blue-700' : 'text-gray-900'
+                                }`}
+                              >
+                                All Students
+                              </div>
+                              {filteredStudents
+                                .filter(student => {
+                                  if (!studentSearchQuery) return true
+                                  const searchLower = studentSearchQuery.toLowerCase()
+                                  const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
+                                  return (
+                                    fullName.toLowerCase().includes(searchLower) ||
+                                    student.roll_number?.toString().includes(searchLower) ||
+                                    student.admission_number?.toString().includes(searchLower)
+                                  )
+                                })
+                                .map(student => {
+                                  const displayName = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Unnamed'
+                                  return (
+                                    <div
+                                      key={student.id}
+                                      onClick={() => {
+                                        setReportConfig({ ...reportConfig, selectedStudent: student.id })
+                                        setIsStudentDropdownOpen(false)
+                                        setStudentSearchQuery('')
+                                      }}
+                                      className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${
+                                        reportConfig.selectedStudent === student.id ? 'bg-blue-100 text-blue-700' : 'text-gray-900'
+                                      }`}
+                                    >
+                                      <div className="font-medium">{displayName}</div>
+                                      <div className="text-xs text-gray-500">Roll: {student.roll_number} • Adm: {student.admission_number}</div>
+                                    </div>
+                                  )
+                                })}
+                              {filteredStudents.filter(student => {
+                                if (!studentSearchQuery) return true
+                                const searchLower = studentSearchQuery.toLowerCase()
+                                const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
+                                return (
+                                  fullName.toLowerCase().includes(searchLower) ||
+                                  student.roll_number?.toString().includes(searchLower) ||
+                                  student.admission_number?.toString().includes(searchLower)
+                                )
+                              }).length === 0 && studentSearchQuery && (
+                                <div className="px-3 py-2 text-gray-500 text-sm">No students found</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {filteredStudents.length} students available
+                      </p>
                     </div>
                   )}
 
@@ -2717,10 +3611,19 @@ export default function DatesheetPage() {
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowReportConfigModal(false)}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-6 py-2 text-gray-600 hover:text-gray-800 font-medium"
               >
                 Cancel
               </button>
+              {(reportType === 'rollno' || reportType === 'admit-card') && reportConfig.selectedClass && reportConfig.selectedClass !== 'all' && (
+                <button
+                  onClick={handleGenerateAllClassSlips}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                >
+                  {loading ? 'Generating...' : 'Generate All Class Slips'}
+                </button>
+              )}
               <button
                 onClick={handleGenerateReport}
                 disabled={loading}

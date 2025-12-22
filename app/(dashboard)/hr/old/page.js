@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { convertImageToBase64, addPDFHeader, addPDFFooter } from '@/lib/pdfUtils'
 
 export default function OldStaffPage() {
   const [searchType, setSearchType] = useState('Via General Data')
@@ -18,6 +20,7 @@ export default function OldStaffPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [schoolData, setSchoolData] = useState(null)
   const [toasts, setToasts] = useState([])
   const [showCustomDepartment, setShowCustomDepartment] = useState(false)
   const [customDepartment, setCustomDepartment] = useState('')
@@ -155,6 +158,7 @@ export default function OldStaffPage() {
   useEffect(() => {
     if (currentUser?.school_id) {
       fetchStaffData()
+      fetchSchoolData()
     }
   }, [currentUser])
 
@@ -245,6 +249,22 @@ export default function OldStaffPage() {
     }
   }
 
+  const fetchSchoolData = async () => {
+    if (!currentUser?.school_id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('*')
+        .eq('id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+      setSchoolData(data)
+    } catch (error) {
+      console.error('Error fetching school data:', error)
+    }
+  }
 
   const handleEdit = (staff) => {
     setEditingStaff(staff)
@@ -414,110 +434,69 @@ export default function OldStaffPage() {
   }
 
   // Export to PDF using jsPDF
-  const exportToPDF = () => {
-    const doc = new jsPDF('p', 'mm', 'a4')
+  const exportToPDF = async () => {
+    try {
+      const doc = new jsPDF()
 
-    // Add title
-    doc.setFontSize(16)
-    doc.setTextColor(37, 99, 235)
-    doc.text('Old / Disabled Staff Report', 105, 15, { align: 'center' })
-
-    // Add date
-    doc.setFontSize(9)
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 22, { align: 'center' })
-
-    // Table headers
-    const headers = ['Sr.', 'Name', 'Employee #', 'Designation', 'Phone', 'Department', 'Status']
-    const colWidths = [12, 35, 25, 30, 25, 30, 30]
-    let startX = 10
-    let startY = 35
-
-    // Draw header background
-    doc.setFillColor(37, 99, 235)
-    doc.rect(startX, startY - 6, 190, 8, 'F')
-
-    // Draw headers
-    doc.setFontSize(9)
-    doc.setTextColor(255, 255, 255)
-    doc.setFont(undefined, 'bold')
-    let xPos = startX + 2
-    headers.forEach((header, i) => {
-      doc.text(header, xPos, startY, { maxWidth: colWidths[i] - 4 })
-      xPos += colWidths[i]
-    })
-
-    // Draw table rows
-    doc.setTextColor(0, 0, 0)
-    doc.setFont(undefined, 'normal')
-    doc.setFontSize(8)
-
-    let yPos = startY + 6
-    const rowHeight = 8
-    const maxRowsPerPage = 30
-    let rowCount = 0
-
-    filteredStaffData.forEach((staff, index) => {
-      // Check if we need a new page
-      if (rowCount >= maxRowsPerPage) {
-        doc.addPage()
-        yPos = 20
-        rowCount = 0
-
-        // Redraw headers on new page
-        doc.setFillColor(37, 99, 235)
-        doc.rect(startX, yPos - 6, 190, 8, 'F')
-        doc.setTextColor(255, 255, 255)
-        doc.setFont(undefined, 'bold')
-        xPos = startX + 2
-        headers.forEach((header, i) => {
-          doc.text(header, xPos, yPos, { maxWidth: colWidths[i] - 4 })
-          xPos += colWidths[i]
-        })
-        doc.setTextColor(0, 0, 0)
-        doc.setFont(undefined, 'normal')
-        yPos += 6
+      // Load school logo if available
+      let logoBase64 = null
+      if (schoolData?.logo) {
+        logoBase64 = await convertImageToBase64(schoolData.logo)
       }
 
-      // Alternate row colors
-      if (index % 2 === 0) {
-        doc.setFillColor(248, 250, 252)
-        doc.rect(startX, yPos - 5, 190, rowHeight, 'F')
+      // Prepare school data for header
+      const schoolInfo = {
+        name: schoolData?.name || 'SCHOOL NAME',
+        logo: logoBase64
       }
 
-      // Draw row data
-      const rowData = [
-        String(index + 1),
+      // Add professional header with logo
+      const startY = addPDFHeader(doc, schoolInfo, 'OLD / INACTIVE STAFF REPORT', {
+        subtitle: `Total Staff: ${filteredStaffData.length}`,
+        info: `Status: Inactive/Disabled`
+      })
+
+      // Prepare table data
+      const tableData = filteredStaffData.map((staff, index) => [
+        index + 1,
         staff.name || 'N/A',
         staff.employeeNumber || 'N/A',
         staff.designation || 'N/A',
         staff.phone || 'N/A',
         staff.department || 'N/A',
         staff.status || 'N/A'
-      ]
+      ])
 
-      xPos = startX + 2
-      rowData.forEach((data, i) => {
-        doc.text(String(data), xPos, yPos, { maxWidth: colWidths[i] - 4 })
-        xPos += colWidths[i]
+      // Add table
+      autoTable(doc, {
+        head: [['Sr.', 'Name', 'Employee #', 'Designation', 'Phone', 'Department', 'Status']],
+        body: tableData,
+        startY: startY,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [31, 78, 120],
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontSize: 9
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
+        },
+        margin: { left: 15, right: 15 }
       })
 
-      yPos += rowHeight
-      rowCount++
-    })
+      // Add footer
+      addPDFFooter(doc, 1, 1)
 
-    // Add footer
-    yPos += 5
-    if (yPos > 270) {
-      doc.addPage()
-      yPos = 20
+      // Save PDF
+      doc.save(`old_staff_report_${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast('Error generating PDF report', 'error')
     }
-    doc.setFontSize(9)
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Total Old Staff: ${filteredStaffData.length}`, startX, yPos)
-
-    // Save PDF
-    doc.save(`old_staff_report_${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   const resetForm = () => {

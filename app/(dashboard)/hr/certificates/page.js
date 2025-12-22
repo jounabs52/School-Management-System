@@ -10,6 +10,7 @@ import {
   addPDFFooter,
   addSignatureSection,
   formatDate,
+  convertImageToBase64,
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
@@ -155,207 +156,243 @@ export default function HRCertificatesPage() {
   }
 
   // Generate PDF Certificate
-  const generatePDFCertificate = () => {
+  const generatePDFCertificate = async () => {
     if (!staffData || !schoolData) return
 
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    })
+    try {
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      })
 
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 20
-    const contentWidth = pageWidth - (2 * margin)
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 20
+      const contentWidth = pageWidth - (2 * margin)
 
-    // Add decorative border using utility function
-    addDecorativeBorder(doc, 'brown')
-
-    // Add watermark
-    addPDFWatermark(doc, schoolData, 'OFFICIAL')
-
-    // Certificate Type Label
-    const certificateTypeLabel = certificateTypes.find(ct => ct.value === certificateType)?.label || certificateType
-
-    // Header - Certificate Title
-    doc.setFont(PDF_FONTS.primary, 'bold')
-    doc.setFontSize(28)
-    doc.setTextColor(...PDF_COLORS.secondary)
-    doc.text('CERTIFICATE', pageWidth / 2, 35, { align: 'center' })
-
-    // School Name
-    doc.setFontSize(18)
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text(schoolData.name || 'SCHOOL NAME', pageWidth / 2, 48, { align: 'center' })
-
-    // Tagline (if available)
-    if (schoolData.tagline) {
-      doc.setFont(PDF_FONTS.primary, 'italic')
-      doc.setFontSize(10)
-      doc.setTextColor(...PDF_COLORS.textLight)
-      doc.text(schoolData.tagline, pageWidth / 2, 54, { align: 'center' })
-    }
-
-    // School Details
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(...PDF_COLORS.textLight)
-    const schoolDetails = []
-    if (schoolData.address) schoolDetails.push(schoolData.address)
-    if (schoolData.phone) schoolDetails.push(`Ph: ${schoolData.phone}`)
-    if (schoolData.email) schoolDetails.push(`Email: ${schoolData.email}`)
-
-    if (schoolDetails.length > 0) {
-      doc.text(schoolDetails.join(' | '), pageWidth / 2, 60, { align: 'center' })
-    }
-
-    // Divider line
-    doc.setDrawColor(...PDF_COLORS.border)
-    doc.setLineWidth(0.5)
-    doc.line(margin + 10, 66, pageWidth - margin - 10, 66)
-
-    // Certificate Type
-    doc.setFont(PDF_FONTS.primary, 'bolditalic')
-    doc.setFontSize(16)
-    doc.setTextColor(...PDF_COLORS.secondary)
-    doc.text(certificateTypeLabel, pageWidth / 2, 75, { align: 'center' })
-
-    // Main Content
-    const startY = 88
-    doc.setFont(PDF_FONTS.primary, 'normal')
-    doc.setFontSize(12)
-    doc.setTextColor(...PDF_COLORS.textDark)
-
-    // Certificate text with actual data using formatDate utility
-    const joiningDate = formatDate(staffData.joining_date, 'long')
-    const currentDate = formatDate(new Date().toISOString(), 'long')
-
-    let certificateText = ''
-    const staffFullName = `${staffData.first_name} ${staffData.last_name || ''}`.trim()
-    const staffDesignation = staffData.designation || 'Staff Member'
-    const staffDepartment = staffData.department || 'General'
-
-    if (certificateType === 'experience') {
-      certificateText = `This is to certify that ${staffFullName}${staffData.father_name ? `, S/o ${staffData.father_name},` : ''} has worked with ${schoolData.name} as ${staffDesignation} in the ${staffDepartment} department from ${joiningDate} to ${currentDate}. During this period, they have shown dedication, professionalism, and commitment to their duties.`
-    } else if (certificateType === 'relieving') {
-      certificateText = `This is to certify that ${staffFullName}, Employee Number: ${staffData.employee_number}, has been relieved from their duties as ${staffDesignation} at ${schoolData.name} effective ${currentDate}. During their tenure from ${joiningDate}, they have cleared all dues and obligations. We wish them all the best in their future endeavors.`
-    } else if (certificateType === 'appreciation') {
-      certificateText = `This certificate is presented to ${staffFullName} in recognition of their outstanding contribution and dedicated service as ${staffDesignation} at ${schoolData.name}. Their commitment, excellence, and professionalism have significantly contributed to our institution's success and growth.`
-    } else {
-      // For custom certificate types
-      certificateText = `This is to certify that ${staffFullName} has been associated with ${schoolData.name} as ${staffDesignation}. This ${certificateTypeLabel} is issued as per their request and in recognition of their valuable contribution to our institution.`
-    }
-
-    // Text wrapping with better formatting
-    const lines = doc.splitTextToSize(certificateText, contentWidth - 40)
-    doc.text(lines, pageWidth / 2, startY, { align: 'center', maxWidth: contentWidth - 40 })
-
-    // Staff Information - Professional Box Design
-    const infoY = startY + (lines.length * 7) + 18
-    const boxY = infoY
-    const boxHeight = 35
-    const leftMargin = margin + 20
-
-    // Info box with light background
-    doc.setFillColor(250, 250, 250)
-    doc.rect(leftMargin, boxY, contentWidth - 40, boxHeight, 'F')
-    doc.setDrawColor(...PDF_COLORS.border)
-    doc.setLineWidth(0.3)
-    doc.rect(leftMargin, boxY, contentWidth - 40, boxHeight, 'S')
-
-    // Staff Details - Two Column Layout
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setFontSize(10)
-    doc.setTextColor(...PDF_COLORS.textDark)
-
-    let currentY = boxY + 8
-    const col1X = leftMargin + 5
-    const col2X = leftMargin + (contentWidth - 40) / 2 + 5
-
-    // Row 1
-    doc.setTextColor(...PDF_COLORS.textLight)
-    doc.text('Name:', col1X, currentY)
-    doc.text("Father's Name:", col2X, currentY)
-
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text(staffFullName, col1X + 25, currentY)
-    doc.text(staffData.father_name || 'N/A', col2X + 30, currentY)
-
-    // Row 2
-    currentY += 8
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textLight)
-    doc.text('Designation:', col1X, currentY)
-    doc.text('Department:', col2X, currentY)
-
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text(staffDesignation, col1X + 25, currentY)
-    doc.text(staffDepartment, col2X + 30, currentY)
-
-    // Row 3
-    currentY += 8
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textLight)
-    doc.text('Employee Number:', col1X, currentY)
-    doc.text('Joining Date:', col2X, currentY)
-
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text(staffData.employee_number || 'N/A', col1X + 35, currentY)
-    doc.text(joiningDate, col2X + 30, currentY)
-
-    // Row 4
-    currentY += 8
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textLight)
-    doc.text('Issue Date:', col1X, currentY)
-
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text(currentDate, col1X + 25, currentY)
-
-    // Signature Section using utility function
-    const sigY = boxY + boxHeight + 20
-    const signatures = [
-      {
-        label: 'Authorized By',
-        name: schoolData.principal_name || '',
-        title: 'Principal / Head of Institution'
-      },
-      {
-        label: 'Issued By',
-        name: '',
-        title: 'HR Department'
+      // Load school logo if available
+      let logoBase64 = null
+      if (schoolData?.logo) {
+        logoBase64 = await convertImageToBase64(schoolData.logo)
       }
-    ]
-    addSignatureSection(doc, signatures, sigY)
 
-    // Certificate Number (bottom left)
-    const certNumber = `CERT-${Date.now()}-${staffData.employee_number}`
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(...PDF_COLORS.textLight)
-    doc.text(certNumber, leftMargin, pageHeight - 20)
+      // Add decorative border using utility function
+      addDecorativeBorder(doc, 'brown')
 
-    // School Stamp placeholder (right side)
-    doc.setDrawColor(...PDF_COLORS.border)
-    doc.setLineWidth(0.5)
-    const stampX = pageWidth - margin - 50
-    const stampY = sigY - 5
-    doc.circle(stampX + 20, stampY + 15, 18, 'S')
-    doc.setFontSize(7)
-    doc.text('SCHOOL', stampX + 20, stampY + 13, { align: 'center' })
-    doc.text('STAMP', stampX + 20, stampY + 18, { align: 'center' })
+      // Add watermark
+      addPDFWatermark(doc, schoolData, 'OFFICIAL')
 
-    // Professional Footer using utility
-    addPDFFooter(doc, 1, 1)
+      // School Logo at the top center
+      if (logoBase64) {
+        try {
+          const logoSize = 20
+          const logoX = (pageWidth - logoSize) / 2
+          const logoY = 18
 
-    // Save PDF
-    const fileName = `${certificateTypeLabel.replace(/\s+/g, '_')}_${staffData.first_name}_${staffData.last_name}_${Date.now()}.pdf`
-    doc.save(fileName)
+          let format = 'PNG'
+          if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) {
+            format = 'JPEG'
+          }
+
+          doc.addImage(logoBase64, format, logoX, logoY, logoSize, logoSize)
+        } catch (error) {
+          console.error('Error adding logo to certificate:', error)
+        }
+      }
+
+      // Certificate Type Label
+      const certificateTypeLabel = certificateTypes.find(ct => ct.value === certificateType)?.label || certificateType
+
+      // Header - Certificate Title (adjusted position for logo)
+      const titleY = logoBase64 ? 42 : 35
+      doc.setFont(PDF_FONTS.primary, 'bold')
+      doc.setFontSize(28)
+      doc.setTextColor(...PDF_COLORS.secondary)
+      doc.text('CERTIFICATE', pageWidth / 2, titleY, { align: 'center' })
+
+      // School Name
+      const schoolNameY = logoBase64 ? 55 : 48
+      doc.setFontSize(18)
+      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.text(schoolData.name || 'SCHOOL NAME', pageWidth / 2, schoolNameY, { align: 'center' })
+
+      // Tagline (if available)
+      let currentY = schoolNameY + 6
+      if (schoolData.tagline) {
+        doc.setFont(PDF_FONTS.primary, 'italic')
+        doc.setFontSize(10)
+        doc.setTextColor(...PDF_COLORS.textLight)
+        doc.text(schoolData.tagline, pageWidth / 2, currentY, { align: 'center' })
+        currentY += 6
+      }
+
+      // School Details
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...PDF_COLORS.textLight)
+      const schoolDetails = []
+      if (schoolData.address) schoolDetails.push(schoolData.address)
+      if (schoolData.phone) schoolDetails.push(`Ph: ${schoolData.phone}`)
+      if (schoolData.email) schoolDetails.push(`Email: ${schoolData.email}`)
+
+      if (schoolDetails.length > 0) {
+        doc.text(schoolDetails.join(' | '), pageWidth / 2, currentY, { align: 'center' })
+        currentY += 6
+      }
+
+      // Divider line
+      doc.setDrawColor(...PDF_COLORS.border)
+      doc.setLineWidth(0.5)
+      doc.line(margin + 10, currentY, pageWidth - margin - 10, currentY)
+      currentY += 9
+
+      // Certificate Type
+      doc.setFont(PDF_FONTS.primary, 'bolditalic')
+      doc.setFontSize(16)
+      doc.setTextColor(...PDF_COLORS.secondary)
+      doc.text(certificateTypeLabel, pageWidth / 2, currentY, { align: 'center' })
+      currentY += 13
+
+      // Main Content
+      const startY = currentY
+      doc.setFont(PDF_FONTS.primary, 'normal')
+      doc.setFontSize(12)
+      doc.setTextColor(...PDF_COLORS.textDark)
+
+      // Certificate text with actual data using formatDate utility
+      const joiningDate = formatDate(staffData.joining_date, 'long')
+      const currentDate = formatDate(new Date().toISOString(), 'long')
+
+      let certificateText = ''
+      const staffFullName = `${staffData.first_name} ${staffData.last_name || ''}`.trim()
+      const staffDesignation = staffData.designation || 'Staff Member'
+      const staffDepartment = staffData.department || 'General'
+
+      if (certificateType === 'experience') {
+        certificateText = `This is to certify that ${staffFullName}${staffData.father_name ? `, S/o ${staffData.father_name},` : ''} has worked with ${schoolData.name} as ${staffDesignation} in the ${staffDepartment} department from ${joiningDate} to ${currentDate}. During this period, they have shown dedication, professionalism, and commitment to their duties.`
+      } else if (certificateType === 'relieving') {
+        certificateText = `This is to certify that ${staffFullName}, Employee Number: ${staffData.employee_number}, has been relieved from their duties as ${staffDesignation} at ${schoolData.name} effective ${currentDate}. During their tenure from ${joiningDate}, they have cleared all dues and obligations. We wish them all the best in their future endeavors.`
+      } else if (certificateType === 'appreciation') {
+        certificateText = `This certificate is presented to ${staffFullName} in recognition of their outstanding contribution and dedicated service as ${staffDesignation} at ${schoolData.name}. Their commitment, excellence, and professionalism have significantly contributed to our institution's success and growth.`
+      } else {
+        // For custom certificate types
+        certificateText = `This is to certify that ${staffFullName} has been associated with ${schoolData.name} as ${staffDesignation}. This ${certificateTypeLabel} is issued as per their request and in recognition of their valuable contribution to our institution.`
+      }
+
+      // Text wrapping with better formatting
+      const lines = doc.splitTextToSize(certificateText, contentWidth - 40)
+      doc.text(lines, pageWidth / 2, startY, { align: 'center', maxWidth: contentWidth - 40 })
+
+      // Staff Information - Professional Box Design
+      const infoY = startY + (lines.length * 7) + 18
+      const boxY = infoY
+      const boxHeight = 35
+      const leftMargin = margin + 20
+
+      // Info box with light background
+      doc.setFillColor(250, 250, 250)
+      doc.rect(leftMargin, boxY, contentWidth - 40, boxHeight, 'F')
+      doc.setDrawColor(...PDF_COLORS.border)
+      doc.setLineWidth(0.3)
+      doc.rect(leftMargin, boxY, contentWidth - 40, boxHeight, 'S')
+
+      // Staff Details - Two Column Layout
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(...PDF_COLORS.textDark)
+
+      let staffInfoY = boxY + 8
+      const col1X = leftMargin + 5
+      const col2X = leftMargin + (contentWidth - 40) / 2 + 5
+
+      // Row 1
+      doc.setTextColor(...PDF_COLORS.textLight)
+      doc.text('Name:', col1X, staffInfoY)
+      doc.text("Father's Name:", col2X, staffInfoY)
+
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.text(staffFullName, col1X + 25, staffInfoY)
+      doc.text(staffData.father_name || 'N/A', col2X + 30, staffInfoY)
+
+      // Row 2
+      staffInfoY += 8
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...PDF_COLORS.textLight)
+      doc.text('Designation:', col1X, staffInfoY)
+      doc.text('Department:', col2X, staffInfoY)
+
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.text(staffDesignation, col1X + 25, staffInfoY)
+      doc.text(staffDepartment, col2X + 30, staffInfoY)
+
+      // Row 3
+      staffInfoY += 8
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...PDF_COLORS.textLight)
+      doc.text('Employee Number:', col1X, staffInfoY)
+      doc.text('Joining Date:', col2X, staffInfoY)
+
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.text(staffData.employee_number || 'N/A', col1X + 35, staffInfoY)
+      doc.text(joiningDate, col2X + 30, staffInfoY)
+
+      // Row 4
+      staffInfoY += 8
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...PDF_COLORS.textLight)
+      doc.text('Issue Date:', col1X, staffInfoY)
+
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.text(currentDate, col1X + 25, staffInfoY)
+
+      // Signature Section using utility function
+      const sigY = boxY + boxHeight + 20
+      const signatures = [
+        {
+          label: 'Authorized By',
+          name: schoolData.principal_name || '',
+          title: 'Principal / Head of Institution'
+        },
+        {
+          label: 'Issued By',
+          name: '',
+          title: 'HR Department'
+        }
+      ]
+      addSignatureSection(doc, signatures, sigY)
+
+      // Certificate Number (bottom left)
+      const certNumber = `CERT-${Date.now()}-${staffData.employee_number}`
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(...PDF_COLORS.textLight)
+      doc.text(certNumber, leftMargin, pageHeight - 20)
+
+      // School Stamp placeholder (right side)
+      doc.setDrawColor(...PDF_COLORS.border)
+      doc.setLineWidth(0.5)
+      const stampX = pageWidth - margin - 50
+      const stampY = sigY - 5
+      doc.circle(stampX + 20, stampY + 15, 18, 'S')
+      doc.setFontSize(7)
+      doc.text('SCHOOL', stampX + 20, stampY + 13, { align: 'center' })
+      doc.text('STAMP', stampX + 20, stampY + 18, { align: 'center' })
+
+      // Professional Footer using utility
+      addPDFFooter(doc, 1, 1)
+
+      // Save PDF
+      const fileName = `${certificateTypeLabel.replace(/\s+/g, '_')}_${staffData.first_name}_${staffData.last_name}_${Date.now()}.pdf`
+      doc.save(fileName)
+    } catch (error) {
+      console.error('Error generating certificate:', error)
+      showToast('Error generating certificate PDF', 'error')
+    }
   }
 
   // Save certificate to database and generate PDF
