@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FileText, Loader2, AlertCircle, X, Download, Save, Check } from 'lucide-react'
+import { FileText, Loader2, AlertCircle, X, Download, Save, Check, Settings } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 import {
@@ -38,6 +38,67 @@ export default function StudentCertificatesPage() {
   const [schoolData, setSchoolData] = useState(null)
   const [certificateData, setCertificateData] = useState({
     conduct: 'V.Good'
+  })
+  const [showCertificateSettings, setShowCertificateSettings] = useState(false)
+  const [certificateSettings, setCertificateSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('certificateSettings')
+      return saved ? JSON.parse(saved) : {
+        // Header
+        instituteName: 'Superior College Bhakkar',
+        certificateTitle: 'Character Certificate',
+        showSchoolLogo: true,
+        logoSize: 'medium',
+
+        // Colors
+        borderColor: '#8B4513',
+        headerTextColor: '#8B4513',
+        textColor: '#000000',
+        accentColor: '#D2691E',
+
+        // Certificate Fields
+        showDate: true,
+        showGroup: true,
+        showRegistrationNo: true,
+        showFatherName: true,
+        showDateOfBirth: true,
+        showConduct: true,
+
+        // Signature
+        principalSignature: null,
+        principalTitle: 'Principal',
+        schoolNameInSignature: 'Superior College Bhakkar',
+
+        // Footer
+        footerText: '',
+
+        // Border & Design
+        showBorder: true,
+        borderStyle: 'decorative'
+      }
+    }
+    return {
+      instituteName: 'Superior College Bhakkar',
+      certificateTitle: 'Character Certificate',
+      showSchoolLogo: true,
+      logoSize: 'medium',
+      borderColor: '#8B4513',
+      headerTextColor: '#8B4513',
+      textColor: '#000000',
+      accentColor: '#D2691E',
+      showDate: true,
+      showGroup: true,
+      showRegistrationNo: true,
+      showFatherName: true,
+      showDateOfBirth: true,
+      showConduct: true,
+      principalSignature: null,
+      principalTitle: 'Principal',
+      schoolNameInSignature: 'Superior College Bhakkar',
+      footerText: '',
+      showBorder: true,
+      borderStyle: 'decorative'
+    }
   })
 
   useEffect(() => {
@@ -153,6 +214,21 @@ export default function StudentCertificatesPage() {
     }
   }
 
+  const handleCertificateSettingChange = (key, value) => {
+    setCertificateSettings(prev => {
+      const updated = { ...prev, [key]: value }
+      localStorage.setItem('certificateSettings', JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const saveCertificateSettings = () => {
+    localStorage.setItem('certificateSettings', JSON.stringify(certificateSettings))
+    setSuccess('Certificate settings saved successfully!')
+    setTimeout(() => setSuccess(null), 3000)
+    setShowCertificateSettings(false)
+  }
+
   const getClassName = (classId) => {
     const classObj = classes.find(c => c.id === classId)
     return classObj?.class_name || ''
@@ -221,7 +297,7 @@ export default function StudentCertificatesPage() {
     // Save to database first
     try {
       // Fetch school_id
-      const { data: schools, error: schoolError } = await supabase
+      const { data: schools, error: schoolError} = await supabase
         .from('schools')
         .select('id')
         .limit(1)
@@ -254,19 +330,53 @@ export default function StudentCertificatesPage() {
 
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 15
+    const margin = 12
 
-    // Add decorative border (brown/gold)
-    addDecorativeBorder(doc, 'brown')
+    // Helper function to convert hex to RGB
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16)
+      ] : [0, 0, 0]
+    }
 
-    // Add school logo if available
-    if (schoolData?.logo) {
+    const borderRgb = hexToRgb(certificateSettings.borderColor || '#8B4513')
+    const headerRgb = hexToRgb(certificateSettings.headerTextColor || '#8B4513')
+    const textRgb = hexToRgb(certificateSettings.textColor || '#000000')
+    const accentRgb = hexToRgb(certificateSettings.accentColor || '#D2691E')
+
+    // Add decorative border if enabled
+    if (certificateSettings.showBorder) {
+      addDecorativeBorder(doc, certificateSettings.borderColor || '#8B4513')
+    }
+
+    // Generate a simple serial number (you can customize this logic)
+    const serialNumber = Math.floor(Math.random() * 1000) + 1
+
+    // Sr. No. at top left corner (on same line, inside border)
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Sr. No.:', margin + 5, margin + 7)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.text(serialNumber.toString(), margin + 21, margin + 7)
+
+    // Dated at top right corner (on same line, inside border)
+    const currentDate = new Date().toLocaleDateString('en-GB')
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.text('Dated:', pageWidth - margin - 38, margin + 7)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.text(currentDate, pageWidth - margin - 21, margin + 7)
+
+    // Add school logo at top center
+    if (certificateSettings.showSchoolLogo && schoolData?.logo) {
       try {
-        const logoSize = 25
+        const logoSize = 20
         const logoX = (pageWidth - logoSize) / 2
-        const logoY = margin + 5
+        const logoY = margin + 8
 
-        // Determine image format
         let format = 'PNG'
         if (schoolData.logo.includes('data:image/jpeg') || schoolData.logo.includes('data:image/jpg')) {
           format = 'JPEG'
@@ -278,97 +388,139 @@ export default function StudentCertificatesPage() {
       }
     }
 
-    // School Name
-    const nameY = schoolData?.logo ? margin + 35 : margin + 15
-    doc.setFontSize(22)
-    doc.setFont(PDF_FONTS.primary, 'bold')
-    doc.setTextColor(...PDF_COLORS.secondary)
-    doc.text(schoolData?.name || 'SCHOOL NAME', pageWidth / 2, nameY, { align: 'center' })
-
-    // School Address
-    doc.setFontSize(10)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text(schoolData?.address || 'School Address', pageWidth / 2, nameY + 7, { align: 'center' })
-
-    // Certificate Title
-    const titleY = nameY + 15
+    // School Name (centered, below logo)
     doc.setFontSize(20)
     doc.setFont(PDF_FONTS.primary, 'bold')
-    doc.setTextColor(...PDF_COLORS.accent)
-    doc.text('Character Certificate', pageWidth / 2, titleY, { align: 'center' })
+    doc.setTextColor(...headerRgb)
+    const instituteName = certificateSettings.instituteName || schoolData?.name || 'Superior College Bhakkar'
+    doc.text(instituteName, pageWidth / 2, margin + 35, { align: 'center' })
 
-    // Group/Class
-    doc.setFontSize(12)
+    // School Address/Subtitle (small text under school name)
+    doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text(`Group: ${getClassName(studentData.current_class_id)}`, pageWidth / 2, titleY + 8, { align: 'center' })
+    doc.setTextColor(...textRgb)
+    doc.text(schoolData?.address || 'Bhakkar', pageWidth / 2, margin + 41, { align: 'center' })
 
-    // Registration/Admission Number
-    const regNo = `Registration No. ${studentData.admission_number || 'N/A'}`
-    doc.setFontSize(11)
-    doc.text(regNo, pageWidth / 2, titleY + 16, { align: 'center' })
+    // Certificate Title
+    doc.setFontSize(18)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...accentRgb)
+    doc.text(certificateSettings.certificateTitle || 'Character Certificate', pageWidth / 2, margin + 51, { align: 'center' })
 
-    // Student Details
-    const startY = titleY + 30
-    const labelX = margin + 25
-    const valueX = margin + 85
+    // Student Details Section (Clean Table-like Layout)
+    const detailsY = margin + 62
+    const leftColX = margin + 18
+    const midColX = pageWidth / 2 + 10
+    const lineHeight = 7
 
-    doc.setFontSize(11)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textDark)
+    let currentY = detailsY
 
-    // Name
-    doc.text('Name of Student:', labelX, startY)
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.primary)
-    doc.text(`${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim() || 'N/A', valueX, startY)
-
-    // Father's Name
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text("Father's Name:", labelX, startY + 8)
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.primary)
-    doc.text(studentData.father_name || 'N/A', valueX, startY + 8)
-
-    // Date of Birth
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text('Date of Birth:', labelX, startY + 16)
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.primary)
-    doc.text(studentData.date_of_birth || 'N/A', valueX, startY + 16)
-
-    // Conduct Statement
-    doc.setFont(PDF_FONTS.primary, 'normal')
-    doc.setFontSize(11)
-    doc.setTextColor(...PDF_COLORS.textDark)
-    const conductText = `During his/her stay at this school, his/her character and conduct was found ${conductValue}.`
-    doc.text(conductText, labelX, startY + 32, { maxWidth: pageWidth - 2 * labelX })
-
-    // Date
-    doc.setFont(PDF_FONTS.secondary, 'normal')
     doc.setFontSize(10)
-    doc.setTextColor(...PDF_COLORS.textDark)
-    const currentDate = new Date().toLocaleDateString('en-GB')
-    doc.text(`Date: ${currentDate}`, labelX, pageHeight - margin - 30)
 
-    // Principal Signature
-    doc.setFontSize(11)
+    // Row 1: Name of Student and Roll No
     doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...PDF_COLORS.textDark)
-    doc.text('_____________________', pageWidth - margin - 50, pageHeight - margin - 30)
-    doc.text('Principal Signature', pageWidth - margin - 50, pageHeight - margin - 25)
+    doc.setTextColor(...textRgb)
+    doc.text('Name of Student:', leftColX, currentY)
     doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    doc.text(`${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim() || 'Iqbal', leftColX + 38, currentY)
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Roll No.:', midColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    doc.text(studentData.roll_number || '77', midColX + 18, currentY)
+
+    currentY += lineHeight
+
+    // Row 2: Examination Passed and Session
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Examination Passed:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    doc.text('SSC', leftColX + 43, currentY)
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Session:', midColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    const currentYear = new Date().getFullYear()
+    doc.text(`${currentYear - 2}-${currentYear.toString().substr(2)}`, midColX + 18, currentY)
+
+    currentY += lineHeight
+
+    // Row 3: Marks Obtained and Total Marks
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Marks Obtained:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    doc.text(studentData.marks_obtained?.toString() || 'N/A', leftColX + 38, currentY)
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Total Marks:', midColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    doc.text(studentData.total_marks?.toString() || 'N/A', midColX + 28, currentY)
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Year:', midColX + 58, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    doc.text(currentYear.toString(), midColX + 73, currentY)
+
+    currentY += lineHeight
+
+    // Row 4: Grade
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Grade:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    doc.text(studentData.grade || 'N/A', leftColX + 16, currentY)
+
+    // Principal Signature Section (bottom right)
+    const signX = pageWidth - margin - 45
+    const signY = pageHeight - margin - 30
+
+    // Add signature image if available
+    if (certificateSettings.principalSignature) {
+      try {
+        doc.addImage(certificateSettings.principalSignature, 'PNG', signX - 10, signY - 10, 30, 12)
+      } catch (error) {
+        console.error('Error adding signature:', error)
+      }
+    }
+
+    // Signature line
+    doc.setLineWidth(0.3)
+    doc.setDrawColor(...textRgb)
+    doc.line(signX - 15, signY + 5, signX + 30, signY + 5)
+
     doc.setFontSize(10)
-    doc.setTextColor(...PDF_COLORS.textLight)
-    doc.text(schoolData?.name || 'School Name', pageWidth - margin - 50, pageHeight - margin - 20)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Principal Signature', signX + 7, signY + 10, { align: 'center' })
+
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(0, 0, 139)
+    const schoolLines = (certificateSettings.schoolNameInSignature || instituteName).split('\n')
+    schoolLines.forEach((line, index) => {
+      doc.text(line, signX + 7, signY + 15 + (index * 4), { align: 'center' })
+    })
 
     // Footer
-    doc.setFontSize(8)
-    doc.setTextColor(...PDF_COLORS.textLight)
-    doc.text(schoolData?.phone || '', pageWidth / 2, pageHeight - margin - 8, { align: 'center' })
+    if (certificateSettings.footerText) {
+      doc.setFontSize(8)
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.footerText, pageWidth / 2, pageHeight - margin - 5, { align: 'center' })
+    }
 
     // Save PDF
     const fileName = `Certificate_${studentData.first_name || 'Student'}_${studentData.admission_number || 'NA'}_${Date.now()}.pdf`
@@ -384,11 +536,20 @@ export default function StudentCertificatesPage() {
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center">
-          <FileText className="text-white" size={24} />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center">
+            <FileText className="text-white" size={24} />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800">Certificates</h1>
         </div>
-        <h1 className="text-2xl font-bold text-gray-800">Certificates</h1>
+        <button
+          onClick={() => setShowCertificateSettings(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          <Settings className="w-4 h-4" />
+          Certificate Settings
+        </button>
       </div>
 
       {/* Success/Error Messages */}
@@ -708,6 +869,300 @@ export default function StudentCertificatesPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Certificate Settings Modal */}
+      {showCertificateSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">Certificate Settings</h2>
+              <button
+                onClick={() => setShowCertificateSettings(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Header & Branding */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">HEADER & BRANDING</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Institute Name
+                    </label>
+                    <input
+                      type="text"
+                      value={certificateSettings.instituteName}
+                      onChange={(e) => handleCertificateSettingChange('instituteName', e.target.value)}
+                      placeholder="e.g., SUPILER COLLEGE BHAKKAR"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={certificateSettings.headerSubtitle}
+                      onChange={(e) => handleCertificateSettingChange('headerSubtitle', e.target.value)}
+                      placeholder="e.g., CERTIFICATE OF ACHIEVEMENT"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="showSchoolLogo"
+                        checked={certificateSettings.showSchoolLogo}
+                        onChange={(e) => handleCertificateSettingChange('showSchoolLogo', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <label htmlFor="showSchoolLogo" className="text-sm font-medium text-gray-700">
+                        Show School Logo
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Size</label>
+                      <select
+                        value={certificateSettings.logoSize}
+                        onChange={(e) => handleCertificateSettingChange('logoSize', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">COLOR SETTINGS</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Border Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={certificateSettings.borderColor}
+                        onChange={(e) => handleCertificateSettingChange('borderColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={certificateSettings.borderColor}
+                        onChange={(e) => handleCertificateSettingChange('borderColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Text Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={certificateSettings.headerTextColor}
+                        onChange={(e) => handleCertificateSettingChange('headerTextColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={certificateSettings.headerTextColor}
+                        onChange={(e) => handleCertificateSettingChange('headerTextColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Text Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={certificateSettings.textColor}
+                        onChange={(e) => handleCertificateSettingChange('textColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={certificateSettings.textColor}
+                        onChange={(e) => handleCertificateSettingChange('textColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Accent Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={certificateSettings.accentColor}
+                        onChange={(e) => handleCertificateSettingChange('accentColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={certificateSettings.accentColor}
+                        onChange={(e) => handleCertificateSettingChange('accentColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signature Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">SIGNATURE SETTINGS</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Principal Signature Image
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onloadend = () => {
+                            handleCertificateSettingChange('principalSignature', reader.result)
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                    {certificateSettings.principalSignature && (
+                      <div className="mt-2">
+                        <img src={certificateSettings.principalSignature} alt="Principal Signature" className="h-12 border border-gray-300 rounded" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Principal Name
+                    </label>
+                    <input
+                      type="text"
+                      value={certificateSettings.principalName}
+                      onChange={(e) => handleCertificateSettingChange('principalName', e.target.value)}
+                      placeholder="e.g., Dr. John Smith"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Principal Designation
+                    </label>
+                    <input
+                      type="text"
+                      value={certificateSettings.principalDesignation}
+                      onChange={(e) => handleCertificateSettingChange('principalDesignation', e.target.value)}
+                      placeholder="e.g., Principal"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Border & Design */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">BORDER & DESIGN</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showBorder"
+                      checked={certificateSettings.showBorder}
+                      onChange={(e) => handleCertificateSettingChange('showBorder', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showBorder" className="text-sm font-medium text-gray-700">
+                      Show Border
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Border Style</label>
+                    <select
+                      value={certificateSettings.borderStyle}
+                      onChange={(e) => handleCertificateSettingChange('borderStyle', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="simple">Simple</option>
+                      <option value="decorative">Decorative</option>
+                      <option value="double">Double Line</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">FOOTER SETTINGS</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showDate"
+                      checked={certificateSettings.showDate}
+                      onChange={(e) => handleCertificateSettingChange('showDate', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showDate" className="text-sm font-medium text-gray-700">
+                      Show Issue Date
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showSerialNumber"
+                      checked={certificateSettings.showSerialNumber}
+                      onChange={(e) => handleCertificateSettingChange('showSerialNumber', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showSerialNumber" className="text-sm font-medium text-gray-700">
+                      Show Serial Number
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer with Save Button */}
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowCertificateSettings(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCertificateSettings}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

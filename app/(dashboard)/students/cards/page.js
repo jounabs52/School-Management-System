@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard } from 'lucide-react'
+import { CreditCard, Settings, X } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
+import toast from 'react-hot-toast'
+import { Toaster } from 'react-hot-toast'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -34,6 +36,124 @@ export default function StudentIDCardsPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [printingStudentId, setPrintingStudentId] = useState(null)
+  const [showCardSettings, setShowCardSettings] = useState(false)
+  const [cardSettings, setCardSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('idCardSettings')
+      return saved ? JSON.parse(saved) : {
+        // Front Side - Header
+        instituteName: '',
+        headerSubtitle: 'STUDENT ID CARD',
+        showSchoolLogo: true,
+        logoSize: 'medium',
+        logoPosition: 'left',
+        logoShape: 'circle', // circle, square, rounded
+
+        // Front Side - Colors
+        cardBgColor: '#FFFFFF',
+        headerBgColor: '#1a4d4d',
+        headerTextColor: '#FFFFFF',
+        accentColor: '#F4A460',
+        textColor: '#000000',
+        labelColor: '#666666',
+
+        // Front Side - Photo
+        photoShape: 'rectangle',
+        photoSize: 'medium',
+        photoPosition: 'right',
+        photoBorderColor: '#000000',
+
+        // Front Side - Fields
+        showName: true,
+        showRollNo: true,
+        showClass: true,
+        showBloodGroup: false,
+        showSession: true,
+        showDesignation: true,
+        showExpiry: true,
+        showSignature: true,
+
+        // Signature
+        signatureImage: null,
+
+        // Front Side - Design
+        showDecorativeStripe: false,
+        stripeColor: '#F4A460',
+        cardOrientation: 'horizontal',
+
+        // Font Settings
+        headerFont: 'helvetica',
+        labelFont: 'helvetica',
+        valueFont: 'helvetica',
+        termsFont: 'helvetica',
+
+        // Back Side - Header
+        backHeaderText: 'Teram',
+        departmentText: '',
+        showBackLogo: true,
+        logoShapeBack: 'circle',
+
+        // Back Side - QR Code
+        showQRCode: true,
+        qrCodeData: '',
+        qrCodeSize: 'medium',
+
+        // Back Side - Terms & Conditions
+        termsAndConditions: [
+          'This card is property of the institution.',
+          'If found, should be returned/posted to following address:',
+          'Incharge, Institution Address.',
+          'Ph: +92xxx-xxxxxxx Email: info@institution.edu.pk'
+        ]
+      }
+    }
+    return {
+      instituteName: '',
+      headerSubtitle: 'STUDENT ID CARD',
+      showSchoolLogo: true,
+      logoSize: 'medium',
+      logoPosition: 'left',
+      logoShape: 'circle',
+      cardBgColor: '#FFFFFF',
+      headerBgColor: '#1a4d4d',
+      headerTextColor: '#FFFFFF',
+      accentColor: '#F4A460',
+      textColor: '#000000',
+      labelColor: '#666666',
+      photoShape: 'rectangle',
+      photoSize: 'medium',
+      photoPosition: 'right',
+      photoBorderColor: '#000000',
+      showName: true,
+      showRollNo: true,
+      showClass: true,
+      showBloodGroup: false,
+      showSession: true,
+      showDesignation: true,
+      showExpiry: true,
+      showSignature: true,
+      signatureImage: null,
+      showDecorativeStripe: false,
+      stripeColor: '#F4A460',
+      cardOrientation: 'horizontal',
+      headerFont: 'helvetica',
+      labelFont: 'helvetica',
+      valueFont: 'helvetica',
+      termsFont: 'helvetica',
+      backHeaderText: 'Teram',
+      departmentText: '',
+      showBackLogo: true,
+      logoShapeBack: 'circle',
+      showQRCode: true,
+      qrCodeData: '',
+      qrCodeSize: 'medium',
+      termsAndConditions: [
+        'This card is property of Supiler College Bhakkar, Pakistan.',
+        'If found, should be returned/posted to following address:',
+        'Incharge, Supiler College Bhakkar, Pakistan.'
+      ]
+    }
+  })
 
   useEffect(() => {
     fetchClasses()
@@ -288,268 +408,1269 @@ export default function StudentIDCardsPage() {
       if (error) throw error
 
       // Print the ID card
-      printIDCard(student)
+      const result = await printIDCard(student)
+      return result
     } catch (error) {
       console.error('Error saving ID card:', error)
-      alert('Error saving ID card: ' + error.message)
+      toast.error('Error saving ID card: ' + error.message, {
+        duration: 3000,
+        position: 'top-right',
+      })
+      return false
     } finally {
       setPrintingStudentId(null)
     }
   }
 
-  // Print ID card using jsPDF
-  const printIDCard = async (student) => {
+  // Helper function to convert hex to RGB
+  const hexToRgb = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result ? [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    ] : [255, 255, 255]
+  }
+
+  // Check if card already exists and is still valid
+  const isCardValid = (studentId) => {
+    const generatedCards = JSON.parse(localStorage.getItem('generatedIDCards') || '{}')
+    const cardInfo = generatedCards[studentId]
+
+    if (!cardInfo) return false
+
+    // Check if card is expired
+    const expiryDate = new Date(cardInfo.expiryDate)
+    const today = new Date()
+
+    return expiryDate > today
+  }
+
+  // Save card generation info
+  const saveCardGeneration = (studentId, expiryDate) => {
+    const generatedCards = JSON.parse(localStorage.getItem('generatedIDCards') || '{}')
+    generatedCards[studentId] = {
+      generatedAt: new Date().toISOString(),
+      expiryDate: expiryDate
+    }
+    localStorage.setItem('generatedIDCards', JSON.stringify(generatedCards))
+  }
+
+  // Print ID card using jsPDF with settings
+  const printIDCard = async (student, skipValidation = false) => {
+    // Check if card already exists and is valid (unless in bulk mode)
+    if (!skipValidation && isCardValid(student.id)) {
+      toast.error(`Card already generated for ${student.first_name} ${student.last_name}`, {
+        duration: 3000,
+        position: 'top-right',
+      })
+      return false
+    }
+    const orientation = cardSettings.cardOrientation === 'vertical' ? 'portrait' : 'landscape'
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: orientation,
       unit: 'mm',
-      format: [85.6, 53.98] // Standard CR80 card size in mm
+      format: [85.6, 53.98]
     })
 
-    const cardWidth = 85.6
-    const cardHeight = 53.98
+    const cardWidth = orientation === 'landscape' ? 85.6 : 53.98
+    const cardHeight = orientation === 'landscape' ? 53.98 : 85.6
 
-    // White background for card
-    doc.setFillColor(255, 255, 255)
+    // ========== FRONT SIDE ==========
+    const bgColor = hexToRgb(cardSettings.cardBgColor)
+    const headerColor = hexToRgb(cardSettings.headerBgColor)
+    const accentColor = hexToRgb(cardSettings.accentColor)
+    const textColor = hexToRgb(cardSettings.textColor)
+    const labelColor = hexToRgb(cardSettings.labelColor)
+    const borderColor = hexToRgb(cardSettings.photoBorderColor)
+
+    // Card background
+    doc.setFillColor(...bgColor)
     doc.rect(0, 0, cardWidth, cardHeight, 'F')
 
-    // Add border with rounded corners effect
-    doc.setDrawColor(200, 200, 200)
-    doc.setLineWidth(0.3)
-    doc.roundedRect(1, 1, cardWidth - 2, cardHeight - 2, 2, 2, 'D')
+    // Define header height first
+    const headerHeight = 12
 
-    // Header section - Navy blue background
-    doc.setFillColor(31, 58, 96) // Navy blue color
-    doc.roundedRect(1, 1, cardWidth - 2, 14, 2, 2, 'F')
+    // Decorative diagonal stripe - smooth curved wave EXACTLY like reference card
+    if (cardSettings.showDecorativeStripe) {
+      const stripeColor = hexToRgb(cardSettings.stripeColor)
+      doc.setFillColor(...stripeColor)
 
-    // School name in header
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(255, 255, 255)
-    doc.text((schoolData?.name || 'NORTHWOOD HIGH SCHOOL').toUpperCase(), cardWidth / 2, 7, { align: 'center' })
+      // Reference card stripe starts from about 35% from LEFT (65% from right edge)
+      // This creates narrower stripe covering only right portion
+      const waveStartX = cardWidth * 0.35  // Start at 35% from left edge
 
-    // Card title - Gold color
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(184, 134, 11) // Gold color
-    doc.text('STUDENT ID CARD', cardWidth / 2, 12, { align: 'center' })
+      // Draw smooth curved diagonal wave
+      doc.lines([
+        [cardWidth - waveStartX, 0],      // Width of stripe at top
+        [2, headerHeight],                 // Down to bottom of header
+        [3, 10],                           // Gentle curve outward
+        [-1, cardHeight - headerHeight - 15], // Flow down diagonally
+        [-2, 5],                           // Curve in at bottom
+        [-(cardWidth - waveStartX + 2), 0], // Back to left side
+        [0, -cardHeight]                   // Close path
+      ], waveStartX, 0, [1, 1], 'F')
+    }
 
-    // Left section - Photo with gold border
-    const photoX = 6
-    const photoY = 18
-    const photoSize = 20
+    // Header section - curved wave design like reference card
+    doc.setFillColor(...headerColor)
 
-    // Add student photo as background layer (rectangular/square)
-    if (student.photo_url && student.photo_url.trim() !== '') {
+    // Draw simple header rectangle (wave will be added as overlay with stripe)
+    doc.rect(0, 0, cardWidth, headerHeight, 'F')
+
+    // School logo in header with canvas clipping for shapes
+    if (cardSettings.showSchoolLogo && schoolData?.logo) {
       try {
-        // Convert image to base64
-        const photoUrl = student.photo_url
+        const logoSizeMap = { small: 7, medium: 9, large: 11 }
+        const logoSize = logoSizeMap[cardSettings.logoSize] || 9
+        const logoY = (headerHeight - logoSize) / 2
 
-        // Create a promise to load and convert image
-        const imageData = await new Promise((resolve, reject) => {
+        // Apply logo position setting
+        let logoX = 2  // default left
+        if (cardSettings.logoPosition === 'right') {
+          logoX = cardWidth - logoSize - 2
+        } else if (cardSettings.logoPosition === 'center') {
+          logoX = (cardWidth - logoSize) / 2
+        }
+
+        // Process logo with canvas clipping for circular/rounded shapes
+        const logoImageData = await new Promise((resolve, reject) => {
           const img = new Image()
-
-          // Set crossOrigin before setting src
           img.crossOrigin = 'anonymous'
-
           img.onload = () => {
             try {
-              // Create square canvas for the image
-              const canvasSize = 600
+              const canvasSize = 400
               const canvas = document.createElement('canvas')
               canvas.width = canvasSize
               canvas.height = canvasSize
               const ctx = canvas.getContext('2d')
-
-              // Enable image smoothing for better quality
               ctx.imageSmoothingEnabled = true
               ctx.imageSmoothingQuality = 'high'
 
-              // Calculate dimensions to cover the square area
+              // Apply clipping path based on logo shape setting
+              ctx.beginPath()
+              if (cardSettings.logoShape === 'circle') {
+                ctx.arc(canvasSize / 2, canvasSize / 2, canvasSize / 2, 0, Math.PI * 2)
+              } else if (cardSettings.logoShape === 'rounded') {
+                const radius = canvasSize * 0.15
+                ctx.moveTo(radius, 0)
+                ctx.lineTo(canvasSize - radius, 0)
+                ctx.quadraticCurveTo(canvasSize, 0, canvasSize, radius)
+                ctx.lineTo(canvasSize, canvasSize - radius)
+                ctx.quadraticCurveTo(canvasSize, canvasSize, canvasSize - radius, canvasSize)
+                ctx.lineTo(radius, canvasSize)
+                ctx.quadraticCurveTo(0, canvasSize, 0, canvasSize - radius)
+                ctx.lineTo(0, radius)
+                ctx.quadraticCurveTo(0, 0, radius, 0)
+              } else {
+                ctx.rect(0, 0, canvasSize, canvasSize)
+              }
+              ctx.closePath()
+              ctx.clip()
+
+              // Draw logo centered
               const scale = Math.max(canvasSize / img.width, canvasSize / img.height)
               const scaledWidth = img.width * scale
               const scaledHeight = img.height * scale
               const offsetX = (canvasSize - scaledWidth) / 2
               const offsetY = (canvasSize - scaledHeight) / 2
-
-              // Draw image to cover the entire square
               ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
 
-              // Convert to base64 with maximum quality
-              const dataURL = canvas.toDataURL('image/jpeg', 0.98)
-              resolve(dataURL)
+              resolve(canvas.toDataURL('image/png', 0.98))
             } catch (err) {
-              console.error('Canvas error:', err)
               reject(err)
             }
           }
-
-          img.onerror = (err) => {
-            console.error('Image load error:', err)
-            reject(new Error('Failed to load image'))
-          }
-
-          // Set the source last
-          img.src = photoUrl
+          img.onerror = () => reject(new Error('Failed to load logo'))
+          img.src = schoolData.logo
         })
 
-        // Add rectangular/square image as background layer - fills entire photo area
-        doc.addImage(imageData, 'JPEG', photoX, photoY, photoSize, photoSize)
+        doc.addImage(logoImageData, 'PNG', logoX, logoY, logoSize, logoSize)
+      } catch (err) {
+        console.error('Error adding logo:', err)
+      }
+    }
+
+    // School name in header
+    const instituteName = cardSettings.instituteName || schoolData?.name || 'SUPILER COLLEGE BHKKAR'
+    const headerTextColorRgb = hexToRgb(cardSettings.headerTextColor)
+    doc.setFontSize(10)
+    doc.setFont(cardSettings.headerFont || 'helvetica', 'bold')
+    doc.setTextColor(...headerTextColorRgb)
+    doc.text(instituteName.toUpperCase(), cardWidth / 2, 6, { align: 'center' })
+
+    // Card subtitle (customizable from settings)
+    const headerSubtitle = cardSettings.headerSubtitle || 'STUDENT ID CARD'
+    doc.setFontSize(5.5)
+    doc.setFont(cardSettings.headerFont || 'helvetica', 'normal')
+    doc.setTextColor(...headerTextColorRgb)
+    doc.text(headerSubtitle.toUpperCase(), cardWidth / 2, 10, { align: 'center' })
+
+    // Photo section - position based on settings
+    const photoSizeMap = { small: 18, medium: 22, large: 26 }
+    const photoSize = photoSizeMap[cardSettings.photoSize] || 22
+
+    let photoX = cardWidth - photoSize - 4 // default right
+    if (cardSettings.photoPosition === 'left') {
+      photoX = 4
+    } else if (cardSettings.photoPosition === 'center') {
+      photoX = (cardWidth - photoSize) / 2
+    }
+    const photoY = 15
+
+    // Add student photo with shape clipping
+    if (student.photo_url && student.photo_url.trim() !== '') {
+      try {
+        const imageData = await new Promise((resolve, reject) => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => {
+            try {
+              const canvasSize = 600
+              const canvas = document.createElement('canvas')
+              canvas.width = canvasSize
+              canvas.height = canvasSize
+              const ctx = canvas.getContext('2d')
+              ctx.imageSmoothingEnabled = true
+              ctx.imageSmoothingQuality = 'high'
+
+              // Apply clipping path based on photo shape setting
+              ctx.beginPath()
+              if (cardSettings.photoShape === 'circle') {
+                // Circular clip
+                ctx.arc(canvasSize / 2, canvasSize / 2, canvasSize / 2, 0, Math.PI * 2)
+              } else if (cardSettings.photoShape === 'rounded') {
+                // Rounded rectangle clip
+                const radius = canvasSize * 0.15
+                ctx.moveTo(radius, 0)
+                ctx.lineTo(canvasSize - radius, 0)
+                ctx.quadraticCurveTo(canvasSize, 0, canvasSize, radius)
+                ctx.lineTo(canvasSize, canvasSize - radius)
+                ctx.quadraticCurveTo(canvasSize, canvasSize, canvasSize - radius, canvasSize)
+                ctx.lineTo(radius, canvasSize)
+                ctx.quadraticCurveTo(0, canvasSize, 0, canvasSize - radius)
+                ctx.lineTo(0, radius)
+                ctx.quadraticCurveTo(0, 0, radius, 0)
+              } else {
+                // Rectangle (no clipping, just draw rect path)
+                ctx.rect(0, 0, canvasSize, canvasSize)
+              }
+              ctx.closePath()
+              ctx.clip()
+
+              // Draw image centered and cropped to fill the canvas
+              const scale = Math.max(canvasSize / img.width, canvasSize / img.height)
+              const scaledWidth = img.width * scale
+              const scaledHeight = img.height * scale
+              const offsetX = (canvasSize - scaledWidth) / 2
+              const offsetY = (canvasSize - scaledHeight) / 2
+              ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
+
+              resolve(canvas.toDataURL('image/png', 0.98))
+            } catch (err) {
+              reject(err)
+            }
+          }
+          img.onerror = () => reject(new Error('Failed to load image'))
+          img.src = student.photo_url
+        })
+
+        doc.addImage(imageData, 'PNG', photoX, photoY, photoSize, photoSize)
       } catch (error) {
         console.error('Error adding photo:', error)
-        // Show gray background if image fails
         doc.setFillColor(240, 240, 240)
         doc.rect(photoX, photoY, photoSize, photoSize, 'F')
       }
     } else {
-      // Gray background if no photo
       doc.setFillColor(240, 240, 240)
       doc.rect(photoX, photoY, photoSize, photoSize, 'F')
     }
 
-    // Draw thick Gold/Mustard circular border ON TOP of the image
-    doc.setDrawColor(184, 134, 11) // Gold/mustard color
-    doc.setLineWidth(1.5) // Thicker border
-    doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
-
-    // Add second circle for extra thickness effect
-    doc.setLineWidth(1.2)
-    doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2 - 0.3, 'S')
-
-    // Student name below photo in gold
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(184, 134, 11)
-    const studentFullName = `${student.first_name || ''} ${student.last_name || ''}`.trim().toUpperCase()
-    doc.text(studentFullName, photoX + photoSize/2, photoY + photoSize + 4, { align: 'center' })
-
-    // QR Code area below student name
-    const qrY = photoY + photoSize + 7
-    const qrSize = 14
-
-    // Generate Student ID Number
-    const studentIDNumber = `NWH-2023-${student.admission_number}`
-
-    // Generate QR code with student information
-    const qrData = JSON.stringify({
-      id: studentIDNumber,
-      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-      admission: student.admission_number,
-      school: schoolData?.name || 'NORTHWOOD HIGH SCHOOL'
-    })
-
-    try {
-      // Generate QR code as data URL
-      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-        width: 200,
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      })
-
-      // Add QR code to PDF
-      doc.addImage(qrCodeDataUrl, 'PNG', photoX + (photoSize - qrSize) / 2, qrY, qrSize, qrSize)
-    } catch (error) {
-      console.error('Error generating QR code:', error)
-      // Fallback: show text if QR code fails
-      doc.setFontSize(6)
-      doc.setTextColor(0, 0, 0)
-      doc.text('QR ERROR', photoX + photoSize/2, qrY + qrSize/2, { align: 'center' })
+    // Photo border - thicker border like reference card (always black for visibility)
+    doc.setDrawColor(0, 0, 0)  // Force black border
+    doc.setLineWidth(1.5)
+    if (cardSettings.photoShape === 'circle') {
+      doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
+    } else if (cardSettings.photoShape === 'rounded') {
+      doc.roundedRect(photoX, photoY, photoSize, photoSize, 2, 2, 'S')
+    } else {
+      doc.rect(photoX, photoY, photoSize, photoSize, 'S')
     }
 
-    // ID Number below QR code
-    doc.setFontSize(5.5)
-    doc.setTextColor(0, 0, 0)
-    doc.setFont('courier', 'bold')
-    doc.text(studentIDNumber, photoX + photoSize/2, qrY + qrSize + 2, { align: 'center' })
+    // Student details section - position opposite to photo
+    let detailsX = 4
+    const maxDetailsWidth = cardWidth - photoSize - 12
 
-    // Right section - Student details
-    const detailsX = 32
-    let detailsY = 20
+    // If photo is on right, details go left; if photo is left, details go right
+    if (cardSettings.photoPosition === 'left') {
+      detailsX = photoX + photoSize + 4
+    } else if (cardSettings.photoPosition === 'center') {
+      detailsX = 4
+    }
 
-    // ID Number
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text('ID Number:', detailsX, detailsY)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(31, 58, 96)
-    doc.text(studentIDNumber, detailsX + 18, detailsY)
+    let detailsY = 18
+    const labelWidth = 22
+    const studentIDNumber = `NWH-2023-${student.admission_number}`
 
-    detailsY += 6
+    // Helper function to draw field with colon alignment - matching reference card
+    const drawField = (label, value, y) => {
+      doc.setFontSize(7)
+      doc.setFont(cardSettings.labelFont || 'helvetica', 'normal')
+      doc.setTextColor(...labelColor)
+      doc.text(label, detailsX, y)
 
-    // Father's Name
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text("Father's Name:", detailsX, detailsY)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(31, 58, 96)
-    doc.text(student.father_name || 'N/A', detailsX + 18, detailsY)
+      doc.setFontSize(7.5)
+      doc.setFont(cardSettings.valueFont || 'helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text(':', detailsX + labelWidth, y)
+      doc.text(value, detailsX + labelWidth + 3, y)
+    }
 
-    detailsY += 6
+    if (cardSettings.showName) {
+      const studentFullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
+      drawField('Name', studentFullName, detailsY)
+      detailsY += 5.5
+    }
 
-    // Issue Date and Expiry Date
-    const issueDate = new Date().toLocaleDateString('en-GB')
-    const expiryDate = new Date(validityUpto).toLocaleDateString('en-GB')
+    if (cardSettings.showRollNo) {
+      drawField('Roll No', studentIDNumber, detailsY)
+      detailsY += 5.5
+    }
 
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text('Issue Date:', detailsX, detailsY)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(31, 58, 96)
-    doc.text(issueDate, detailsX + 18, detailsY)
+    if (cardSettings.showClass) {
+      const className = getClassName(student.current_class_id)
+      const sectionName = getSectionName(student.current_section_id)
+      drawField('Class', `${className} ${sectionName}`, detailsY)
+      detailsY += 5.5
+    }
 
-    detailsY += 4
+    if (cardSettings.showBloodGroup && student.blood_group) {
+      drawField('Blood Group', student.blood_group, detailsY)
+      detailsY += 5.5
+    }
 
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text('Expiry Date:', detailsX, detailsY)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(31, 58, 96)
-    doc.text(expiryDate, detailsX + 18, detailsY)
+    if (cardSettings.showSession) {
+      drawField('Session', '2023-2027', detailsY)
+      detailsY += 5.5
+    }
 
-    // Principal's Signature area - positioned at bottom right
-    const sigX = cardWidth - 22
-    const sigY = cardHeight - 7
+    if (cardSettings.showDesignation) {
+      drawField('Designation', 'Student', detailsY)
+      detailsY += 5.5
+    }
 
-    // Add signature image if uploaded (without box)
-    if (principalSignaturePreview) {
+    // Expiry date with accent color background highlight at bottom left - matching reference
+    if (cardSettings.showExpiry) {
+      // Format date as DD-MM-YY with dashes like reference card
+      const expiryDateObj = new Date(validityUpto)
+      const day = String(expiryDateObj.getDate()).padStart(2, '0')
+      const month = String(expiryDateObj.getMonth() + 1).padStart(2, '0')
+      const year = String(expiryDateObj.getFullYear()).slice(-2)
+      const expiryDate = `${day}-${month}-${year}`
+
+      // Accent color background box for expiry - bottom left
+      const expiryBoxX = 3
+      const expiryBoxY = cardHeight - 7.5
+      const expiryBoxWidth = 30
+      const expiryBoxHeight = 5.5
+
+      doc.setFillColor(...accentColor)
+      doc.rect(expiryBoxX, expiryBoxY, expiryBoxWidth, expiryBoxHeight, 'F')
+
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Expiry: ${expiryDate}`, expiryBoxX + 2.5, expiryBoxY + 3.8)
+    }
+
+    // Signature area - bottom right, matching reference card layout
+    if (cardSettings.showSignature) {
+      const sigX = cardWidth - 26
+      const sigY = cardHeight - 7
+
+      // Use signature from card settings
+      if (cardSettings.signatureImage) {
+        try {
+          doc.addImage(cardSettings.signatureImage, 'PNG', sigX + 1, sigY - 6, 24, 6)
+        } catch (error) {
+          console.error('Error adding signature:', error)
+        }
+      }
+
+      // Signature line - thicker and more prominent
+      doc.setDrawColor(...textColor)
+      doc.setLineWidth(0.5)
+      doc.line(sigX, sigY, sigX + 24, sigY)
+
+      doc.setFontSize(5.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text('Issuing Authority', sigX + 12, sigY + 3, { align: 'center' })
+    }
+
+    // Border
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.5)
+    doc.rect(0, 0, cardWidth, cardHeight, 'S')
+
+    // ========== BACK SIDE ==========
+    doc.addPage()
+
+    // Background
+    doc.setFillColor(...bgColor)
+    doc.rect(0, 0, cardWidth, cardHeight, 'F')
+
+    // Decorative diagonal stripe on back - matching front EXACTLY
+    if (cardSettings.showDecorativeStripe) {
+      const stripeColor = hexToRgb(cardSettings.stripeColor)
+      doc.setFillColor(...stripeColor)
+
+      const backHeaderHeight = 10
+      const waveStartX = cardWidth * 0.35  // Same as front - start at 35%
+
+      // Same smooth curved wave as front
+      doc.lines([
+        [cardWidth - waveStartX, 0],
+        [2, backHeaderHeight],
+        [3, 10],
+        [-1, cardHeight - backHeaderHeight - 15],
+        [-2, 5],
+        [-(cardWidth - waveStartX + 2), 0],
+        [0, -cardHeight]
+      ], waveStartX, 0, [1, 1], 'F')
+    }
+
+    // Header
+    doc.setFillColor(...headerColor)
+    doc.rect(0, 0, cardWidth, 10, 'F')
+
+    // Logo on back with canvas clipping for shapes
+    if (cardSettings.showBackLogo && schoolData?.logo) {
       try {
-        // Add the signature image directly without border
-        doc.addImage(principalSignaturePreview, 'PNG', sigX - 2, sigY - 5, 20, 5)
-      } catch (error) {
-        console.error('Error adding signature:', error)
+        const logoSize = 7
+        const logoX = 2
+        const logoY = 1.5
+
+        // Process logo with canvas clipping for circular/rounded shapes
+        const backLogoImageData = await new Promise((resolve, reject) => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => {
+            try {
+              const canvasSize = 400
+              const canvas = document.createElement('canvas')
+              canvas.width = canvasSize
+              canvas.height = canvasSize
+              const ctx = canvas.getContext('2d')
+              ctx.imageSmoothingEnabled = true
+              ctx.imageSmoothingQuality = 'high'
+
+              // Apply clipping path based on logo shape setting
+              const backLogoShape = cardSettings.logoShapeBack || cardSettings.logoShape
+              ctx.beginPath()
+              if (backLogoShape === 'circle') {
+                ctx.arc(canvasSize / 2, canvasSize / 2, canvasSize / 2, 0, Math.PI * 2)
+              } else if (backLogoShape === 'rounded') {
+                const radius = canvasSize * 0.15
+                ctx.moveTo(radius, 0)
+                ctx.lineTo(canvasSize - radius, 0)
+                ctx.quadraticCurveTo(canvasSize, 0, canvasSize, radius)
+                ctx.lineTo(canvasSize, canvasSize - radius)
+                ctx.quadraticCurveTo(canvasSize, canvasSize, canvasSize - radius, canvasSize)
+                ctx.lineTo(radius, canvasSize)
+                ctx.quadraticCurveTo(0, canvasSize, 0, canvasSize - radius)
+                ctx.lineTo(0, radius)
+                ctx.quadraticCurveTo(0, 0, radius, 0)
+              } else {
+                ctx.rect(0, 0, canvasSize, canvasSize)
+              }
+              ctx.closePath()
+              ctx.clip()
+
+              // Draw logo centered
+              const scale = Math.max(canvasSize / img.width, canvasSize / img.height)
+              const scaledWidth = img.width * scale
+              const scaledHeight = img.height * scale
+              const offsetX = (canvasSize - scaledWidth) / 2
+              const offsetY = (canvasSize - scaledHeight) / 2
+              ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
+
+              resolve(canvas.toDataURL('image/png', 0.98))
+            } catch (err) {
+              reject(err)
+            }
+          }
+          img.onerror = () => reject(new Error('Failed to load back logo'))
+          img.src = schoolData.logo
+        })
+
+        doc.addImage(backLogoImageData, 'PNG', logoX, logoY, logoSize, logoSize)
+      } catch (err) {
+        console.error('Error adding back logo:', err)
       }
     }
 
-    // Signature label - directly below signature
-    doc.setFontSize(5.5)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text("Principal's Signature", sigX + 8, sigY + 1, { align: 'center' })
+    // Back header text - department/faculty name
+    const backHeaderText = cardSettings.backHeaderText || 'STUDENT CARD'
+    const departmentText = cardSettings.departmentText || ''
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...headerTextColorRgb)
+
+    // If department text is provided, show it instead
+    if (departmentText) {
+      doc.text(departmentText.toUpperCase(), cardWidth / 2, 6, { align: 'center' })
+    } else {
+      doc.text(backHeaderText.toUpperCase(), cardWidth / 2, 6, { align: 'center' })
+    }
+
+    // "TERMS & CONDITIONS" heading
+    let backY = 16
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...textColor)
+    doc.text('TERMS & CONDITIONS', cardWidth / 2, backY, { align: 'center' })
+    backY += 6
+
+    // Terms & Conditions - formatted like reference card
+    if (cardSettings.termsAndConditions && cardSettings.termsAndConditions.length > 0) {
+      doc.setFontSize(6.5)
+      doc.setFont(cardSettings.termsFont || 'helvetica', 'normal')
+      doc.setTextColor(...textColor)
+
+      cardSettings.termsAndConditions.forEach((term, index) => {
+        if (term && term.trim()) {
+          const bulletPoint = '•     '
+          const termText = bulletPoint + term
+          // Adjust maxWidth to account for QR code on right side
+          const maxWidth = cardWidth - 32
+          const lines = doc.splitTextToSize(termText, maxWidth)
+          lines.forEach((line, lineIndex) => {
+            if (backY < cardHeight - 10) {
+              // Indent continuation lines
+              const xPos = lineIndex === 0 ? 6 : 12
+              doc.text(line, xPos, backY)
+              backY += 3.8
+            }
+          })
+        }
+      })
+    }
+
+    // QR Code on back - positioned higher and to the right like reference card
+    if (cardSettings.showQRCode) {
+      const qrSizeMap = { small: 14, medium: 18, large: 22 }
+      const qrSize = qrSizeMap[cardSettings.qrCodeSize] || 18
+      const qrX = cardWidth - qrSize - 5
+      const qrY = cardHeight / 2 - qrSize / 2 + 5
+
+      // Generate real QR code
+      try {
+        const qrData = cardSettings.qrCodeData || `ID:${student.admission_number}`
+        const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+          width: 200,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        })
+
+        // Add the QR code image
+        doc.addImage(qrCodeDataURL, 'PNG', qrX, qrY, qrSize, qrSize)
+      } catch (error) {
+        console.error('Error generating QR code:', error)
+        // Fallback: draw placeholder
+        doc.setDrawColor(...textColor)
+        doc.setLineWidth(0.5)
+        doc.rect(qrX, qrY, qrSize, qrSize, 'S')
+        doc.setFontSize(4)
+        doc.setTextColor(...labelColor)
+        doc.text('QR Error', qrX + qrSize/2, qrY + qrSize/2, { align: 'center' })
+      }
+    }
+
+    // Border
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.5)
+    doc.rect(0, 0, cardWidth, cardHeight, 'S')
 
     // Save PDF
     const fileName = `IDCard_${student.first_name}_${student.admission_number}.pdf`
     doc.save(fileName)
+
+    // Save card generation info to localStorage
+    saveCardGeneration(student.id, validityUpto)
+
+    return true
+  }
+
+  const handleCardSettingSave = () => {
+    localStorage.setItem('idCardSettings', JSON.stringify(cardSettings))
+    setShowCardSettings(false)
+    toast.success('Card settings saved successfully!', {
+      duration: 3000,
+      position: 'top-right',
+    })
+  }
+
+  const handleCardSettingChange = (key, value) => {
+    setCardSettings(prev => ({ ...prev, [key]: value }))
   }
 
   return (
     <div className="p-6">
+      <Toaster />
       {/* Page Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-red-600 rounded-lg">
-          <CreditCard className="w-6 h-6 text-white" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-red-600 rounded-lg">
+            <CreditCard className="w-6 h-6 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800">Identity Cards</h1>
         </div>
-        <h1 className="text-2xl font-bold text-gray-800">Identity Cards</h1>
+        <button
+          onClick={() => setShowCardSettings(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          <Settings className="w-4 h-4" />
+          Card Settings
+        </button>
       </div>
+
+      {/* Card Settings Modal */}
+      {showCardSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">ID Card Settings</h2>
+              <button
+                onClick={() => setShowCardSettings(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Header & Branding */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">HEADER & BRANDING</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Institute Name (Main Header)
+                    </label>
+                    <input
+                      type="text"
+                      value={cardSettings.instituteName}
+                      onChange={(e) => handleCardSettingChange('instituteName', e.target.value)}
+                      placeholder="e.g., SUPILER COLLEGE BHAKKAR"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={cardSettings.headerSubtitle}
+                      onChange={(e) => handleCardSettingChange('headerSubtitle', e.target.value)}
+                      placeholder="e.g., STUDENT ID CARD"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="showSchoolLogo"
+                        checked={cardSettings.showSchoolLogo}
+                        onChange={(e) => handleCardSettingChange('showSchoolLogo', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <label htmlFor="showSchoolLogo" className="text-sm font-medium text-gray-700">
+                        Show Logo
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Shape</label>
+                      <select
+                        value={cardSettings.logoShape}
+                        onChange={(e) => handleCardSettingChange('logoShape', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="circle">Circle</option>
+                        <option value="square">Square</option>
+                        <option value="rounded">Rounded</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Size</label>
+                      <select
+                        value={cardSettings.logoSize}
+                        onChange={(e) => handleCardSettingChange('logoSize', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Position</label>
+                      <select
+                        value={cardSettings.logoPosition}
+                        onChange={(e) => handleCardSettingChange('logoPosition', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Signature Upload */}
+                  <div className="mt-4">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Signature Image (for ID cards)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onloadend = () => {
+                            handleCardSettingChange('signatureImage', reader.result)
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                    {cardSettings.signatureImage && (
+                      <div className="mt-2">
+                        <img src={cardSettings.signatureImage} alt="Signature" className="h-12 border border-gray-300 rounded" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">COLOR SETTINGS</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Card Background
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={cardSettings.cardBgColor}
+                        onChange={(e) => handleCardSettingChange('cardBgColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={cardSettings.cardBgColor}
+                        onChange={(e) => handleCardSettingChange('cardBgColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Background
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={cardSettings.headerBgColor}
+                        onChange={(e) => handleCardSettingChange('headerBgColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={cardSettings.headerBgColor}
+                        onChange={(e) => handleCardSettingChange('headerBgColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Text Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={cardSettings.headerTextColor}
+                        onChange={(e) => handleCardSettingChange('headerTextColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={cardSettings.headerTextColor}
+                        onChange={(e) => handleCardSettingChange('headerTextColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Accent Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={cardSettings.accentColor}
+                        onChange={(e) => handleCardSettingChange('accentColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={cardSettings.accentColor}
+                        onChange={(e) => handleCardSettingChange('accentColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Text Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={cardSettings.textColor}
+                        onChange={(e) => handleCardSettingChange('textColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={cardSettings.textColor}
+                        onChange={(e) => handleCardSettingChange('textColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Label Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={cardSettings.labelColor}
+                        onChange={(e) => handleCardSettingChange('labelColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={cardSettings.labelColor}
+                        onChange={(e) => handleCardSettingChange('labelColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Photo Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">STUDENT PHOTO</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Photo Shape
+                    </label>
+                    <select
+                      value={cardSettings.photoShape}
+                      onChange={(e) => handleCardSettingChange('photoShape', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="rectangle">Rectangle</option>
+                      <option value="circle">Circle</option>
+                      <option value="rounded">Rounded</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Photo Size
+                    </label>
+                    <select
+                      value={cardSettings.photoSize}
+                      onChange={(e) => handleCardSettingChange('photoSize', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                      <option value="large">Large</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Photo Position
+                    </label>
+                    <select
+                      value={cardSettings.photoPosition}
+                      onChange={(e) => handleCardSettingChange('photoPosition', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Photo Border Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={cardSettings.photoBorderColor}
+                        onChange={(e) => handleCardSettingChange('photoBorderColor', e.target.value)}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={cardSettings.photoBorderColor}
+                        onChange={(e) => handleCardSettingChange('photoBorderColor', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Front Side Fields */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">FRONT SIDE FIELDS</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showName"
+                      checked={cardSettings.showName}
+                      onChange={(e) => handleCardSettingChange('showName', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showName" className="text-sm text-gray-700">Name</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showRollNo"
+                      checked={cardSettings.showRollNo}
+                      onChange={(e) => handleCardSettingChange('showRollNo', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showRollNo" className="text-sm text-gray-700">Roll No</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showClass"
+                      checked={cardSettings.showClass}
+                      onChange={(e) => handleCardSettingChange('showClass', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showClass" className="text-sm text-gray-700">Class</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showBloodGroup"
+                      checked={cardSettings.showBloodGroup}
+                      onChange={(e) => handleCardSettingChange('showBloodGroup', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showBloodGroup" className="text-sm text-gray-700">Blood Group</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showSession"
+                      checked={cardSettings.showSession}
+                      onChange={(e) => handleCardSettingChange('showSession', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showSession" className="text-sm text-gray-700">Session</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showDesignation"
+                      checked={cardSettings.showDesignation}
+                      onChange={(e) => handleCardSettingChange('showDesignation', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showDesignation" className="text-sm text-gray-700">Designation</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showExpiry"
+                      checked={cardSettings.showExpiry}
+                      onChange={(e) => handleCardSettingChange('showExpiry', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showExpiry" className="text-sm text-gray-700">Expiry Date</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showSignature"
+                      checked={cardSettings.showSignature}
+                      onChange={(e) => handleCardSettingChange('showSignature', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showSignature" className="text-sm text-gray-700">Signature</label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Design */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">CARD DESIGN</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Card Orientation
+                    </label>
+                    <select
+                      value={cardSettings.cardOrientation}
+                      onChange={(e) => handleCardSettingChange('cardOrientation', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="vertical">Vertical (Portrait)</option>
+                      <option value="horizontal">Horizontal (Landscape)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Font Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">FONT SETTINGS</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Font
+                    </label>
+                    <select
+                      value={cardSettings.headerFont}
+                      onChange={(e) => handleCardSettingChange('headerFont', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="helvetica">Helvetica - Clean & Modern</option>
+                      <option value="times">Times New Roman - Classic Serif</option>
+                      <option value="courier">Courier - Monospace</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Label Font (Name, Roll No, etc.)
+                    </label>
+                    <select
+                      value={cardSettings.labelFont}
+                      onChange={(e) => handleCardSettingChange('labelFont', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="helvetica">Helvetica - Clean & Modern</option>
+                      <option value="times">Times New Roman - Classic Serif</option>
+                      <option value="courier">Courier - Monospace</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Value Font (Student Data)
+                    </label>
+                    <select
+                      value={cardSettings.valueFont}
+                      onChange={(e) => handleCardSettingChange('valueFont', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="helvetica">Helvetica - Clean & Modern</option>
+                      <option value="times">Times New Roman - Classic Serif</option>
+                      <option value="courier">Courier - Monospace</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Terms & Conditions Font
+                    </label>
+                    <select
+                      value={cardSettings.termsFont}
+                      onChange={(e) => handleCardSettingChange('termsFont', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="helvetica">Helvetica - Clean & Modern</option>
+                      <option value="times">Times New Roman - Classic Serif</option>
+                      <option value="courier">Courier - Monospace</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Back Side Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">BACK SIDE SETTINGS</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Text
+                    </label>
+                    <input
+                      type="text"
+                      value={cardSettings.backHeaderText}
+                      onChange={(e) => handleCardSettingChange('backHeaderText', e.target.value)}
+                      placeholder="e.g., TERMS & CONDITIONS"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Department/Faculty Text
+                    </label>
+                    <input
+                      type="text"
+                      value={cardSettings.departmentText}
+                      onChange={(e) => handleCardSettingChange('departmentText', e.target.value)}
+                      placeholder="e.g., FACULTY OF COMPUTING"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showBackLogo"
+                      checked={cardSettings.showBackLogo}
+                      onChange={(e) => handleCardSettingChange('showBackLogo', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showBackLogo" className="text-sm font-medium text-gray-700">
+                      Show Logo on Back
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* QR Code Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">QR CODE SETTINGS</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showQRCode"
+                      checked={cardSettings.showQRCode}
+                      onChange={(e) => handleCardSettingChange('showQRCode', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showQRCode" className="text-sm font-medium text-gray-700">
+                      Show QR Code
+                    </label>
+                  </div>
+                  {cardSettings.showQRCode && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                          QR Code Data (Text to encode)
+                        </label>
+                        <textarea
+                          value={cardSettings.qrCodeData}
+                          onChange={(e) => handleCardSettingChange('qrCodeData', e.target.value)}
+                          placeholder="Enter text/URL/data for QR code"
+                          rows="3"
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">This text will be encoded in the QR code</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                          QR Code Size
+                        </label>
+                        <select
+                          value={cardSettings.qrCodeSize}
+                          onChange={(e) => handleCardSettingChange('qrCodeSize', e.target.value)}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        >
+                          <option value="small">Small</option>
+                          <option value="medium">Medium</option>
+                          <option value="large">Large</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Terms & Conditions */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">TERMS & CONDITIONS</h3>
+                <div className="space-y-3">
+                  {(cardSettings.termsAndConditions || []).map((term, index) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={term}
+                        onChange={(e) => {
+                          const newTerms = [...(cardSettings.termsAndConditions || [])]
+                          newTerms[index] = e.target.value
+                          handleCardSettingChange('termsAndConditions', newTerms)
+                        }}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                      <button
+                        onClick={() => {
+                          const newTerms = (cardSettings.termsAndConditions || []).filter((_, i) => i !== index)
+                          handleCardSettingChange('termsAndConditions', newTerms)
+                        }}
+                        className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newTerms = [...(cardSettings.termsAndConditions || []), '']
+                      handleCardSettingChange('termsAndConditions', newTerms)
+                    }}
+                    className="px-4 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition text-sm"
+                  >
+                    + Add Term
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowCardSettings(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCardSettingSave}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Card */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -578,10 +1699,10 @@ export default function StudentIDCardsPage() {
             </select>
           </div>
 
-          {/* Validity Date */}
+          {/* Expiry Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Validity Upto
+              Expiry Date
             </label>
             <input
               type="date"
@@ -589,28 +1710,6 @@ export default function StudentIDCardsPage() {
               onChange={(e) => setValidityUpto(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
-          </div>
-
-          {/* Principal's Signature Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Principal's Signature
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleSignatureUpload}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-            />
-            {principalSignaturePreview && (
-              <div className="mt-2">
-                <img
-                  src={principalSignaturePreview}
-                  alt="Signature Preview"
-                  className="h-12 border border-gray-200 rounded p-1"
-                />
-              </div>
-            )}
           </div>
         </div>
 
@@ -747,13 +1846,39 @@ export default function StudentIDCardsPage() {
                       onClick={async () => {
                         setSaving(true)
                         try {
+                          let generatedCount = 0
+                          let skippedCount = 0
+
                           for (const student of filteredStudents) {
-                            await handlePrint(student)
+                            // Check if card is already valid
+                            if (isCardValid(student.id)) {
+                              skippedCount++
+                              toast.info(`Skipped: ${student.first_name} ${student.last_name} (Card already exists)`, {
+                                duration: 2000,
+                                position: 'top-right',
+                              })
+                              await new Promise(resolve => setTimeout(resolve, 300))
+                              continue
+                            }
+
+                            // Generate card
+                            const result = await handlePrint(student)
+                            if (result !== false) {
+                              generatedCount++
+                            }
                             await new Promise(resolve => setTimeout(resolve, 500))
                           }
-                          alert(`Generated ${filteredStudents.length} ID cards successfully!`)
+
+                          toast.success(`Generated ${generatedCount} cards. Skipped ${skippedCount} (already exist)`, {
+                            duration: 4000,
+                            position: 'top-right',
+                          })
                         } catch (error) {
-                          alert('Error generating ID cards')
+                          console.error('Error generating ID cards:', error)
+                          toast.error(`Error generating ID cards: ${error.message || 'Unknown error'}`, {
+                            duration: 4000,
+                            position: 'top-right',
+                          })
                         } finally {
                           setSaving(false)
                         }

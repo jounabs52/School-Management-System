@@ -49,6 +49,10 @@ export default function RoutesPage() {
   // Multiple stations state for bulk add
   const [multipleStations, setMultipleStations] = useState([{ name: '', fare: '' }])
 
+  // Edit station state
+  const [editingStationId, setEditingStationId] = useState(null)
+  const [editStationData, setEditStationData] = useState({ name: '', fare: '' })
+
   // Toast state
   const [toast, setToast] = useState(null)
   
@@ -82,7 +86,6 @@ export default function RoutesPage() {
 
   const [formData, setFormData] = useState({
     routeName: '',
-    fare: '',
     stationsList: [],
     vehicles: '',
     passengers: ''
@@ -115,15 +118,20 @@ export default function RoutesPage() {
         console.error('Error fetching routes:', error)
         setRoutes([])
       } else {
-        // For each route, get counts
+        // For each route, get counts and max fare
         const routesWithStats = await Promise.all(
           (data || []).map(async (route) => {
-            // Get stations count
-            const { count: stationsCount } = await supabase
+            // Get stations count and max fare
+            const { data: stationsData, count: stationsCount } = await supabase
               .from('stations')
-              .select('*', { count: 'exact', head: true })
+              .select('fare', { count: 'exact' })
               .eq('route_id', route.id)
               .eq('status', 'active')
+
+            // Calculate max fare from stations
+            const maxFare = stationsData && stationsData.length > 0
+              ? Math.max(...stationsData.map(s => s.fare || 0))
+              : 0
 
             // Get vehicles count
             const { count: vehiclesCount } = await supabase
@@ -141,6 +149,7 @@ export default function RoutesPage() {
 
             return {
               ...route,
+              fare: maxFare, // Override with max fare from stations
               stations_count: stationsCount || 0,
               vehicles_count: vehiclesCount || 0,
               passengers_count: passengersCount || 0
@@ -177,7 +186,7 @@ export default function RoutesPage() {
           school_id: user.school_id,
           created_by: user.id,
           route_name: formData.routeName,
-          fare: parseFloat(formData.fare) || 0,
+          fare: 0,
           status: 'active'
         }])
         .select()
@@ -226,7 +235,7 @@ export default function RoutesPage() {
 
       setRoutes([newRoute, ...routes])
       setShowModal(false)
-      setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+      setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
       setTempStation({ name: '', fare: '' })
       showToast('Route added successfully!', 'success')
     } catch (error) {
@@ -271,7 +280,6 @@ export default function RoutesPage() {
 
     setFormData({
       routeName: route.route_name || '',
-      fare: route.fare || '',
       stationsList: [],
       vehicles: route.vehicles_count || '',
       passengers: route.passengers_count || ''
@@ -301,7 +309,6 @@ export default function RoutesPage() {
         .from('routes')
         .update({
           route_name: formData.routeName,
-          fare: parseFloat(formData.fare) || 0,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedRoute.id)
@@ -354,19 +361,18 @@ export default function RoutesPage() {
       }
 
       // Update route in state
-      setRoutes(routes.map(route => 
-        route.id === selectedRoute.id 
+      setRoutes(routes.map(route =>
+        route.id === selectedRoute.id
           ? {
               ...route,
               route_name: formData.routeName,
-              fare: parseFloat(formData.fare) || 0,
               stations_count: (route.stations_count || 0) + additionalStations
             }
           : route
       ))
 
       setShowEditModal(false)
-      setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+      setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
       setTempStation({ name: '', fare: '' })
       setSelectedRoute(null)
       showToast('Route updated successfully!', 'success')
@@ -483,12 +489,22 @@ export default function RoutesPage() {
         showToast('Failed to add station', 'error')
       } else {
         // Add station to local state
-        setStations([...stations, data[0]])
+        const updatedStations = [...stations, data[0]]
+        setStations(updatedStations)
 
-        // Update route's station count in routes state
+        // Recalculate max fare with new station
+        const maxFare = updatedStations.length > 0
+          ? Math.max(...updatedStations.map(s => s.fare || 0))
+          : 0
+
+        // Update route's station count and fare in routes state
         setRoutes(routes.map(route =>
           route.id === selectedRoute.id
-            ? { ...route, stations_count: (route.stations_count || 0) + 1 }
+            ? {
+                ...route,
+                stations_count: (route.stations_count || 0) + 1,
+                fare: maxFare
+              }
             : route
         ))
 
@@ -565,12 +581,22 @@ export default function RoutesPage() {
       }
 
       // Add stations to local state
-      setStations([...stations, ...data])
+      const updatedStations = [...stations, ...data]
+      setStations(updatedStations)
 
-      // Update route's station count in routes state
+      // Recalculate max fare with new stations
+      const maxFare = updatedStations.length > 0
+        ? Math.max(...updatedStations.map(s => s.fare || 0))
+        : 0
+
+      // Update route's station count and fare in routes state
       setRoutes(routes.map(route =>
         route.id === selectedRoute.id
-          ? { ...route, stations_count: (route.stations_count || 0) + data.length }
+          ? {
+              ...route,
+              stations_count: (route.stations_count || 0) + data.length,
+              fare: maxFare
+            }
           : route
       ))
 
@@ -580,6 +606,77 @@ export default function RoutesPage() {
     } catch (error) {
       console.error('Error adding stations:', error)
       showToast('Error adding stations', 'error')
+    }
+  }
+
+  const handleEditStation = (station) => {
+    setEditingStationId(station.id)
+    setEditStationData({ name: station.station_name, fare: station.fare })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingStationId(null)
+    setEditStationData({ name: '', fare: '' })
+  }
+
+  const handleUpdateStation = async (stationId) => {
+    try {
+      const user = getUserFromCookie()
+      if (!user) {
+        showToast('Unauthorized', 'error')
+        return
+      }
+
+      if (!editStationData.name.trim()) {
+        showToast('Please enter station name', 'error')
+        return
+      }
+
+      if (!editStationData.fare || parseFloat(editStationData.fare) <= 0) {
+        showToast('Please enter a valid fare amount', 'error')
+        return
+      }
+
+      const { error } = await supabase
+        .from('stations')
+        .update({
+          station_name: editStationData.name.trim(),
+          fare: parseInt(editStationData.fare) || 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', stationId)
+        .eq('school_id', user.school_id)
+
+      if (error) {
+        console.error('Error updating station:', error)
+        showToast('Failed to update station', 'error')
+      } else {
+        // Update station in local state
+        const updatedStations = stations.map(station =>
+          station.id === stationId
+            ? { ...station, station_name: editStationData.name.trim(), fare: parseInt(editStationData.fare) || 0 }
+            : station
+        )
+        setStations(updatedStations)
+
+        // Recalculate max fare and update routes state
+        const maxFare = updatedStations.length > 0
+          ? Math.max(...updatedStations.map(s => s.fare || 0))
+          : 0
+
+        setRoutes(routes.map(route =>
+          route.id === selectedRoute.id
+            ? { ...route, fare: maxFare }
+            : route
+        ))
+
+        setEditingStationId(null)
+        setEditStationData({ name: '', fare: '' })
+        showToast('Station updated successfully!', 'success')
+      }
+    } catch (error) {
+      console.error('Error updating station:', error)
+      showToast('Error updating station', 'error')
     }
   }
 
@@ -602,15 +699,25 @@ export default function RoutesPage() {
         showToast('Failed to delete station', 'error')
       } else {
         // Remove station from local state
-        setStations(stations.filter(station => station.id !== stationId))
-        
-        // Update route's station count in routes state
-        setRoutes(routes.map(route => 
-          route.id === selectedRoute.id 
-            ? { ...route, stations_count: Math.max(0, (route.stations_count || 0) - 1) }
+        const updatedStations = stations.filter(station => station.id !== stationId)
+        setStations(updatedStations)
+
+        // Recalculate max fare from remaining stations
+        const maxFare = updatedStations.length > 0
+          ? Math.max(...updatedStations.map(s => s.fare || 0))
+          : 0
+
+        // Update route's station count and fare in routes state
+        setRoutes(routes.map(route =>
+          route.id === selectedRoute.id
+            ? {
+                ...route,
+                stations_count: Math.max(0, (route.stations_count || 0) - 1),
+                fare: maxFare
+              }
             : route
         ))
-        
+
         showToast('Station deleted successfully!', 'success')
       }
     } catch (error) {
@@ -818,7 +925,7 @@ export default function RoutesPage() {
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => {
               setShowModal(false)
-              setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+              setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
               setTempStation({ name: '', fare: '' })
             }}
             style={{ backdropFilter: 'blur(4px)' }}
@@ -833,7 +940,7 @@ export default function RoutesPage() {
                 <button
                   onClick={() => {
                     setShowModal(false)
-                    setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+                    setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
                     setTempStation({ name: '', fare: '' })
                   }}
                   className="text-white hover:bg-white/10 p-2 rounded-full transition"
@@ -856,27 +963,13 @@ export default function RoutesPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Fare
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rs.</span>
-                    <input
-                      type="text"
-                      placeholder="0"
-                      value={formData.fare}
-                      onChange={(e) => setFormData({ ...formData, fare: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    />
-                  </div>
-                </div>
 
                 {/* Stations Section */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Stations with Fares
+                    Add Stations with Fares
                   </label>
+                  <p className="text-xs text-gray-500 mb-4">Add intermediate stations and final destination with their respective fares</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <input
                       type="text"
@@ -950,7 +1043,7 @@ export default function RoutesPage() {
                 <button
                   onClick={() => {
                     setShowModal(false)
-                    setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+                    setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
                     setTempStation({ name: '', fare: '' })
                   }}
                   className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
@@ -977,7 +1070,7 @@ export default function RoutesPage() {
             className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => {
               setShowEditModal(false)
-              setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+              setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
               setTempStation({ name: '', fare: '' })
               setSelectedRoute(null)
             }}
@@ -993,7 +1086,7 @@ export default function RoutesPage() {
                 <button
                   onClick={() => {
                     setShowEditModal(false)
-                    setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+                    setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
                     setTempStation({ name: '', fare: '' })
                     setSelectedRoute(null)
                   }}
@@ -1017,21 +1110,6 @@ export default function RoutesPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Fare
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rs.</span>
-                    <input
-                      type="text"
-                      placeholder="0"
-                      value={formData.fare}
-                      onChange={(e) => setFormData({ ...formData, fare: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
-                    />
-                  </div>
-                </div>
 
                 {/* Existing Stations */}
                 {stations.length > 0 && (
@@ -1043,23 +1121,94 @@ export default function RoutesPage() {
                       {stations.map((station, index) => (
                         <div
                           key={station.id}
-                          className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200"
+                          className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200 group hover:border-green-300"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <span className="text-sm font-medium text-gray-800">
-                                {station.station_name}
-                              </span>
-                              {station.fare > 0 && (
-                                <div className="text-xs text-green-600 font-semibold mt-0.5">
-                                  PKR {station.fare.toLocaleString()}
+                          {editingStationId === station.id ? (
+                            // Edit mode
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                                    STATION NAME
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editStationData.name}
+                                    onChange={(e) => setEditStationData({ ...editStationData, name: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                                  />
                                 </div>
-                              )}
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                                    FARE AMOUNT
+                                  </label>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-xs">Rs.</span>
+                                    <input
+                                      type="number"
+                                      value={editStationData.fare}
+                                      onChange={(e) => setEditStationData({ ...editStationData, fare: e.target.value })}
+                                      className="w-full pl-12 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                                      min="0"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEdit}
+                                  className="px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 rounded transition border border-gray-300"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateStation(station.id)}
+                                  className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition"
+                                >
+                                  Save
+                                </button>
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            // View mode
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-800">
+                                    {station.station_name}
+                                  </span>
+                                  {station.fare > 0 && (
+                                    <div className="text-xs text-green-600 font-semibold mt-0.5">
+                                      PKR {station.fare.toLocaleString()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditStation(station)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition"
+                                  title="Edit Station"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteStation(station.id)}
+                                  className="p-1.5 text-red-600 hover:bg-red-100 rounded transition"
+                                  title="Delete Station"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1069,8 +1218,9 @@ export default function RoutesPage() {
                 {/* Stations Section */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Add More Stations
+                    Add More Stations with Fares
                   </label>
+                  <p className="text-xs text-gray-500 mb-4">Add intermediate stations and final destination with their respective fares</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <input
                       type="text"
@@ -1144,7 +1294,7 @@ export default function RoutesPage() {
                 <button
                   onClick={() => {
                     setShowEditModal(false)
-                    setFormData({ routeName: '', fare: '', stationsList: [], vehicles: '', passengers: '' })
+                    setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
                     setTempStation({ name: '', fare: '' })
                     setSelectedRoute(null)
                   }}

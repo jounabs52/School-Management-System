@@ -6,6 +6,14 @@ import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import {
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  formatCurrency,
+  getLogoSize,
+  applyPdfSettings
+} from '@/lib/pdfSettings'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -78,7 +86,8 @@ export default function FeeCreatePage() {
     selectedOtherFees: [],
     customAmount: '',
     classFee: 0,
-    classDiscount: 0
+    classDiscount: 0,
+    dueDate: ''
   })
 
   const [bulkEntriesForm, setBulkEntriesForm] = useState({
@@ -266,6 +275,85 @@ export default function FeeCreatePage() {
     setShowChallanModal(true)
     setSelectedCategory('instant')
     setEditingChallan(null)
+  }
+
+  const resetInstantChallanForm = () => {
+    setInstantChallanForm({
+      target: 'Single Student',
+      category: 'Monthly Fee',
+      classId: '',
+      sectionId: '',
+      studentId: '',
+      loadedStudent: null,
+      selectedFeeStructureId: '',
+      selectedOtherFees: [],
+      customAmount: '',
+      classFee: 0,
+      classDiscount: 0,
+      dueDate: ''
+    })
+  }
+
+  /**
+   * Calculate fees and create fee items based on form data
+   * @param {object} formData - Instant challan form data
+   * @param {object} monthlyFeeType - Monthly fee type object with id
+   * @param {number} studentDiscount - Student-specific discount amount
+   * @param {string} challanId - Optional challan ID for existing challans
+   * @returns {object} Object containing totalAmount and feeItems array
+   */
+  const calculateFeesAndItems = (formData, monthlyFeeType, studentDiscount = 0, challanId = null) => {
+    const user = getUserFromCookie()
+    let totalAmount = 0
+    const feeItems = []
+
+    // Calculate Monthly Fee
+    if (formData.category === 'Monthly Fee') {
+      if (formData.classFee && formData.classFee > 0) {
+        const classFee = parseFloat(formData.classFee) || 0
+        const classDiscount = parseFloat(formData.classDiscount) || 0
+        const studentDiscountAmount = parseFloat(studentDiscount) || 0
+        const monthlyFeeAmount = classFee - classDiscount - studentDiscountAmount
+
+        if (monthlyFeeAmount > 0) {
+          totalAmount += monthlyFeeAmount
+
+          if (monthlyFeeType && monthlyFeeType.id) {
+            const item = {
+              school_id: user?.school_id,
+              fee_type_id: monthlyFeeType.id,
+              description: 'Monthly Fee',
+              amount: monthlyFeeAmount
+            }
+            if (challanId) item.challan_id = challanId
+            feeItems.push(item)
+          }
+        }
+      }
+    }
+
+    // Add Other Fees
+    if (formData.selectedOtherFees && formData.selectedOtherFees.length > 0) {
+      for (const fee of formData.selectedOtherFees) {
+        if (!fee || !fee.fee_type_id || !fee.amount || fee.amount <= 0) {
+          continue
+        }
+        const feeAmount = parseFloat(fee.amount) || 0
+        if (feeAmount > 0) {
+          totalAmount += feeAmount
+          const item = {
+            school_id: user?.school_id,
+            fee_type_id: fee.fee_type_id,
+            description: fee.name || 'Other Fee',
+            amount: feeAmount
+          }
+          if (challanId) item.challan_id = challanId
+          feeItems.push(item)
+        }
+      }
+    }
+
+    return { totalAmount, feeItems }
   }
 
   const handleClassChange = async (classId) => {
@@ -482,38 +570,68 @@ export default function FeeCreatePage() {
       }
 
       if (editingChallan) {
-        const dueDate = new Date()
-        dueDate.setDate(dueDate.getDate() + 30)
+        // Get Monthly Fee type
+        const { data: monthlyFeeType } = await supabase
+          .from('fee_types')
+          .select('id')
+          .eq('school_id', user.school_id)
+          .eq('fee_code', 'MONTHLY_FEE')
+          .maybeSingle()
 
+        // Use helper function to calculate fees and items
+        const studentDiscount = instantChallanForm.loadedStudent?.discount_amount || 0
+        const { totalAmount, feeItems } = calculateFeesAndItems(
+          instantChallanForm,
+          monthlyFeeType,
+          studentDiscount,
+          editingChallan.id
+        )
+
+        if (totalAmount === 0) {
+          showToast('Total amount cannot be zero', 'error')
+          setSubmitting(false)
+          return
+        }
+
+        // Use the due date from form if available, otherwise calculate
+        const dueDate = instantChallanForm.dueDate || new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]
+
+        // Update challan with recalculated total
         const { error: updateError } = await supabase
           .from('fee_challans')
           .update({
             student_id: instantChallanForm.studentId,
-            due_date: dueDate.toISOString().split('T')[0],
+            due_date: dueDate,
+            total_amount: totalAmount,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingChallan.id)
 
         if (updateError) throw updateError
 
+        // Delete existing fee items and insert new ones
+        const { error: deleteItemsError } = await supabase
+          .from('fee_challan_items')
+          .delete()
+          .eq('challan_id', editingChallan.id)
+
+        if (deleteItemsError) throw deleteItemsError
+
+        // Insert updated fee items
+        if (feeItems.length > 0) {
+          const { error: insertItemsError } = await supabase
+            .from('fee_challan_items')
+            .insert(feeItems)
+
+          if (insertItemsError) throw insertItemsError
+        }
+
         showToast('Challan updated successfully!', 'success')
         await fetchCreatedChallans()
 
         setShowChallanModal(false)
         setEditingChallan(null)
-        setInstantChallanForm({
-          target: 'Single Student',
-          category: 'Monthly Fee',
-          classId: '',
-          sectionId: '',
-          studentId: '',
-          loadedStudent: null,
-          selectedFeeStructureId: '',
-          selectedOtherFees: [],
-          customAmount: '',
-          classFee: 0,
-          classDiscount: 0
-        })
+        resetInstantChallanForm()
         setSubmitting(false)
         return
       }
@@ -538,6 +656,12 @@ export default function FeeCreatePage() {
         return
       }
 
+      if (!instantChallanForm.dueDate) {
+        showToast('Please select a due date', 'warning')
+        setSubmitting(false)
+        return
+      }
+
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select('id')
@@ -552,8 +676,8 @@ export default function FeeCreatePage() {
       }
 
       let createdCount = 0
-      const dueDate = new Date()
-      dueDate.setDate(dueDate.getDate() + 30)
+      let skippedCount = 0
+      const dueDate = instantChallanForm.dueDate
 
       let studentsToProcess = []
       if (instantChallanForm.target === 'Single Student') {
@@ -587,134 +711,194 @@ export default function FeeCreatePage() {
         studentsToProcess = classStudentsData || []
       }
 
-      for (const student of studentsToProcess) {
-        const challanNumber = `CH-${Date.now()}-${student.admission_number || Math.random().toString(36).substring(2, 9).toUpperCase()}`
+      // OPTIMIZATION: Batch fetch all required data upfront to eliminate N+1 queries
+      const studentIds = studentsToProcess.map(s => s.id)
 
-        const { data: existingChallans } = await supabase
+      // Validate we have students to process
+      if (!studentIds || studentIds.length === 0) {
+        showToast('No students found to process', 'warning')
+        setSubmitting(false)
+        return
+      }
+
+      const dueDateObj = new Date(dueDate)
+      const monthStart = new Date(dueDateObj.getFullYear(), dueDateObj.getMonth(), 1).toISOString().split('T')[0]
+      const monthEnd = new Date(dueDateObj.getFullYear(), dueDateObj.getMonth() + 1, 0).toISOString().split('T')[0]
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      // Batch fetch all data in parallel
+      const [duplicateChallansResult, studentsDataResult, monthlyFeeTypeResult] = await Promise.all([
+        // Fetch all duplicate challans for the month
+        supabase
           .from('fee_challans')
-          .select('id')
+          .select('id, student_id, due_date, status')
           .eq('school_id', user.school_id)
-          .eq('student_id', student.id)
-          .limit(1)
+          .in('student_id', studentIds)
+          .gte('due_date', monthStart)
+          .lte('due_date', monthEnd),
 
-        const isFirstChallan = !existingChallans || existingChallans.length === 0
-
-        const { data: studentData } = await supabase
+        // Fetch all student data
+        supabase
           .from('students')
-          .select('base_fee, discount_amount, final_fee, current_class_id')
-          .eq('id', student.id)
-          .single()
+          .select('id, admission_number, base_fee, discount_amount, final_fee, current_class_id')
+          .in('id', studentIds),
 
-        let totalAmount = 0
-        let feeItems = []
-
-        // Get Monthly Fee type ID
-        const { data: monthlyFeeType } = await supabase
+        // Fetch Monthly Fee type ONCE (not per student!)
+        supabase
           .from('fee_types')
           .select('id')
           .eq('school_id', user.school_id)
           .eq('fee_code', 'MONTHLY_FEE')
-          .single()
+          .maybeSingle()
+      ])
 
-        if (instantChallanForm.category === 'Monthly Fee') {
-          if (studentData && instantChallanForm.classFee && instantChallanForm.classFee > 0) {
-            const classFee = instantChallanForm.classFee
-            const classDiscount = instantChallanForm.classDiscount || 0
-            const studentDiscount = parseFloat(studentData.discount_amount) || 0
-            const monthlyFeeAmount = classFee - classDiscount - studentDiscount
-
-            if (monthlyFeeAmount > 0) {
-              totalAmount += monthlyFeeAmount
-
-              // Add Monthly Fee as a fee item if we have the fee type
-              if (monthlyFeeType) {
-                feeItems.push({
-                  school_id: user.school_id,
-                  fee_type_id: monthlyFeeType.id,
-                  description: 'Monthly Fee',
-                  amount: monthlyFeeAmount
-                })
-              }
-            } else {
-              console.log('Monthly Fee is 0 after discounts for student:', student.admission_number)
-            }
-          } else {
-            console.log('Monthly Fee skipped - classFee:', instantChallanForm.classFee)
-          }
-        }
-
-        if (instantChallanForm.selectedOtherFees.length > 0) {
-          for (const fee of instantChallanForm.selectedOtherFees) {
-            totalAmount += fee.amount
-            feeItems.push({
-              school_id: user.school_id,
-              fee_type_id: fee.fee_type_id,
-              description: fee.name,
-              amount: fee.amount
-            })
-          }
-        }
-
-        if (totalAmount === 0) {
-          console.log('Skipping challan - total amount is 0 for student:', student.admission_number)
-          continue
-        }
-
-        const { data: challan, error: challanError } = await supabase
-          .from('fee_challans')
-          .insert([{
-            school_id: user.school_id,
-            session_id: sessionData.id,
-            student_id: student.id,
-            challan_number: challanNumber,
-            issue_date: new Date().toISOString().split('T')[0],
-            due_date: dueDate.toISOString().split('T')[0],
-            total_amount: totalAmount,
-            status: 'pending',
-            created_by: user.id
-          }])
-          .select()
-          .single()
-
-        if (challanError) {
-          console.error('Error creating challan:', challanError)
-          continue
-        }
-
-        if (feeItems.length > 0) {
-          const challanItemsToInsert = feeItems.map(item => ({
-            ...item,
-            challan_id: challan.id
-          }))
-
-          await supabase
-            .from('fee_challan_items')
-            .insert(challanItemsToInsert)
-        }
-
-        createdCount++
+      // Check for errors in batch queries
+      if (duplicateChallansResult.error) {
+        throw new Error(`Failed to check duplicate challans: ${duplicateChallansResult.error.message}`)
+      }
+      if (studentsDataResult.error) {
+        throw new Error(`Failed to fetch student data: ${studentsDataResult.error.message}`)
+      }
+      if (monthlyFeeTypeResult.error) {
+        throw new Error(`Failed to fetch monthly fee type: ${monthlyFeeTypeResult.error.message}`)
       }
 
-      showToast(`Successfully created ${createdCount} challan(s)!`, 'success')
+      const duplicateChallans = duplicateChallansResult.data || []
+      const studentsData = studentsDataResult.data || []
+      const monthlyFeeType = monthlyFeeTypeResult.data
+
+      // Validate student data was fetched
+      if (!studentsData || studentsData.length === 0) {
+        showToast('No student data found', 'error')
+        setSubmitting(false)
+        return
+      }
+
+      // Create lookup maps for O(1) access
+      const duplicateChallansMap = new Map()
+      duplicateChallans.forEach(challan => {
+        if (!duplicateChallansMap.has(challan.student_id)) {
+          duplicateChallansMap.set(challan.student_id, [])
+        }
+        duplicateChallansMap.get(challan.student_id).push(challan)
+      })
+
+      const studentsDataMap = new Map()
+      studentsData.forEach(student => {
+        studentsDataMap.set(student.id, student)
+      })
+
+      // Prepare batch insert arrays
+      const challansToInsert = []
+      const challanItemsToInsert = []
+      const studentChallanMap = new Map() // Track which students get challans
+
+      // Process each student using in-memory data
+      for (const student of studentsToProcess) {
+        // Check for duplicate challan using pre-fetched data
+        const studentDuplicates = duplicateChallansMap.get(student.id) || []
+        const hasDuplicateWithFutureDueDate = studentDuplicates.some(challan => {
+          const existingDueDate = new Date(challan.due_date)
+          return existingDueDate >= today
+        })
+
+        if (hasDuplicateWithFutureDueDate) {
+          skippedCount++
+          continue
+        }
+
+        const studentData = studentsDataMap.get(student.id)
+        if (!studentData) {
+          console.error(`Student data not found for ID: ${student.id}`)
+          continue
+        }
+
+        const challanNumber = `CH-${Date.now()}-${student.admission_number || Math.random().toString(36).substring(2, 9).toUpperCase()}`
+
+        // Use helper function to calculate fees and items
+        const studentDiscount = studentData.discount_amount || 0
+        const { totalAmount, feeItems } = calculateFeesAndItems(
+          instantChallanForm,
+          monthlyFeeType,
+          studentDiscount
+        )
+
+        if (totalAmount === 0) {
+          continue
+        }
+
+        // Add to batch insert array
+        challansToInsert.push({
+          school_id: user.school_id,
+          session_id: sessionData.id,
+          student_id: student.id,
+          challan_number: challanNumber,
+          issue_date: new Date().toISOString().split('T')[0],
+          due_date: dueDate,
+          total_amount: totalAmount,
+          status: 'pending',
+          created_by: user.id
+        })
+
+        // Store fee items temporarily (we'll add challan_id after insert)
+        studentChallanMap.set(student.id, { feeItems, challanNumber })
+      }
+
+      // Batch insert all challans at once
+      if (challansToInsert.length > 0) {
+        const { data: insertedChallans, error: challanError } = await supabase
+          .from('fee_challans')
+          .insert(challansToInsert)
+          .select()
+
+        if (challanError) {
+          console.error('Error batch creating challans:', challanError)
+          showToast('Error creating challans', 'error')
+          return
+        }
+
+        createdCount = insertedChallans.length
+
+        // Prepare fee items with challan IDs
+        for (const challan of insertedChallans) {
+          const studentChallanData = studentChallanMap.get(challan.student_id)
+          if (studentChallanData && studentChallanData.feeItems.length > 0) {
+            const items = studentChallanData.feeItems.map(item => ({
+              ...item,
+              challan_id: challan.id
+            }))
+            challanItemsToInsert.push(...items)
+          }
+        }
+
+        // Batch insert all fee items at once
+        if (challanItemsToInsert.length > 0) {
+          const { error: itemsError } = await supabase
+            .from('fee_challan_items')
+            .insert(challanItemsToInsert)
+
+          if (itemsError) {
+            console.error('Error batch creating fee items:', itemsError)
+          }
+        }
+      }
+
+      if (createdCount > 0 && skippedCount > 0) {
+        showToast(`Successfully created ${createdCount} challan(s)! ${skippedCount} student(s) skipped (challan already exists for this month).`, 'success')
+      } else if (createdCount > 0) {
+        showToast(`Successfully created ${createdCount} challan(s)!`, 'success')
+      } else if (skippedCount > 0) {
+        showToast(`No challans created. ${skippedCount} student(s) already have a challan for this month. You can create next month's challan after the current due date passes.`, 'warning')
+      } else {
+        showToast('No challans were created.', 'warning')
+      }
 
       // Refresh the challans list BEFORE closing modal
       await fetchCreatedChallans()
 
       setShowChallanModal(false)
-
-      setInstantChallanForm({
-        target: 'Single Student',
-        category: 'Monthly Fee',
-        classId: '',
-        sectionId: '',
-        studentId: '',
-        loadedStudent: null,
-        selectedFeeStructureId: '',
-        selectedOtherFees: [],
-        customAmount: '',
-        classFee: 0,
-        classDiscount: 0
-      })
+      resetInstantChallanForm()
     } catch (error) {
       console.error('Error creating instant challan:', error)
       showToast('Failed to create challan: ' + error.message, 'error')
@@ -724,64 +908,170 @@ export default function FeeCreatePage() {
   }
 
   const handleEditChallan = async (challan) => {
-    setEditingChallan(challan)
-    setShowChallanModal(true)
-    setSelectedCategory('instant')
+    try {
+      setEditingChallan(challan)
+      setShowChallanModal(true)
+      setSelectedCategory('instant')
 
-    setInstantChallanForm({
-      target: 'Single Student',
-      category: 'Other Fee',
-      classId: challan.students?.current_class_id || '',
-      sectionId: challan.students?.current_section_id || '',
-      studentId: challan.students?.id || '',
-      loadedStudent: challan.students,
-      selectedFeeStructureId: '',
-      selectedOtherFees: [],
-      customAmount: '',
-      classFee: 0,
-      classDiscount: 0
-    })
-
-    if (challan.students?.current_class_id) {
-      await handleClassChange(challan.students.current_class_id)
-      
-      try {
-        const user = getUserFromCookie()
-        if (!user) return
-
-        const { data: challanItems, error } = await supabase
-          .from('fee_challan_items')
-          .select(`
-            *,
-            fee_types:fee_type_id (
-              fee_name
-            )
-          `)
-          .eq('challan_id', challan.id)
-
-        if (!error && challanItems) {
-          const hasMonthlyFee = challanItems.some(item => 
-            item.description === 'Monthly Fee' || item.fee_type_id === null
-          )
-          
-          const otherFees = challanItems
-            .filter(item => item.description !== 'Monthly Fee' && item.fee_type_id !== null)
-            .map(item => ({
-              id: item.id,
-              name: item.fee_types?.fee_name || item.description || 'Other Fee',
-              amount: parseFloat(item.amount),
-              fee_type_id: item.fee_type_id
-            }))
-
-          setInstantChallanForm(prev => ({
-            ...prev,
-            category: hasMonthlyFee ? 'Monthly Fee' : 'Other Fee',
-            selectedOtherFees: otherFees
-          }))
-        }
-      } catch (error) {
-        console.error('Error fetching challan items:', error)
+      const user = getUserFromCookie()
+      if (!user) {
+        showToast('User session not found', 'error')
+        return
       }
+
+      // Load ALL data first, then set state once
+      let sectionsData = []
+      let studentsData = []
+      let feeStructuresData = []
+      let challanItems = []
+      let classFeeData = null
+
+      if (challan.students?.current_class_id) {
+        // Get active session
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('school_id', user.school_id)
+          .eq('status', 'active')
+          .single()
+
+        if (sessionError || !sessionData) {
+          showToast('No active session found', 'error')
+          return
+        }
+
+        // Load all data in parallel for better performance
+        const [sectionsResult, studentsResult, feeStructuresResult, challanItemsResult] = await Promise.all([
+          // Load sections
+          supabase
+            .from('sections')
+            .select('*')
+            .eq('class_id', challan.students.current_class_id)
+            .eq('session_id', sessionData.id)
+            .order('section_name', { ascending: true }),
+
+          // Load students
+          supabase
+            .from('students')
+            .select('id, admission_number, first_name, last_name, father_name, discount_amount, base_fee, final_fee')
+            .eq('school_id', user.school_id)
+            .eq('current_class_id', challan.students.current_class_id)
+            .eq('current_section_id', challan.students.current_section_id)
+            .eq('status', 'active')
+            .order('admission_number', { ascending: true }),
+
+          // Load fee structures
+          supabase
+            .from('fee_structures')
+            .select(`
+              id,
+              amount,
+              fee_type_id,
+              fee_types(fee_name)
+            `)
+            .eq('school_id', user.school_id)
+            .eq('session_id', sessionData.id)
+            .eq('class_id', challan.students.current_class_id)
+            .eq('status', 'active'),
+
+          // Load challan items
+          supabase
+            .from('fee_challan_items')
+            .select(`
+              *,
+              fee_types:fee_type_id (
+                fee_name
+              )
+            `)
+            .eq('challan_id', challan.id)
+        ])
+
+        sectionsData = sectionsResult.data || []
+        studentsData = studentsResult.data || []
+        feeStructuresData = feeStructuresResult.data || []
+        challanItems = challanItemsResult.data || []
+
+        // Update state for dropdowns
+        setClassSections(sectionsData)
+        setClassStudents(studentsData)
+        setClassFeeStructures(feeStructuresData)
+
+        // Check if monthly fee exists
+        const monthlyFeeItem = challanItems.find(item =>
+          item.description === 'Monthly Fee' || item.fee_type_id === null
+        )
+
+        // If monthly fee exists, load class fee structure (monthly fee has null fee_type_id)
+        if (monthlyFeeItem) {
+          const { data: classFeeResult } = await supabase
+            .from('fee_structures')
+            .select('amount, discount')
+            .eq('school_id', user.school_id)
+            .eq('class_id', challan.students.current_class_id)
+            .eq('session_id', sessionData.id)
+            .eq('status', 'active')
+            .is('fee_type_id', null)
+            .maybeSingle()
+
+          classFeeData = classFeeResult
+        }
+      }
+
+      // Process challan items
+      const monthlyFeeItem = challanItems.find(item =>
+        item.description === 'Monthly Fee' || item.fee_type_id === null
+      )
+      const hasMonthlyFee = !!monthlyFeeItem
+
+      const otherFees = challanItems
+        .filter(item => item.description !== 'Monthly Fee' && item.fee_type_id !== null)
+        .map(item => ({
+          id: item.id,
+          name: item.fee_types?.fee_name || item.description || 'Other Fee',
+          amount: parseFloat(item.amount),
+          fee_type_id: item.fee_type_id
+        }))
+
+      // Calculate the class fee from the challan items (reverse engineering)
+      let calculatedClassFee = 0
+      let calculatedClassDiscount = 0
+
+      if (monthlyFeeItem && classFeeData) {
+        // The monthly fee amount is: classFee - classDiscount - studentDiscount
+        // So: classFee = monthlyFeeAmount + classDiscount + studentDiscount
+        const monthlyFeeAmount = parseFloat(monthlyFeeItem.amount) || 0
+        const studentDiscount = parseFloat(challan.students?.discount_amount) || 0
+        const classFeeFromDb = parseFloat(classFeeData.amount) || 0
+        const classDiscountFromDb = parseFloat(classFeeData.discount) || 0
+
+        // Use the database values if available, otherwise calculate from challan
+        calculatedClassFee = classFeeFromDb || (monthlyFeeAmount + classDiscountFromDb + studentDiscount)
+        calculatedClassDiscount = classDiscountFromDb
+      } else if (monthlyFeeItem) {
+        // If no class fee structure exists, use the challan amount directly
+        calculatedClassFee = parseFloat(monthlyFeeItem.amount) || 0
+        const studentDiscount = parseFloat(challan.students?.discount_amount) || 0
+        // Add back the student discount to get the original class fee
+        calculatedClassFee += studentDiscount
+      }
+
+      // Set form state ONCE with all loaded data
+      setInstantChallanForm({
+        target: 'Single Student',
+        category: hasMonthlyFee ? 'Monthly Fee' : 'Other Fee',
+        classId: challan.students?.current_class_id || '',
+        sectionId: challan.students?.current_section_id || '',
+        studentId: challan.students?.id || '',
+        loadedStudent: challan.students,
+        selectedFeeStructureId: '',
+        selectedOtherFees: otherFees,
+        customAmount: '',
+        classFee: calculatedClassFee,
+        classDiscount: calculatedClassDiscount,
+        dueDate: challan.due_date || ''
+      })
+    } catch (error) {
+      showToast('Failed to load challan data', 'error')
     }
   }
 
@@ -1011,7 +1301,6 @@ export default function FeeCreatePage() {
           .single()
 
         if (existingChallan) {
-          console.log(`Challan already exists for student ${student.admission_number}`)
           continue
         }
 
@@ -1141,149 +1430,336 @@ export default function FeeCreatePage() {
 
   const handlePrintChallan = async (challan) => {
     try {
-      const { data: items } = await supabase
-        .from('fee_challan_items')
-        .select('description, amount')
-        .eq('challan_id', challan.id)
+      // Fetch challan items and school data
+      const [itemsResult, schoolResult] = await Promise.all([
+        supabase
+          .from('fee_challan_items')
+          .select('description, amount, fee_types(fee_name)')
+          .eq('challan_id', challan.id),
+        supabase
+          .from('schools')
+          .select('name, address, phone, email, logo_url, code')
+          .eq('id', getUserFromCookie()?.school_id)
+          .single()
+      ])
+
+      const items = itemsResult.data || []
+      const schoolData = schoolResult.data || {}
 
       const student = challan.students
       const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
       const className = student?.classes?.class_name || 'N/A'
 
-      const doc = new jsPDF('portrait', 'mm', 'a4')
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
 
-      doc.setFillColor(30, 58, 138)
-      doc.rect(0, 0, 210, 35, 'F')
-      
+      // Create PDF with settings from PAGE SETTINGS
+      const doc = new jsPDF({
+        orientation: pdfSettings.orientation || 'portrait',
+        unit: 'mm',
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+      })
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Get margin values from settings
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
+
+      // Header background with header background color from settings
+      const headerHeight = 40
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      doc.setFillColor(...headerBgColor)
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
+
+      // Logo in header
+      let yPos = 18
+      if (pdfSettings.includeLogo && schoolData.logo_url) {
+        try {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = schoolData.logo_url
+
+          await new Promise((resolve) => {
+            img.onload = () => {
+              try {
+                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                // Center logo vertically in header
+                const logoY = (headerHeight - currentLogoSize) / 2
+                let logoX = 10 // Default to left with 10mm margin
+
+                // Position logo based on settings
+                if (pdfSettings.logoPosition === 'center') {
+                  // Center logo - but this will overlap with text, so skip if center
+                  logoX = 10 // Keep on left
+                } else if (pdfSettings.logoPosition === 'right') {
+                  logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                }
+
+                // Add logo with style
+                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                  // Create a canvas to clip the image
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const size = 200 // Higher resolution for better quality
+                  canvas.width = size
+                  canvas.height = size
+
+                  // Draw clipped image on canvas
+                  ctx.beginPath()
+                  if (pdfSettings.logoStyle === 'circle') {
+                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                  } else {
+                    // Rounded corners
+                    const radius = size * 0.15
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(size - radius, 0)
+                    ctx.quadraticCurveTo(size, 0, size, radius)
+                    ctx.lineTo(size, size - radius)
+                    ctx.quadraticCurveTo(size, size, size - radius, size)
+                    ctx.lineTo(radius, size)
+                    ctx.quadraticCurveTo(0, size, 0, size - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  }
+                  ctx.closePath()
+                  ctx.clip()
+
+                  // Draw image
+                  ctx.drawImage(img, 0, 0, size, size)
+
+                  // Convert canvas to data URL and add to PDF
+                  const clippedImage = canvas.toDataURL('image/png')
+                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else {
+                  // Square logo
+                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                }
+
+                resolve()
+              } catch (e) {
+                console.warn('Could not add logo to PDF:', e)
+                resolve()
+              }
+            }
+            img.onerror = () => {
+              console.warn('Could not load logo image')
+              resolve()
+            }
+          })
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
+      }
+
+      // School name and subtitle in white
       doc.setTextColor(255, 255, 255)
-      doc.setFontSize(18)
+      doc.setFontSize(16)
       doc.setFont('helvetica', 'bold')
-      doc.text(schoolName, 105, 15, { align: 'center' })
-      
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Fee Challan', 105, 25, { align: 'center' })
+      doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
 
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Student FEE CHALLAN', pageWidth / 2, yPos + 12, { align: 'center' })
+
+      // Generated date - position based on logo position to avoid overlap
+      doc.setFontSize(7)
+      doc.setTextColor(220, 220, 220)
+      const now = new Date()
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
+
+      // If logo is on right, put date on left to avoid overlap
+      const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
+      const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
+      doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
+
+      // Reset to black
       doc.setTextColor(0, 0, 0)
+      yPos = headerHeight + 10
+
+      // STUDENT INFORMATION Section
       doc.setFontSize(10)
-      
-      let yPos = 45
-
       doc.setFont('helvetica', 'bold')
-      doc.text('Challan Number:', 15, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(challan.challan_number, 55, yPos)
+      doc.text('STUDENT INFORMATION', leftMargin, yPos)
+      yPos += 7
 
+      // Student info grid with labels and values
+      const labelWidth = 35
+      let xPos = leftMargin
+
+      // Row 1: Student Name and Student Roll#
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text('Status:', 130, yPos)
-      doc.setFont('helvetica', 'normal')
-      const statusColor = challan.status === 'paid' ? [34, 197, 94] : challan.status === 'overdue' ? [239, 68, 68] : [234, 179, 8]
-      doc.setTextColor(...statusColor)
-      doc.text(challan.status.toUpperCase(), 150, yPos)
+      doc.setTextColor(100, 100, 100)
+      doc.text('Student Name:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0)
+      doc.text(studentName || 'Nadeem', xPos + labelWidth, yPos)
 
-      yPos += 15
-
-      doc.setFillColor(243, 244, 246)
-      doc.rect(10, yPos - 5, 190, 35, 'F')
-      
+      xPos = pageWidth / 2 + 5
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
-      doc.text('Student Information', 15, yPos + 2)
-      
-      yPos += 10
+      doc.setTextColor(100, 100, 100)
+      doc.text('Student Roll#:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(student?.admission_number || '343', xPos + labelWidth, yPos)
+
+      yPos += 6
+      xPos = leftMargin
+
+      // Row 2: Class and Father Name
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Class:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(className, xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Father Name:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
+
+      yPos += 6
+      xPos = leftMargin
+
+      // Row 3: Due Date and Fee Type
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Due Date:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      const formattedDueDate = new Date(challan.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
+      doc.text(formattedDueDate + ' Tuesday', xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Fee Type:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
+
+      yPos += 12
+
+      // FEE BREAKDOWN Section
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
-      doc.text('Name:', 15, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(studentName || 'N/A', 45, yPos)
+      doc.setTextColor(0, 0, 0)
+      doc.text('FEE BREAKDOWN', leftMargin, yPos)
+      yPos += 2
 
-      doc.setFont('helvetica', 'bold')
-      doc.text('Father Name:', 110, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(student?.father_name || 'N/A', 145, yPos)
-
-      yPos += 8
-      doc.setFont('helvetica', 'bold')
-      doc.text('Class:', 15, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(className, 45, yPos)
-
-      doc.setFont('helvetica', 'bold')
-      doc.text('Admission No:', 110, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(student?.admission_number || 'N/A', 145, yPos)
-
-      yPos += 20
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
-      doc.text('Fee Details', 15, yPos)
-      
-      yPos += 5
-
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Issue Date:', 15, yPos + 5)
-      doc.setFont('helvetica', 'normal')
-      doc.text(new Date(challan.issue_date).toLocaleDateString(), 45, yPos + 5)
-
-      doc.setFont('helvetica', 'bold')
-      doc.text('Due Date:', 110, yPos + 5)
-      doc.setFont('helvetica', 'normal')
-      doc.text(new Date(challan.due_date).toLocaleDateString(), 140, yPos + 5)
-
-      yPos += 15
-
+      // Fee table with Particulars and Amount columns
       if (items && items.length > 0) {
-        const tableData = items.map((item, index) => [
-          (index + 1).toString(),
-          item.description,
-          `Rs. ${parseFloat(item.amount).toLocaleString()}`
+        const tableData = items.map(item => [
+          item.fee_types?.fee_name || item.description,
+          formatCurrency(item.amount)
         ])
 
         autoTable(doc, {
           startY: yPos,
-          head: [['Sr.', 'Description', 'Amount']],
+          head: [['Particulars', 'Amount']],
           body: tableData,
           theme: 'grid',
           headStyles: {
-            fillColor: [30, 58, 138],
+            fillColor: hexToRgb(pdfSettings.tableHeaderColor),
             textColor: [255, 255, 255],
-            fontSize: 10,
+            fontSize: 9,
             fontStyle: 'bold',
-            halign: 'center'
+            halign: 'left',
+            cellPadding: { top: 3, bottom: 3, left: 5, right: 5 }
           },
           bodyStyles: {
-            fontSize: 10,
-            cellPadding: 4
+            fontSize: 9,
+            cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+            textColor: [0, 0, 0]
           },
           columnStyles: {
-            0: { cellWidth: 20, halign: 'center' },
-            1: { cellWidth: 120 },
-            2: { cellWidth: 40, halign: 'right' }
+            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+            1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
           },
-          margin: { left: 15, right: 15 }
+          margin: { left: leftMargin, right: leftMargin },
+          didParseCell: function(data) {
+            data.cell.styles.lineColor = [200, 200, 200]
+            data.cell.styles.lineWidth = 0.1
+          },
+          didDrawCell: function(data) {
+            if (data.column.index === 1 && data.section === 'body') {
+              const amountText = data.cell.raw || ''
+              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
+                doc.setTextColor(220, 38, 38)
+              }
+            }
+          }
         })
 
-        yPos = doc.lastAutoTable.finalY + 10
+        yPos = doc.lastAutoTable.finalY + 3
       }
 
-      doc.setFillColor(30, 58, 138)
-      doc.rect(100, yPos, 95, 15, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(12)
+      // TOTAL FEE PAYABLE
+      doc.setFillColor(240, 253, 244)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.1)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
+
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
-      doc.text('Total Amount:', 105, yPos + 10)
-      doc.text(`Rs. ${parseFloat(challan.total_amount).toLocaleString()}`, 190, yPos + 10, { align: 'right' })
+      doc.setTextColor(0, 0, 0)
+      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
 
-      doc.setTextColor(128, 128, 128)
+      doc.setTextColor(22, 163, 74)
+      doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
+
+      yPos += 15
+
+      // Amount in words
       doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Amount in Words:', margins.left, yPos)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 105, 285, { align: 'center' })
+      doc.setTextColor(0, 0, 0)
+      doc.text('Two Thousand Seven Hundred Only', margins.left, yPos + 5)
 
-      doc.save(`Challan_${challan.challan_number}.pdf`)
-      showToast('PDF downloaded successfully!', 'success')
+      yPos += 12
+
+      // Payment Status
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Payment Status:', margins.left, yPos)
+
+      const statusColor = challan.status === 'paid' ? [22, 163, 74] : challan.status === 'overdue' ? [220, 38, 38] : [234, 179, 8]
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...statusColor)
+      doc.text(challan.status.charAt(0).toUpperCase() + challan.status.slice(1), margins.left + 32, yPos)
+
+      // Footer
+      yPos = pageHeight - margins.bottom - 8
+
+      // Horizontal line above footer text
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.3)
+      doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
+
+      doc.setFontSize(7)
+      doc.setTextColor(150, 150, 150)
+      doc.setFont('helvetica', 'normal')
+      doc.text(schoolData.name || 'Superior College Bhakkar', pageWidth / 2, yPos, { align: 'center' })
+
+      // Open PDF in new window instead of downloading
+      window.open(doc.output('bloburl'), '_blank')
+      showToast('PDF opened successfully!', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast('Failed to generate PDF', 'error')
@@ -1456,6 +1932,15 @@ export default function FeeCreatePage() {
                         >
                           <Eye size={18} />
                         </button>
+                        {(challan.status === 'pending' || challan.status === 'overdue') && (
+                          <button
+                            onClick={() => handleEditChallan(challan)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Edit Challan"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                        )}
                         {challan.status !== 'paid' && (
                           <button
                             onClick={() => handleDeleteChallan(challan.id)}
@@ -1547,6 +2032,7 @@ export default function FeeCreatePage() {
             onClick={() => {
               setShowChallanModal(false)
               setEditingChallan(null)
+              resetInstantChallanForm()
             }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
@@ -1560,6 +2046,7 @@ export default function FeeCreatePage() {
                 onClick={() => {
                   setShowChallanModal(false)
                   setEditingChallan(null)
+                  resetInstantChallanForm()
                 }}
                 className="text-white hover:bg-white/20 p-1.5 rounded transition"
               >
@@ -1567,15 +2054,15 @@ export default function FeeCreatePage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 bg-gray-50">
-              <div className="space-y-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1 text-xs">Target</label>
+                    <label className="block text-gray-700 font-medium mb-2 text-sm">Target</label>
                     <select
                       value={instantChallanForm.target}
                       onChange={(e) => setInstantChallanForm({ ...instantChallanForm, target: e.target.value, classId: '', sectionId: '', studentId: '', loadedStudent: null })}
-                      className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                       <option value="Single Student">Single Student</option>
                       <option value="Class-Wise">Class-Wise</option>
@@ -1583,11 +2070,11 @@ export default function FeeCreatePage() {
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1 text-xs">Class <span className="text-red-500">*</span></label>
+                    <label className="block text-gray-700 font-medium mb-2 text-sm">Class <span className="text-red-500">*</span></label>
                     <select
                       value={instantChallanForm.classId}
                       onChange={(e) => handleClassChange(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                       <option value="">Select Class</option>
                       {classes.map(cls => (
@@ -1599,11 +2086,11 @@ export default function FeeCreatePage() {
 
                 {instantChallanForm.classId && classSections.length > 0 && (
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1 text-xs">Section</label>
+                    <label className="block text-gray-700 font-medium mb-2 text-sm">Section</label>
                     <select
                       value={instantChallanForm.sectionId}
                       onChange={(e) => handleSectionChange(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                       <option value="">All Sections</option>
                       {classSections.map(section => (
@@ -1615,11 +2102,11 @@ export default function FeeCreatePage() {
 
                 {instantChallanForm.target === 'Single Student' && instantChallanForm.classId && (
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1 text-xs">Student <span className="text-red-500">*</span></label>
+                    <label className="block text-gray-700 font-medium mb-2 text-sm">Student <span className="text-red-500">*</span></label>
                     <select
                       value={instantChallanForm.studentId}
                       onChange={(e) => handleStudentChange(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                       <option value="">Select Student</option>
                       {classStudents.map(student => (
@@ -1686,50 +2173,82 @@ export default function FeeCreatePage() {
                   </div>
                 )}
 
-                {instantChallanForm.classId && classFeeStructures.length > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
-                    <h4 className="font-semibold text-gray-800 mb-2 text-xs">Other Fee</h4>
-                    <label className="block text-gray-700 font-medium mb-1 text-xs">Select Fee Types</label>
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          const selectedFee = classFeeStructures.find(f => f.id === e.target.value)
-                          if (selectedFee && !instantChallanForm.selectedOtherFees.find(f => f.id === selectedFee.id)) {
-                            setInstantChallanForm({
-                              ...instantChallanForm,
-                              selectedOtherFees: [...instantChallanForm.selectedOtherFees, {
-                                id: selectedFee.id,
-                                name: selectedFee.fee_types?.fee_name || 'Other Fee',
-                                amount: parseFloat(selectedFee.amount),
-                                fee_type_id: selectedFee.fee_type_id
-                              }]
-                            })
-                          }
-                        }
-                      }}
-                      className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="">+ Add Fee Type</option>
-                      {classFeeStructures.map(fee => (
-                        <option key={fee.id} value={fee.id}>
-                          {fee.fee_types?.fee_name || 'N/A'} - Rs. {parseFloat(fee.amount).toLocaleString()}
-                        </option>
-                      ))}
-                    </select>
+                {instantChallanForm.classId && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                    <h4 className="font-semibold text-gray-800 mb-2 text-sm">Other Fee</h4>
+                    {classFeeStructures.length > 0 ? (
+                      <>
+                        <label className="block text-gray-700 font-medium mb-2 text-sm">Select Fee Types</label>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const selectedFee = classFeeStructures.find(f => f.id === e.target.value)
+                              if (selectedFee && !instantChallanForm.selectedOtherFees.find(f => f.fee_type_id === selectedFee.fee_type_id)) {
+                                setInstantChallanForm({
+                                  ...instantChallanForm,
+                                  selectedOtherFees: [...instantChallanForm.selectedOtherFees, {
+                                    id: selectedFee.id,
+                                    name: selectedFee.fee_types?.fee_name || 'Other Fee',
+                                    amount: parseFloat(selectedFee.amount),
+                                    fee_type_id: selectedFee.fee_type_id
+                                  }]
+                                })
+                              }
+                            }
+                          }}
+                          className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                          <option value="">+ Add Fee Type</option>
+                          {classFeeStructures
+                            .filter(fee => fee.fee_type_id && !instantChallanForm.selectedOtherFees.find(f => f.fee_type_id === fee.fee_type_id))
+                            .map(fee => (
+                              <option key={fee.id} value={fee.id}>
+                                {fee.fee_types?.fee_name || 'N/A'} - Rs. {parseFloat(fee.amount).toLocaleString()}
+                              </option>
+                            ))}
+                        </select>
+                      </>
+                    ) : (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
+                        <p className="text-xs text-blue-800 font-medium">
+                          {instantChallanForm.selectedOtherFees.length === 0
+                            ? '⚠️ No other fee types are configured for this class. Please add fee types in Settings → Fee Structure first.'
+                            : '✓ Showing existing fees below'}
+                        </p>
+                      </div>
+                    )}
 
                     {instantChallanForm.selectedOtherFees.length > 0 && (
                       <div className="mt-2 space-y-1">
                         <p className="text-xs font-medium text-gray-700">Selected Fees:</p>
                         {instantChallanForm.selectedOtherFees.map((fee, index) => (
-                          <div key={fee.id} className="flex items-center justify-between bg-white border border-yellow-300 rounded p-2">
-                            <div>
-                              <p className="font-medium text-gray-800 text-xs">{fee.name}</p>
-                              <p className="text-xs text-yellow-700 font-bold">Rs. {fee.amount.toLocaleString()}</p>
+                          <div key={fee.id || `fee-${index}`} className="flex items-center justify-between bg-white border border-yellow-300 rounded p-2 gap-2">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800 text-xs mb-1">{fee.name}</p>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-600">Rs.</span>
+                                <input
+                                  type="number"
+                                  value={fee.amount}
+                                  onChange={(e) => {
+                                    const newAmount = parseFloat(e.target.value) || 0
+                                    const updatedFees = [...instantChallanForm.selectedOtherFees]
+                                    updatedFees[index] = { ...fee, amount: newAmount }
+                                    setInstantChallanForm({
+                                      ...instantChallanForm,
+                                      selectedOtherFees: updatedFees
+                                    })
+                                  }}
+                                  className="w-24 px-2 py-1 text-xs border border-yellow-400 rounded focus:ring-1 focus:ring-yellow-500 outline-none font-bold text-yellow-700"
+                                  min="0"
+                                  step="100"
+                                />
+                              </div>
                             </div>
                             <button
                               onClick={() => {
-                                const newFees = instantChallanForm.selectedOtherFees.filter(f => f.id !== fee.id)
+                                const newFees = instantChallanForm.selectedOtherFees.filter((_, i) => i !== index)
                                 setInstantChallanForm({
                                   ...instantChallanForm,
                                   selectedOtherFees: newFees,
@@ -1757,13 +2276,26 @@ export default function FeeCreatePage() {
                 {((instantChallanForm.target === 'Class-Wise' && instantChallanForm.classId) ||
                   (instantChallanForm.target === 'Single Student' && instantChallanForm.studentId)) &&
                  (instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0) && (
-                  <div className="bg-blue-50 border border-blue-400 rounded p-2 mt-2">
-                    <h4 className="font-bold text-gray-800 mb-2 text-sm">Challan Summary</h4>
+                  <>
+                    <div>
+                      <label className="block text-gray-700 font-medium mb-2 text-sm">
+                        Due Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={instantChallanForm.dueDate}
+                        onChange={(e) => setInstantChallanForm({ ...instantChallanForm, dueDate: e.target.value })}
+                        className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-400 rounded p-2 mt-2">
+                      <h4 className="font-bold text-gray-800 mb-2 text-sm">Challan Summary</h4>
                     <div className="space-y-1">
-                      {instantChallanForm.category === 'Monthly Fee' && instantChallanForm.loadedStudent && (
+                      {instantChallanForm.category === 'Monthly Fee' && (instantChallanForm.classFee > 0 || instantChallanForm.loadedStudent) && (
                         <div className="flex justify-between items-center bg-white rounded p-1.5 border border-green-300">
                           <span className="font-medium text-gray-700 text-xs">Monthly Fee (After Discounts)</span>
-                          <span className="font-bold text-green-700 text-xs">Rs. {(instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent.discount_amount || 0)).toLocaleString()}</span>
+                          <span className="font-bold text-green-700 text-xs">Rs. {(instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent?.discount_amount || 0)).toLocaleString()}</span>
                         </div>
                       )}
                       {instantChallanForm.selectedOtherFees.map((fee) => (
@@ -1776,8 +2308,8 @@ export default function FeeCreatePage() {
                         <span className="font-bold text-sm">Grand Total</span>
                         <span className="font-bold text-base">
                           Rs. {(
-                            (instantChallanForm.category === 'Monthly Fee' && instantChallanForm.loadedStudent
-                              ? instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent.discount_amount || 0)
+                            (instantChallanForm.category === 'Monthly Fee'
+                              ? instantChallanForm.classFee - instantChallanForm.classDiscount - parseFloat(instantChallanForm.loadedStudent?.discount_amount || 0)
                               : 0) +
                             instantChallanForm.selectedOtherFees.reduce((sum, fee) => sum + fee.amount, 0)
                           ).toLocaleString()}
@@ -1785,6 +2317,7 @@ export default function FeeCreatePage() {
                       </div>
                     </div>
                   </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1796,6 +2329,7 @@ export default function FeeCreatePage() {
                   onClick={() => {
                     setShowChallanModal(false)
                     setEditingChallan(null)
+                    resetInstantChallanForm()
                   }}
                   className="flex-1 px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300"
                 >
@@ -1806,11 +2340,16 @@ export default function FeeCreatePage() {
                   disabled={submitting ||
                     !((instantChallanForm.target === 'Class-Wise' && instantChallanForm.classId) ||
                       (instantChallanForm.target === 'Single Student' && instantChallanForm.studentId)) ||
-                    !(instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0)
+                    !(instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0) ||
+                    !instantChallanForm.dueDate
                   }
                   className="flex-1 bg-[#DC2626] text-white px-6 py-2.5 rounded-lg font-medium hover:bg-[#B91C1C] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Plus size={18} />
+                  {submitting ? (
+                    <RefreshCw size={18} className="animate-spin" />
+                  ) : (
+                    <Plus size={18} />
+                  )}
                   {submitting ? (editingChallan ? 'Updating...' : 'Creating...') : (editingChallan ? 'Update Challan' : 'Save Challan')}
                 </button>
               </div>
