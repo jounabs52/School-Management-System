@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FileText, Plus, Eye, Printer, Search, Calendar, DollarSign, CheckCircle, XCircle, AlertCircle, X, Filter } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { getPdfSettings, hexToRgb, getMarginValues, formatCurrency, generateChallanNumber, getMonthName, getFeePeriodLabel, calculateDueDate } from '@/lib/pdfSettings'
+import { getPdfSettings, hexToRgb, getMarginValues, formatCurrency, generateChallanNumber, getMonthName, getFeePeriodLabel, calculateDueDate, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
 
 export default function FeeChallans({ user, classes, schoolData, showToast }) {
   const [challans, setChallans] = useState([])
@@ -163,150 +163,342 @@ export default function FeeChallans({ user, classes, schoolData, showToast }) {
     try {
       // Dynamically import jsPDF and autoTable
       const jsPDF = (await import('jspdf')).default
-      await import('jspdf-autotable')
+      const { default: autoTable } = await import('jspdf-autotable')
 
       const pdfSettings = getPdfSettings()
-      const margins = getMarginValues(pdfSettings.margin)
 
+      // Create PDF with settings from PAGE SETTINGS
       const doc = new jsPDF({
-        orientation: 'portrait',
+        orientation: pdfSettings.orientation || 'portrait',
         unit: 'mm',
-        format: pdfSettings.pageSize
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
       })
 
       // Get page dimensions
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
 
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Get margin values from settings
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
+
       for (let i = 0; i < challansData.length; i++) {
         const challan = challansData[i]
 
-        // Fetch student data
-        const { data: student } = await supabase
-          .from('students')
-          .select('*, classes(class_name)')
-          .eq('id', challan.student_id)
-          .single()
+        // Fetch student and challan items data in parallel
+        const [studentResult, itemsResult] = await Promise.all([
+          supabase
+            .from('students')
+            .select('*, classes(class_name)')
+            .eq('id', challan.student_id)
+            .single(),
+          supabase
+            .from('fee_challan_items')
+            .select('description, amount, fee_types(fee_name)')
+            .eq('challan_id', challan.id)
+        ])
+
+        const student = studentResult.data
+        const items = itemsResult.data || []
+        const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
+        const className = student?.classes?.class_name || 'N/A'
 
         if (i > 0) doc.addPage()
 
-        // Header with logo
-        let yPos = margins.top
+        // Header background with header background color from settings
+        const headerHeight = 40
+        const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+        doc.setFillColor(...headerBgColor)
+        doc.rect(0, 0, pageWidth, headerHeight, 'F')
 
+        // Logo in header
+        let yPos = 18
         if (pdfSettings.includeLogo && schoolData.logo_url) {
           try {
-            const logoSize = 25
-            doc.addImage(schoolData.logo_url, 'PNG', margins.left, yPos - 10, logoSize, logoSize)
-          } catch (e) {
-            console.warn('Could not add logo to PDF')
+            const img = new Image()
+            img.crossOrigin = 'anonymous'
+            img.src = schoolData.logo_url
+
+            await new Promise((resolve) => {
+              img.onload = () => {
+                try {
+                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                  // Center logo vertically in header
+                  const logoY = (headerHeight - currentLogoSize) / 2
+                  let logoX = 10 // Default to left with 10mm margin
+
+                  // Position logo based on settings
+                  if (pdfSettings.logoPosition === 'center') {
+                    // Center logo - but this will overlap with text, so skip if center
+                    logoX = 10 // Keep on left
+                  } else if (pdfSettings.logoPosition === 'right') {
+                    logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                  }
+
+                  // Add logo with style
+                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                    // Create a canvas to clip the image
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const size = 200 // Higher resolution for better quality
+                    canvas.width = size
+                    canvas.height = size
+
+                    // Draw clipped image on canvas
+                    ctx.beginPath()
+                    if (pdfSettings.logoStyle === 'circle') {
+                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                    } else {
+                      // Rounded corners
+                      const radius = size * 0.15
+                      ctx.moveTo(radius, 0)
+                      ctx.lineTo(size - radius, 0)
+                      ctx.quadraticCurveTo(size, 0, size, radius)
+                      ctx.lineTo(size, size - radius)
+                      ctx.quadraticCurveTo(size, size, size - radius, size)
+                      ctx.lineTo(radius, size)
+                      ctx.quadraticCurveTo(0, size, 0, size - radius)
+                      ctx.lineTo(0, radius)
+                      ctx.quadraticCurveTo(0, 0, radius, 0)
+                    }
+                    ctx.closePath()
+                    ctx.clip()
+
+                    // Draw image
+                    ctx.drawImage(img, 0, 0, size, size)
+
+                    // Convert canvas to data URL and add to PDF
+                    const clippedImage = canvas.toDataURL('image/png')
+                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  } else {
+                    // Square logo
+                    doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  }
+
+                  resolve()
+                } catch (e) {
+                  console.warn('Could not add logo to PDF:', e)
+                  resolve()
+                }
+              }
+              img.onerror = () => {
+                console.warn('Could not load logo image')
+                resolve()
+              }
+            })
+          } catch (error) {
+            console.error('Error adding logo:', error)
           }
         }
 
-        // School name and title
-        doc.setFontSize(18)
+        // School name and subtitle in white
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(16)
         doc.setFont('helvetica', 'bold')
-        doc.text(schoolData.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
+        doc.text(schoolData.name || 'School Name', pageWidth / 2, yPos + 5, { align: 'center' })
 
-        yPos += 8
-        doc.setFontSize(14)
-        doc.setTextColor(...hexToRgb(pdfSettings.primaryColor))
-        doc.text('FEE CHALLAN', pageWidth / 2, yPos, { align: 'center' })
-
-        yPos += 10
         doc.setFontSize(9)
-        doc.setTextColor(0, 0, 0)
         doc.setFont('helvetica', 'normal')
+        doc.text('Student FEE CHALLAN', pageWidth / 2, yPos + 12, { align: 'center' })
 
-        // Challan details box
-        doc.setDrawColor(200, 200, 200)
-        doc.setLineWidth(0.3)
-        doc.rect(margins.left, yPos, pageWidth - margins.left - margins.right, 30)
+        // Generated date - position based on logo position to avoid overlap
+        doc.setFontSize(7)
+        doc.setTextColor(220, 220, 220)
+        const now = new Date()
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
 
-        // Left column
-        let xPos = margins.left + 5
+        // If logo is on right, put date on left to avoid overlap
+        const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
+        const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
+        doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
+
+        // Reset to black
+        doc.setTextColor(0, 0, 0)
+        yPos = headerHeight + 10
+
+        // STUDENT INFORMATION Section
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.text('STUDENT INFORMATION', leftMargin, yPos)
         yPos += 7
-        doc.setFont('helvetica', 'bold')
-        doc.text('Challan No:', xPos, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(challan.challan_number, xPos + 25, yPos)
 
-        yPos += 6
+        // Student info grid with labels and values
+        const labelWidth = 35
+        let xPos = leftMargin
+
+        // Row 1: Student Name and Student Roll#
+        doc.setFontSize(8)
         doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
         doc.text('Student Name:', xPos, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(`${student.first_name} ${student.last_name || ''}`, xPos + 25, yPos)
-
-        yPos += 6
         doc.setFont('helvetica', 'bold')
-        doc.text('Admission No:', xPos, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(student.admission_number || '-', xPos + 25, yPos)
-
-        // Right column
-        xPos = pageWidth / 2 + 10
-        yPos -= 12
-        doc.setFont('helvetica', 'bold')
-        doc.text('Issue Date:', xPos, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(new Date(challan.issue_date).toLocaleDateString(), xPos + 20, yPos)
-
-        yPos += 6
-        doc.setFont('helvetica', 'bold')
-        doc.text('Due Date:', xPos, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(220, 38, 38)
-        doc.text(new Date(challan.due_date).toLocaleDateString(), xPos + 20, yPos)
         doc.setTextColor(0, 0, 0)
+        doc.text(studentName || 'N/A', xPos + labelWidth, yPos)
+
+        xPos = pageWidth / 2 + 5
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Student Roll#:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text(student?.admission_number || 'N/A', xPos + labelWidth, yPos)
 
         yPos += 6
+        xPos = leftMargin
+
+        // Row 2: Class and Father Name
         doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
         doc.text('Class:', xPos, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(student.classes?.class_name || '-', xPos + 20, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text(className, xPos + labelWidth, yPos)
 
-        // Fee details table
+        xPos = pageWidth / 2 + 5
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Father Name:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
+
+        yPos += 6
+        xPos = leftMargin
+
+        // Row 3: Due Date and Fee Type
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Due Date:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        const formattedDueDate = new Date(challan.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
+        const dueDayName = days[new Date(challan.due_date).getDay()]
+        doc.text(formattedDueDate + ' ' + dueDayName, xPos + labelWidth, yPos)
+
+        xPos = pageWidth / 2 + 5
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Fee Type:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
+
+        yPos += 12
+
+        // FEE BREAKDOWN Section
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('FEE BREAKDOWN', leftMargin, yPos)
+        yPos += 2
+
+        // Fee table with Particulars and Amount columns
+        if (items && items.length > 0) {
+          const tableData = items.map(item => [
+            item.fee_types?.fee_name || item.description,
+            formatCurrency(item.amount)
+          ])
+
+          autoTable(doc, {
+            startY: yPos,
+            head: [['Particulars', 'Amount']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: {
+              fillColor: hexToRgb(pdfSettings.tableHeaderColor),
+              textColor: [255, 255, 255],
+              fontSize: 9,
+              fontStyle: 'bold',
+              halign: 'left',
+              cellPadding: { top: 3, bottom: 3, left: 5, right: 5 }
+            },
+            bodyStyles: {
+              fontSize: 9,
+              cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+              textColor: [0, 0, 0]
+            },
+            columnStyles: {
+              0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+              1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+            },
+            margin: { left: leftMargin, right: leftMargin },
+            didParseCell: function(data) {
+              data.cell.styles.lineColor = [200, 200, 200]
+              data.cell.styles.lineWidth = 0.1
+            },
+            didDrawCell: function(data) {
+              if (data.column.index === 1 && data.section === 'body') {
+                const amountText = data.cell.raw || ''
+                if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
+                  doc.setTextColor(220, 38, 38)
+                }
+              }
+            }
+          })
+
+          yPos = doc.lastAutoTable.finalY + 3
+        }
+
+        // TOTAL FEE PAYABLE
+        doc.setFillColor(240, 253, 244)
+        doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.1)
+        doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
+
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
+
+        doc.setTextColor(22, 163, 74)
+        doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
+
         yPos += 15
-        const tableData = [
-          ['Tuition Fee', formatCurrency(student.base_fee || 0)],
-          ['Discount', `${student.discount_percent || 0}%`],
-          ['Total Amount', formatCurrency(challan.total_amount)]
-        ]
 
-        doc.autoTable({
-          startY: yPos,
-          head: [['Description', 'Amount']],
-          body: tableData,
-          theme: 'grid',
-          headStyles: {
-            fillColor: hexToRgb(pdfSettings.tableHeaderColor),
-            textColor: [255, 255, 255],
-            fontSize: 10,
-            fontStyle: 'bold'
-          },
-          styles: {
-            fontSize: 9,
-            cellPadding: 3
-          },
-          margin: { left: margins.left, right: margins.right },
-          columnStyles: {
-            0: { cellWidth: 100 },
-            1: { halign: 'right', fontStyle: 'bold' }
-          }
-        })
+        // Amount in words
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Amount in Words:', margins.left, yPos)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(0, 0, 0)
+        doc.text('Two Thousand Seven Hundred Only', margins.left, yPos + 5)
+
+        yPos += 12
+
+        // Payment Status
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Payment Status:', margins.left, yPos)
+
+        const statusColor = challan.status === 'paid' ? [22, 163, 74] : challan.status === 'overdue' ? [220, 38, 38] : [234, 179, 8]
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...statusColor)
+        doc.text(challan.status.charAt(0).toUpperCase() + challan.status.slice(1), margins.left + 32, yPos)
 
         // Footer
-        yPos = pageHeight - margins.bottom - 20
-        doc.setFontSize(8)
+        yPos = pageHeight - margins.bottom - 8
+
+        // Horizontal line above footer text
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.3)
+        doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
+
+        doc.setFontSize(7)
         doc.setTextColor(150, 150, 150)
-        doc.text('Please pay before the due date to avoid late fee charges.', margins.left, yPos)
-        yPos += 5
-        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margins.left, yPos)
+        doc.setFont('helvetica', 'normal')
+        doc.text(schoolData.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
       }
 
-      // Save PDF
-      const selectedClass = classes.find(c => c.id === generateForm.classId)
-      doc.save(`Fee_Challans_${selectedClass?.class_name || 'Class'}_${generateForm.month}_${generateForm.year}.pdf`)
-
+      // Open PDF in new window instead of downloading
+      window.open(doc.output('bloburl'), '_blank')
       showToast('PDF generated successfully!', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -315,144 +507,344 @@ export default function FeeChallans({ user, classes, schoolData, showToast }) {
   }
 
   const handleViewChallan = async (challan) => {
-    // Generate individual PDF for viewing
     try {
       const jsPDF = (await import('jspdf')).default
-      await import('jspdf-autotable')
+      const { default: autoTable } = await import('jspdf-autotable')
 
-      const { data: student } = await supabase
-        .from('students')
-        .select('*, classes(class_name)')
-        .eq('id', challan.student_id)
-        .single()
+      // Fetch challan items and school data
+      const [itemsResult, schoolResult] = await Promise.all([
+        supabase
+          .from('fee_challan_items')
+          .select('description, amount, fee_types(fee_name)')
+          .eq('challan_id', challan.id),
+        supabase
+          .from('schools')
+          .select('name, address, phone, email, logo_url, code')
+          .eq('id', user?.school_id)
+          .single()
+      ])
 
+      const items = itemsResult.data || []
+      const schoolData = schoolResult.data || {}
+
+      const student = challan.students
+      const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
+      const className = student?.classes?.class_name || 'N/A'
+
+      // Get PDF settings
       const pdfSettings = getPdfSettings()
-      const margins = getMarginValues(pdfSettings.margin)
 
+      // Create PDF with settings from PAGE SETTINGS
       const doc = new jsPDF({
-        orientation: 'portrait',
+        orientation: pdfSettings.orientation || 'portrait',
         unit: 'mm',
-        format: pdfSettings.pageSize
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
       })
 
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
 
-      // [Same PDF generation code as in generateClassPDF but for single challan]
-      // Header with logo
-      let yPos = margins.top
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
 
+      // Get margin values from settings
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
+
+      // Header background with header background color from settings
+      const headerHeight = 40
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      doc.setFillColor(...headerBgColor)
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
+
+      // Logo in header
+      let yPos = 18
       if (pdfSettings.includeLogo && schoolData.logo_url) {
         try {
-          const logoSize = 25
-          doc.addImage(schoolData.logo_url, 'PNG', margins.left, yPos - 10, logoSize, logoSize)
-        } catch (e) {
-          console.warn('Could not add logo to PDF')
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = schoolData.logo_url
+
+          await new Promise((resolve) => {
+            img.onload = () => {
+              try {
+                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                // Center logo vertically in header
+                const logoY = (headerHeight - currentLogoSize) / 2
+                let logoX = 10 // Default to left with 10mm margin
+
+                // Position logo based on settings
+                if (pdfSettings.logoPosition === 'center') {
+                  // Center logo - but this will overlap with text, so skip if center
+                  logoX = 10 // Keep on left
+                } else if (pdfSettings.logoPosition === 'right') {
+                  logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                }
+
+                // Add logo with style
+                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                  // Create a canvas to clip the image
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const size = 200 // Higher resolution for better quality
+                  canvas.width = size
+                  canvas.height = size
+
+                  // Draw clipped image on canvas
+                  ctx.beginPath()
+                  if (pdfSettings.logoStyle === 'circle') {
+                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                  } else {
+                    // Rounded corners
+                    const radius = size * 0.15
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(size - radius, 0)
+                    ctx.quadraticCurveTo(size, 0, size, radius)
+                    ctx.lineTo(size, size - radius)
+                    ctx.quadraticCurveTo(size, size, size - radius, size)
+                    ctx.lineTo(radius, size)
+                    ctx.quadraticCurveTo(0, size, 0, size - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  }
+                  ctx.closePath()
+                  ctx.clip()
+
+                  // Draw image
+                  ctx.drawImage(img, 0, 0, size, size)
+
+                  // Convert canvas to data URL and add to PDF
+                  const clippedImage = canvas.toDataURL('image/png')
+                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else {
+                  // Square logo
+                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                }
+
+                resolve()
+              } catch (e) {
+                console.warn('Could not add logo to PDF:', e)
+                resolve()
+              }
+            }
+            img.onerror = () => {
+              console.warn('Could not load logo image')
+              resolve()
+            }
+          })
+        } catch (error) {
+          console.error('Error adding logo:', error)
         }
       }
 
-      doc.setFontSize(18)
+      // School name and subtitle in white
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(16)
       doc.setFont('helvetica', 'bold')
-      doc.text(schoolData.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
+      doc.text(schoolData.name || 'School Name', pageWidth / 2, yPos + 5, { align: 'center' })
 
-      yPos += 8
-      doc.setFontSize(14)
-      doc.setTextColor(...hexToRgb(pdfSettings.primaryColor))
-      doc.text('FEE CHALLAN', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 10
       doc.setFontSize(9)
-      doc.setTextColor(0, 0, 0)
       doc.setFont('helvetica', 'normal')
+      doc.text('Student FEE CHALLAN', pageWidth / 2, yPos + 12, { align: 'center' })
 
-      // Challan details
-      doc.setDrawColor(200, 200, 200)
-      doc.setLineWidth(0.3)
-      doc.rect(margins.left, yPos, pageWidth - margins.left - margins.right, 30)
+      // Generated date - position based on logo position to avoid overlap
+      doc.setFontSize(7)
+      doc.setTextColor(220, 220, 220)
+      const now = new Date()
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
 
-      let xPos = margins.left + 5
+      // If logo is on right, put date on left to avoid overlap
+      const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
+      const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
+      doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
+
+      // Reset to black
+      doc.setTextColor(0, 0, 0)
+      yPos = headerHeight + 10
+
+      // STUDENT INFORMATION Section
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text('STUDENT INFORMATION', leftMargin, yPos)
       yPos += 7
-      doc.setFont('helvetica', 'bold')
-      doc.text('Challan No:', xPos, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(challan.challan_number, xPos + 25, yPos)
 
-      yPos += 6
+      // Student info grid with labels and values
+      const labelWidth = 35
+      let xPos = leftMargin
+
+      // Row 1: Student Name and Student Roll#
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
       doc.text('Student Name:', xPos, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`${student.first_name} ${student.last_name || ''}`, xPos + 25, yPos)
-
-      yPos += 6
       doc.setFont('helvetica', 'bold')
-      doc.text('Admission No:', xPos, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(student.admission_number || '-', xPos + 25, yPos)
-
-      xPos = pageWidth / 2 + 10
-      yPos -= 12
-      doc.setFont('helvetica', 'bold')
-      doc.text('Issue Date:', xPos, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(new Date(challan.issue_date).toLocaleDateString(), xPos + 20, yPos)
-
-      yPos += 6
-      doc.setFont('helvetica', 'bold')
-      doc.text('Due Date:', xPos, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(220, 38, 38)
-      doc.text(new Date(challan.due_date).toLocaleDateString(), xPos + 20, yPos)
       doc.setTextColor(0, 0, 0)
+      doc.text(studentName || 'N/A', xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Student Roll#:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(student?.admission_number || 'N/A', xPos + labelWidth, yPos)
 
       yPos += 6
+      xPos = leftMargin
+
+      // Row 2: Class and Father Name
       doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
       doc.text('Class:', xPos, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.text(student.classes?.class_name || '-', xPos + 20, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(className, xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Father Name:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
+
+      yPos += 6
+      xPos = leftMargin
+
+      // Row 3: Due Date and Fee Type
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Due Date:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      const formattedDueDate = new Date(challan.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
+      const dueDayName = days[new Date(challan.due_date).getDay()]
+      doc.text(formattedDueDate + ' ' + dueDayName, xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Fee Type:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
+
+      yPos += 12
+
+      // FEE BREAKDOWN Section
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('FEE BREAKDOWN', leftMargin, yPos)
+      yPos += 2
+
+      // Fee table with Particulars and Amount columns
+      if (items && items.length > 0) {
+        const tableData = items.map(item => [
+          item.fee_types?.fee_name || item.description,
+          formatCurrency(item.amount)
+        ])
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Particulars', 'Amount']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: hexToRgb(pdfSettings.tableHeaderColor),
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold',
+            halign: 'left',
+            cellPadding: { top: 3, bottom: 3, left: 5, right: 5 }
+          },
+          bodyStyles: {
+            fontSize: 9,
+            cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+            textColor: [0, 0, 0]
+          },
+          columnStyles: {
+            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+            1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+          },
+          margin: { left: leftMargin, right: leftMargin },
+          didParseCell: function(data) {
+            data.cell.styles.lineColor = [200, 200, 200]
+            data.cell.styles.lineWidth = 0.1
+          },
+          didDrawCell: function(data) {
+            if (data.column.index === 1 && data.section === 'body') {
+              const amountText = data.cell.raw || ''
+              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
+                doc.setTextColor(220, 38, 38)
+              }
+            }
+          }
+        })
+
+        yPos = doc.lastAutoTable.finalY + 3
+      }
+
+      // TOTAL FEE PAYABLE
+      doc.setFillColor(240, 253, 244)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.1)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
+
+      doc.setTextColor(22, 163, 74)
+      doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
 
       yPos += 15
-      const tableData = [
-        ['Tuition Fee', formatCurrency(student.base_fee || 0)],
-        ['Discount', `${student.discount_percent || 0}%`],
-        ['Total Amount', formatCurrency(challan.total_amount)]
-      ]
 
-      doc.autoTable({
-        startY: yPos,
-        head: [['Description', 'Amount']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: {
-          fillColor: hexToRgb(pdfSettings.tableHeaderColor),
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold'
-        },
-        styles: {
-          fontSize: 9,
-          cellPadding: 3
-        },
-        margin: { left: margins.left, right: margins.right },
-        columnStyles: {
-          0: { cellWidth: 100 },
-          1: { halign: 'right', fontStyle: 'bold' }
-        }
-      })
-
-      yPos = pageHeight - margins.bottom - 20
+      // Amount in words
       doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Amount in Words:', margins.left, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+      doc.text('Two Thousand Seven Hundred Only', margins.left, yPos + 5)
+
+      yPos += 12
+
+      // Payment Status
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Payment Status:', margins.left, yPos)
+
+      const statusColor = challan.status === 'paid' ? [22, 163, 74] : challan.status === 'overdue' ? [220, 38, 38] : [234, 179, 8]
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...statusColor)
+      doc.text(challan.status.charAt(0).toUpperCase() + challan.status.slice(1), margins.left + 32, yPos)
+
+      // Footer
+      yPos = pageHeight - margins.bottom - 8
+
+      // Horizontal line above footer text
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.3)
+      doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
+
+      doc.setFontSize(7)
       doc.setTextColor(150, 150, 150)
-      doc.text('Please pay before the due date to avoid late fee charges.', margins.left, yPos)
-      yPos += 5
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margins.left, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(schoolData.name || 'Superior College Bhakkar', pageWidth / 2, yPos, { align: 'center' })
 
-      // Open in new window
-      window.open(doc.output('bloburl'), '_blank')
-
-      showToast('Challan opened successfully!', 'success')
+      // Download PDF directly
+      doc.save(`Fee_Challan_${challan.challan_number}.pdf`)
+      showToast('PDF downloaded successfully!', 'success')
     } catch (error) {
-      console.error('Error viewing challan:', error)
-      showToast('Error viewing challan', 'error')
+      console.error('Error generating PDF:', error)
+      showToast('Failed to generate PDF', 'error')
     }
   }
 

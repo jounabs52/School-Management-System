@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, CheckCircle, FileText } from 'lucide-react'
+import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { getPdfSettings, hexToRgb, getMarginValues, getCellPadding, getLineWidth, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
-import FeeChallans from './FeeChallans'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -2121,23 +2120,6 @@ export default function TimetablePage() {
           <CalendarDays size={16} />
           Periods
         </button>
-        <button
-          onClick={() => {
-            setActiveTab('fee-challans')
-            setShowPeriodModal(false)
-            setShowBulkPeriodModal(false)
-            setShowTimingModal(false)
-            setShowDeleteConfirm(false)
-          }}
-          className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 text-sm ${
-            activeTab === 'fee-challans'
-              ? 'bg-[#DC2626] text-white shadow-lg'
-              : 'bg-white text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          <FileText size={16} />
-          Fee Challans
-        </button>
       </div>
 
       {/* Content Area */}
@@ -2760,13 +2742,6 @@ export default function TimetablePage() {
             </div>
           )}
         </div>
-      ) : activeTab === 'fee-challans' ? (
-        <FeeChallans
-          user={user}
-          classes={classes}
-          schoolData={schoolData}
-          showToast={showToast}
-        />
       ) : null}
 
       {/* Add Period Modal */}

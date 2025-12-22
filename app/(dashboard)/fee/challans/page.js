@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Eye, Printer, CheckCircle, X } from 'lucide-react'
+import { Search, Eye, Printer, CheckCircle, X, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getPdfSettings, hexToRgb, getMarginValues, formatCurrency, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -110,9 +111,31 @@ export default function FeeChallanPage() {
       const user = getUserFromCookie()
       if (!user) return
 
+      // First, get all challans to find which classes have challans
+      const { data: challansData } = await supabase
+        .from('fee_challans')
+        .select(`
+          students!student_id (
+            current_class_id
+          )
+        `)
+        .eq('school_id', user.school_id)
+
+      // Get unique class IDs from challans
+      const classIdsWithChallans = [...new Set(
+        challansData?.map(c => c.students?.current_class_id).filter(Boolean)
+      )]
+
+      if (classIdsWithChallans.length === 0) {
+        setClasses([])
+        return
+      }
+
+      // Fetch only classes that have challans
       const { data: allClasses, error } = await supabase
         .from('classes')
         .select('id, class_name')
+        .in('id', classIdsWithChallans)
         .eq('school_id', user.school_id)
         .order('class_name', { ascending: true })
 
@@ -143,6 +166,7 @@ export default function FeeChallanPage() {
             admission_number,
             first_name,
             last_name,
+            father_name,
             current_class_id,
             current_section_id
           )
@@ -168,6 +192,7 @@ export default function FeeChallanPage() {
           .from('classes')
           .select('id, class_name, fee_plan')
           .in('id', classIds)
+          .eq('school_id', user.school_id)
 
         if (classesData) {
           classesData.forEach(cls => {
@@ -280,6 +305,60 @@ export default function FeeChallanPage() {
     return badges[status] || badges.pending
   }
 
+  // Function to convert number to words
+  const numberToWords = (num) => {
+    if (num === 0) return 'Zero'
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+
+    const convertLessThanThousand = (n) => {
+      if (n === 0) return ''
+      if (n < 10) return ones[n]
+      if (n < 20) return teens[n - 10]
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '')
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '')
+    }
+
+    const integerPart = Math.floor(num)
+
+    if (integerPart < 1000) {
+      return convertLessThanThousand(integerPart) + ' Only'
+    }
+
+    if (integerPart < 100000) {
+      const thousands = Math.floor(integerPart / 1000)
+      const remainder = integerPart % 1000
+      return convertLessThanThousand(thousands) + ' Thousand' +
+             (remainder !== 0 ? ' ' + convertLessThanThousand(remainder) : '') + ' Only'
+    }
+
+    if (integerPart < 10000000) {
+      const lakhs = Math.floor(integerPart / 100000)
+      const remainder = integerPart % 100000
+      const thousands = Math.floor(remainder / 1000)
+      const hundreds = remainder % 1000
+
+      let result = convertLessThanThousand(lakhs) + ' Lakh'
+      if (thousands > 0) result += ' ' + convertLessThanThousand(thousands) + ' Thousand'
+      if (hundreds > 0) result += ' ' + convertLessThanThousand(hundreds)
+      return result + ' Only'
+    }
+
+    const crores = Math.floor(integerPart / 10000000)
+    const remainder = integerPart % 10000000
+    const lakhs = Math.floor(remainder / 100000)
+    const thousands = Math.floor((remainder % 100000) / 1000)
+    const hundreds = remainder % 1000
+
+    let result = convertLessThanThousand(crores) + ' Crore'
+    if (lakhs > 0) result += ' ' + convertLessThanThousand(lakhs) + ' Lakh'
+    if (thousands > 0) result += ' ' + convertLessThanThousand(thousands) + ' Thousand'
+    if (hundreds > 0) result += ' ' + convertLessThanThousand(hundreds)
+    return result + ' Only'
+  }
+
   const downloadChallanPDF = async (challan = null, items = null) => {
     const challanToUse = challan || selectedChallan
     const itemsToUse = items || challanItems
@@ -287,189 +366,709 @@ export default function FeeChallanPage() {
     if (!challanToUse) return
 
     try {
+      // Fetch school data
+      const schoolResult = await supabase
+        .from('schools')
+        .select('name, address, phone, email, logo_url, code')
+        .eq('id', getUserFromCookie()?.school_id)
+        .single()
+
+      const schoolData = schoolResult.data || {}
+
       const student = challanToUse.students
-      const doc = new jsPDF('landscape', 'mm', 'a4')
+      const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
+      const className = student?.classes?.class_name || 'N/A'
 
-      const copyTypes = ['Bank', 'School', 'Student']
-      const pageWidth = 297
-      const copyWidth = pageWidth / 3
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
 
-      copyTypes.forEach((copyType, index) => {
-        const xOffset = index * copyWidth
-        const margin = 3
+      // Create PDF with settings from PAGE SETTINGS
+      const doc = new jsPDF({
+        orientation: pdfSettings.orientation || 'portrait',
+        unit: 'mm',
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+      })
 
-        doc.setDrawColor(200)
-        doc.setLineWidth(0.3)
-        doc.rect(xOffset + 1, 5, copyWidth - 2, 200)
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
 
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'bold')
-        doc.text(schoolName, xOffset + copyWidth / 2, 12, { align: 'center' })
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
 
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'normal')
-        doc.text('The Bank of Punjab', xOffset + copyWidth / 2, 17, { align: 'center' })
-        doc.text(`Copy of ${copyType}`, xOffset + copyWidth / 2, 21, { align: 'center' })
+      // Get margin values from settings
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
 
-        let yPos = 28
+      // Calculate color values from settings for reuse
+      const textColorRgb = hexToRgb(pdfSettings.textColor)
+      const secondaryColorRgb = hexToRgb(pdfSettings.secondaryColor)
+      const primaryColorRgb = hexToRgb(pdfSettings.primaryColor)
+      const lineWidthValue = pdfSettings.lineWidth === 'thick' ? 0.3 : pdfSettings.lineWidth === 'normal' ? 0.2 : 0.1
 
-        doc.setFontSize(6)
-        doc.setFont('helvetica', 'bold')
-        doc.text('Challan#', xOffset + margin, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(challanToUse.challan_number.substring(0, 15), xOffset + margin + 12, yPos)
+      // Header background with header background color from settings
+      const headerHeight = 40
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      doc.setFillColor(...headerBgColor)
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
 
-        yPos += 4
-        doc.setFont('helvetica', 'bold')
-        doc.text('Collection A/C#', xOffset + margin, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text('6580252791800018', xOffset + margin + 16, yPos)
+      // Logo in header
+      let yPos = 18
+      if (pdfSettings.includeLogo && schoolData.logo_url) {
+        try {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = schoolData.logo_url
 
-        yPos += 4
-        doc.setFont('helvetica', 'bold')
-        doc.text('Student Name', xOffset + margin, yPos)
-        doc.setFont('helvetica', 'normal')
-        const studentName = student ? `${student.first_name} ${student.last_name || ''}`.substring(0, 18) : 'N/A'
-        doc.text(studentName, xOffset + margin + 16, yPos)
+          await new Promise((resolve) => {
+            img.onload = () => {
+              try {
+                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                // Center logo vertically in header
+                const logoY = (headerHeight - currentLogoSize) / 2
+                let logoX = 10 // Default to left with 10mm margin
 
-        yPos += 4
-        doc.setFont('helvetica', 'bold')
-        doc.text('Admission No', xOffset + margin, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(student?.admission_number || 'N/A', xOffset + margin + 16, yPos)
+                // Position logo based on settings
+                if (pdfSettings.logoPosition === 'center') {
+                  // Center logo - but this will overlap with text, so skip if center
+                  logoX = 10 // Keep on left
+                } else if (pdfSettings.logoPosition === 'right') {
+                  logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                }
 
-        yPos += 4
-        doc.setFont('helvetica', 'bold')
-        doc.text('Class', xOffset + margin, yPos)
-        doc.setFont('helvetica', 'normal')
-        const className = student?.classes?.class_name || 'N/A'
-        doc.text(className, xOffset + margin + 16, yPos)
+                // Add logo with style
+                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                  // Create a canvas to clip the image
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const size = 200 // Higher resolution for better quality
+                  canvas.width = size
+                  canvas.height = size
 
-        yPos += 4
-        doc.setFont('helvetica', 'bold')
-        doc.text('Due Date', xOffset + margin, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text(new Date(challanToUse.due_date).toLocaleDateString(), xOffset + margin + 16, yPos)
+                  // Draw clipped image on canvas
+                  ctx.beginPath()
+                  if (pdfSettings.logoStyle === 'circle') {
+                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                  } else {
+                    // Rounded corners
+                    const radius = size * 0.15
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(size - radius, 0)
+                    ctx.quadraticCurveTo(size, 0, size, radius)
+                    ctx.lineTo(size, size - radius)
+                    ctx.quadraticCurveTo(size, size, size - radius, size)
+                    ctx.lineTo(radius, size)
+                    ctx.quadraticCurveTo(0, size, 0, size - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  }
+                  ctx.closePath()
+                  ctx.clip()
 
-        yPos += 4
-        doc.setFont('helvetica', 'bold')
-        doc.text('Fee Type', xOffset + margin, yPos)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Self Support', xOffset + margin + 16, yPos)
+                  // Draw image
+                  ctx.drawImage(img, 0, 0, size, size)
 
-        yPos += 6
+                  // Convert canvas to data URL and add to PDF
+                  const clippedImage = canvas.toDataURL('image/png')
+                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else {
+                  // Square logo
+                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                }
 
-        const tableData = []
-        let totalAmount = 0
-
-        if (itemsToUse && itemsToUse.length > 0) {
-          itemsToUse.forEach((item, idx) => {
-            const amount = parseFloat(item.amount)
-            totalAmount += amount
-            const feeDescription = item.fee_types?.fee_name || item.description || 'Fee'
-            tableData.push([
-              (idx + 1).toString(),
-              feeDescription,
-              amount.toLocaleString()
-            ])
+                resolve()
+              } catch (e) {
+                console.warn('Could not add logo to PDF:', e)
+                resolve()
+              }
+            }
+            img.onerror = () => {
+              console.warn('Could not load logo image')
+              resolve()
+            }
           })
-          tableData.push(['', 'Total', totalAmount.toLocaleString()])
-        } else {
-          totalAmount = parseFloat(challanToUse.total_amount)
-          tableData.push([
-            '1',
-            'Total Fee',
-            totalAmount.toLocaleString()
-          ])
-          tableData.push(['', 'Total', totalAmount.toLocaleString()])
+        } catch (error) {
+          console.error('Error adding logo:', error)
         }
+      }
+
+      // School name and subtitle in white (only if includeHeader is true)
+      if (pdfSettings.includeHeader !== false) {
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 8) // Header title larger than base font
+        doc.setFont('helvetica', 'bold')
+        doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1) // Subtitle slightly larger than base
+        doc.setFont('helvetica', 'normal')
+        const headerText = pdfSettings.headerText || 'Student FEE CHALLAN'
+        doc.text(headerText, pageWidth / 2, yPos + 12, { align: 'center' })
+      }
+
+      // Generated date - position based on logo position to avoid overlap
+      doc.setFontSize(parseInt(pdfSettings.fontSize) - 1) // Date slightly smaller than base
+      doc.setTextColor(220, 220, 220)
+      const now = new Date()
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
+
+      // If logo is on right, put date on left to avoid overlap
+      const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
+      const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
+      doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
+
+      // Reset to text color from settings
+      doc.setTextColor(...textColorRgb)
+      yPos = headerHeight + 10
+
+      // STUDENT INFORMATION Section
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2) // Section titles slightly larger
+      doc.setFont('helvetica', 'bold')
+      doc.text('STUDENT INFORMATION', leftMargin, yPos)
+      yPos += 7
+
+      // Student info grid with labels and values
+      const labelWidth = 35
+      let xPos = leftMargin
+
+      // Row 1: Student Name and Student Roll#
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb) // Use secondary color for labels
+      doc.text('Student Name:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb) // Use text color for values
+      doc.text(studentName || 'N/A', xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Student Roll#:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(student?.admission_number || 'N/A', xPos + labelWidth, yPos)
+
+      yPos += 6
+      xPos = leftMargin
+
+      // Row 2: Class and Father Name
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Class:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(className, xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Father Name:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
+
+      yPos += 6
+      xPos = leftMargin
+
+      // Row 3: Due Date and Fee Type
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Due Date:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      const formattedDueDate = new Date(challanToUse.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
+      const dueDayName = days[new Date(challanToUse.due_date).getDay()]
+      doc.text(formattedDueDate + ' ' + dueDayName, xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Fee Type:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
+
+      yPos += 12
+
+      // FEE BREAKDOWN Section
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text('FEE BREAKDOWN', leftMargin, yPos)
+      yPos += 2
+
+      // Fee table with Particulars and Amount columns
+      if (itemsToUse && itemsToUse.length > 0) {
+        const tableData = itemsToUse.map(item => [
+          item.fee_types?.fee_name || item.description,
+          formatCurrency(item.amount)
+        ])
+
+        // Calculate cell padding from settings
+        const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
+        const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
 
         autoTable(doc, {
           startY: yPos,
-          margin: { left: xOffset + margin, right: pageWidth - (xOffset + copyWidth - margin) },
-          head: [['No', 'Particulars', 'Amount']],
+          head: [['Particulars', 'Amount']],
           body: tableData,
-          theme: 'grid',
+          theme: pdfSettings.tableStyle || 'grid',
           headStyles: {
-            fillColor: [0, 0, 0],
+            fillColor: hexToRgb(pdfSettings.tableHeaderColor),
             textColor: [255, 255, 255],
-            fontSize: 6,
+            fontSize: parseInt(pdfSettings.fontSize) + 1,
             fontStyle: 'bold',
-            halign: 'center'
+            halign: 'left',
+            cellPadding: { top: cellPaddingValue - 1, bottom: cellPaddingValue - 1, left: 5, right: 5 }
           },
           bodyStyles: {
-            fontSize: 5,
-            cellPadding: 1
+            fontSize: parseInt(pdfSettings.fontSize) + 1,
+            cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 },
+            textColor: textColorRgb
+          },
+          alternateRowStyles: {
+            fillColor: alternateRowColorRgb
           },
           columnStyles: {
-            0: { cellWidth: 8, halign: 'center' },
-            1: { cellWidth: copyWidth - 30, halign: 'left' },
-            2: { cellWidth: 16, halign: 'right' }
+            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+            1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
           },
-          tableWidth: copyWidth - 6,
+          margin: { left: leftMargin, right: leftMargin },
           didParseCell: function(data) {
-            if (data.row.index === tableData.length - 1) {
-              data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.lineColor = secondaryColorRgb
+            data.cell.styles.lineWidth = lineWidthValue
+          },
+          didDrawCell: function(data) {
+            if (data.column.index === 1 && data.section === 'body') {
+              const amountText = data.cell.raw || ''
+              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
+                doc.setTextColor(...primaryColorRgb) // Use primary color for discounts
+              }
             }
           }
         })
 
-        const finalY = doc.lastAutoTable.finalY + 3
-        doc.setFontSize(5)
-        doc.setFont('helvetica', 'italic')
-        const words = numberToWords(totalAmount)
-        doc.text(`${words} Only`, xOffset + margin, finalY, { maxWidth: copyWidth - 6 })
+        yPos = doc.lastAutoTable.finalY + 3
+      }
 
-        const barcodeY = finalY + 8
-        doc.setFontSize(8)
-        doc.text('|||||||||||||||||||||||', xOffset + copyWidth / 2, barcodeY, { align: 'center' })
-        doc.setFontSize(6)
-        doc.text(challanToUse.challan_number.substring(0, 15), xOffset + copyWidth / 2, barcodeY + 4, { align: 'center' })
+      // TOTAL FEE PAYABLE
+      const bgColorRgb = hexToRgb(pdfSettings.backgroundColor || '#F0FDF4')
+      doc.setFillColor(...bgColorRgb)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
+      doc.setDrawColor(...secondaryColorRgb)
+      doc.setLineWidth(lineWidthValue)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
 
-        doc.setFontSize(5)
-        doc.text('Cashier', xOffset + copyWidth - margin - 10, barcodeY + 4)
-      })
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
 
-      doc.save(`Challan_${challanToUse.challan_number}.pdf`)
+      doc.setTextColor(...primaryColorRgb)
+      doc.text(formatCurrency(challanToUse.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
+
+      yPos += 15
+
+      // Amount in words
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Amount in Words:', margins.left, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...textColorRgb)
+      const amountInWords = numberToWords(challanToUse.total_amount)
+      doc.text(amountInWords, margins.left, yPos + 5)
+
+      yPos += 12
+
+      // Payment Status
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Payment Status:', margins.left, yPos)
+
+      // Use primary color for status with different shades based on status
+      const statusColor = challanToUse.status === 'paid' ? primaryColorRgb : challanToUse.status === 'overdue' ? [220, 38, 38] : secondaryColorRgb
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...statusColor)
+      doc.text(challanToUse.status.charAt(0).toUpperCase() + challanToUse.status.slice(1), margins.left + 32, yPos)
+
+      // Footer (only if includeFooter is true)
+      if (pdfSettings.includeFooter !== false) {
+        yPos = pageHeight - margins.bottom + 5
+
+        // Horizontal line above footer text
+        doc.setDrawColor(...secondaryColorRgb)
+        doc.setLineWidth(lineWidthValue)
+        doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize) - 1)
+        doc.setTextColor(...secondaryColorRgb)
+        doc.setFont('helvetica', 'normal')
+
+        // Use footerText from settings if available, otherwise use school name
+        const footerText = pdfSettings.footerText || schoolData.name || 'Superior College Bhakkar'
+        let footerContent = footerText
+
+        // Add page numbers if includePageNumbers is true
+        if (pdfSettings.includePageNumbers) {
+          footerContent = `${footerText} - Page 1`
+        }
+
+        doc.text(footerContent, pageWidth / 2, yPos, { align: 'center' })
+      }
+
+      // Download PDF directly
+      doc.save(`Fee_Challan_${challanToUse.challan_number}.pdf`)
+      showToast('PDF downloaded successfully!', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
     }
   }
 
-  const numberToWords = (num) => {
-    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
-    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
-    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
-
-    if (num === 0) return 'Zero'
-
-    let words = ''
-
-    if (num >= 1000) {
-      const thousands = Math.floor(num / 1000)
-      words += ones[thousands] + ' Thousand '
-      num %= 1000
+  const handleBulkDownload = async () => {
+    if (filteredChallans.length === 0) {
+      showToast('No challans to download', 'error')
+      return
     }
 
-    if (num >= 100) {
-      words += ones[Math.floor(num / 100)] + ' Hundred '
-      num %= 100
-    }
+    try {
+      showToast(`Preparing ${filteredChallans.length} PDF(s)...`, 'info')
 
-    if (num >= 20) {
-      words += tens[Math.floor(num / 10)] + ' '
-      num %= 10
-    } else if (num >= 10) {
-      words += teens[num - 10] + ' '
-      return words.trim()
-    }
+      const user = getUserFromCookie()
+      if (!user) return
 
-    if (num > 0) {
-      words += ones[num] + ' '
-    }
+      // Fetch school data once
+      const schoolResult = await supabase
+        .from('schools')
+        .select('name, address, phone, email, logo_url, code')
+        .eq('id', user.school_id)
+        .single()
 
-    return words.trim()
+      const schoolData = schoolResult.data || {}
+      const pdfSettings = getPdfSettings()
+
+      // Process each challan
+      for (let i = 0; i < filteredChallans.length; i++) {
+        const challan = filteredChallans[i]
+
+        // Fetch challan items
+        const { data: items } = await supabase
+          .from('fee_challan_items')
+          .select(`
+            *,
+            fee_types!fee_type_id (
+              fee_name
+            )
+          `)
+          .eq('school_id', user.school_id)
+          .eq('challan_id', challan.id)
+
+        const itemsToUse = items || []
+        const student = challan.students
+        const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
+        const className = student?.classes?.class_name || 'N/A'
+
+        // Create PDF
+        const doc = new jsPDF({
+          orientation: pdfSettings.orientation || 'portrait',
+          unit: 'mm',
+          format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+        })
+
+        const pageWidth = doc.internal.pageSize.getWidth()
+        const pageHeight = doc.internal.pageSize.getHeight()
+
+        applyPdfSettings(doc, pdfSettings)
+
+        const margins = getMarginValues(pdfSettings.margin)
+        const leftMargin = margins.left
+        const rightMargin = pageWidth - margins.right
+
+        // Header background
+        const headerHeight = 40
+        const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+        doc.setFillColor(...headerBgColor)
+        doc.rect(0, 0, pageWidth, headerHeight, 'F')
+
+        // Logo in header
+        let yPos = 18
+        if (pdfSettings.includeLogo && schoolData.logo_url) {
+          try {
+            const img = new Image()
+            img.crossOrigin = 'anonymous'
+            img.src = schoolData.logo_url
+
+            await new Promise((resolve) => {
+              img.onload = () => {
+                try {
+                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                  const logoY = (headerHeight - currentLogoSize) / 2
+                  let logoX = 10
+
+                  if (pdfSettings.logoPosition === 'right') {
+                    logoX = pageWidth - currentLogoSize - 10
+                  }
+
+                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const size = 200
+                    canvas.width = size
+                    canvas.height = size
+
+                    ctx.beginPath()
+                    if (pdfSettings.logoStyle === 'circle') {
+                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                    } else {
+                      const radius = size * 0.15
+                      ctx.moveTo(radius, 0)
+                      ctx.lineTo(size - radius, 0)
+                      ctx.quadraticCurveTo(size, 0, size, radius)
+                      ctx.lineTo(size, size - radius)
+                      ctx.quadraticCurveTo(size, size, size - radius, size)
+                      ctx.lineTo(radius, size)
+                      ctx.quadraticCurveTo(0, size, 0, size - radius)
+                      ctx.lineTo(0, radius)
+                      ctx.quadraticCurveTo(0, 0, radius, 0)
+                    }
+                    ctx.closePath()
+                    ctx.clip()
+
+                    ctx.drawImage(img, 0, 0, size, size)
+
+                    const clippedImage = canvas.toDataURL('image/png')
+                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  } else {
+                    doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  }
+
+                  resolve()
+                } catch (e) {
+                  console.warn('Could not add logo to PDF:', e)
+                  resolve()
+                }
+              }
+              img.onerror = () => {
+                console.warn('Could not load logo image')
+                resolve()
+              }
+            })
+          } catch (error) {
+            console.error('Error adding logo:', error)
+          }
+        }
+
+        // School name and subtitle in white
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(16)
+        doc.setFont('helvetica', 'bold')
+        doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
+
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Student FEE CHALLAN', pageWidth / 2, yPos + 12, { align: 'center' })
+
+        // Generated date
+        doc.setFontSize(7)
+        doc.setTextColor(220, 220, 220)
+        const now = new Date()
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
+
+        const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
+        const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
+        doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
+
+        // Reset to black
+        doc.setTextColor(0, 0, 0)
+        yPos = headerHeight + 10
+
+        // STUDENT INFORMATION Section
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.text('STUDENT INFORMATION', leftMargin, yPos)
+        yPos += 7
+
+        const labelWidth = 35
+        let xPos = leftMargin
+
+        // Row 1: Student Name and Student Roll#
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Student Name:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text(studentName || 'N/A', xPos + labelWidth, yPos)
+
+        xPos = pageWidth / 2 + 5
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Student Roll#:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text(student?.admission_number || 'N/A', xPos + labelWidth, yPos)
+
+        yPos += 6
+        xPos = leftMargin
+
+        // Row 2: Class and Father Name
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Class:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text(className, xPos + labelWidth, yPos)
+
+        xPos = pageWidth / 2 + 5
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Father Name:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
+
+        yPos += 6
+        xPos = leftMargin
+
+        // Row 3: Due Date and Fee Type
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Due Date:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        const formattedDueDate = new Date(challan.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
+        doc.text(formattedDueDate + ' Tuesday', xPos + labelWidth, yPos)
+
+        xPos = pageWidth / 2 + 5
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Fee Type:', xPos, yPos)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
+
+        yPos += 12
+
+        // FEE BREAKDOWN Section
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('FEE BREAKDOWN', leftMargin, yPos)
+        yPos += 2
+
+        // Fee table
+        if (itemsToUse && itemsToUse.length > 0) {
+          const tableData = itemsToUse.map(item => [
+            item.fee_types?.fee_name || item.description,
+            formatCurrency(item.amount)
+          ])
+
+          autoTable(doc, {
+            startY: yPos,
+            head: [['Particulars', 'Amount']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: {
+              fillColor: hexToRgb(pdfSettings.tableHeaderColor),
+              textColor: [255, 255, 255],
+              fontSize: 9,
+              fontStyle: 'bold',
+              halign: 'left',
+              cellPadding: { top: 3, bottom: 3, left: 5, right: 5 }
+            },
+            bodyStyles: {
+              fontSize: 9,
+              cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+              textColor: [0, 0, 0]
+            },
+            columnStyles: {
+              0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+              1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+            },
+            margin: { left: leftMargin, right: leftMargin },
+            didParseCell: function(data) {
+              data.cell.styles.lineColor = [200, 200, 200]
+              data.cell.styles.lineWidth = 0.1
+            },
+            didDrawCell: function(data) {
+              if (data.column.index === 1 && data.section === 'body') {
+                const amountText = data.cell.raw || ''
+                if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
+                  doc.setTextColor(220, 38, 38)
+                }
+              }
+            }
+          })
+
+          yPos = doc.lastAutoTable.finalY + 3
+        }
+
+        // TOTAL FEE PAYABLE
+        doc.setFillColor(240, 253, 244)
+        doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.1)
+        doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
+
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
+
+        doc.setTextColor(22, 163, 74)
+        doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
+
+        yPos += 15
+
+        // Amount in words
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Amount in Words:', margins.left, yPos)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(0, 0, 0)
+        doc.text('Two Thousand Seven Hundred Only', margins.left, yPos + 5)
+
+        yPos += 12
+
+        // Payment Status
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text('Payment Status:', margins.left, yPos)
+
+        const statusColor = challan.status === 'paid' ? [22, 163, 74] : challan.status === 'overdue' ? [220, 38, 38] : [234, 179, 8]
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...statusColor)
+        doc.text(challan.status.charAt(0).toUpperCase() + challan.status.slice(1), margins.left + 32, yPos)
+
+        // Footer
+        yPos = pageHeight - margins.bottom - 8
+
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.3)
+        doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
+
+        doc.setFontSize(7)
+        doc.setTextColor(150, 150, 150)
+        doc.setFont('helvetica', 'normal')
+        doc.text(schoolData.name || 'Superior College Bhakkar', pageWidth / 2, yPos, { align: 'center' })
+
+        // Save each PDF
+        doc.save(`Challan_${challan.challan_number}.pdf`)
+
+        // Add small delay between downloads to prevent browser blocking
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+
+      showToast(`Successfully downloaded ${filteredChallans.length} PDF(s)!`, 'success')
+    } catch (error) {
+      console.error('Error in bulk download:', error)
+      showToast(`Failed to download PDFs: ${error.message}`, 'error')
+    }
   }
 
   const filteredChallans = challans.filter(challan => {
@@ -576,6 +1175,18 @@ export default function FeeChallanPage() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
+          {/* Bulk Download Button - appears when filters are applied */}
+          {(statusFilter !== 'all' || classFilter !== 'all') && (
+            <button
+              onClick={handleBulkDownload}
+              disabled={filteredChallans.length === 0}
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              title="Download all filtered challans"
+            >
+              <Download size={20} />
+              <span className="font-medium">Download All ({filteredChallans.length})</span>
+            </button>
+          )}
         </div>
 
         <div className="flex gap-4 text-sm">
