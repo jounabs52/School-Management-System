@@ -1063,4 +1063,3 @@ export default function StudentReportsPage() {
     </div>
   )
 }
-

@@ -46,6 +46,7 @@ export default function StudentCertificatesPage() {
       return saved ? JSON.parse(saved) : {
         // Header
         instituteName: 'Superior College Bhakkar',
+        instituteLocation: 'Bhakkar',
         certificateTitle: 'Character Certificate',
         showSchoolLogo: true,
         logoSize: 'medium',
@@ -55,18 +56,46 @@ export default function StudentCertificatesPage() {
         headerTextColor: '#8B4513',
         textColor: '#000000',
         accentColor: '#D2691E',
+        fieldLabelColor: '#000000',
+        fieldValueColor: '#00008B',
+        certificateTextColor: '#8B0000',
 
-        // Certificate Fields
+        // Typography
+        instituteNameSize: 20,
+        instituteTitleSize: 18,
+        fieldLabelSize: 10,
+        fieldValueSize: 10,
+        certificateTextSize: 10,
+        serialNumberSize: 9,
+
+        // Certificate Content Template
+        certificateText: 'This is to certify that {studentName}, son of {fatherName}, has been a student of this {collegeName}. He is a brilliant student who secured {marksObtained}/{totalMarks} marks with an {grade} grade in his {className} examination. His academic dedication is exemplary, and he maintains a highly disciplined and respectful attitude toward his teachers and peers.',
+
+        // Field Labels
+        nameLabel: 'Name of Student:',
+        rollNoLabel: 'Roll No.:',
+        examinationLabel: 'Examination Passed:',
+        sessionLabel: 'Session:',
+        marksObtainedLabel: 'Marks Obtained:',
+        totalMarksLabel: 'Total Marks:',
+        yearLabel: 'Year:',
+        gradeLabel: 'Grade:',
+
+        // Field Visibility
+        showSerialNumber: true,
         showDate: true,
-        showGroup: true,
-        showRegistrationNo: true,
-        showFatherName: true,
-        showDateOfBirth: true,
-        showConduct: true,
+        showName: true,
+        showRollNo: true,
+        showExamination: true,
+        showSession: true,
+        showMarks: true,
+        showTotalMarks: true,
+        showYear: true,
+        showGrade: true,
 
         // Signature
         principalSignature: null,
-        principalTitle: 'Principal',
+        principalTitle: 'Principal Signature',
         schoolNameInSignature: 'Superior College Bhakkar',
 
         // Footer
@@ -79,6 +108,7 @@ export default function StudentCertificatesPage() {
     }
     return {
       instituteName: 'Superior College Bhakkar',
+      instituteLocation: 'Bhakkar',
       certificateTitle: 'Character Certificate',
       showSchoolLogo: true,
       logoSize: 'medium',
@@ -86,14 +116,36 @@ export default function StudentCertificatesPage() {
       headerTextColor: '#8B4513',
       textColor: '#000000',
       accentColor: '#D2691E',
+      fieldLabelColor: '#000000',
+      fieldValueColor: '#00008B',
+      certificateTextColor: '#8B0000',
+      instituteNameSize: 20,
+      instituteTitleSize: 18,
+      fieldLabelSize: 10,
+      fieldValueSize: 10,
+      certificateTextSize: 10,
+      serialNumberSize: 9,
+      certificateText: 'This is to certify that {studentName}, son of {fatherName}, has been a student of this {collegeName}. He is a brilliant student who secured {marksObtained}/{totalMarks} marks with an {grade} grade in his {className} examination. His academic dedication is exemplary, and he maintains a highly disciplined and respectful attitude toward his teachers and peers.',
+      nameLabel: 'Name of Student:',
+      rollNoLabel: 'Roll No.:',
+      examinationLabel: 'Examination Passed:',
+      sessionLabel: 'Session:',
+      marksObtainedLabel: 'Marks Obtained:',
+      totalMarksLabel: 'Total Marks:',
+      yearLabel: 'Year:',
+      gradeLabel: 'Grade:',
+      showSerialNumber: true,
       showDate: true,
-      showGroup: true,
-      showRegistrationNo: true,
-      showFatherName: true,
-      showDateOfBirth: true,
-      showConduct: true,
+      showName: true,
+      showRollNo: true,
+      showExamination: true,
+      showSession: true,
+      showMarks: true,
+      showTotalMarks: true,
+      showYear: true,
+      showGrade: true,
       principalSignature: null,
-      principalTitle: 'Principal',
+      principalTitle: 'Principal Signature',
       schoolNameInSignature: 'Superior College Bhakkar',
       footerText: '',
       showBorder: true,
@@ -294,6 +346,57 @@ export default function StudentCertificatesPage() {
 
     console.log('Generating certificate for:', studentData)
 
+    // Fetch exam marks for the student
+    let examMarksData = null
+    try {
+      const { data: marksData, error: marksError } = await supabase
+        .from('exam_marks')
+        .select(`
+          obtained_marks,
+          total_marks,
+          subjects (
+            subject_name
+          )
+        `)
+        .eq('student_id', studentData.id)
+        .order('created_at', { ascending: false })
+
+      if (!marksError && marksData && marksData.length > 0) {
+        // Calculate total marks and obtained marks
+        let totalObtained = 0
+        let totalPossible = 0
+
+        marksData.forEach(mark => {
+          totalObtained += mark.obtained_marks || 0
+          totalPossible += mark.total_marks || 0
+        })
+
+        // Calculate grade based on percentage
+        const percentage = totalPossible > 0 ? (totalObtained / totalPossible) * 100 : 0
+        let grade = 'N/A'
+        if (percentage >= 90) grade = 'A+'
+        else if (percentage >= 80) grade = 'A'
+        else if (percentage >= 70) grade = 'B'
+        else if (percentage >= 60) grade = 'C'
+        else if (percentage >= 50) grade = 'D'
+        else grade = 'F'
+
+        examMarksData = {
+          marks_obtained: totalObtained,
+          total_marks: totalPossible,
+          grade: grade,
+          percentage: percentage.toFixed(2)
+        }
+
+        // Update studentData with marks
+        studentData.marks_obtained = totalObtained
+        studentData.total_marks = totalPossible
+        studentData.grade = grade
+      }
+    } catch (err) {
+      console.error('Error fetching exam marks:', err)
+    }
+
     // Save to database first
     try {
       // Fetch school_id
@@ -355,20 +458,25 @@ export default function StudentCertificatesPage() {
     // Generate a simple serial number (you can customize this logic)
     const serialNumber = Math.floor(Math.random() * 1000) + 1
 
-    // Sr. No. at top left corner (on same line, inside border)
-    doc.setFontSize(9)
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Sr. No.:', margin + 5, margin + 7)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.text(serialNumber.toString(), margin + 21, margin + 7)
+    // Sr. No. at top left corner (clear of decorative border)
+    if (certificateSettings.showSerialNumber) {
+      doc.setFontSize(9)
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Sr. No.:', margin + 11, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(serialNumber.toString(), margin + 27, margin + 11)
+    }
 
-    // Dated at top right corner (on same line, inside border)
-    const currentDate = new Date().toLocaleDateString('en-GB')
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.text('Dated:', pageWidth - margin - 38, margin + 7)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.text(currentDate, pageWidth - margin - 21, margin + 7)
+    // Dated at top right corner (clear of decorative border)
+    if (certificateSettings.showDate) {
+      const currentDate = new Date().toLocaleDateString('en-GB')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Dated:', pageWidth - margin - 48, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(currentDate, pageWidth - margin - 31, margin + 11)
+    }
 
     // Add school logo at top center
     if (certificateSettings.showSchoolLogo && schoolData?.logo) {
@@ -399,7 +507,7 @@ export default function StudentCertificatesPage() {
     doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
     doc.setTextColor(...textRgb)
-    doc.text(schoolData?.address || 'Bhakkar', pageWidth / 2, margin + 41, { align: 'center' })
+    doc.text(certificateSettings.instituteLocation || schoolData?.address || 'Bhakkar', pageWidth / 2, margin + 41, { align: 'center' })
 
     // Certificate Title
     doc.setFontSize(18)
@@ -417,72 +525,128 @@ export default function StudentCertificatesPage() {
 
     doc.setFontSize(10)
 
-    // Row 1: Name of Student and Roll No
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Name of Student:', leftColX, currentY)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    doc.text(`${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim() || 'Iqbal', leftColX + 38, currentY)
+    // Prepare all data
+    const studentFullName = `${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim()
+    const className = getClassName(studentData.current_class_id) || 'SSC'
+    const currentYear = new Date().getFullYear()
+    const grade = studentData.grade || 'N/A'
 
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Roll No.:', midColX, currentY)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    doc.text(studentData.roll_number || '77', midColX + 18, currentY)
+    // Row 1: Name of Student and Roll No
+    if (certificateSettings.showName) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.nameLabel || 'Name of Student:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(studentFullName || 'Nadeem', leftColX + 38, currentY)
+    }
+
+    if (certificateSettings.showRollNo) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.rollNoLabel || 'Roll No.:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(studentData.roll_number || '43', midColX + 18, currentY)
+    }
 
     currentY += lineHeight
 
     // Row 2: Examination Passed and Session
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Examination Passed:', leftColX, currentY)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    doc.text('SSC', leftColX + 43, currentY)
+    if (certificateSettings.showExamination) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.examinationLabel || 'Examination Passed:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(className, leftColX + 43, currentY)
+    }
 
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Session:', midColX, currentY)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    const currentYear = new Date().getFullYear()
-    doc.text(`${currentYear - 2}-${currentYear.toString().substr(2)}`, midColX + 18, currentY)
+    if (certificateSettings.showSession) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.sessionLabel || 'Session:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(`${currentYear - 2}-${currentYear.toString().substr(2)}`, midColX + 18, currentY)
+    }
 
     currentY += lineHeight
 
     // Row 3: Marks Obtained and Total Marks
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Marks Obtained:', leftColX, currentY)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    doc.text(studentData.marks_obtained?.toString() || 'N/A', leftColX + 38, currentY)
+    if (certificateSettings.showMarks) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.marksObtainedLabel || 'Marks Obtained:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(studentData.marks_obtained?.toString() || 'N/A', leftColX + 38, currentY)
+    }
 
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Total Marks:', midColX, currentY)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    doc.text(studentData.total_marks?.toString() || 'N/A', midColX + 28, currentY)
+    if (certificateSettings.showTotalMarks) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.totalMarksLabel || 'Total Marks:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(studentData.total_marks?.toString() || 'N/A', midColX + 28, currentY)
+    }
 
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Year:', midColX + 58, currentY)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    doc.text(currentYear.toString(), midColX + 73, currentY)
+    if (certificateSettings.showYear) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.yearLabel || 'Year:', midColX + 58, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(currentYear.toString(), midColX + 73, currentY)
+    }
 
     currentY += lineHeight
 
     // Row 4: Grade
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text('Grade:', leftColX, currentY)
+    if (certificateSettings.showGrade) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.gradeLabel || 'Grade:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(grade, leftColX + 16, currentY)
+    }
+
+    currentY += lineHeight + 8
+
+    // Professional Certificate Text with all dynamic fields merged
+    doc.setFontSize(10)
     doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    doc.text(studentData.grade || 'N/A', leftColX + 16, currentY)
+    doc.setTextColor(...textRgb)
+
+    const fatherName = studentData.father_name || 'Ali'
+    const collegeName = certificateSettings.instituteName || schoolData?.name || 'Superior College Bhakkar'
+    const marksObtained = studentData.marks_obtained || 'N/A'
+    const totalMarks = studentData.total_marks || 'N/A'
+
+    // Use template from settings and replace placeholders
+    let certificateText = certificateSettings.certificateText ||
+      'This is to certify that {studentName}, son of {fatherName}, has been a student of this {collegeName}. He is a brilliant student who secured {marksObtained}/{totalMarks} marks with an {grade} grade in his {className} examination. His academic dedication is exemplary, and he maintains a highly disciplined and respectful attitude toward his teachers and peers.'
+
+    // Replace all placeholders with actual data
+    certificateText = certificateText
+      .replace(/{studentName}/g, studentFullName)
+      .replace(/{fatherName}/g, fatherName)
+      .replace(/{collegeName}/g, collegeName)
+      .replace(/{marksObtained}/g, marksObtained)
+      .replace(/{totalMarks}/g, totalMarks)
+      .replace(/{grade}/g, grade)
+      .replace(/{className}/g, className)
+      .replace(/{rollNumber}/g, studentData.roll_number || '43')
+      .replace(/{session}/g, `${currentYear - 2}-${currentYear.toString().substr(2)}`)
+      .replace(/{year}/g, currentYear.toString())
+
+    doc.text(certificateText, leftColX, currentY, {
+      maxWidth: pageWidth - (2 * leftColX),
+      align: 'justify',
+      lineHeightFactor: 1.5
+    })
 
     // Principal Signature Section (bottom right)
     const signX = pageWidth - margin - 45
@@ -505,7 +669,7 @@ export default function StudentCertificatesPage() {
     doc.setFontSize(10)
     doc.setFont(PDF_FONTS.secondary, 'bold')
     doc.setTextColor(...textRgb)
-    doc.text('Principal Signature', signX + 7, signY + 10, { align: 'center' })
+    doc.text(certificateSettings.principalTitle || 'Principal Signature', signX + 7, signY + 10, { align: 'center' })
 
     doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
@@ -898,19 +1062,31 @@ export default function StudentCertificatesPage() {
                       type="text"
                       value={certificateSettings.instituteName}
                       onChange={(e) => handleCertificateSettingChange('instituteName', e.target.value)}
-                      placeholder="e.g., SUPILER COLLEGE BHAKKAR"
+                      placeholder="e.g., Superior College Bhakkar"
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Header Subtitle
+                      Institute Location
                     </label>
                     <input
                       type="text"
-                      value={certificateSettings.headerSubtitle}
-                      onChange={(e) => handleCertificateSettingChange('headerSubtitle', e.target.value)}
-                      placeholder="e.g., CERTIFICATE OF ACHIEVEMENT"
+                      value={certificateSettings.instituteLocation}
+                      onChange={(e) => handleCertificateSettingChange('instituteLocation', e.target.value)}
+                      placeholder="e.g., Bhakkar"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Certificate Title
+                    </label>
+                    <input
+                      type="text"
+                      value={certificateSettings.certificateTitle}
+                      onChange={(e) => handleCertificateSettingChange('certificateTitle', e.target.value)}
+                      placeholder="e.g., Character Certificate"
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
@@ -1026,6 +1202,133 @@ export default function StudentCertificatesPage() {
                 </div>
               </div>
 
+              {/* Certificate Content Template */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">CERTIFICATE CONTENT</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Certificate Text Template
+                      <span className="text-gray-500 font-normal ml-2">(Use {`{studentName}`}, {`{fatherName}`}, {`{collegeName}`}, {`{marksObtained}`}, {`{totalMarks}`}, {`{grade}`}, {`{className}`}, {`{rollNumber}`}, {`{session}`}, {`{year}`})</span>
+                    </label>
+                    <textarea
+                      value={certificateSettings.certificateText}
+                      onChange={(e) => handleCertificateSettingChange('certificateText', e.target.value)}
+                      placeholder="Enter certificate text with placeholders like {studentName}, {fatherName}, etc."
+                      rows={5}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Field Visibility */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">FIELD VISIBILITY</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showSerialNumber"
+                      checked={certificateSettings.showSerialNumber}
+                      onChange={(e) => handleCertificateSettingChange('showSerialNumber', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showSerialNumber" className="text-sm text-gray-700">Serial Number</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showDate"
+                      checked={certificateSettings.showDate}
+                      onChange={(e) => handleCertificateSettingChange('showDate', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showDate" className="text-sm text-gray-700">Date</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showName"
+                      checked={certificateSettings.showName}
+                      onChange={(e) => handleCertificateSettingChange('showName', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showName" className="text-sm text-gray-700">Student Name</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showRollNo"
+                      checked={certificateSettings.showRollNo}
+                      onChange={(e) => handleCertificateSettingChange('showRollNo', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showRollNo" className="text-sm text-gray-700">Roll Number</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showExamination"
+                      checked={certificateSettings.showExamination}
+                      onChange={(e) => handleCertificateSettingChange('showExamination', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showExamination" className="text-sm text-gray-700">Examination</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showSession"
+                      checked={certificateSettings.showSession}
+                      onChange={(e) => handleCertificateSettingChange('showSession', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showSession" className="text-sm text-gray-700">Session</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showMarks"
+                      checked={certificateSettings.showMarks}
+                      onChange={(e) => handleCertificateSettingChange('showMarks', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showMarks" className="text-sm text-gray-700">Marks Obtained</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showTotalMarks"
+                      checked={certificateSettings.showTotalMarks}
+                      onChange={(e) => handleCertificateSettingChange('showTotalMarks', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showTotalMarks" className="text-sm text-gray-700">Total Marks</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showYear"
+                      checked={certificateSettings.showYear}
+                      onChange={(e) => handleCertificateSettingChange('showYear', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showYear" className="text-sm text-gray-700">Year</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showGrade"
+                      checked={certificateSettings.showGrade}
+                      onChange={(e) => handleCertificateSettingChange('showGrade', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showGrade" className="text-sm text-gray-700">Grade</label>
+                  </div>
+                </div>
+              </div>
+
               {/* Signature Settings */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">SIGNATURE SETTINGS</h3>
@@ -1057,25 +1360,25 @@ export default function StudentCertificatesPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Principal Name
+                      Principal Title/Label
                     </label>
                     <input
                       type="text"
-                      value={certificateSettings.principalName}
-                      onChange={(e) => handleCertificateSettingChange('principalName', e.target.value)}
-                      placeholder="e.g., Dr. John Smith"
+                      value={certificateSettings.principalTitle}
+                      onChange={(e) => handleCertificateSettingChange('principalTitle', e.target.value)}
+                      placeholder="e.g., Principal Signature"
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Principal Designation
+                      School Name in Signature
                     </label>
                     <input
                       type="text"
-                      value={certificateSettings.principalDesignation}
-                      onChange={(e) => handleCertificateSettingChange('principalDesignation', e.target.value)}
-                      placeholder="e.g., Principal"
+                      value={certificateSettings.schoolNameInSignature}
+                      onChange={(e) => handleCertificateSettingChange('schoolNameInSignature', e.target.value)}
+                      placeholder="e.g., Superior College Bhakkar"
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
