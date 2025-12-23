@@ -8,6 +8,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { convertImageToBase64, addPDFHeader, addPDFFooter } from '@/lib/pdfUtils'
 
 export default function ActiveStaffPage() {
   const [searchType, setSearchType] = useState('Via General Data')
@@ -23,6 +24,7 @@ export default function ActiveStaffPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [schoolData, setSchoolData] = useState(null)
   const [importFile, setImportFile] = useState(null)
   const [importing, setImporting] = useState(false)
   const [toasts, setToasts] = useState([])
@@ -171,6 +173,7 @@ export default function ActiveStaffPage() {
   useEffect(() => {
     if (currentUser?.school_id) {
       fetchStaffData()
+      fetchSchoolData()
     }
   }, [currentUser])
 
@@ -243,6 +246,23 @@ export default function ActiveStaffPage() {
       console.error('Error fetching staff:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSchoolData = async () => {
+    if (!currentUser?.school_id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('*')
+        .eq('id', currentUser.school_id)
+        .single()
+
+      if (error) throw error
+      setSchoolData(data)
+    } catch (error) {
+      console.error('Error fetching school data:', error)
     }
   }
 
@@ -449,59 +469,69 @@ export default function ActiveStaffPage() {
   }
 
   // Export to PDF using jsPDF
-  const exportToPDF = () => {
-    const doc = new jsPDF()
+  const exportToPDF = async () => {
+    try {
+      const doc = new jsPDF()
 
-    // Add title
-    doc.setFontSize(18)
-    doc.setTextColor(30, 64, 175)
-    doc.text('Active Staff Report', 105, 15, { align: 'center' })
+      // Load school logo if available
+      let logoBase64 = null
+      if (schoolData?.logo) {
+        logoBase64 = await convertImageToBase64(schoolData.logo)
+      }
 
-    // Add date
-    doc.setFontSize(10)
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 200, 15, { align: 'right' })
+      // Prepare school data for header
+      const schoolInfo = {
+        name: schoolData?.name || 'SCHOOL NAME',
+        logo: logoBase64
+      }
 
-    // Prepare table data
-    const tableData = filteredStaffData.map((staff, index) => [
-      index + 1,
-      staff.name || '',
-      staff.employeeNumber || '',
-      staff.designation || '',
-      staff.phone || '',
-      staff.department || '',
-      staff.status || ''
-    ])
+      // Add professional header with logo
+      const startY = addPDFHeader(doc, schoolInfo, 'ACTIVE STAFF REPORT', {
+        subtitle: `Total Staff: ${filteredStaffData.length}`,
+        info: `Status: Active`
+      })
 
-    // Add table
-    autoTable(doc, {
-      head: [['Sr.', 'Name', 'Employee #', 'Designation', 'Phone', 'Department', 'Status']],
-      body: tableData,
-      startY: 25,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [30, 64, 175],
-        textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 9
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      margin: { top: 25 }
-    })
+      // Prepare table data
+      const tableData = filteredStaffData.map((staff, index) => [
+        index + 1,
+        staff.name || '',
+        staff.employeeNumber || '',
+        staff.designation || '',
+        staff.phone || '',
+        staff.department || '',
+        staff.status || ''
+      ])
 
-    // Add footer
-    const finalY = doc.lastAutoTable.finalY || 25
-    doc.setFontSize(10)
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Total Staff: ${filteredStaffData.length}`, 14, finalY + 10)
+      // Add table
+      autoTable(doc, {
+        head: [['Sr.', 'Name', 'Employee #', 'Designation', 'Phone', 'Department', 'Status']],
+        body: tableData,
+        startY: startY,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [31, 78, 120],
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontSize: 9
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
+        },
+        margin: { left: 15, right: 15 }
+      })
 
-    // Save the PDF
-    doc.save(`Active_Staff_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`)
+      // Add footer
+      addPDFFooter(doc, 1, 1)
+
+      // Save the PDF
+      doc.save(`Active_Staff_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast('Error generating PDF report', 'error')
+    }
   }
 
   // Download sample Excel template
