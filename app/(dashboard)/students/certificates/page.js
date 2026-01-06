@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { FileText, Loader2, AlertCircle, X, Download, Save, Check, Settings } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import toast, { Toaster } from 'react-hot-toast'
 import {
   addDecorativeBorder,
   convertImageToBase64,
@@ -334,7 +335,7 @@ export default function StudentCertificatesPage() {
     }
   }
 
-  const handlePrintCertificate = async (student, conduct) => {
+  const handlePrintCertificate = async (student, conduct, skipValidation = false) => {
     // Use provided student or fall back to selectedStudent
     const studentData = student || selectedStudent
     const conductValue = conduct || certificateData.conduct
@@ -345,6 +346,46 @@ export default function StudentCertificatesPage() {
     }
 
     console.log('Generating certificate for:', studentData)
+
+    // Check if certificate already exists BEFORE saving to database (unless validation is skipped)
+    if (!skipValidation) {
+      try {
+        const { data: schools, error: schoolError } = await supabase
+          .from('schools')
+          .select('id')
+          .limit(1)
+          .single()
+
+        if (!schoolError && schools) {
+          const { data: existingCert, error: checkError } = await supabase
+            .from('student_certificates')
+            .select('id')
+            .eq('student_id', studentData.id)
+            .eq('school_id', schools.id)
+            .eq('certificate_type', 'character')
+            .limit(1)
+
+          if (!checkError && existingCert && existingCert.length > 0) {
+            // Certificate already exists
+            const studentName = [studentData.first_name, studentData.last_name].filter(Boolean).join(' ')
+            toast(`Certificate already exists for ${studentName}!`, {
+              duration: 4000,
+              position: 'top-right',
+              style: {
+                background: '#ef4444',
+                color: '#fff',
+                fontWeight: '500',
+                zIndex: 9999,
+              },
+              icon: '✕',
+            })
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Error checking certificate:', error)
+      }
+    }
 
     // Fetch exam marks for the student
     let examMarksData = null
@@ -690,6 +731,16 @@ export default function StudentCertificatesPage() {
     const fileName = `Certificate_${studentData.first_name || 'Student'}_${studentData.admission_number || 'NA'}_${Date.now()}.pdf`
     doc.save(fileName)
 
+    // Show success toast
+    const studentName = [studentData.first_name, studentData.last_name].filter(Boolean).join(' ')
+    toast.success(`Certificate generated successfully for ${studentName}!`, {
+      duration: 4000,
+      position: 'top-right',
+      style: {
+        zIndex: 9999,
+      },
+    })
+
     // Close the modal after printing (only if modal is open)
     if (selectedStudent) {
       setShowPreview(false)
@@ -699,6 +750,14 @@ export default function StudentCertificatesPage() {
 
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            zIndex: 9999,
+          },
+        }}
+      />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -881,27 +940,104 @@ export default function StudentCertificatesPage() {
                       onClick={async () => {
                         setError(null)
                         setSuccess(null)
-                        setLoading(true)
+                        setSaving(true)
                         try {
+                          let generatedCount = 0
+                          let skippedCount = 0
+
+                          // Fetch school_id first
+                          const { data: schools, error: schoolError } = await supabase
+                            .from('schools')
+                            .select('id')
+                            .limit(1)
+                            .single()
+
+                          if (schoolError) throw new Error('Unable to fetch school information')
+
                           // For full section, generate certificates for all students
                           for (const student of students) {
-                            handlePrintCertificate(student, 'V.Good')
+                            // Check if certificate already exists for this student
+                            const { data: existingCert, error: checkError } = await supabase
+                              .from('student_certificates')
+                              .select('id')
+                              .eq('student_id', student.id)
+                              .eq('school_id', schools.id)
+                              .eq('certificate_type', 'character')
+                              .limit(1)
+
+                            if (!checkError && existingCert && existingCert.length > 0) {
+                              // Certificate already exists, skip
+                              skippedCount++
+                              continue
+                            }
+
+                            // Generate certificate (skip validation since we already checked)
+                            await handlePrintCertificate(student, 'V.Good', true)
+                            generatedCount++
                             // Small delay between downloads to prevent browser issues
                             await new Promise(resolve => setTimeout(resolve, 300))
                           }
-                          setSuccess(`Successfully generated ${students.length} certificate(s)!`)
-                          setTimeout(() => setSuccess(null), 5000)
+
+                          // Show appropriate toast based on results
+                          if (skippedCount > 0 && generatedCount === 0) {
+                            // All certificates already exist
+                            toast(`All ${skippedCount} student(s) already have valid certificates!`, {
+                              duration: 4000,
+                              position: 'top-right',
+                              style: {
+                                background: '#ef4444',
+                                color: '#fff',
+                                fontWeight: '500',
+                                zIndex: 9999,
+                              },
+                              icon: '✕',
+                            })
+                          } else if (generatedCount > 0 && skippedCount === 0) {
+                            // All certificates were generated
+                            toast.success(`Successfully generated ${generatedCount} certificate(s)!`, {
+                              duration: 4000,
+                              position: 'top-right',
+                              style: {
+                                zIndex: 9999,
+                              },
+                            })
+                          } else if (generatedCount > 0 && skippedCount > 0) {
+                            // Some generated, some skipped
+                            toast.success(`Generated ${generatedCount} certificate(s). ${skippedCount} student(s) already had valid certificates.`, {
+                              duration: 4000,
+                              position: 'top-right',
+                              style: {
+                                zIndex: 9999,
+                              },
+                            })
+                          } else {
+                            // No students selected or other case
+                            toast('No certificates were generated.', {
+                              duration: 3000,
+                              position: 'top-right',
+                              style: {
+                                zIndex: 9999,
+                              },
+                              icon: 'ℹ️',
+                            })
+                          }
                         } catch (err) {
                           console.error('Certificate generation error:', err)
-                          setError('Failed to generate certificates. Please try again.')
+                          toast.error(`Error generating certificates: ${err.message || 'Unknown error'}`, {
+                            duration: 4000,
+                            position: 'top-right',
+                            style: {
+                              zIndex: 9999,
+                            },
+                          })
                         } finally {
-                          setLoading(false)
+                          setSaving(false)
                         }
                       }}
-                      disabled={loading}
+                      disabled={saving}
                       className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {loading ? (
+                      {saving ? (
                         <>
                           <Loader2 size={18} className="animate-spin" />
                           Generating...
@@ -934,10 +1070,11 @@ export default function StudentCertificatesPage() {
       {showPreview && selectedStudent && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 backdrop-blur-md z-[9998] transition-opacity"
+            style={{ position: 'fixed', margin: 0 }}
             onClick={() => !saving && setShowPreview(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
                 <div className="flex justify-between items-center">
@@ -954,7 +1091,7 @@ export default function StudentCertificatesPage() {
 
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
                 {/* Student Info */}
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <div className="p-4 bg-blue-50 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-2">Student Information</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -973,25 +1110,6 @@ export default function StudentCertificatesPage() {
                       <span className="text-gray-600">Date of Birth:</span>
                       <span className="ml-2 font-semibold">{selectedStudent.date_of_birth || 'N/A'}</span>
                     </div>
-                  </div>
-                </div>
-
-                {/* Certificate Data Form */}
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="block text-gray-700 text-sm mb-2">
-                      Conduct <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={certificateData.conduct}
-                      onChange={(e) => setCertificateData({ ...certificateData, conduct: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                    >
-                      <option value="Excellent">Excellent</option>
-                      <option value="V.Good">V.Good</option>
-                      <option value="Good">Good</option>
-                      <option value="Satisfactory">Satisfactory</option>
-                    </select>
                   </div>
                 </div>
               </div>
@@ -1023,7 +1141,7 @@ export default function StudentCertificatesPage() {
                   )}
                 </button>
                 <button
-                  onClick={() => handlePrintCertificate(selectedStudent, certificateData.conduct)}
+                  onClick={() => handlePrintCertificate(selectedStudent, 'V.Good')}
                   className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
                 >
                   <Download size={18} />

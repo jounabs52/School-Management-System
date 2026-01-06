@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { FileText, CreditCard, Calendar, User, Hash, Trash2, X, TrendingUp, Award, RefreshCw, Search, Download, CheckCircle } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import { convertImageToBase64, addDecorativeBorder, PDF_FONTS } from '@/lib/pdfUtils'
+import QRCode from 'qrcode'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -206,11 +208,12 @@ export default function StudentReportsPage() {
         issue_date: cert.issue_date,
         certificate_type: cert.certificate_type,
         remarks: cert.remarks,
-        student_id: cert.student_id,
+        student_id: cert.students?.id || cert.student_id,
         student_first_name: cert.students?.first_name || 'N/A',
         student_last_name: cert.students?.last_name || '',
         admission_number: cert.students?.admission_number || 'N/A',
         father_name: cert.students?.father_name || 'N/A',
+        roll_number: cert.students?.admission_number || 'N/A',
         class_id: cert.students?.current_class_id || '',
         class_name: classMap[cert.students?.current_class_id] || 'N/A',
         photo_url: cert.students?.photo_url || null
@@ -292,11 +295,12 @@ export default function StudentReportsPage() {
           issue_date: card.issue_date,
           expiry_date: card.expiry_date,
           status: card.status,
-          student_id: card.student_id,
+          student_id: card.students?.id || card.student_id,
           student_first_name: card.students?.first_name || 'N/A',
           student_last_name: card.students?.last_name || '',
           admission_number: card.students?.admission_number || 'N/A',
           father_name: card.students?.father_name || 'N/A',
+          roll_number: card.students?.admission_number || 'N/A',
           class_id: card.students?.current_class_id || '',
           class_name: classMap[card.students?.current_class_id] || 'N/A',
           photo_url: card.students?.photo_url || null
@@ -367,118 +371,11 @@ export default function StudentReportsPage() {
   const handlePrint = async (item) => {
     try {
       if (activeTab === 'certificates') {
-        // Generate certificate PDF
-        const doc = new jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4'
-        })
-
-        const fullName = `${item.student_first_name} ${item.student_last_name}`
-
-        // Certificate Border
-        doc.setLineWidth(1)
-        doc.rect(10, 10, 190, 277)
-        doc.setLineWidth(0.5)
-        doc.rect(12, 12, 186, 273)
-
-        // Title
-        doc.setFontSize(28)
-        doc.setFont('helvetica', 'bold')
-        doc.text('CHARACTER CERTIFICATE', 105, 40, { align: 'center' })
-
-        // Body
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'normal')
-
-        const issueDate = new Date(item.issue_date).toLocaleDateString('en-GB', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        })
-
-        let yPos = 70
-        doc.text(`This is to certify that ${fullName}, S/O ${item.father_name},`, 20, yPos)
-        yPos += 10
-        doc.text(`Admission Number: ${item.admission_number}, was a student of Class ${item.class_name}`, 20, yPos)
-        yPos += 10
-        doc.text(`in this institution.`, 20, yPos)
-        yPos += 15
-        doc.text(`During his/her stay in the school, his/her conduct and character`, 20, yPos)
-        yPos += 10
-        doc.text(`remained ${item.certificate_type || 'good'}.`, 20, yPos)
-
-        if (item.remarks) {
-          yPos += 15
-          doc.text(`Remarks: ${item.remarks}`, 20, yPos)
-        }
-
-        // Date and signature
-        yPos = 250
-        doc.setFontSize(11)
-        doc.text(`Date: ${issueDate}`, 20, yPos)
-        doc.text('Principal/Head', 160, yPos)
-        doc.text('Signature & Stamp', 160, yPos + 10)
-
-        const fileName = `certificate_${item.admission_number}_${new Date().getTime()}.pdf`
-        doc.save(fileName)
+        // Import certificate generation logic from certificates page
+        await generateCertificatePDF(item)
       } else {
-        // Generate ID Card PDF
-        const doc = new jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: [54, 86] // Standard CR80 ID card size
-        })
-
-        const fullName = `${item.student_first_name} ${item.student_last_name}`
-
-        // Card background
-        doc.setFillColor(255, 255, 255)
-        doc.rect(0, 0, 54, 86, 'F')
-
-        // Header with school name
-        doc.setFillColor(59, 130, 246) // Blue
-        doc.rect(0, 0, 54, 15, 'F')
-        doc.setTextColor(255, 255, 255)
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text('SCHOOL NAME', 27, 6, { align: 'center' })
-        doc.setFontSize(7)
-        doc.text('STUDENT ID CARD', 27, 11, { align: 'center' })
-
-        // Photo placeholder
-        doc.setFillColor(200, 200, 200)
-        doc.rect(17, 18, 20, 25, 'F')
-        doc.setTextColor(100, 100, 100)
-        doc.setFontSize(6)
-        doc.text('PHOTO', 27, 30, { align: 'center' })
-
-        // Student details
-        doc.setTextColor(0, 0, 0)
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'bold')
-        doc.text(fullName, 27, 47, { align: 'center' })
-
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'normal')
-        let yPos = 52
-        doc.text(`Class: ${item.class_name}`, 27, yPos, { align: 'center' })
-        yPos += 5
-        doc.text(`Admission: ${item.admission_number}`, 27, yPos, { align: 'center' })
-        yPos += 5
-        doc.text(`Card No: ${item.card_number}`, 27, yPos, { align: 'center' })
-
-        // Dates
-        yPos += 8
-        doc.setFontSize(6)
-        const issueDate = new Date(item.issue_date).toLocaleDateString('en-GB')
-        const expiryDate = new Date(item.expiry_date).toLocaleDateString('en-GB')
-        doc.text(`Issue: ${issueDate}`, 27, yPos, { align: 'center' })
-        yPos += 4
-        doc.text(`Valid Until: ${expiryDate}`, 27, yPos, { align: 'center' })
-
-        const fileName = `id_card_${item.admission_number}_${new Date().getTime()}.pdf`
-        doc.save(fileName)
+        // Import ID card generation logic from cards page
+        await generateIDCardPDF(item)
       }
 
       showToast('PDF generated successfully!', 'success')
@@ -486,6 +383,808 @@ export default function StudentReportsPage() {
       console.error('Error generating PDF:', error)
       showToast('Failed to generate PDF. Please try again.', 'error')
     }
+  }
+
+  // Certificate generation function (from certificates page)
+  const generateCertificatePDF = async (item) => {
+    // Load certificate settings
+    let certificateSettings = {
+      instituteName: 'Superior College Bhakkar',
+      instituteLocation: 'Bhakkar',
+      certificateTitle: 'Character Certificate',
+      showSchoolLogo: true,
+      logoSize: 'medium',
+      borderColor: '#8B4513',
+      headerTextColor: '#8B4513',
+      textColor: '#000000',
+      accentColor: '#D2691E',
+      instituteNameSize: 20,
+      instituteTitleSize: 18,
+      certificateText: 'This is to certify that {studentName}, son of {fatherName}, has been a student of this {collegeName}. He is a brilliant student who secured {marksObtained}/{totalMarks} marks with an {grade} grade in his {className} examination. His academic dedication is exemplary, and he maintains a highly disciplined and respectful attitude toward his teachers and peers.',
+      showSerialNumber: true,
+      showDate: true,
+      showName: true,
+      showRollNo: true,
+      showExamination: true,
+      showSession: true,
+      showMarks: true,
+      showTotalMarks: true,
+      showYear: true,
+      showGrade: true,
+      principalSignature: null,
+      principalTitle: 'Principal Signature',
+      schoolNameInSignature: 'Superior College Bhakkar',
+      showBorder: true,
+      borderStyle: 'decorative'
+    }
+
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('certificateSettings')
+      if (saved) certificateSettings = JSON.parse(saved)
+    }
+
+    // Fetch exam marks for the student
+    let examMarksData = null
+    try {
+      const { data: marksData, error: marksError } = await supabase
+        .from('exam_marks')
+        .select(`
+          obtained_marks,
+          total_marks,
+          subjects (
+            subject_name
+          )
+        `)
+        .eq('student_id', item.student_id)
+        .order('created_at', { ascending: false })
+
+      if (!marksError && marksData && marksData.length > 0) {
+        let totalObtained = 0
+        let totalPossible = 0
+
+        marksData.forEach(mark => {
+          totalObtained += mark.obtained_marks || 0
+          totalPossible += mark.total_marks || 0
+        })
+
+        const percentage = totalPossible > 0 ? (totalObtained / totalPossible) * 100 : 0
+        let grade = 'N/A'
+        if (percentage >= 90) grade = 'A+'
+        else if (percentage >= 80) grade = 'A'
+        else if (percentage >= 70) grade = 'B'
+        else if (percentage >= 60) grade = 'C'
+        else if (percentage >= 50) grade = 'D'
+        else grade = 'F'
+
+        examMarksData = {
+          marks_obtained: totalObtained,
+          total_marks: totalPossible,
+          grade: grade,
+          percentage: percentage.toFixed(2)
+        }
+
+        // Update item object with exam marks data
+        item.marks_obtained = totalObtained
+        item.total_marks = totalPossible
+        item.grade = grade
+      }
+    } catch (err) {
+      console.error('Error fetching exam marks:', err)
+    }
+
+    // Fetch school data
+    const { data: schoolData } = await supabase
+      .from('schools')
+      .select('*')
+      .limit(1)
+      .single()
+
+    let schoolLogo = schoolData?.logo_url
+    if (schoolData?.logo_url && (schoolData.logo_url.startsWith('http://') || schoolData.logo_url.startsWith('https://'))) {
+      schoolLogo = await convertImageToBase64(schoolData.logo_url)
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 12
+
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16)
+      ] : [0, 0, 0]
+    }
+
+    const borderRgb = hexToRgb(certificateSettings.borderColor || '#8B4513')
+    const headerRgb = hexToRgb(certificateSettings.headerTextColor || '#8B4513')
+    const textRgb = hexToRgb(certificateSettings.textColor || '#000000')
+    const accentRgb = hexToRgb(certificateSettings.accentColor || '#D2691E')
+
+    if (certificateSettings.showBorder) {
+      addDecorativeBorder(doc, certificateSettings.borderColor || '#8B4513')
+    }
+
+    const serialNumber = Math.floor(Math.random() * 1000) + 1
+
+    if (certificateSettings.showSerialNumber) {
+      doc.setFontSize(9)
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Sr. No.:', margin + 11, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(serialNumber.toString(), margin + 27, margin + 11)
+    }
+
+    if (certificateSettings.showDate) {
+      const currentDate = new Date().toLocaleDateString('en-GB')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Dated:', pageWidth - margin - 48, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(currentDate, pageWidth - margin - 31, margin + 11)
+    }
+
+    if (certificateSettings.showSchoolLogo && schoolLogo) {
+      try {
+        const logoSize = 20
+        const logoX = (pageWidth - logoSize) / 2
+        const logoY = margin + 8
+
+        let format = 'PNG'
+        if (schoolLogo.includes('data:image/jpeg') || schoolLogo.includes('data:image/jpg')) {
+          format = 'JPEG'
+        }
+
+        doc.addImage(schoolLogo, format, logoX, logoY, logoSize, logoSize)
+      } catch (error) {
+        console.error('Error adding logo:', error)
+      }
+    }
+
+    doc.setFontSize(20)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...headerRgb)
+    const instituteName = certificateSettings.instituteName || schoolData?.name || 'Superior College Bhakkar'
+    doc.text(instituteName, pageWidth / 2, margin + 35, { align: 'center' })
+
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...textRgb)
+    doc.text(certificateSettings.instituteLocation || schoolData?.address || 'Bhakkar', pageWidth / 2, margin + 41, { align: 'center' })
+
+    doc.setFontSize(18)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...accentRgb)
+    doc.text(certificateSettings.certificateTitle || 'Character Certificate', pageWidth / 2, margin + 51, { align: 'center' })
+
+    const detailsY = margin + 62
+    const leftColX = margin + 18
+    const midColX = pageWidth / 2 + 10
+    const lineHeight = 7
+
+    let currentY = detailsY
+
+    doc.setFontSize(10)
+
+    const studentFullName = `${item.student_first_name || ''}${item.student_last_name ? ' ' + item.student_last_name : ''}`.trim()
+    const className = item.class_name || 'SSC'
+    const currentYear = new Date().getFullYear()
+    const grade = item.grade || 'N/A'
+
+    if (certificateSettings.showName) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Name of Student:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(studentFullName, leftColX + 38, currentY)
+    }
+
+    if (certificateSettings.showRollNo) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Roll No.:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(item.roll_number || '43', midColX + 18, currentY)
+    }
+
+    currentY += lineHeight
+
+    if (certificateSettings.showExamination) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Examination Passed:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(className, leftColX + 43, currentY)
+    }
+
+    if (certificateSettings.showSession) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Session:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(`${currentYear - 2}-${currentYear.toString().substr(2)}`, midColX + 18, currentY)
+    }
+
+    currentY += lineHeight
+
+    if (certificateSettings.showMarks) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Marks Obtained:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text((item.marks_obtained || 0).toString(), leftColX + 38, currentY)
+    }
+
+    if (certificateSettings.showTotalMarks) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Total Marks:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text((item.total_marks || 0).toString(), midColX + 28, currentY)
+    }
+
+    currentY += lineHeight
+
+    if (certificateSettings.showGrade) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Grade:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(item.grade || 'N/A', leftColX + 38, currentY)
+    }
+
+    if (certificateSettings.showYear) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Year:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(0, 0, 139)
+      doc.text(currentYear.toString(), midColX + 28, currentY)
+    }
+
+    currentY += lineHeight + 8
+
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...textRgb)
+
+    const fatherName = item.father_name || 'Ali'
+    const collegeName = certificateSettings.instituteName || schoolData?.name || 'Superior College Bhakkar'
+
+    // Use default comprehensive template if marks data exists and template doesn't include marks placeholders
+    const defaultTemplate = 'This is to certify that {studentName}, son of {fatherName}, has been a student of this {collegeName}. He is a brilliant student who secured {marksObtained}/{totalMarks} marks with an {grade} grade in his {className} examination. His academic dedication is exemplary, and he maintains a highly disciplined and respectful attitude toward his teachers and peers.'
+
+    let certificateText = certificateSettings.certificateText || defaultTemplate
+
+    // If we have marks data but the template doesn't include marks placeholders, use the default template
+    if (item.marks_obtained && item.total_marks && item.grade &&
+        !certificateText.includes('{marksObtained}') &&
+        !certificateText.includes('{totalMarks}') &&
+        !certificateText.includes('{grade}')) {
+      certificateText = defaultTemplate
+    }
+
+    certificateText = certificateText
+      .replace(/{studentName}/g, studentFullName)
+      .replace(/{fatherName}/g, fatherName)
+      .replace(/{collegeName}/g, collegeName)
+      .replace(/{className}/g, className)
+      .replace(/{year}/g, currentYear.toString())
+      .replace(/{marksObtained}/g, (item.marks_obtained || 0).toString())
+      .replace(/{totalMarks}/g, (item.total_marks || 0).toString())
+      .replace(/{grade}/g, item.grade || 'N/A')
+
+    doc.text(certificateText, leftColX, currentY, {
+      maxWidth: pageWidth - (2 * leftColX),
+      align: 'justify',
+      lineHeightFactor: 1.5
+    })
+
+    const signX = pageWidth - margin - 45
+    const signY = pageHeight - margin - 30
+
+    if (certificateSettings.principalSignature) {
+      try {
+        doc.addImage(certificateSettings.principalSignature, 'PNG', signX - 10, signY - 10, 30, 12)
+      } catch (error) {
+        console.error('Error adding signature:', error)
+      }
+    }
+
+    doc.setLineWidth(0.3)
+    doc.setDrawColor(...textRgb)
+    doc.line(signX - 15, signY + 5, signX + 30, signY + 5)
+
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text(certificateSettings.principalTitle || 'Principal Signature', signX + 7, signY + 10, { align: 'center' })
+
+    const fileName = `certificate_${item.admission_number}_${new Date().getTime()}.pdf`
+    doc.save(fileName)
+  }
+
+  // ID Card generation function (from cards page)
+  const generateIDCardPDF = async (item) => {
+    // Load card settings
+    let cardSettings = {
+      instituteName: '',
+      headerSubtitle: 'STUDENT ID CARD',
+      showSchoolLogo: true,
+      logoSize: 'medium',
+      logoPosition: 'left',
+      logoShape: 'circle',
+      cardBgColor: '#FFFFFF',
+      headerBgColor: '#1a4d4d',
+      headerTextColor: '#FFFFFF',
+      accentColor: '#F4A460',
+      textColor: '#000000',
+      labelColor: '#666666',
+      photoShape: 'rectangle',
+      photoSize: 'medium',
+      photoPosition: 'right',
+      photoBorderColor: '#000000',
+      showName: true,
+      showRollNo: true,
+      showClass: true,
+      showBloodGroup: false,
+      showSession: true,
+      showDesignation: true,
+      showExpiry: true,
+      showSignature: true,
+      signatureImage: null,
+      showDecorativeStripe: false,
+      stripeColor: '#F4A460',
+      cardOrientation: 'horizontal',
+      headerFont: 'helvetica',
+      labelFont: 'helvetica',
+      valueFont: 'helvetica',
+      termsFont: 'helvetica',
+      backHeaderText: 'Teram',
+      departmentText: '',
+      showBackLogo: true,
+      logoShapeBack: 'circle',
+      showQRCode: true,
+      qrCodeData: '',
+      qrCodeSize: 'medium',
+      termsAndConditions: [
+        'This card is property of the institution.',
+        'If found, should be returned/posted to following address:',
+        'Incharge, Institution Address.'
+      ]
+    }
+
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('idCardSettings')
+      if (saved) cardSettings = JSON.parse(saved)
+    }
+
+    // Fetch school data
+    const { data: schoolData } = await supabase
+      .from('schools')
+      .select('*')
+      .limit(1)
+      .single()
+
+    let schoolLogo = schoolData?.logo_url
+    if (schoolData?.logo_url && (schoolData.logo_url.startsWith('http://') || schoolData.logo_url.startsWith('https://'))) {
+      schoolLogo = await convertImageToBase64(schoolData.logo_url)
+    }
+
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16)
+      ] : [255, 255, 255]
+    }
+
+    const orientation = cardSettings.cardOrientation === 'vertical' ? 'portrait' : 'landscape'
+    const doc = new jsPDF({
+      orientation: orientation,
+      unit: 'mm',
+      format: [85.6, 53.98]
+    })
+
+    const cardWidth = orientation === 'landscape' ? 85.6 : 53.98
+    const cardHeight = orientation === 'landscape' ? 53.98 : 85.6
+
+    const bgColor = hexToRgb(cardSettings.cardBgColor)
+    const headerColor = hexToRgb(cardSettings.headerBgColor)
+    const accentColor = hexToRgb(cardSettings.accentColor)
+    const textColor = hexToRgb(cardSettings.textColor)
+    const labelColor = hexToRgb(cardSettings.labelColor)
+
+    doc.setFillColor(...bgColor)
+    doc.rect(0, 0, cardWidth, cardHeight, 'F')
+
+    const headerHeight = 12
+
+    if (cardSettings.showDecorativeStripe) {
+      const stripeColor = hexToRgb(cardSettings.stripeColor)
+      doc.setFillColor(...stripeColor)
+
+      const waveStartX = cardWidth * 0.35
+
+      doc.lines([
+        [cardWidth - waveStartX, 0],
+        [2, headerHeight],
+        [3, 10],
+        [-1, cardHeight - headerHeight - 15],
+        [-2, 5],
+        [-(cardWidth - waveStartX + 2), 0],
+        [0, -cardHeight]
+      ], waveStartX, 0, [1, 1], 'F')
+    }
+
+    doc.setFillColor(...headerColor)
+    doc.rect(0, 0, cardWidth, headerHeight, 'F')
+
+    if (cardSettings.showSchoolLogo && schoolLogo) {
+      try {
+        const logoSizeMap = { small: 7, medium: 9, large: 11 }
+        const logoSize = logoSizeMap[cardSettings.logoSize] || 9
+        const logoY = (headerHeight - logoSize) / 2
+
+        let logoX = 2
+        if (cardSettings.logoPosition === 'right') {
+          logoX = cardWidth - logoSize - 2
+        } else if (cardSettings.logoPosition === 'center') {
+          logoX = (cardWidth - logoSize) / 2
+        }
+
+        const logoImageData = await new Promise((resolve, reject) => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => {
+            try {
+              const canvasSize = 400
+              const canvas = document.createElement('canvas')
+              canvas.width = canvasSize
+              canvas.height = canvasSize
+              const ctx = canvas.getContext('2d')
+              ctx.imageSmoothingEnabled = true
+              ctx.imageSmoothingQuality = 'high'
+
+              ctx.beginPath()
+              if (cardSettings.logoShape === 'circle') {
+                ctx.arc(canvasSize / 2, canvasSize / 2, canvasSize / 2, 0, Math.PI * 2)
+              } else if (cardSettings.logoShape === 'rounded') {
+                const radius = canvasSize * 0.15
+                ctx.moveTo(radius, 0)
+                ctx.lineTo(canvasSize - radius, 0)
+                ctx.quadraticCurveTo(canvasSize, 0, canvasSize, radius)
+                ctx.lineTo(canvasSize, canvasSize - radius)
+                ctx.quadraticCurveTo(canvasSize, canvasSize, canvasSize - radius, canvasSize)
+                ctx.lineTo(radius, canvasSize)
+                ctx.quadraticCurveTo(0, canvasSize, 0, canvasSize - radius)
+                ctx.lineTo(0, radius)
+                ctx.quadraticCurveTo(0, 0, radius, 0)
+              } else {
+                ctx.rect(0, 0, canvasSize, canvasSize)
+              }
+              ctx.closePath()
+              ctx.clip()
+
+              const scale = Math.max(canvasSize / img.width, canvasSize / img.height)
+              const scaledWidth = img.width * scale
+              const scaledHeight = img.height * scale
+              const offsetX = (canvasSize - scaledWidth) / 2
+              const offsetY = (canvasSize - scaledHeight) / 2
+              ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
+
+              resolve(canvas.toDataURL('image/png', 0.98))
+            } catch (err) {
+              reject(err)
+            }
+          }
+          img.onerror = () => reject(new Error('Failed to load logo'))
+          img.src = schoolLogo
+        })
+
+        doc.addImage(logoImageData, 'PNG', logoX, logoY, logoSize, logoSize)
+      } catch (err) {
+        console.error('Error adding logo:', err)
+      }
+    }
+
+    const instituteName = cardSettings.instituteName || schoolData?.name || 'SCHOOL NAME'
+    const headerTextColorRgb = hexToRgb(cardSettings.headerTextColor)
+    doc.setFontSize(10)
+    doc.setFont(cardSettings.headerFont || 'helvetica', 'bold')
+    doc.setTextColor(...headerTextColorRgb)
+    doc.text(instituteName.toUpperCase(), cardWidth / 2, 6, { align: 'center' })
+
+    const headerSubtitle = cardSettings.headerSubtitle || 'STUDENT ID CARD'
+    doc.setFontSize(5.5)
+    doc.setFont(cardSettings.headerFont || 'helvetica', 'normal')
+    doc.setTextColor(...headerTextColorRgb)
+    doc.text(headerSubtitle.toUpperCase(), cardWidth / 2, 10, { align: 'center' })
+
+    const photoSizeMap = { small: 18, medium: 22, large: 26 }
+    const photoSize = photoSizeMap[cardSettings.photoSize] || 22
+
+    let photoX = cardWidth - photoSize - 4
+    if (cardSettings.photoPosition === 'left') {
+      photoX = 4
+    } else if (cardSettings.photoPosition === 'center') {
+      photoX = (cardWidth - photoSize) / 2
+    }
+    const photoY = 15
+
+    if (item.photo_url && item.photo_url.trim() !== '') {
+      try {
+        const imageData = await new Promise((resolve, reject) => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => {
+            try {
+              const canvasSize = 600
+              const canvas = document.createElement('canvas')
+              canvas.width = canvasSize
+              canvas.height = canvasSize
+              const ctx = canvas.getContext('2d')
+              ctx.imageSmoothingEnabled = true
+              ctx.imageSmoothingQuality = 'high'
+
+              ctx.beginPath()
+              if (cardSettings.photoShape === 'circle') {
+                ctx.arc(canvasSize / 2, canvasSize / 2, canvasSize / 2, 0, Math.PI * 2)
+              } else if (cardSettings.photoShape === 'rounded') {
+                const radius = canvasSize * 0.15
+                ctx.moveTo(radius, 0)
+                ctx.lineTo(canvasSize - radius, 0)
+                ctx.quadraticCurveTo(canvasSize, 0, canvasSize, radius)
+                ctx.lineTo(canvasSize, canvasSize - radius)
+                ctx.quadraticCurveTo(canvasSize, canvasSize, canvasSize - radius, canvasSize)
+                ctx.lineTo(radius, canvasSize)
+                ctx.quadraticCurveTo(0, canvasSize, 0, canvasSize - radius)
+                ctx.lineTo(0, radius)
+                ctx.quadraticCurveTo(0, 0, radius, 0)
+              } else {
+                ctx.rect(0, 0, canvasSize, canvasSize)
+              }
+              ctx.closePath()
+              ctx.clip()
+
+              const scale = Math.max(canvasSize / img.width, canvasSize / img.height)
+              const scaledWidth = img.width * scale
+              const scaledHeight = img.height * scale
+              const offsetX = (canvasSize - scaledWidth) / 2
+              const offsetY = (canvasSize - scaledHeight) / 2
+              ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
+
+              resolve(canvas.toDataURL('image/png', 0.98))
+            } catch (err) {
+              reject(err)
+            }
+          }
+          img.onerror = () => reject(new Error('Failed to load image'))
+          img.src = item.photo_url
+        })
+
+        doc.addImage(imageData, 'PNG', photoX, photoY, photoSize, photoSize)
+      } catch (error) {
+        console.error('Error adding photo:', error)
+        doc.setFillColor(240, 240, 240)
+        doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+      }
+    } else {
+      doc.setFillColor(240, 240, 240)
+      doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+    }
+
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(1.5)
+    if (cardSettings.photoShape === 'circle') {
+      doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
+    } else if (cardSettings.photoShape === 'rounded') {
+      doc.roundedRect(photoX, photoY, photoSize, photoSize, 2, 2, 'S')
+    } else {
+      doc.rect(photoX, photoY, photoSize, photoSize, 'S')
+    }
+
+    let detailsX = 4
+    if (cardSettings.photoPosition === 'left') {
+      detailsX = photoX + photoSize + 4
+    } else if (cardSettings.photoPosition === 'center') {
+      detailsX = 4
+    }
+
+    let detailsY = 18
+    const labelWidth = 22
+    const studentIDNumber = `ID-${item.admission_number}`
+
+    const drawField = (label, value, y) => {
+      doc.setFontSize(7)
+      doc.setFont(cardSettings.labelFont || 'helvetica', 'normal')
+      doc.setTextColor(...labelColor)
+      doc.text(label, detailsX, y)
+
+      doc.setFontSize(7.5)
+      doc.setFont(cardSettings.valueFont || 'helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text(':', detailsX + labelWidth, y)
+      doc.text(value, detailsX + labelWidth + 3, y)
+    }
+
+    if (cardSettings.showName) {
+      const studentFullName = `${item.student_first_name || ''} ${item.student_last_name || ''}`.trim()
+      drawField('Name', studentFullName, detailsY)
+      detailsY += 5.5
+    }
+
+    if (cardSettings.showRollNo) {
+      drawField('Roll No', studentIDNumber, detailsY)
+      detailsY += 5.5
+    }
+
+    if (cardSettings.showClass) {
+      const className = item.class_name
+      drawField('Class', className, detailsY)
+      detailsY += 5.5
+    }
+
+    if (cardSettings.showSession) {
+      const currentYear = new Date().getFullYear()
+      drawField('Session', `${currentYear}-${currentYear+1}`, detailsY)
+      detailsY += 5.5
+    }
+
+    if (cardSettings.showExpiry && item.expiry_date) {
+      const expiryDateObj = new Date(item.expiry_date)
+      const day = String(expiryDateObj.getDate()).padStart(2, '0')
+      const month = String(expiryDateObj.getMonth() + 1).padStart(2, '0')
+      const year = String(expiryDateObj.getFullYear()).slice(-2)
+      const expiryDate = `${day}-${month}-${year}`
+
+      const expiryBoxX = 3
+      const expiryBoxY = cardHeight - 7.5
+      const expiryBoxWidth = 30
+      const expiryBoxHeight = 5.5
+
+      doc.setFillColor(...accentColor)
+      doc.rect(expiryBoxX, expiryBoxY, expiryBoxWidth, expiryBoxHeight, 'F')
+
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Expiry: ${expiryDate}`, expiryBoxX + 2.5, expiryBoxY + 3.8)
+    }
+
+    if (cardSettings.showSignature) {
+      const sigX = cardWidth - 26
+      const sigY = cardHeight - 7
+
+      if (cardSettings.signatureImage) {
+        try {
+          doc.addImage(cardSettings.signatureImage, 'PNG', sigX + 1, sigY - 6, 24, 6)
+        } catch (error) {
+          console.error('Error adding signature:', error)
+        }
+      }
+
+      doc.setDrawColor(...textColor)
+      doc.setLineWidth(0.5)
+      doc.line(sigX, sigY, sigX + 24, sigY)
+
+      doc.setFontSize(5.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColor)
+      doc.text('Issuing Authority', sigX + 12, sigY + 3, { align: 'center' })
+    }
+
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.5)
+    doc.rect(0, 0, cardWidth, cardHeight, 'S')
+
+    // Back side
+    doc.addPage()
+
+    doc.setFillColor(...bgColor)
+    doc.rect(0, 0, cardWidth, cardHeight, 'F')
+
+    if (cardSettings.showDecorativeStripe) {
+      const stripeColor = hexToRgb(cardSettings.stripeColor)
+      doc.setFillColor(...stripeColor)
+
+      const backHeaderHeight = 10
+      const waveStartX = cardWidth * 0.35
+
+      doc.lines([
+        [cardWidth - waveStartX, 0],
+        [2, backHeaderHeight],
+        [3, 10],
+        [-1, cardHeight - backHeaderHeight - 15],
+        [-2, 5],
+        [-(cardWidth - waveStartX + 2), 0],
+        [0, -cardHeight]
+      ], waveStartX, 0, [1, 1], 'F')
+    }
+
+    doc.setFillColor(...headerColor)
+    doc.rect(0, 0, cardWidth, 10, 'F')
+
+    const backHeaderText = cardSettings.backHeaderText || 'STUDENT CARD'
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...headerTextColorRgb)
+    doc.text(backHeaderText.toUpperCase(), cardWidth / 2, 6, { align: 'center' })
+
+    let backY = 16
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...textColor)
+    doc.text('TERMS & CONDITIONS', cardWidth / 2, backY, { align: 'center' })
+    backY += 6
+
+    if (cardSettings.termsAndConditions && cardSettings.termsAndConditions.length > 0) {
+      doc.setFontSize(6.5)
+      doc.setFont(cardSettings.termsFont || 'helvetica', 'normal')
+      doc.setTextColor(...textColor)
+
+      cardSettings.termsAndConditions.forEach((term) => {
+        if (term && term.trim()) {
+          const bulletPoint = '•     '
+          const termText = bulletPoint + term
+          const maxWidth = cardWidth - 32
+          const lines = doc.splitTextToSize(termText, maxWidth)
+          lines.forEach((line, lineIndex) => {
+            if (backY < cardHeight - 10) {
+              const xPos = lineIndex === 0 ? 6 : 12
+              doc.text(line, xPos, backY)
+              backY += 3.8
+            }
+          })
+        }
+      })
+    }
+
+    if (cardSettings.showQRCode) {
+      const qrSizeMap = { small: 14, medium: 18, large: 22 }
+      const qrSize = qrSizeMap[cardSettings.qrCodeSize] || 18
+      const qrX = cardWidth - qrSize - 5
+      const qrY = cardHeight / 2 - qrSize / 2 + 5
+
+      try {
+        const qrData = cardSettings.qrCodeData || `ID:${item.admission_number}`
+        const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+          width: 200,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        })
+
+        doc.addImage(qrCodeDataURL, 'PNG', qrX, qrY, qrSize, qrSize)
+      } catch (error) {
+        console.error('Error generating QR code:', error)
+      }
+    }
+
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.5)
+    doc.rect(0, 0, cardWidth, cardHeight, 'S')
+
+    const fileName = `id_card_${item.admission_number}_${new Date().getTime()}.pdf`
+    doc.save(fileName)
   }
 
   const handleDeleteClick = (item) => {
