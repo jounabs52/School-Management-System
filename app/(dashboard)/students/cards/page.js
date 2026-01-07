@@ -346,6 +346,23 @@ export default function StudentIDCardsPage() {
     try {
       setPrintingStudentId(student.id)
 
+      // Check if card already exists BEFORE saving to database
+      if (await isCardValid(student.id)) {
+        const studentName = [student.first_name, student.last_name].filter(Boolean).join(' ')
+        toast(`Card already generated for ${studentName}!`, {
+          duration: 4000,
+          position: 'top-right',
+          style: {
+            background: '#ef4444',
+            color: '#fff',
+            fontWeight: '500',
+            zIndex: 9999,
+          },
+          icon: '✕',
+        })
+        return false
+      }
+
       // Fetch school_id
       const { data: schools, error: schoolError } = await supabase
         .from('schools')
@@ -407,14 +424,30 @@ export default function StudentIDCardsPage() {
 
       if (error) throw error
 
-      // Print the ID card
-      const result = await printIDCard(student)
+      // Print the ID card (skip validation since we already checked above)
+      const result = await printIDCard(student, true)
+
+      // Show success toast
+      if (result !== false) {
+        const studentName = [student.first_name, student.last_name].filter(Boolean).join(' ')
+        toast.success(`ID card generated successfully for ${studentName}!`, {
+          duration: 4000,
+          position: 'top-right',
+          style: {
+            zIndex: 9999,
+          },
+        })
+      }
+
       return result
     } catch (error) {
       console.error('Error saving ID card:', error)
       toast.error('Error saving ID card: ' + error.message, {
         duration: 3000,
         position: 'top-right',
+        style: {
+          zIndex: 9999,
+        },
       })
       return false
     } finally {
@@ -433,17 +466,39 @@ export default function StudentIDCardsPage() {
   }
 
   // Check if card already exists and is still valid
-  const isCardValid = (studentId) => {
-    const generatedCards = JSON.parse(localStorage.getItem('generatedIDCards') || '{}')
-    const cardInfo = generatedCards[studentId]
+  const isCardValid = async (studentId) => {
+    try {
+      // Fetch school_id
+      const { data: schools, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
 
-    if (!cardInfo) return false
+      if (schoolError) return false
 
-    // Check if card is expired
-    const expiryDate = new Date(cardInfo.expiryDate)
-    const today = new Date()
+      // Check database for existing active card
+      const { data: existingCard, error: checkError } = await supabase
+        .from('student_id_cards')
+        .select('id, expiry_date, status')
+        .eq('student_id', studentId)
+        .eq('school_id', schools.id)
+        .eq('status', 'active')
+        .limit(1)
 
-    return expiryDate > today
+      if (checkError || !existingCard || existingCard.length === 0) {
+        return false
+      }
+
+      // Check if card is expired
+      const expiryDate = new Date(existingCard[0].expiry_date)
+      const today = new Date()
+
+      return expiryDate > today
+    } catch (error) {
+      console.error('Error checking card validity:', error)
+      return false
+    }
   }
 
   // Save card generation info
@@ -459,10 +514,18 @@ export default function StudentIDCardsPage() {
   // Print ID card using jsPDF with settings
   const printIDCard = async (student, skipValidation = false) => {
     // Check if card already exists and is valid (unless in bulk mode)
-    if (!skipValidation && isCardValid(student.id)) {
-      toast.error(`Card already generated for ${student.first_name} ${student.last_name}`, {
-        duration: 3000,
+    if (!skipValidation && await isCardValid(student.id)) {
+      const studentName = [student.first_name, student.last_name].filter(Boolean).join(' ')
+      toast(`Card already generated for ${studentName}!`, {
+        duration: 4000,
         position: 'top-right',
+        style: {
+          background: '#ef4444',
+          color: '#fff',
+          fontWeight: '500',
+          zIndex: 9999,
+        },
+        icon: '✕',
       })
       return false
     }
@@ -1012,6 +1075,9 @@ export default function StudentIDCardsPage() {
     toast.success('Card settings saved successfully!', {
       duration: 3000,
       position: 'top-right',
+      style: {
+        zIndex: 9999,
+      },
     })
   }
 
@@ -1021,7 +1087,14 @@ export default function StudentIDCardsPage() {
 
   return (
     <div className="p-6">
-      <Toaster />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            zIndex: 9999,
+          },
+        }}
+      />
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -1851,13 +1924,8 @@ export default function StudentIDCardsPage() {
 
                           for (const student of filteredStudents) {
                             // Check if card is already valid
-                            if (isCardValid(student.id)) {
+                            if (await isCardValid(student.id)) {
                               skippedCount++
-                              toast.info(`Skipped: ${student.first_name} ${student.last_name} (Card already exists)`, {
-                                duration: 2000,
-                                position: 'top-right',
-                              })
-                              await new Promise(resolve => setTimeout(resolve, 300))
                               continue
                             }
 
@@ -1869,15 +1937,57 @@ export default function StudentIDCardsPage() {
                             await new Promise(resolve => setTimeout(resolve, 500))
                           }
 
-                          toast.success(`Generated ${generatedCount} cards. Skipped ${skippedCount} (already exist)`, {
-                            duration: 4000,
-                            position: 'top-right',
-                          })
+                          // Show appropriate message based on results
+                          if (skippedCount > 0 && generatedCount === 0) {
+                            // All cards already exist
+                            toast(`All ${skippedCount} student(s) already have valid ID cards!`, {
+                              duration: 4000,
+                              position: 'top-right',
+                              style: {
+                                background: '#ef4444',
+                                color: '#fff',
+                                fontWeight: '500',
+                                zIndex: 9999,
+                              },
+                              icon: '✕',
+                            })
+                          } else if (generatedCount > 0 && skippedCount === 0) {
+                            // All cards were generated
+                            toast.success(`Successfully generated ${generatedCount} ID card(s)!`, {
+                              duration: 4000,
+                              position: 'top-right',
+                              style: {
+                                zIndex: 9999,
+                              },
+                            })
+                          } else if (generatedCount > 0 && skippedCount > 0) {
+                            // Some generated, some skipped
+                            toast.success(`Generated ${generatedCount} card(s). ${skippedCount} student(s) already had valid cards.`, {
+                              duration: 4000,
+                              position: 'top-right',
+                              style: {
+                                zIndex: 9999,
+                              },
+                            })
+                          } else {
+                            // No students selected or other case
+                            toast('No ID cards were generated.', {
+                              duration: 3000,
+                              position: 'top-right',
+                              style: {
+                                zIndex: 9999,
+                              },
+                              icon: 'ℹ️',
+                            })
+                          }
                         } catch (error) {
                           console.error('Error generating ID cards:', error)
                           toast.error(`Error generating ID cards: ${error.message || 'Unknown error'}`, {
                             duration: 4000,
                             position: 'top-right',
+                            style: {
+                              zIndex: 9999,
+                            },
                           })
                         } finally {
                           setSaving(false)
