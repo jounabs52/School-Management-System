@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { AlertCircle } from 'lucide-react'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function SalaryStructurePage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -14,9 +15,7 @@ export default function SalaryStructurePage() {
   const [existingStructure, setExistingStructure] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  // Notification states
-  const [success, setSuccess] = useState(null)
-  const [error, setError] = useState(null)
+  // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -31,16 +30,6 @@ export default function SalaryStructurePage() {
   const [otherDeductions, setOtherDeductions] = useState(0)
   const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().split('T')[0])
   const [effectiveTo, setEffectiveTo] = useState('')
-
-  const showToast = (message, type = 'success') => {
-    if (type === 'success') {
-      setSuccess(message)
-      setTimeout(() => setSuccess(null), 5000)
-    } else if (type === 'error' || type === 'warning') {
-      setError(message)
-      setTimeout(() => setError(null), 5000)
-    }
-  }
 
   useEffect(() => {
     const userData = document.cookie
@@ -120,7 +109,7 @@ export default function SalaryStructurePage() {
       setStaffList(data || [])
     } catch (error) {
       console.error('Error loading staff:', error)
-      showToast('Failed to load staff list', 'error')
+      toast.error('Failed to load staff list')
     } finally {
       setLoading(false)
     }
@@ -201,12 +190,12 @@ export default function SalaryStructurePage() {
 
   const handleSaveSalaryStructure = async () => {
     if (!selectedStaff) {
-      showToast('Please select a staff member', 'warning')
+      toast.error('Please select a staff member')
       return
     }
 
     if (basicSalary <= 0) {
-      showToast('Please enter a valid basic salary', 'warning')
+      toast.error('Please enter a valid basic salary')
       return
     }
 
@@ -227,8 +216,8 @@ export default function SalaryStructurePage() {
         net_salary: calculateNetSalary(),
         effective_from: effectiveFrom,
         effective_to: effectiveTo || null,
-        status: 'active',
-        created_by: currentUser.id
+        created_by: currentUser.id,
+        status: 'active'
       }
 
       if (existingStructure) {
@@ -240,7 +229,7 @@ export default function SalaryStructurePage() {
 
         if (error) throw error
 
-        showToast('Salary structure updated successfully!', 'success')
+        toast.success('Salary structure updated successfully!')
       } else {
         // Create new structure
         console.log('=== Creating New Salary Structure ===')
@@ -294,8 +283,8 @@ export default function SalaryStructurePage() {
             net_salary: calculateNetSalary(),
             payment_date: new Date().toISOString().split('T')[0],
             payment_method: 'pending',
-            status: 'pending',
             paid_by: currentUser.id,
+            status: 'pending',
             remarks: `Pending salary slip for ${getMonthName(currentMonth)} ${currentYear}`
           }
 
@@ -345,14 +334,14 @@ export default function SalaryStructurePage() {
           console.log('Payment already exists for this month, skipping creation')
         }
 
-        showToast('Salary structure created successfully! Unpaid slip generated for current month.', 'success')
+        toast.success('Salary structure created successfully! Unpaid slip generated for current month.')
       }
 
       // Reload the structure
       await loadStaffSalaryStructure(selectedStaff)
     } catch (error) {
       console.error('Error saving salary structure:', error)
-      showToast('Failed to save salary structure', 'error')
+      toast.error('Failed to save salary structure')
     } finally {
       setSaving(false)
     }
@@ -376,13 +365,13 @@ export default function SalaryStructurePage() {
 
       if (error) throw error
 
-      showToast('Salary structure deleted successfully', 'success')
+      toast.success('Salary structure deleted successfully')
       setShowDeleteModal(false)
       resetForm()
       setSelectedStaff(null)
     } catch (error) {
       console.error('Error deleting salary structure:', error)
-      showToast('Failed to delete salary structure', 'error')
+      toast.error('Failed to delete salary structure')
     } finally {
       setDeleting(false)
     }
@@ -401,18 +390,30 @@ export default function SalaryStructurePage() {
 
   return (
     <div className="p-1">
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="mb-2 bg-green-100 border border-green-400 text-green-700 px-3 py-2 text-sm rounded relative">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 text-sm rounded relative flex items-center gap-2">
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
 
       {/* Search Section - Only show when no staff is selected */}
       {!selectedStaff && (

@@ -9,6 +9,8 @@ import {
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getPdfSettings, hexToRgb, getAutoTableStyles } from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function ContactsPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -28,6 +30,11 @@ export default function ContactsPage() {
   const [selectedContacts, setSelectedContacts] = useState([])
   const [importFile, setImportFile] = useState(null)
   const [importing, setImporting] = useState(false)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   // Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState({
@@ -412,17 +419,44 @@ export default function ContactsPage() {
 
   const exportToPDF = () => {
     try {
-      const doc = new jsPDF()
+      // Get PDF settings from localStorage
+      const settings = getPdfSettings()
+      console.log('📄 Using PDF settings for Contacts export:', settings)
 
+      // Create PDF with settings
+      const doc = new jsPDF({
+        orientation: settings.orientation || 'portrait',
+        unit: 'mm',
+        format: settings.pageSize || 'A4'
+      })
+
+      // Apply font settings
+      if (settings.fontFamily) {
+        try {
+          doc.setFont(settings.fontFamily.toLowerCase())
+        } catch (e) {
+          doc.setFont('helvetica')
+        }
+      }
+
+      // Header section
+      const headerColor = hexToRgb(settings.headerBackgroundColor)
       doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...headerColor)
       doc.text('Contacts Directory', 14, 20)
 
+      // Subheader info
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28)
+      doc.setTextColor(100, 100, 100)
+
+      if (settings.includeDate || settings.includeGeneratedDate) {
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28)
+      }
       doc.text(`Total Contacts: ${filteredContacts.length}`, 14, 34)
 
+      // Prepare table data
       const tableData = filteredContacts.map((contact, index) => [
         index + 1,
         contact.name,
@@ -432,28 +466,63 @@ export default function ContactsPage() {
         contact.whatsapp || 'N/A'
       ])
 
+      // Get table styles from settings
+      const tableStyles = getAutoTableStyles(settings)
+
+      // Generate table with settings
       autoTable(doc, {
         startY: 40,
         head: [['Sr.', 'Name', 'Group', 'Company', 'Mobile', 'WhatsApp']],
         body: tableData,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [30, 58, 138],
-          textColor: 255,
-          fontSize: 10,
-          fontStyle: 'bold'
-        },
-        bodyStyles: {
-          fontSize: 9
+        ...tableStyles,
+        // Override specific styles for this table
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 15 }, // Sr.
+          1: { halign: 'left', cellWidth: 35 },   // Name
+          2: { halign: 'left', cellWidth: 30 },   // Group
+          3: { halign: 'left', cellWidth: 35 },   // Company
+          4: { halign: 'center', cellWidth: 30 }, // Mobile
+          5: { halign: 'center', cellWidth: 30 }  // WhatsApp
         }
       })
 
-      doc.save(`Contacts_${new Date().toISOString().split('T')[0]}.pdf`)
-      showToast('PDF exported successfully', 'success')
+      // Add page numbers if enabled
+      if (settings.includePageNumbers) {
+        const pageCount = doc.internal.getNumberOfPages()
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
+          doc.setFontSize(8)
+          doc.setTextColor(128, 128, 128)
+          doc.text(
+            `Page ${i} of ${pageCount}`,
+            doc.internal.pageSize.getWidth() / 2,
+            doc.internal.pageSize.getHeight() - 10,
+            { align: 'center' }
+          )
+        }
+      }
+
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
+      const fileName = `Contacts_${new Date().toISOString().split('T')[0]}.pdf`
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      showToast('PDF generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error exporting to PDF:', error)
       showToast('Failed to export PDF', 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   // Download sample CSV template
@@ -1078,6 +1147,14 @@ export default function ContactsPage() {
           </div>
         ))}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

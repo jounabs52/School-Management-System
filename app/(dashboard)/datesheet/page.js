@@ -15,6 +15,7 @@ import {
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function DatesheetPage() {
   const router = useRouter()
@@ -28,6 +29,11 @@ export default function DatesheetPage() {
   const [session, setSession] = useState(null)
   const [schoolInfo, setSchoolInfo] = useState(null)
   const [toasts, setToasts] = useState([])
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   // Section State (now using tabs like HR)
   const [activeTab, setActiveTab] = useState('datesheets')
@@ -527,7 +533,8 @@ export default function DatesheetPage() {
           class_name: classInfo?.class_name || 'N/A',
           slip_number: slip.slip_number,
           datesheet_id: slip.datesheet_id,
-          student_id: slip.student_id
+          student_id: slip.student_id,
+          slip_type: slip.slip_type || 'roll_no_slip' // Include slip_type
         }
       })
 
@@ -1290,9 +1297,14 @@ export default function DatesheetPage() {
         addPDFFooter(doc, i, pageCount)
       }
 
-      // Save PDF
-      doc.save(`${currentDatesheet.title}_${className}_Datesheet.pdf`)
-      showToast('Datesheet downloaded successfully', 'success')
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      const filename = `${currentDatesheet.title}_${className}_Datesheet.pdf`
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(filename)
+      setShowPdfPreview(true)
+      showToast('Datesheet generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast('Failed to download datesheet', 'error')
@@ -1409,13 +1421,24 @@ export default function DatesheetPage() {
         addPDFFooter(doc, i, pageCount)
       }
 
-      // Save single PDF with all classes
-      doc.save(`${currentDatesheet.title}_All_Classes_Datesheet.pdf`)
-      showToast(`Downloaded datesheet for ${selectedClasses.length} classes`, 'success')
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      const filename = `${currentDatesheet.title}_All_Classes_Datesheet.pdf`
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(filename)
+      setShowPdfPreview(true)
+      showToast(`Datesheet for ${selectedClasses.length} classes generated. Preview opened.`, 'success')
     } catch (error) {
       console.error('Error downloading all datesheets:', error)
       showToast('Failed to download all datesheets', 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const resetForm = () => {
@@ -1448,6 +1471,19 @@ export default function DatesheetPage() {
   const getSubjectName = (subjectId) => {
     const subject = subjects.find(s => s.id === subjectId)
     return subject?.subject_name || ''
+  }
+
+  const formatTime = (timeString) => {
+    if (!timeString) return ''
+    try {
+      return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+    } catch {
+      return timeString
+    }
   }
 
   // Check if a class has any unscheduled subjects
@@ -1534,7 +1570,28 @@ export default function DatesheetPage() {
   // Generate PDF for Roll No Slip or Admit Card
   const generateRollNoSlipPDF = async (slip) => {
     try {
-      if (!slip.students) {
+      // If student data is missing, fetch it from database
+      let studentData = slip.students
+      
+      if (!studentData && slip.student_id) {
+        console.log('📋 Student data not in slip, fetching from database...')
+        const { data: fetchedStudent, error: studentError } = await supabase
+          .from('students')
+          .select('id, first_name, last_name, father_name, admission_number, roll_number, photo_url, current_class_id')
+          .eq('id', slip.student_id)
+          .single()
+        
+        if (studentError || !fetchedStudent) {
+          console.error('Error fetching student:', studentError)
+          showToast('Student information not found in database', 'error')
+          return
+        }
+        
+        studentData = fetchedStudent
+        console.log('✅ Student data fetched:', studentData)
+      }
+      
+      if (!studentData) {
         showToast('Student information not available', 'error')
         return
       }
@@ -1554,7 +1611,7 @@ export default function DatesheetPage() {
           subjects (subject_name)
         `)
         .eq('datesheet_id', slip.datesheet_id)
-        .eq('class_id', slip.students.current_class_id)
+        .eq('class_id', studentData.current_class_id)
         .not('subject_id', 'is', null)
         .order('exam_date')
 
@@ -1569,10 +1626,10 @@ export default function DatesheetPage() {
       const pageHeight = doc.internal.pageSize.getHeight()
 
       // Add professional header with logo
-      const studentName = slip.students.first_name && slip.students.last_name
-        ? `${slip.students.first_name} ${slip.students.last_name}`
-        : slip.students.first_name || 'N/A'
-      const className = getClassName(slip.students.current_class_id)
+      const studentName = studentData.first_name && studentData.last_name
+        ? `${studentData.first_name} ${studentData.last_name}`
+        : studentData.first_name || 'N/A'
+      const className = getClassName(studentData.current_class_id)
 
       const headerOptions = {
         subtitle: datesheet.title.toUpperCase(),
@@ -1602,7 +1659,7 @@ export default function DatesheetPage() {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Father's Name", leftMargin, boxTop + 7)
       doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.text(slip.students.father_name || 'N/A', leftMargin + 50, boxTop + 7)
+      doc.text(studentData.father_name || 'N/A', leftMargin + 50, boxTop + 7)
 
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Class", leftMargin, boxTop + 14)
@@ -1612,7 +1669,7 @@ export default function DatesheetPage() {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Admit", leftMargin + 90, boxTop + 14)
       doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.text(slip.students.admission_number?.toString() || 'N/A', leftMargin + 110, boxTop + 14)
+      doc.text(studentData.admission_number?.toString() || 'N/A', leftMargin + 110, boxTop + 14)
 
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Session", leftMargin, boxTop + 21)
@@ -1622,7 +1679,7 @@ export default function DatesheetPage() {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Roll #", leftMargin + 90, boxTop + 21)
       doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.text(slip.students.roll_number?.toString() || 'N/A', leftMargin + 110, boxTop + 21)
+      doc.text(studentData.roll_number?.toString() || 'N/A', leftMargin + 110, boxTop + 21)
 
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.text("Exam Center", leftMargin, boxTop + 28)
@@ -1678,13 +1735,19 @@ export default function DatesheetPage() {
       addPDFFooter(doc, 1, 1)
 
       // Save PDF
-      const fileStudentName = slip.students.first_name && slip.students.last_name
-        ? `${slip.students.first_name}_${slip.students.last_name}`
-        : slip.students.first_name || 'unknown'
-      const fileName = `${slip.slip_type}_${fileStudentName}_${slip.students.roll_number}.pdf`
-      doc.save(fileName)
+      const fileStudentName = studentData.first_name && studentData.last_name
+        ? `${studentData.first_name}_${studentData.last_name}`
+        : studentData.first_name || 'unknown'
+      const fileName = `${slip.slip_type}_${fileStudentName}_${studentData.roll_number}.pdf`
 
-      showToast('PDF generated successfully', 'success')
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      showToast('PDF generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast(`Error generating PDF: ${error.message}`, 'error')
@@ -1801,8 +1864,17 @@ export default function DatesheetPage() {
 
   const handleViewSlip = async (slip) => {
     try {
+      // Ensure the slip object has student_id and datesheet_id
+      const slipWithIds = {
+        ...slip,
+        student_id: slip.student_id,
+        datesheet_id: slip.datesheet_id,
+        slip_type: slip.slip_type || 'roll_no_slip',
+        students: null // Will be fetched by generateRollNoSlipPDF if needed
+      }
+      
       // Generate PDF for the single slip
-      await generateRollNoSlipPDF(slip)
+      await generateRollNoSlipPDF(slipWithIds)
     } catch (error) {
       console.error('Error viewing slip:', error)
       showToast('Error viewing slip', 'error')
@@ -2021,16 +2093,121 @@ export default function DatesheetPage() {
         return
       }
 
-      // Generate PDF with school data
-      generateDatesheetPDF(
-        datesheet,
-        schedules,
-        classes,
-        subjects,
-        schoolInfo
-      )
+      // Generate PDF with preview
+      const doc = new jsPDF('landscape')
 
-      showToast('PDF generated successfully', 'success')
+      // Add professional header with logo
+      const headerOptions = {
+        subtitle: datesheet.title,
+        session: datesheet.session
+      }
+      let yPosition = addPDFHeader(doc, schoolInfo, 'EXAMINATION DATE SHEET', headerOptions)
+
+      // Add watermark
+      if (schoolInfo) {
+        addPDFWatermark(doc, schoolInfo)
+      }
+
+      yPosition += 5
+
+      // Group schedules by class
+      const uniqueClassIds = [...new Set(schedules.map(s => s.class_id))]
+
+      uniqueClassIds.forEach((classId, index) => {
+        const className = classes.find(c => c.id === classId)?.class_name || 'Unknown Class'
+        const classSchedules = schedules.filter(s => s.class_id === classId && s.subject_id)
+
+        if (classSchedules.length === 0) return
+
+        // Add class header
+        doc.setFontSize(13)
+        doc.setFont(PDF_FONTS.primary, 'bold')
+        doc.setTextColor(...PDF_COLORS.primary)
+        doc.text(`Class: ${className}`, 14, yPosition)
+        yPosition += 7
+
+        // Prepare table data
+        const tableData = classSchedules.map((schedule, idx) => {
+          const subjectName = subjects.find(s => s.id === schedule.subject_id)?.subject_name || 'N/A'
+          const examDate = new Date(schedule.exam_date).toLocaleDateString('en-US', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            weekday: 'short'
+          })
+          const startTime = formatTime(schedule.start_time)
+          const endTime = formatTime(schedule.end_time)
+
+          return [
+            idx + 1,
+            subjectName,
+            examDate,
+            `${startTime} - ${endTime}`,
+            schedule.room_number || '-'
+          ]
+        })
+
+        // Add table
+        autoTable(doc, {
+          startY: yPosition,
+          head: [['#', 'Subject', 'Exam Date & Day', 'Time', 'Room']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: PDF_COLORS.headerBg,
+            textColor: [255, 255, 255],
+            fontSize: 10,
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          styles: {
+            fontSize: 10,
+            cellPadding: 3,
+            halign: 'center'
+          },
+          columnStyles: {
+            0: { cellWidth: 15 },
+            1: { cellWidth: 100, halign: 'left' },
+            2: { cellWidth: 60, fontStyle: 'bold' },
+            3: { cellWidth: 50 },
+            4: { cellWidth: 40 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 248, 248]
+          }
+        })
+
+        yPosition = doc.lastAutoTable.finalY + 10
+
+        // Check if we need a new page
+        if (yPosition > 170 && index < uniqueClassIds.length - 1) {
+          doc.addPage('landscape')
+
+          // Add header on new page
+          yPosition = addPDFHeader(doc, schoolInfo, 'EXAMINATION DATE SHEET', headerOptions)
+          if (schoolInfo) {
+            addPDFWatermark(doc, schoolInfo)
+          }
+          yPosition += 5
+        }
+      })
+
+      // Add professional footer to all pages
+      const pageCount = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        addPDFFooter(doc, i, pageCount)
+      }
+
+      // Generate PDF blob for preview
+      const fileName = `${datesheet.title.replace(/\s+/g, '_')}_${datesheet.session}.pdf`
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      showToast('PDF generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
@@ -2153,11 +2330,15 @@ export default function DatesheetPage() {
       // Add professional footer
       addPDFFooter(doc, 1, 1)
 
-      // Save PDF
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
       const fileName = `${getClassName(classId)}_${datesheet.title}_Datesheet.pdf`
-      doc.save(fileName)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
 
-      showToast('Single class datesheet generated successfully', 'success')
+      showToast('Single class datesheet generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating single class datesheet:', error)
       showToast(`Error generating datesheet: ${error.message}`, 'error')
@@ -2288,11 +2469,15 @@ export default function DatesheetPage() {
       // Add professional footer
       addPDFFooter(doc, 1, 1)
 
-      // Save PDF
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
       const fileName = `All_Classes_${datesheet.title}_Datesheet.pdf`
-      doc.save(fileName)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
 
-      showToast('All classes datesheet generated successfully', 'success')
+      showToast('All classes datesheet generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating all classes datesheet:', error)
       showToast(`Error generating datesheet: ${error.message}`, 'error')
@@ -3252,18 +3437,6 @@ export default function DatesheetPage() {
             </button>
           </div>
 
-          {/* Current Datesheet Indicator */}
-          {selectedExamForReport && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Viewing slips for:</span>
-                <span className="text-sm font-semibold text-blue-700">
-                  {datesheets.find(d => d.id === selectedExamForReport)?.title || 'Unknown Datesheet'}
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Class Filter */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Class (Optional)</label>
@@ -3736,6 +3909,14 @@ export default function DatesheetPage() {
           </div>
         ))}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

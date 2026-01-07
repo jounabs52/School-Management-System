@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import { getPdfSettings, hexToRgb } from '@/lib/pdfSettings'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

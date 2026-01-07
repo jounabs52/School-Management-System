@@ -8,13 +8,14 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
 import {
-  addPDFHeader,
-  addPDFFooter,
-  addPDFWatermark,
-  convertImageToBase64,
-  PDF_COLORS,
-  PDF_FONTS
-} from '@/lib/pdfUtils'
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  getLogoSize,
+  applyPdfSettings,
+  convertImageToBase64
+} from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function ExamReportsPage() {
   const router = useRouter()
@@ -37,6 +38,11 @@ export default function ExamReportsPage() {
   // Report data
   const [reportData, setReportData] = useState(null)
   const [stats, setStats] = useState({})
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -480,32 +486,49 @@ export default function ExamReportsPage() {
     }
 
     try {
-      // Convert logo to base64
-      let logoBase64 = schoolDetails?.logo_url
-      if (schoolDetails?.logo_url && (schoolDetails.logo_url.startsWith('http://') || schoolDetails.logo_url.startsWith('https://'))) {
-        logoBase64 = await convertImageToBase64(schoolDetails.logo_url)
-      }
-
-      const schoolData = {
-        name: schoolDetails?.name || 'School',
-        logo: logoBase64
-      }
-
+      const pdfSettings = getPdfSettings()
       const pdf = new jsPDF()
       const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margins = getMarginValues(pdfSettings)
 
-      // Add professional header
-      const headerOptions = {
-        subtitle: getReportTitle()
+      // Add logo and header if enabled
+      let yPos = margins.top
+      if (pdfSettings.includeLogo && schoolDetails?.logo_url) {
+        try {
+          const logoData = await convertImageToBase64(schoolDetails.logo_url)
+          const logoSize = getLogoSize(pdfSettings.logoSize)
+          const logoX = (pageWidth - logoSize.width) / 2
+          pdf.addImage(logoData, 'PNG', logoX, yPos, logoSize.width, logoSize.height)
+          yPos += logoSize.height + 5
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
       }
-      let yPos = addPDFHeader(pdf, schoolData, 'EXAMINATION REPORT', headerOptions)
 
-      // Add watermark
-      if (schoolData.logo) {
-        addPDFWatermark(pdf, schoolData)
+      // Add school name and header
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
+      if (pdfSettings.includeSchoolName && schoolDetails?.name) {
+        pdf.setFontSize(16)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(...textColor)
+        pdf.text(schoolDetails.name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 7
       }
 
-      yPos += 5
+      // Title
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('EXAMINATION REPORT', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 6
+
+      // Subtitle
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(getReportTitle(), pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
 
       // Add stats summary box
       if (Object.keys(stats).length > 0) {
@@ -513,18 +536,18 @@ export default function ExamReportsPage() {
         const boxHeight = Math.min(Object.keys(stats).length * 6 + 10, 40)
         pdf.rect(15, yPos, pageWidth - 30, boxHeight, 'F')
 
-        pdf.setDrawColor(...PDF_COLORS.border)
+        pdf.setDrawColor(...textColor)
         pdf.setLineWidth(0.5)
         pdf.rect(15, yPos, pageWidth - 30, boxHeight, 'S')
 
-        pdf.setFont(PDF_FONTS.primary, 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(11)
-        pdf.setTextColor(...PDF_COLORS.textDark)
+        pdf.setTextColor(...textColor)
         pdf.text('SUMMARY STATISTICS', 20, yPos + 8)
 
-        pdf.setFont(PDF_FONTS.secondary, 'normal')
+        pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(9)
-        pdf.setTextColor(...PDF_COLORS.textDark)
+        pdf.setTextColor(...textColor)
 
         let statYPos = yPos + 16
         Object.entries(stats).forEach(([key, value]) => {
@@ -561,7 +584,7 @@ export default function ExamReportsPage() {
           body: tableData,
           theme: 'grid',
           headStyles: {
-            fillColor: PDF_COLORS.headerBg,
+            fillColor: headerBgColor,
             textColor: [255, 255, 255],
             fontSize: 9,
             fontStyle: 'bold',
@@ -600,7 +623,7 @@ export default function ExamReportsPage() {
           ]),
           theme: 'grid',
           headStyles: {
-            fillColor: PDF_COLORS.headerBg,
+            fillColor: headerBgColor,
             textColor: [255, 255, 255],
             fontSize: 9,
             fontStyle: 'bold',
@@ -639,7 +662,7 @@ export default function ExamReportsPage() {
           ]),
           theme: 'grid',
           headStyles: {
-            fillColor: PDF_COLORS.headerBg,
+            fillColor: headerBgColor,
             textColor: [255, 255, 255],
             fontSize: 9,
             fontStyle: 'bold',
@@ -756,19 +779,37 @@ export default function ExamReportsPage() {
         }
       }
 
-      // Add professional footer to all pages
-      const pageCount = pdf.internal.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        pdf.setPage(i)
-        addPDFFooter(pdf, i, pageCount)
+      // Add footer to all pages if enabled
+      if (pdfSettings.includeFooter && pdfSettings.footerText) {
+        const pageCount = pdf.internal.getNumberOfPages()
+        for (let i = 1; i <= pageCount; i++) {
+          pdf.setPage(i)
+          const footerY = pageHeight - margins.bottom + 5
+          pdf.setFontSize(8)
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(...textColor)
+          pdf.text(pdfSettings.footerText, pageWidth / 2, footerY, { align: 'center' })
+        }
       }
 
-      pdf.save(`${getReportTitle()}.pdf`)
-      toast.success('PDF exported successfully')
+      // Generate blob and show preview
+      const fileName = `${getReportTitle()}.pdf`
+      const pdfBlob = pdf.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+      toast.success('PDF generated successfully')
     } catch (error) {
       console.error('PDF export error:', error)
       toast.error('Failed to export PDF')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const getReportTitle = () => {
@@ -1237,6 +1278,14 @@ export default function ExamReportsPage() {
           </p>
         </div>
       )}
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

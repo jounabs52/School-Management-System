@@ -8,13 +8,11 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
 import {
-  addPDFHeader,
-  addPDFFooter,
-  addPDFWatermark,
-  formatCurrency,
-  convertImageToBase64,
-  PDF_COLORS
-} from '@/lib/pdfUtils'
+  getPdfSettings,
+  hexToRgb,
+  convertImageToBase64
+} from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function SalaryPaidReport() {
   const router = useRouter()
@@ -27,6 +25,11 @@ export default function SalaryPaidReport() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
   const [schoolDetails, setSchoolDetails] = useState(null)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   useEffect(() => {
     const userData = document.cookie
@@ -169,25 +172,36 @@ export default function SalaryPaidReport() {
     }
 
     try {
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
 
-      // Add professional header
+      // Get colors from settings
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
+      let yPos = 15
+
+      // Header
+      pdf.setFontSize(16)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(...textColor)
+      pdf.text('SALARY PAYMENT REPORT', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 7
+
       let subtitle = `${getMonthName(selectedMonth)} ${selectedYear}`
       if (statusFilter !== 'all') {
         subtitle += ` - ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`
       }
 
-      const headerOptions = {
-        subtitle: subtitle,
-        info: `Total Payments: ${filteredPayments.length}`
-      }
-      let yPos = addPDFHeader(pdf, schoolDetails, 'SALARY PAYMENT REPORT', headerOptions)
-
-      // Add watermark
-      addPDFWatermark(pdf, schoolDetails, 'CONFIDENTIAL')
-
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(subtitle, pageWidth / 2, yPos, { align: 'center' })
       yPos += 5
+      pdf.text(`Total Payments: ${filteredPayments.length}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
 
       // Prepare table data
       const tableData = filteredPayments.map((payment, index) => [
@@ -216,7 +230,7 @@ export default function SalaryPaidReport() {
         body: [...tableData, totals],
         theme: 'grid',
         headStyles: {
-          fillColor: PDF_COLORS.headerBg,
+          fillColor: headerBgColor,
           textColor: [255, 255, 255],
           fontSize: 10,
           fontStyle: 'bold',
@@ -244,13 +258,15 @@ export default function SalaryPaidReport() {
         }
       })
 
-      // Add professional footer
-      addPDFFooter(pdf, 1, 1)
-
-      // Download PDF
+      // Generate PDF blob for preview
       const fileName = `Salary-Payment-Report-${getMonthName(selectedMonth)}-${selectedYear}.pdf`
-      pdf.save(fileName)
-      toast.success('Salary payment report downloaded successfully!')
+      const pdfBlob = pdf.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      toast.success('Salary payment report generated successfully. Preview opened.')
     } catch (error) {
       console.error('Error generating PDF:', error)
       toast.error('Failed to generate PDF: ' + error.message)
@@ -325,6 +341,12 @@ export default function SalaryPaidReport() {
       console.error('Error exporting data:', error)
       toast.error('Failed to export data')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   if (!currentUser) {
@@ -542,6 +564,14 @@ export default function SalaryPaidReport() {
         <p className="text-right">Print time: {new Date().toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toUpperCase()}</p>
         <p className="text-right mt-2">skoolzoom demo software</p>
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard, ChevronDown, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
+import { CreditCard, ChevronDown, CheckCircle, XCircle, AlertCircle, X, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
+import { getPdfSettings } from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function StaffIDCardsPage() {
   const [validityUpto, setValidityUpto] = useState('')
@@ -20,6 +22,112 @@ export default function StaffIDCardsPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toasts, setToasts] = useState([])
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
+
+  // ID Card settings defaults and state (persist per-school in localStorage)
+  const DEFAULT_IDCARD_SETTINGS = {
+    instituteName: '',
+    headerSubtitle: 'STAFF ID CARD',
+    showLogo: true,
+    logoShape: 'circle', // circle | square
+    logoSize: 'medium', // small | medium | large
+    logoPosition: 'left', // left | center | right
+    headerBg: '#00008B', // default dark blue
+    headerTextColor: '#ffffff',
+    accentColor: '#F4A460',
+    textColor: '#000000',
+    photoShape: 'rectangle', // rectangle | circle
+    photoSize: 'medium', // small | medium | large
+    photoPosition: 'right',
+    photoBorderColor: '#000000',
+    frontFields: {
+      name: true,
+      employeeNo: true,
+      designation: true,
+      joining: true,
+      expiry: true,
+      signature: true
+    },
+    cardOrientation: 'horizontal', // horizontal | vertical
+    headerFont: 'helvetica',
+    labelFont: 'helvetica',
+    valueFont: 'helvetica',
+    backHeaderText: '',
+    showLogoOnBack: true,
+    showQRCode: true,
+    qrData: '',
+    qrSize: 'medium',
+    terms: [
+      'This card is property of the institution.'
+    ]
+  }
+
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [idCardSettings, setIdCardSettings] = useState(() => ({ ...DEFAULT_IDCARD_SETTINGS }))
+
+  // Inline confirmation for resetting ID card settings
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  // Disable background scroll when settings or confirm modal open
+  useEffect(() => {
+    const locked = showSettingsModal || showResetConfirm
+    if (locked) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [showSettingsModal, showResetConfirm])
+  // Load settings for school from localStorage
+  useEffect(() => {
+    if (!currentUser?.school_id) return
+    const key = `idcard_settings_${currentUser.school_id}`
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) setIdCardSettings(prev => ({ ...prev, ...JSON.parse(raw) }))
+      else setIdCardSettings(prev => ({ ...prev, instituteName: schoolData?.name || prev.instituteName }))
+    } catch (e) {
+      console.error('Error loading idcard settings', e)
+    }
+  }, [currentUser, schoolData])
+
+  const saveIdCardSettings = () => {
+    if (!currentUser?.school_id) return showToast('Unable to save: no school context', 'error')
+    try {
+      const key = `idcard_settings_${currentUser.school_id}`
+      localStorage.setItem(key, JSON.stringify(idCardSettings))
+      setShowSettingsModal(false)
+      showToast('ID card settings saved', 'success')
+    } catch (e) {
+      console.error('Error saving idcard settings', e)
+      showToast('Error saving settings', 'error')
+    }
+  }
+
+  // Open reset confirmation (no window.confirm)
+  const handleResetIdcard = () => {
+    setShowResetConfirm(true)
+  }
+
+  // Perform reset of ID card settings
+  const performResetIdcard = () => {
+    setIdCardSettings({ ...DEFAULT_IDCARD_SETTINGS })
+    try {
+      if (currentUser?.school_id) {
+        const key = `idcard_settings_${currentUser.school_id}`
+        localStorage.removeItem(key)
+      }
+    } catch (e) {
+      console.error('Error removing idcard settings from storage', e)
+    }
+    setShowResetConfirm(false)
+    setShowSettingsModal(false)
+    showToast('ID card settings reset to defaults', 'success')
+  }
 
   // Toast notification
   const showToast = (message, type = 'info') => {
@@ -201,21 +309,94 @@ export default function StaffIDCardsPage() {
     try {
       setSaving(true)
 
-      // Load school logo if available
-      let logoBase64 = null
-      if (schoolData.logo) {
-        logoBase64 = await convertImageToBase64(schoolData.logo)
+      // Ensure we can obtain a data URL for the logo (returns null if not possible)
+      const ensureLogoDataUrl = async (logo) => {
+        if (!logo) return null
+        if (typeof logo === 'string' && logo.startsWith('data:')) return logo
+
+        // Try fetch + blob -> dataURL
+        try {
+          const converted = await convertImageToBase64(logo)
+          if (converted) return converted
+        } catch (e) {
+          console.warn('convertImageToBase64 failed', e)
+        }
+
+        // Fallback: try loading via Image + canvas (requires CORS on source)
+        try {
+          const img = await new Promise((resolve, reject) => {
+            const image = new Image()
+            image.crossOrigin = 'Anonymous'
+            image.onload = () => resolve(image)
+            image.onerror = (err) => reject(err)
+            image.src = logo
+          })
+
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth || img.width
+          canvas.height = img.naturalHeight || img.height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0)
+
+          try {
+            return canvas.toDataURL('image/png')
+          } catch (e) {
+            console.warn('canvas.toDataURL failed', e)
+          }
+        } catch (e) {
+          console.warn('Image load fallback failed for logo', e)
+        }
+
+        return null
       }
 
-      // Create PDF - ID Card size (85.6mm x 53.98mm / 3.375" x 2.125")
+      let logoBase64 = null
+      if (schoolData?.logo) {
+        logoBase64 = await ensureLogoDataUrl(schoolData.logo)
+        if (!logoBase64 && s.showLogo) {
+          // Do not keep remote URL fallback because addImage won't accept remote URLs reliably
+          showToast('Unable to load school logo (CORS or network issue); using placeholder instead', 'warning')
+        }
+        console.debug('Logo data URL available?', !!logoBase64)
+      }
+
+      // Get global PDF settings and merge with card settings
+      const globalPdfSettings = getPdfSettings()
+      console.log('📄 Using global PDF settings for ID Card:', globalPdfSettings)
+
+      // Merge card settings with global PDF settings (card settings take priority)
+      const s = {
+        ...globalPdfSettings,
+        ...(idCardSettings || {})
+      }
+
+      const hexToRgbArray = (hex) => {
+        if (!hex) return [0,0,0]
+        const sanitized = hex.replace('#','')
+        const bigint = parseInt(sanitized, 16)
+        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
+      }
+
+      // Orientation support (vertical card option) - use global settings if no card-specific orientation
+      const isVertical = s.cardOrientation === 'vertical'
+      const orientation = isVertical ? 'portrait' : 'landscape'
+      const format = isVertical ? [53.98, 85.6] : [85.6, 53.98]
+
+      // Create PDF - ID Card size
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation,
         unit: 'mm',
-        format: [85.6, 53.98]
+        format
       })
 
-      const cardWidth = 85.6
-      const cardHeight = 53.98
+      const cardWidth = isVertical ? 53.98 : 85.6
+      const cardHeight = isVertical ? 85.6 : 53.98
+
+      // Compute color helpers based on settings
+      const headerRgb = hexToRgbArray(s.headerBg || '#1f4e78')
+      const textRgb = hexToRgbArray(s.textColor || '#000000')
+      const accentRgb = hexToRgbArray(s.accentColor || '#F4A460')
+      const photoBorderRgb = hexToRgbArray(s.photoBorderColor || '#C8C8C8')
 
       // ========== FRONT SIDE ==========
 
@@ -223,118 +404,193 @@ export default function StaffIDCardsPage() {
       doc.setFillColor(255, 255, 255)
       doc.rect(0, 0, cardWidth, cardHeight, 'F')
 
-      // Teal header background
-      doc.setFillColor(0, 102, 102) // Teal color matching the image
+      // Header
+      doc.setFillColor(...headerRgb)
       doc.rect(0, 0, cardWidth, 12, 'F')
 
-      // School logo circle - left side of header
-      if (logoBase64) {
-        try {
-          // White circle background for logo
-          doc.setFillColor(255, 255, 255)
-          doc.circle(6, 6, 4, 'F')
+      // School logo placement (respect showLogo, shape, size, position)
+      try {
+        const sizeMap = { small: 6, medium: 9, large: 12 }
+        const logoSize = sizeMap[s.logoSize] || 9
+        // Logo positioning - match back side positioning
+        let logoX = 6 - logoSize/2  // Center at x=6 (same as back side)
+        if (s.logoPosition === 'center') logoX = (cardWidth - logoSize) / 2
+        else if (s.logoPosition === 'right') logoX = cardWidth - logoSize - 6
 
-          // Add logo inside the circle
-          const logoSize = 7
-          const logoX = 6 - logoSize/2
-          const logoY = 6 - logoSize/2
+        doc.setFillColor(255,255,255)
 
-          let format = 'PNG'
-          if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) {
-            format = 'JPEG'
+        if (s.showLogo && logoBase64) {
+          // draw white background (circle or rect)
+          if (s.logoShape === 'circle') {
+            doc.circle(6, 6, logoSize / 2, 'F')
+          } else {
+            doc.rect(logoX, 6 - logoSize/2, logoSize, logoSize, 'F')
           }
 
-          doc.addImage(logoBase64, format, logoX, logoY, logoSize, logoSize)
-        } catch (error) {
-          console.log('Could not add logo:', error)
-          // Fallback to white circle
-          doc.setFillColor(255, 255, 255)
-          doc.circle(6, 6, 4, 'F')
+          // Attempt to add image only when we have a data URL
+          if (typeof logoBase64 === 'string' && logoBase64.startsWith('data:')) {
+            let format = 'PNG'
+            if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) format = 'JPEG'
+            try {
+              doc.addImage(logoBase64, format, logoX, 6 - logoSize/2, logoSize, logoSize)
+            } catch (e) {
+              console.warn('addImage failed for data URL logo; keeping placeholder background', e)
+            }
+          }
+        } else if (s.showLogo) {
+          // Show placeholder according to selected size/shape/position
+          if (s.logoShape === 'circle') {
+            doc.circle(6, 6, logoSize / 2, 'F')
+          } else {
+            doc.rect(logoX, 6 - logoSize/2, logoSize, logoSize, 'F')
+          }
+        } else {
+          // If logo is disabled, draw a small neutral placeholder on left
+          const smallSize = 8
+          doc.circle(6, 6, smallSize/2, 'F')
         }
-      } else {
-        // Placeholder circle if no logo
-        doc.setFillColor(255, 255, 255)
-        doc.circle(6, 6, 4, 'F')
+      } catch (error) {
+        console.error('Could not add or render header logo:', error, error.stack)
       }
 
-      // School name in header
-      doc.setTextColor(255, 255, 255)
+      // School name in header (use instituteName override)
+      doc.setTextColor(...hexToRgbArray(s.headerTextColor || '#ffffff'))
       doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      const schoolName = schoolData.name?.toUpperCase() || 'SCHOOL NAME'
-      doc.text(schoolName, cardWidth / 2, 7, { align: 'center' })
+      doc.setFont(s.headerFont || 'helvetica', 'bold')
+      const schoolNameDisplay = (s.instituteName || schoolData.name || '').toUpperCase() || 'SCHOOL NAME'
+      doc.text(schoolNameDisplay, cardWidth / 2, 7, { align: 'center' })
 
-      // "STAFF ID CARD" subtitle
+      // Header subtitle
       doc.setFontSize(7)
-      doc.setFont('helvetica', 'normal')
-      doc.text('STAFF ID CARD', cardWidth / 2, 10.5, { align: 'center' })
+      doc.setFont(s.headerFont || 'helvetica', 'normal')
+      const subtitle = s.headerSubtitle || 'STAFF ID CARD'
+      doc.text(subtitle, cardWidth / 2, 10.5, { align: 'center' })
 
       // Left side - Staff information
       const leftMargin = 5
       let yPos = 18
 
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textRgb)
       doc.setFontSize(8)
       doc.setFont('helvetica', 'normal')
 
-      // Name
-      doc.text('Name', leftMargin, yPos)
-      doc.text(':', leftMargin + 20, yPos)
-      doc.setFont('helvetica', 'bold')
-      const staffName = `${staffData.first_name} ${staffData.last_name || ''}`
-      doc.text(staffName, leftMargin + 22, yPos)
+      // Prepare staff name for use across the page
+      const staffName = `${staffData.first_name} ${staffData.last_name || ''}`.trim()
 
-      // Employee No
-      yPos += 5
-      doc.setFont('helvetica', 'normal')
-      doc.text('Employee No', leftMargin, yPos)
-      doc.text(':', leftMargin + 20, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.text(staffData.employee_number || 'N/A', leftMargin + 22, yPos)
-
-      // Designation
-      yPos += 5
-      doc.setFont('helvetica', 'normal')
-      doc.text('Designation', leftMargin, yPos)
-      doc.text(':', leftMargin + 20, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.text(staffData.designation || 'Staff', leftMargin + 22, yPos)
-
-      // Joining Date (if available)
-      if (staffData.joining_date) {
-        yPos += 5
-        doc.setFont('helvetica', 'normal')
-        doc.text('Joining', leftMargin, yPos)
+      // Conditionally render front fields based on settings
+      const ff = s.frontFields || {}
+      if (ff.name) {
+        doc.text('Name', leftMargin, yPos)
         doc.text(':', leftMargin + 20, yPos)
-        doc.setFont('helvetica', 'bold')
-        const joiningDate = new Date(staffData.joining_date).getFullYear()
-        doc.text(joiningDate.toString(), leftMargin + 22, yPos)
+        doc.setFont(s.labelFont || 'helvetica', 'bold')
+        doc.text(staffName, leftMargin + 22, yPos)
+        yPos += 5
       }
 
-      // Right side - Photo (circular)
-      const photoX = 60
+      if (ff.employeeNo) {
+        doc.setFont(s.labelFont || 'helvetica', 'normal')
+        doc.text('Employee No', leftMargin, yPos)
+        doc.text(':', leftMargin + 20, yPos)
+        doc.setFont(s.valueFont || 'helvetica', 'bold')
+        doc.text(staffData.employee_number || 'N/A', leftMargin + 22, yPos)
+        yPos += 5
+      }
+
+      if (ff.designation) {
+        doc.setFont(s.labelFont || 'helvetica', 'normal')
+        doc.text('Designation', leftMargin, yPos)
+        doc.text(':', leftMargin + 20, yPos)
+        doc.setFont(s.valueFont || 'helvetica', 'bold')
+        doc.text(staffData.designation || 'Staff', leftMargin + 22, yPos)
+        yPos += 5
+      }
+
+      if (ff.joining && staffData.joining_date) {
+        doc.setFont(s.labelFont || 'helvetica', 'normal')
+        doc.text('Joining', leftMargin, yPos)
+        doc.text(':', leftMargin + 20, yPos)
+        doc.setFont(s.valueFont || 'helvetica', 'bold')
+        const joiningDate = new Date(staffData.joining_date).getFullYear()
+        doc.text(joiningDate.toString(), leftMargin + 22, yPos)
+        yPos += 5
+      }
+
+      // Photo placement (support left, center, right) and size mapping
       const photoY = 17
-      const photoSize = 20
+      const photoSizeMap = { small: 18, medium: 22, large: 26 }
+      let photoSize = photoSizeMap[s.photoSize] || 22
+
+      // Compute X position dynamically so center works and right aligns to margin
+      const photoMargin = 8
+      let photoX = photoMargin
+      if (s.photoPosition === 'left') {
+        photoX = photoMargin
+      } else if (s.photoPosition === 'center') {
+        photoX = (cardWidth - photoSize) / 2
+      } else {
+        // right (default)
+        photoX = cardWidth - photoSize - photoMargin
+      }
 
       if (staffData.photo_url) {
         try {
           const photoBase64 = await getImageAsBase64(staffData.photo_url)
           if (photoBase64) {
-            const circularPhoto = await createCircularImage(photoBase64, 200)
-            doc.addImage(circularPhoto, 'PNG', photoX, photoY, photoSize, photoSize)
+            if (s.photoShape === 'circle') {
+              // create circular image sized proportionally for better quality
+              const circularPhoto = await createCircularImage(photoBase64, Math.max(200, Math.round(photoSize * 10)))
+              doc.addImage(circularPhoto, 'PNG', photoX, photoY, photoSize, photoSize)
+
+              // Draw circular border
+              try {
+                doc.setDrawColor(...photoBorderRgb)
+                doc.setLineWidth(0.7)
+                const cx = photoX + photoSize / 2
+                const cy = photoY + photoSize / 2
+                doc.circle(cx, cy, photoSize / 2, 'S')
+              } catch (e) {
+                console.error('Error drawing photo border (circle):', e, e.stack)
+              }
+            } else {
+              // rectangle
+              let format = 'PNG'
+              if (photoBase64.includes('data:image/jpeg') || photoBase64.includes('data:image/jpg')) format = 'JPEG'
+              doc.addImage(photoBase64, format, photoX, photoY, photoSize, photoSize)
+
+              // Draw rectangle border
+              try {
+                doc.setDrawColor(...photoBorderRgb)
+                doc.setLineWidth(0.7)
+                doc.rect(photoX, photoY, photoSize, photoSize, 'S')
+              } catch (e) {
+                console.error('Error drawing photo border (rect):', e, e.stack)
+              }
+            }
           }
         } catch (error) {
-          console.log('Could not load photo')
+          console.error('Could not load photo:', error, error.stack)
         }
       } else {
-        // Placeholder circle
-        doc.setDrawColor(200, 200, 200)
+        // Placeholder circle/rect
+        doc.setDrawColor(...photoBorderRgb)
         doc.setLineWidth(0.5)
-        doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
+        if (s.photoShape === 'circle') doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
+        else doc.rect(photoX, photoY, photoSize, photoSize, 'S')
+      }
+
+      // Expiry badge at bottom left (optional)
+      if (ff.expiry) {
+        doc.setFillColor(...accentRgb)
+        doc.roundedRect(5, cardHeight - 10, 25, 6, 1, 1, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'bold')
+        const expiryDate = validityUpto ? new Date(validityUpto).toLocaleDateString('en-GB').replace(/\//g, '-') : '01-01-25'
+        doc.text(`Expiry: ${expiryDate}`, 17.5, cardHeight - 6, { align: 'center' })
       }
 
       // Expiry badge at bottom left
-      doc.setFillColor(255, 140, 0) // Orange color
+      doc.setFillColor(...accentRgb)
       doc.roundedRect(5, cardHeight - 10, 25, 6, 1, 1, 'F')
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(7)
@@ -343,7 +599,7 @@ export default function StaffIDCardsPage() {
       doc.text(`Expiry: ${expiryDate}`, 17.5, cardHeight - 6, { align: 'center' })
 
       // Issuing Authority text at bottom right
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textRgb)
       doc.setFontSize(6)
       doc.setFont('helvetica', 'normal')
       doc.text('Issuing Authority', cardWidth - 5, cardHeight - 3, { align: 'right' })
@@ -355,49 +611,102 @@ export default function StaffIDCardsPage() {
       doc.setFillColor(255, 255, 255)
       doc.rect(0, 0, cardWidth, cardHeight, 'F')
 
-      // Teal header background
-      doc.setFillColor(0, 102, 102)
+      // Header background (use same header color setting)
+      doc.setFillColor(...headerRgb)
       doc.rect(0, 0, cardWidth, 12, 'F')
 
-      // School logo circle - left side of header
-      if (logoBase64) {
-        try {
-          // White circle background for logo
-          doc.setFillColor(255, 255, 255)
-          doc.circle(6, 6, 4, 'F')
+      // School logo circle - left side of header (use same size mapping)
+      try {
+        const sizeMap = { small: 6, medium: 9, large: 12 }
+        const backLogoSize = sizeMap[s.logoSize] || 9
+        const backLogoX = 6 - backLogoSize/2
+        const backLogoY = 6 - backLogoSize/2
 
-          // Add logo inside the circle
-          const logoSize = 7
-          const logoX = 6 - logoSize/2
-          const logoY = 6 - logoSize/2
-
-          let format = 'PNG'
-          if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) {
-            format = 'JPEG'
-          }
-
-          doc.addImage(logoBase64, format, logoX, logoY, logoSize, logoSize)
-        } catch (error) {
-          console.log('Could not add logo on back:', error)
-          // Fallback to white circle
-          doc.setFillColor(255, 255, 255)
-          doc.circle(6, 6, 4, 'F')
-        }
-      } else {
-        // Placeholder circle if no logo
         doc.setFillColor(255, 255, 255)
-        doc.circle(6, 6, 4, 'F')
+
+        if (logoBase64 && typeof logoBase64 === 'string' && logoBase64.startsWith('data:')) {
+          // draw white background
+          if (s.logoShape === 'circle') doc.circle(6, 6, backLogoSize/2, 'F')
+          else doc.rect(backLogoX, backLogoY, backLogoSize, backLogoSize, 'F')
+
+          // add image
+          let format = 'PNG'
+          if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) format = 'JPEG'
+          try {
+            doc.addImage(logoBase64, format, backLogoX, backLogoY, backLogoSize, backLogoSize)
+          } catch (e) {
+            console.warn('addImage failed for back logo; placeholder kept', e)
+          }
+        } else {
+          // fallback placeholder
+          if (s.logoShape === 'circle') doc.circle(6, 6, backLogoSize/2, 'F')
+          else doc.rect(backLogoX, backLogoY, backLogoSize, backLogoSize, 'F')
+        }
+      } catch (e) {
+        console.error('Error rendering back logo', e, e.stack)
       }
 
       // School name
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
-      doc.text(schoolName, cardWidth / 2, 8.5, { align: 'center' })
+      doc.text(schoolNameDisplay, cardWidth / 2, 8.5, { align: 'center' })
 
       // TERMS & CONDITIONS title
       doc.setTextColor(0, 0, 0)
       doc.setFontSize(9)
+
+      // Back header (optional)
+      if (s.backHeaderText) {
+        doc.setFontSize(9)
+        doc.setFont(s.headerFont || 'helvetica', 'bold')
+        doc.text(s.backHeaderText, cardWidth/2, 18, { align: 'center' })
+      }
+
+      // Terms & Conditions
+      doc.setFontSize(7)
+      doc.setFont(s.valueFont || 'helvetica', 'normal')
+      const startY = 20
+      let ty = Number(startY) || 20
+      // Ensure terms is an array of strings to avoid runtime errors
+      const termsList = Array.isArray(s.terms) ? s.terms : (s.terms ? [String(s.terms)] : [])
+      termsList.forEach((t) => {
+        try {
+          doc.text(`• ${t}`, 10, ty)
+        } catch (e) {
+          console.error('Error writing terms line to PDF:', e, e.stack)
+        }
+        ty += 4
+      })
+
+      // Show logo on back if enabled
+      if (s.showLogoOnBack && logoBase64) {
+        try {
+          const format = logoBase64.includes('data:image/jpeg') ? 'JPEG' : 'PNG'
+          doc.addImage(logoBase64, format, cardWidth - 18, 14, 12, 12)
+        } catch (e) {
+          console.error('Could not add back logo', e, e.stack)
+        }
+      }
+
+      // QR Code (single source) - prefer custom setting `s.qrData`, otherwise build default staff QR
+      if (s.showQRCode) {
+        const defaultQR = `Staff ID: ${staffData.employee_number}\nName: ${staffName}\nSchool: ${schoolNameDisplay}`
+        const qrText = (typeof s.qrData === 'string' && s.qrData.trim() !== '') ? s.qrData : defaultQR
+        try {
+          const qSize = s.qrSize === 'large' ? 22 : s.qrSize === 'small' ? 10 : 15
+          const qrX = cardWidth - qSize - 8
+          const qrY = Math.max(12, (typeof ty === 'number' ? ty - 8 : 12))
+
+          const qrImg = await generateQRCode(qrText)
+          if (qrImg) {
+            doc.addImage(qrImg, 'PNG', qrX, qrY, qSize, qSize)
+          }
+        } catch (e) {
+          console.error('Error generating/adding QR code to ID card:', e, e.stack)
+          showToast('Error adding QR code to ID card: ' + (e.message || String(e)), 'error')
+        }
+      }
       doc.setFont('helvetica', 'bold')
       doc.text('TERMS & CONDITIONS', cardWidth / 2, 18, { align: 'center' })
 
@@ -431,31 +740,34 @@ export default function StaffIDCardsPage() {
         }
       })
 
-      // QR Code
-      const qrData = `Staff ID: ${staffData.employee_number}\nName: ${staffName}\nSchool: ${schoolName}`
-      const qrCode = await generateQRCode(qrData)
 
-      if (qrCode) {
-        const qrSize = 22
-        const qrX = cardWidth - qrSize - 8
-        const qrY = 20
-        doc.addImage(qrCode, 'PNG', qrX, qrY, qrSize, qrSize)
-      }
 
-      // Save PDF
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
       const fileName = `Staff_ID_Card_${staffData.employee_number}_${Date.now()}.pdf`
-      doc.save(fileName)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
 
       // Save to database
       await saveIDCardRecord()
 
-      showToast('ID Card generated successfully!', 'success')
+      showToast('ID Card generated successfully. Preview opened.', 'success')
     } catch (error) {
-      console.error('Error generating ID card:', error)
-      showToast('Error generating ID card: ' + error.message, 'error')
+      console.error('Error generating ID card:', error, error.stack)
+      showToast('Error generating ID card: ' + (error.message || String(error)), 'error')
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   // Save ID card record to database
@@ -485,13 +797,23 @@ export default function StaffIDCardsPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Compact Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <CreditCard className="w-6 h-6 text-blue-600" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#1E3A8A] p-2 rounded-lg">
+              <CreditCard className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Staff ID Cards</h1>
+              <p className="text-sm text-gray-500">Generate professional staff identification cards</p>
+            </div>
           </div>
+
+          {/* Settings button */}
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Staff ID Cards</h1>
-            <p className="text-sm text-gray-500">Generate professional staff identification cards</p>
+            <button onClick={() => setShowSettingsModal(true)} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm">
+              <Settings className="w-4 h-4" />
+              <span className="text-sm font-medium">Settings</span>
+            </button>
           </div>
         </div>
       </div>
@@ -564,6 +886,231 @@ export default function StaffIDCardsPage() {
           </div>
 
           {/* Staff Information Display */}
+
+          {/* Settings Modal */}
+          {showSettingsModal && (
+            <div className="fixed inset-0 z-50 flex items-start justify-center pt-16">
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSettingsModal(false)}></div>
+              <div className="relative w-[92%] sm:w-3/4 lg:w-2/3 xl:w-1/2 bg-white rounded-lg shadow-lg overflow-hidden z-50">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold">ID Card Settings</h3>
+                  <button onClick={() => setShowSettingsModal(false)} className="text-gray-500 hover:text-gray-700">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4">
+                  {/* Header & Branding */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">HEADER & BRANDING</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Institute Name (Main Header)</label>
+                        <input type="text" value={idCardSettings.instituteName} onChange={(e) => setIdCardSettings(prev => ({...prev, instituteName: e.target.value }))} placeholder="e.g., SUPERIOR COLLEGE BHAKKAR" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Header Subtitle</label>
+                        <input type="text" value={idCardSettings.headerSubtitle} onChange={(e) => setIdCardSettings(prev => ({...prev, headerSubtitle: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" id="showLogo" checked={idCardSettings.showLogo} onChange={(e) => setIdCardSettings(prev => ({...prev, showLogo: e.target.checked }))} />
+                        <label className="text-sm text-gray-600" htmlFor="showLogo">Show Logo</label>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Logo Shape</label>
+                          <select value={idCardSettings.logoShape} onChange={(e) => setIdCardSettings(prev => ({...prev, logoShape: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                            <option value="circle">Circle</option>
+                            <option value="square">Square</option>
+                          </select>
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Logo Size</label>
+                          <select value={idCardSettings.logoSize} onChange={(e) => setIdCardSettings(prev => ({...prev, logoSize: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                            <option value="small">Small</option>
+                            <option value="medium">Medium</option>
+                            <option value="large">Large</option>
+                          </select>
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Logo Position</label>
+                          <select value={idCardSettings.logoPosition} onChange={(e) => setIdCardSettings(prev => ({...prev, logoPosition: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Color Settings */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">COLOR SETTINGS</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Header Background</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={idCardSettings.headerBg} onChange={(e) => setIdCardSettings(prev => ({...prev, headerBg: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                          <input value={idCardSettings.headerBg} onChange={(e) => setIdCardSettings(prev => ({...prev, headerBg: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Header Text Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={idCardSettings.headerTextColor} onChange={(e) => setIdCardSettings(prev => ({...prev, headerTextColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                          <input value={idCardSettings.headerTextColor} onChange={(e) => setIdCardSettings(prev => ({...prev, headerTextColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Accent Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={idCardSettings.accentColor} onChange={(e) => setIdCardSettings(prev => ({...prev, accentColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                          <input value={idCardSettings.accentColor} onChange={(e) => setIdCardSettings(prev => ({...prev, accentColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Text Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={idCardSettings.textColor} onChange={(e) => setIdCardSettings(prev => ({...prev, textColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                          <input value={idCardSettings.textColor} onChange={(e) => setIdCardSettings(prev => ({...prev, textColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Photo Settings */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">STUDENT PHOTO</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Photo Shape</label>
+                        <select value={idCardSettings.photoShape} onChange={(e) => setIdCardSettings(prev => ({...prev, photoShape: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                          <option value="rectangle">Rectangle</option>
+                          <option value="circle">Circle</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Photo Size</label>
+                        <select value={idCardSettings.photoSize} onChange={(e) => setIdCardSettings(prev => ({...prev, photoSize: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                          <option value="small">Small</option>
+                          <option value="medium">Medium</option>
+                          <option value="large">Large</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Photo Position</label>
+                        <select value={idCardSettings.photoPosition} onChange={(e) => setIdCardSettings(prev => ({...prev, photoPosition: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                          <option value="right">Right</option>
+                          <option value="left">Left</option>
+                          <option value="center">Center</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Photo Border Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={idCardSettings.photoBorderColor} onChange={(e) => setIdCardSettings(prev => ({...prev, photoBorderColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                          <input value={idCardSettings.photoBorderColor} onChange={(e) => setIdCardSettings(prev => ({...prev, photoBorderColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Front Side Fields */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">FRONT SIDE FIELDS</h4>
+                    <div className="flex flex-wrap gap-3">
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.name} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, name: e.target.checked }}))} /> Name</label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.employeeNo} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, employeeNo: e.target.checked }}))} /> Roll No</label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.designation} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, designation: e.target.checked }}))} /> Designation</label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.joining} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, joining: e.target.checked }}))} /> Joining</label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.expiry} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, expiry: e.target.checked }}))} /> Expiry Date</label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.signature} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, signature: e.target.checked }}))} /> Signature</label>
+                    </div>
+                  </div>
+
+                  {/* Card Design & Font Settings */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">CARD DESIGN</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Card Orientation</label>
+                        <select value={idCardSettings.cardOrientation} onChange={(e) => setIdCardSettings(prev => ({...prev, cardOrientation: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                          <option value="horizontal">Horizontal (Landscape)</option>
+                          <option value="vertical">Vertical (Portrait)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Header Font</label>
+                        <select value={idCardSettings.headerFont} onChange={(e) => setIdCardSettings(prev => ({...prev, headerFont: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                          <option value="helvetica">Helvetica - Clean & Modern</option>
+                          <option value="times">Times - Classic</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Back Side & QR */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">BACK SIDE SETTINGS</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Header Text</label>
+                        <input type="text" value={idCardSettings.backHeaderText} onChange={(e) => setIdCardSettings(prev => ({...prev, backHeaderText: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" checked={idCardSettings.showLogoOnBack} onChange={(e) => setIdCardSettings(prev => ({...prev, showLogoOnBack: e.target.checked }))} />
+                        <label className="text-sm text-gray-600">Show Logo on Back</label>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" checked={idCardSettings.showQRCode} onChange={(e) => setIdCardSettings(prev => ({...prev, showQRCode: e.target.checked }))} />
+                        <label className="text-sm text-gray-600">Show QR Code</label>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">QR Code Data (Text to encode)</label>
+                        <textarea value={idCardSettings.qrData} onChange={(e) => setIdCardSettings(prev => ({...prev, qrData: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Enter text/URL/data for QR code" rows={3}></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Terms & Conditions */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">TERMS & CONDITIONS</h4>
+                    <div className="space-y-2">
+                      {(idCardSettings.terms || []).map((t, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <input value={t} onChange={(e) => setIdCardSettings(prev => {
+                            const updated = [...prev.terms]; updated[idx] = e.target.value; return {...prev, terms: updated}
+                          })} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                          <button onClick={() => setIdCardSettings(prev => ({...prev, terms: prev.terms.filter((_,i)=>i!==idx)}))} className="px-3 py-1 rounded bg-red-50 text-red-600 text-sm">Remove</button>
+                        </div>
+                      ))}
+                      <button onClick={() => setIdCardSettings(prev => ({...prev, terms: [...(prev.terms||[]), '']}))} className="px-3 py-2 rounded bg-blue-50 text-blue-700 text-sm">+ Add Term</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50">
+                  <button onClick={() => setShowSettingsModal(false)} className="px-4 py-2 rounded border border-gray-300 text-sm">Cancel</button>
+                  <button onClick={() => setShowResetConfirm(true)} className="px-4 py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm">Reset</button>
+                  <button onClick={saveIdCardSettings} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">Save Settings</button>
+                </div>
+              </div>
+            </div>
+          )}
           {staffData && (
             <>
               <div className="border-t border-gray-200 pt-4 mb-4">
@@ -654,6 +1201,28 @@ export default function StaffIDCardsPage() {
         </div>
       </div>
 
+      {/* Reset Confirmation Modal (red) */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)}></div>
+          <div className="relative z-50 w-[92%] max-w-sm bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-4 flex items-start gap-3">
+              <div className="text-red-600 p-1 rounded bg-red-50">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-red-700">Reset ID Card Settings</h4>
+                <p className="text-sm text-gray-600 mt-1">This will remove saved ID card settings and restore defaults. Uploaded logos remain in school settings. Continue?</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3 bg-red-50">
+              <button onClick={() => setShowResetConfirm(false)} className="px-3 py-2 rounded border border-gray-300 text-sm">Cancel</button>
+              <button onClick={performResetIdcard} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm">Reset</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-[9999] space-y-2">
         {toasts.map(toast => (
@@ -679,6 +1248,14 @@ export default function StaffIDCardsPage() {
           </div>
         ))}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

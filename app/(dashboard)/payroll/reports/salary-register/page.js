@@ -8,13 +8,11 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
 import {
-  addPDFHeader,
-  addPDFFooter,
-  addPDFWatermark,
-  formatCurrency,
-  convertImageToBase64,
-  PDF_COLORS
-} from '@/lib/pdfUtils'
+  getPdfSettings,
+  hexToRgb,
+  convertImageToBase64
+} from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function SalaryRegisterReport() {
   const router = useRouter()
@@ -24,6 +22,11 @@ export default function SalaryRegisterReport() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [schoolDetails, setSchoolDetails] = useState(null)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   useEffect(() => {
     const userData = document.cookie
@@ -153,20 +156,31 @@ export default function SalaryRegisterReport() {
     }
 
     try {
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+
       const pdf = new jsPDF('l', 'mm', 'a4') // Landscape for wide table
       const pageWidth = pdf.internal.pageSize.getWidth()
 
-      // Add professional header
-      const headerOptions = {
-        subtitle: `${getMonthName(selectedMonth)} ${selectedYear}`,
-        info: `Total Staff: ${salaryStructures.length}`
-      }
-      let yPos = addPDFHeader(pdf, schoolDetails, 'STAFF SALARY REGISTER', headerOptions)
+      // Get colors from settings
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
 
-      // Add watermark
-      addPDFWatermark(pdf, schoolDetails, 'CONFIDENTIAL')
+      let yPos = 15
 
+      // Header
+      pdf.setFontSize(16)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(...textColor)
+      pdf.text('STAFF SALARY REGISTER', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 7
+
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`${getMonthName(selectedMonth)} ${selectedYear}`, pageWidth / 2, yPos, { align: 'center' })
       yPos += 5
+      pdf.text(`Total Staff: ${salaryStructures.length}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
 
       // Prepare table data
       const tableData = salaryStructures.map((structure, index) => [
@@ -210,7 +224,7 @@ export default function SalaryRegisterReport() {
         body: [...tableData, totals],
         theme: 'grid',
         headStyles: {
-          fillColor: PDF_COLORS.headerBg,
+          fillColor: headerBgColor,
           textColor: [255, 255, 255],
           fontSize: 8,
           fontStyle: 'bold',
@@ -245,13 +259,15 @@ export default function SalaryRegisterReport() {
         }
       })
 
-      // Add professional footer
-      addPDFFooter(pdf, 1, 1)
-
-      // Download PDF
+      // Generate PDF blob for preview
       const fileName = `Salary-Register-${getMonthName(selectedMonth)}-${selectedYear}.pdf`
-      pdf.save(fileName)
-      toast.success('Salary register downloaded successfully!')
+      const pdfBlob = pdf.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      toast.success('Salary register generated successfully. Preview opened.')
     } catch (error) {
       console.error('Error generating PDF:', error)
       toast.error('Failed to generate PDF: ' + error.message)
@@ -337,6 +353,12 @@ export default function SalaryRegisterReport() {
       console.error('Error exporting data:', error)
       toast.error('Failed to export data')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   if (!currentUser) {
@@ -533,6 +555,14 @@ export default function SalaryRegisterReport() {
         <p>Print time: {new Date().toLocaleString('en-GB')}</p>
         <p className="mt-1">skoolzoom demo software</p>
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

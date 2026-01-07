@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { FileText, Plus, Eye, Printer, Search, Calendar, DollarSign, CheckCircle, XCircle, AlertCircle, X, Filter } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getPdfSettings, hexToRgb, getMarginValues, formatCurrency, generateChallanNumber, getMonthName, getFeePeriodLabel, calculateDueDate, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function FeeChallans({ user, classes, schoolData, showToast }) {
   const [challans, setChallans] = useState([])
@@ -14,6 +15,11 @@ export default function FeeChallans({ user, classes, schoolData, showToast }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 10
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   const [generateForm, setGenerateForm] = useState({
     classId: '',
@@ -839,13 +845,27 @@ export default function FeeChallans({ user, classes, schoolData, showToast }) {
       doc.setFont('helvetica', 'normal')
       doc.text(schoolData.name || 'Superior College Bhakkar', pageWidth / 2, yPos, { align: 'center' })
 
-      // Download PDF directly
-      doc.save(`Fee_Challan_${challan.challan_number}.pdf`)
-      showToast('PDF downloaded successfully!', 'success')
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
+      const filename = `Fee_Challan_${challan.challan_number}.pdf`
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(filename)
+      setShowPdfPreview(true)
+
+      showToast('PDF generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast('Failed to generate PDF', 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const handlePrintChallan = async (challan) => {
@@ -1235,6 +1255,14 @@ export default function FeeChallans({ user, classes, schoolData, showToast }) {
           </div>
         </>
       )}
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }
