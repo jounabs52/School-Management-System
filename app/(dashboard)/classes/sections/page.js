@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Search, Edit2, Trash2, X, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, X, CheckCircle, XCircle, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 
@@ -74,6 +74,21 @@ const Toast = ({ message, type, onClose }) => {
 }
 
 export default function SectionsPage() {
+  // Debug: Check Supabase initialization
+  useEffect(() => {
+    console.log('📋 SectionsPage mounted')
+    console.log('🔌 Supabase client:', supabase ? 'Initialized' : 'NOT INITIALIZED')
+    const user = getUserFromCookie()
+    console.log('👤 User from storage:', user)
+    console.log('🔑 User properties:', user ? Object.keys(user) : 'No user')
+    console.log('🏫 School ID check:', {
+      'user.school_id': user?.school_id,
+      'user.schoolId': user?.schoolId,
+      'user.school': user?.school,
+      'Full user': JSON.stringify(user, null, 2)
+    })
+  }, [])
+
   const [showSidebar, setShowSidebar] = useState(false)
   const [showEditSidebar, setShowEditSidebar] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -142,16 +157,30 @@ export default function SectionsPage() {
 
   const fetchClasses = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
-        console.error('No user found')
+      if (!supabase) {
+        console.error('❌ Supabase client not initialized')
         return
       }
+
+      // Fetch school_id from schools table
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        return
+      }
+
+      const schoolId = school.id
+      console.log('✅ Fetching classes for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name')
-        .eq('school_id', user.school_id)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -167,16 +196,30 @@ export default function SectionsPage() {
 
   const fetchStaff = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
-        console.error('No user found')
+      if (!supabase) {
+        console.error('❌ Supabase client not initialized')
         return
       }
+
+      // Fetch school_id from schools table
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        return
+      }
+
+      const schoolId = school.id
+      console.log('✅ Fetching staff for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('staff')
         .select('*')
-        .eq('school_id', user.school_id)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .eq('department', 'TEACHING')
         .order('first_name', { ascending: true })
@@ -194,12 +237,28 @@ export default function SectionsPage() {
   const fetchSections = async () => {
     try {
       setLoading(true)
-      const user = getUserFromCookie()
-      if (!user) {
-        console.error('No user found')
+
+      if (!supabase) {
+        console.error('❌ Supabase client not initialized')
         setLoading(false)
         return
       }
+
+      // Fetch school_id from schools table
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        setLoading(false)
+        return
+      }
+
+      const schoolId = school.id
+      console.log('✅ Fetching sections for school_id:', schoolId)
 
       // Get sections with class name and teacher name
       const { data: sections, error } = await supabase
@@ -212,29 +271,31 @@ export default function SectionsPage() {
           room_number,
           capacity,
           status,
-          classes!inner(class_name)
+          classes(class_name)
         `)
-        .eq('school_id', user.school_id)
+        .eq('school_id', schoolId)
         .in('status', ['active', 'inactive'])
         .order('section_name', { ascending: true })
 
       if (error) {
         console.error('Error fetching sections:', error)
+        console.error('Error details:', error)
         setSections([])
       } else {
+        console.log('✅ Fetched sections:', sections)
         // Get teacher names and student counts for sections
         const sectionsWithDetails = await Promise.all(
           (sections || []).map(async (section) => {
             let teacherName = null
 
             if (section.class_teacher_id) {
-              const { data: teacher } = await supabase
+              const { data: teacher, error: teacherError } = await supabase
                 .from('staff')
                 .select('first_name, last_name')
                 .eq('id', section.class_teacher_id)
-                .single()
+                .maybeSingle()
 
-              if (teacher) {
+              if (!teacherError && teacher) {
                 teacherName = `${teacher.first_name} ${teacher.last_name || ''}`.trim()
               }
             }
@@ -261,10 +322,12 @@ export default function SectionsPage() {
           })
         )
 
+        console.log('✅ Sections with details:', sectionsWithDetails)
         setSections(sectionsWithDetails)
       }
     } catch (error) {
-      console.error('Error fetching sections:', error)
+      console.error('❌ Error fetching sections:', error)
+      setSections([])
     } finally {
       setLoading(false)
     }
@@ -282,6 +345,39 @@ export default function SectionsPage() {
       return matchesSearch && matchesClass && matchesSection
     })
     .sort((a, b) => a.section_name.localeCompare(b.section_name))
+
+  const exportToCSV = () => {
+    if (filteredSections.length === 0) {
+      showToast('No data to export', 'error')
+      return
+    }
+
+    const csvData = filteredSections.map((section, index) => ({
+      'Sr.': index + 1,
+      'Section Name': section.section_name || 'N/A',
+      'Class': section.class_name || 'N/A',
+      'Incharge': section.incharge_name || 'N/A'
+    }))
+
+    const headers = Object.keys(csvData[0])
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => {
+        const value = row[header]
+        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const date = new Date().toISOString().split('T')[0]
+    a.download = `sections-${date}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    showToast('CSV exported successfully!', 'success')
+  }
 
   // Pagination logic
   const totalPages = Math.ceil(filteredSections.length / rowsPerPage)
@@ -316,7 +412,8 @@ export default function SectionsPage() {
           console.error('Error checking room number:', roomCheckError)
         } else if (existingRoom && existingRoom.length > 0) {
           const existing = existingRoom[0]
-          showToast(`Room number ${formData.roomNumber} is already assigned to ${existing.classes.class_name} - ${existing.section_name}`, 'error')
+          const className = existing.classes?.class_name || 'Unknown Class'
+          showToast(`Room number ${formData.roomNumber} is already assigned to ${className} - ${existing.section_name}`, 'error')
           return
         }
       }
@@ -405,7 +502,8 @@ export default function SectionsPage() {
           console.error('Error checking room number:', roomCheckError)
         } else if (existingRoom && existingRoom.length > 0) {
           const existing = existingRoom[0]
-          showToast(`Room number ${editFormData.roomNumber} is already assigned to ${existing.classes.class_name} - ${existing.section_name}`, 'error')
+          const className = existing.classes?.class_name || 'Unknown Class'
+          showToast(`Room number ${editFormData.roomNumber} is already assigned to ${className} - ${existing.section_name}`, 'error')
           return
         }
       }
@@ -448,7 +546,7 @@ export default function SectionsPage() {
         }
         setSections(prev => prev.map(s =>
           s.id === updatedSectionId
-            ? { ...updatedSection, class_name: className, teacher_name: teacherName }
+            ? { ...updatedSection, class_name: className, teacher_name: teacherName, current_students: s.current_students }
             : s
         ))
       }
@@ -553,7 +651,16 @@ export default function SectionsPage() {
 
       {/* Search Section */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Search Sections</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Search Sections</h2>
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            <Download size={18} />
+            Export to Excel
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Class Dropdown */}

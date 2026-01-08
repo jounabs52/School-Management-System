@@ -4,6 +4,16 @@ import { useState, useEffect, useRef } from 'react'
 import { Search, CheckCircle, X, Printer, Eye, Calendar, CreditCard, Building2, GraduationCap, Phone, Mail, MapPin } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import {
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  formatCurrency,
+  getLogoSize,
+  applyPdfSettings
+} from '@/lib/pdfSettings'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -35,303 +45,322 @@ const PrintChallan = ({ challan, school, onClose }) => {
   const printRef = useRef()
   const feeSchedule = challan?.fee_schedule || []
 
-  const handlePrint = () => {
-    const printContent = printRef.current
-    const WinPrint = window.open('', '', 'width=900,height=650')
-    WinPrint.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Fee Challan - ${challan?.challan_number}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  const handlePrint = async () => {
+    try {
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
 
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
+      // Create PDF with settings from PAGE SETTINGS
+      const doc = new jsPDF({
+        orientation: pdfSettings.orientation || 'portrait',
+        unit: 'mm',
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+      })
 
-            body {
-              font-family: 'Inter', sans-serif;
-              background: #f8fafc;
-              padding: 20px;
-            }
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
 
-            .challan-container {
-              max-width: 800px;
-              margin: 0 auto;
-              background: white;
-              border-radius: 16px;
-              box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-              overflow: hidden;
-            }
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
 
-            .header {
-              background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
-              color: white;
-              padding: 24px;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-            }
+      // Get margin values from settings
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
 
-            .school-info h1 {
-              font-size: 24px;
-              font-weight: 700;
-              margin-bottom: 4px;
-            }
+      // Calculate color values from settings for reuse
+      const textColorRgb = hexToRgb(pdfSettings.textColor)
+      const secondaryColorRgb = hexToRgb(pdfSettings.secondaryColor)
+      const primaryColorRgb = hexToRgb(pdfSettings.primaryColor)
+      const lineWidthValue = pdfSettings.lineWidth === 'thick' ? 0.3 : pdfSettings.lineWidth === 'normal' ? 0.2 : 0.1
 
-            .school-info p {
-              font-size: 13px;
-              opacity: 0.9;
-            }
+      // Header background with header background color from settings
+      const headerHeight = 45
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      doc.setFillColor(...headerBgColor)
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
 
-            .challan-badge {
-              background: rgba(255,255,255,0.2);
-              padding: 12px 20px;
-              border-radius: 12px;
-              text-align: center;
-            }
+      // Logo in header
+      let yPos = 18
+      if (pdfSettings.includeLogo && school?.logo_url) {
+        try {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = school.logo_url
 
-            .challan-badge .label {
-              font-size: 11px;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              opacity: 0.8;
-            }
+          await new Promise((resolve) => {
+            img.onload = () => {
+              try {
+                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                // Center logo vertically in header
+                const logoY = (headerHeight - currentLogoSize) / 2
+                let logoX = 10 // Default to left with 10mm margin
 
-            .challan-badge .number {
-              font-size: 18px;
-              font-weight: 700;
-              margin-top: 4px;
-            }
+                // Position logo based on settings
+                if (pdfSettings.logoPosition === 'center') {
+                  logoX = 10 // Keep on left
+                } else if (pdfSettings.logoPosition === 'right') {
+                  logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                }
 
-            .student-section {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 20px;
-              padding: 24px;
-              background: #f8fafc;
-              border-bottom: 1px solid #e2e8f0;
-            }
+                // Add logo with style
+                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                  // Create a canvas to clip the image
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const size = 200 // Higher resolution for better quality
+                  canvas.width = size
+                  canvas.height = size
 
-            .info-card {
-              background: white;
-              padding: 16px;
-              border-radius: 12px;
-              border: 1px solid #e2e8f0;
-            }
+                  // Draw clipped image on canvas
+                  ctx.beginPath()
+                  if (pdfSettings.logoStyle === 'circle') {
+                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                  } else {
+                    // Rounded corners
+                    const radius = size * 0.15
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(size - radius, 0)
+                    ctx.quadraticCurveTo(size, 0, size, radius)
+                    ctx.lineTo(size, size - radius)
+                    ctx.quadraticCurveTo(size, size, size - radius, size)
+                    ctx.lineTo(radius, size)
+                    ctx.quadraticCurveTo(0, size, 0, size - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  }
+                  ctx.closePath()
+                  ctx.clip()
 
-            .info-card .title {
-              font-size: 11px;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              color: #64748b;
-              margin-bottom: 12px;
-              font-weight: 600;
-            }
+                  // Draw image
+                  ctx.drawImage(img, 0, 0, size, size)
 
-            .info-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 8px 0;
-              border-bottom: 1px dashed #e2e8f0;
-            }
+                  // Convert canvas to data URL and add to PDF
+                  const clippedImage = canvas.toDataURL('image/png')
+                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else {
+                  // Square logo
+                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                }
 
-            .info-row:last-child {
-              border-bottom: none;
-            }
-
-            .info-row .label {
-              color: #64748b;
-              font-size: 13px;
-            }
-
-            .info-row .value {
-              font-weight: 600;
-              color: #1e293b;
-              font-size: 13px;
-            }
-
-            .fee-schedule {
-              padding: 24px;
-            }
-
-            .fee-schedule .title {
-              font-size: 16px;
-              font-weight: 700;
-              color: #1e293b;
-              margin-bottom: 16px;
-              display: flex;
-              align-items: center;
-              gap: 8px;
-            }
-
-            .fee-schedule .title::before {
-              content: '';
-              width: 4px;
-              height: 20px;
-              background: #2563eb;
-              border-radius: 2px;
-            }
-
-            .schedule-table {
-              width: 100%;
-              border-collapse: collapse;
-              font-size: 13px;
-            }
-
-            .schedule-table th {
-              background: #1e3a5f;
-              color: white;
-              padding: 12px 16px;
-              text-align: left;
-              font-weight: 600;
-            }
-
-            .schedule-table th:first-child {
-              border-radius: 8px 0 0 0;
-            }
-
-            .schedule-table th:last-child {
-              border-radius: 0 8px 0 0;
-            }
-
-            .schedule-table td {
-              padding: 12px 16px;
-              border-bottom: 1px solid #e2e8f0;
-            }
-
-            .schedule-table tr:nth-child(even) {
-              background: #f8fafc;
-            }
-
-            .schedule-table tr:last-child td:first-child {
-              border-radius: 0 0 0 8px;
-            }
-
-            .schedule-table tr:last-child td:last-child {
-              border-radius: 0 0 8px 0;
-            }
-
-            .status-badge {
-              display: inline-block;
-              padding: 4px 12px;
-              border-radius: 20px;
-              font-size: 11px;
-              font-weight: 600;
-              text-transform: uppercase;
-            }
-
-            .status-pending {
-              background: #fef3c7;
-              color: #b45309;
-            }
-
-            .status-paid {
-              background: #dcfce7;
-              color: #166534;
-            }
-
-            .summary-section {
-              background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-              padding: 24px;
-              display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 16px;
-            }
-
-            .summary-card {
-              background: white;
-              padding: 16px;
-              border-radius: 12px;
-              text-align: center;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            }
-
-            .summary-card .label {
-              font-size: 11px;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              color: #64748b;
-              margin-bottom: 8px;
-            }
-
-            .summary-card .amount {
-              font-size: 22px;
-              font-weight: 700;
-              color: #1e293b;
-            }
-
-            .summary-card.highlight {
-              background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
-            }
-
-            .summary-card.highlight .label,
-            .summary-card.highlight .amount {
-              color: white;
-            }
-
-            .footer {
-              padding: 20px 24px;
-              border-top: 1px solid #e2e8f0;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              font-size: 12px;
-              color: #64748b;
-            }
-
-            .footer .terms {
-              max-width: 400px;
-            }
-
-            .footer .signature {
-              text-align: center;
-            }
-
-            .footer .signature-line {
-              width: 150px;
-              border-top: 1px solid #1e293b;
-              margin-bottom: 8px;
-            }
-
-            .watermark {
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%) rotate(-30deg);
-              font-size: 100px;
-              font-weight: 900;
-              color: rgba(0,0,0,0.03);
-              pointer-events: none;
-              z-index: -1;
-            }
-
-            @media print {
-              body {
-                padding: 0;
-                background: white;
-              }
-
-              .challan-container {
-                box-shadow: none;
+                resolve()
+              } catch (e) {
+                console.warn('Could not add logo to PDF:', e)
+                resolve()
               }
             }
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `)
-    WinPrint.document.close()
-    WinPrint.focus()
-    setTimeout(() => {
-      WinPrint.print()
-      WinPrint.close()
-    }, 250)
+            img.onerror = () => {
+              console.warn('Could not load logo image')
+              resolve()
+            }
+          })
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
+      }
+
+      // School name and subtitle in white (only if includeHeader is true)
+      if (pdfSettings.includeHeader !== false) {
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 8) // Header title larger than base font
+        doc.setFont('helvetica', 'bold')
+        doc.text(school?.name || school?.school_name || 'School Name', leftMargin, 15)
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1) // Subtitle slightly larger than base
+        doc.setFont('helvetica', 'normal')
+        doc.text(school?.address || 'Bhakkar', leftMargin, 22)
+        if (school?.phone || school?.email) {
+          doc.text(`Phone: ${school?.phone || ''} | Email: ${school?.email || ''}`, leftMargin, 27)
+        }
+      }
+
+      // Challan Number Badge
+      doc.setFillColor(255, 255, 255, 0.15)
+      doc.roundedRect(pageWidth - 70, 10, 55, 20, 3, 3, 'F')
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
+      doc.setTextColor(255, 255, 255)
+      doc.text('CHALLAN NO.', pageWidth - 42.5, 16, { align: 'center' })
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 4)
+      doc.setFont('helvetica', 'bold')
+      doc.text(challan?.challan_number || '', pageWidth - 42.5, 24, { align: 'center' })
+
+      // Reset to text color from settings
+      doc.setTextColor(...textColorRgb)
+      yPos = headerHeight + 10
+
+      // Calculate cell padding from settings
+      const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
+      const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
+
+      // Student and Challan Details
+      autoTable(doc, {
+        startY: yPos,
+        theme: 'plain',
+        body: [
+          [
+            { content: 'STUDENT INFORMATION', colSpan: 2, styles: { fontSize: parseInt(pdfSettings.fontSize) + 1, fontStyle: 'bold', fillColor: alternateRowColorRgb, textColor: secondaryColorRgb, cellPadding: cellPaddingValue - 1 } }
+          ],
+          ['Name', `${challan?.student?.first_name || ''} ${challan?.student?.last_name || ''}`],
+          ['Admission No.', challan?.student?.admission_number || ''],
+          ['Class / Section', `${challan?.student?.class?.class_name || 'N/A'} ${challan?.student?.section?.section_name ? '- ' + challan?.student?.section?.section_name : ''}`]
+        ],
+        columnStyles: {
+          0: { cellWidth: 40, fontStyle: 'normal', textColor: secondaryColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 },
+          1: { fontStyle: 'bold', textColor: textColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 }
+        },
+        styles: { cellPadding: cellPaddingValue - 2, lineColor: secondaryColorRgb, lineWidth: lineWidthValue },
+        margin: { left: leftMargin, right: pageWidth / 2 + 5 }
+      })
+
+      autoTable(doc, {
+        startY: yPos,
+        theme: 'plain',
+        body: [
+          [
+            { content: 'CHALLAN DETAILS', colSpan: 2, styles: { fontSize: parseInt(pdfSettings.fontSize) + 1, fontStyle: 'bold', fillColor: alternateRowColorRgb, textColor: secondaryColorRgb, cellPadding: cellPaddingValue - 1 } }
+          ],
+          ['Issue Date', new Date(challan?.issue_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+          ['Fee Plan', (challan?.fee_plan || 'Monthly').toUpperCase()],
+          ['Status', (challan?.status || 'PENDING').toUpperCase()]
+        ],
+        columnStyles: {
+          0: { cellWidth: 35, fontStyle: 'normal', textColor: secondaryColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 },
+          1: { fontStyle: 'bold', textColor: textColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 }
+        },
+        styles: { cellPadding: cellPaddingValue - 2, lineColor: secondaryColorRgb, lineWidth: lineWidthValue },
+        margin: { left: pageWidth / 2 + 5, right: margins.right }
+      })
+
+      yPos = doc.lastAutoTable.finalY + 15
+
+      // Fee Schedule
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 4)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.setFillColor(...headerBgColor)
+      doc.rect(leftMargin, yPos - 5, 3, 8, 'F')
+      doc.text(`Fee Schedule - Academic Year ${challan?.fee_year || new Date().getFullYear()}`, leftMargin + 5, yPos)
+
+      yPos += 5
+
+      const scheduleData = feeSchedule.length > 0
+        ? feeSchedule.map((item, idx) => [
+            idx + 1,
+            item.period,
+            item.months?.join(', ') || '-',
+            new Date(item.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            formatCurrency(item.amount),
+            (item.status || 'Pending').toUpperCase()
+          ])
+        : [['', 'No fee schedule available. This may be an older challan.', '', '', '', '']]
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Sr.', 'Period', 'Months', 'Due Date', 'Amount', 'Status']],
+        body: scheduleData,
+        theme: pdfSettings.tableStyle || 'grid',
+        headStyles: {
+          fillColor: hexToRgb(pdfSettings.tableHeaderColor),
+          textColor: [255, 255, 255],
+          fontSize: parseInt(pdfSettings.fontSize) + 1,
+          fontStyle: 'bold',
+          cellPadding: cellPaddingValue
+        },
+        bodyStyles: {
+          fontSize: parseInt(pdfSettings.fontSize) + 1,
+          cellPadding: cellPaddingValue,
+          textColor: textColorRgb
+        },
+        styles: {
+          lineColor: secondaryColorRgb,
+          lineWidth: lineWidthValue
+        },
+        alternateRowStyles: { fillColor: alternateRowColorRgb },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 30, fontStyle: 'bold' },
+          2: { cellWidth: 45, textColor: secondaryColorRgb },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+          5: { cellWidth: 30, halign: 'center', fontStyle: 'bold' }
+        },
+        margin: { left: leftMargin, right: margins.right }
+      })
+
+      yPos = doc.lastAutoTable.finalY + 10
+
+      // Financial Summary
+      const summaryData = [
+        ['BASE FEE (MONTHLY)', formatCurrency(challan?.base_fee || 0)],
+        [`DISCOUNT (${challan?.discount_type || 'fixed'})`, formatCurrency(challan?.discount_amount || 0)],
+        ['PAID AMOUNT', formatCurrency(challan?.paid_amount || 0)],
+        ['TOTAL PAYABLE', formatCurrency(challan?.total_amount || 0)]
+      ]
+
+      autoTable(doc, {
+        startY: yPos,
+        body: summaryData,
+        theme: 'plain',
+        columnStyles: {
+          0: { cellWidth: (pageWidth - leftMargin - margins.right) / 4, fontSize: parseInt(pdfSettings.fontSize), textColor: secondaryColorRgb, halign: 'center', fillColor: [255, 255, 255], cellPadding: cellPaddingValue },
+          1: { cellWidth: (pageWidth - leftMargin - margins.right) / 4, fontSize: parseInt(pdfSettings.fontSize) + 6, fontStyle: 'bold', textColor: textColorRgb, halign: 'center', fillColor: [255, 255, 255], cellPadding: cellPaddingValue }
+        },
+        styles: { lineColor: secondaryColorRgb, lineWidth: lineWidthValue * 2 },
+        didDrawCell: (data) => {
+          if (data.row.index === 3 && data.column.index === 0) {
+            doc.setFillColor(...headerBgColor)
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F')
+            doc.setTextColor(255, 255, 255)
+          }
+          if (data.row.index === 3 && data.column.index === 1) {
+            doc.setFillColor(...headerBgColor)
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F')
+            doc.setTextColor(255, 255, 255)
+          }
+        },
+        margin: { left: leftMargin, right: margins.right }
+      })
+
+      // Footer (only if includeFooter is true)
+      if (pdfSettings.includeFooter !== false) {
+        yPos = pageHeight - 25
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...textColorRgb)
+        doc.text('Terms & Conditions:', leftMargin, yPos)
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize))
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(...secondaryColorRgb)
+        doc.text('• Fee must be paid by the due date to avoid late fee charges.', leftMargin, yPos + 4)
+        doc.text('• This challan is computer generated and valid without signature.', leftMargin, yPos + 8)
+        doc.text('• Please retain this receipt for your records.', leftMargin, yPos + 12)
+
+        doc.setDrawColor(...textColorRgb)
+        doc.line(pageWidth - 55, yPos + 8, pageWidth - margins.right, yPos + 8)
+        doc.setFontSize(parseInt(pdfSettings.fontSize))
+        doc.text('Authorized Signature', pageWidth - 35, yPos + 12, { align: 'center' })
+      }
+
+      // Download PDF directly
+      const fileName = `Fee_Challan_${challan?.student?.admission_number || 'unknown'}_${new Date().getTime()}.pdf`
+      doc.save(fileName)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      console.error('Error name:', error?.name)
+      console.error('Error message:', error?.message)
+      console.error('Error stack:', error?.stack)
+
+      // Log challan data to see what's being processed
+      console.error('Challan data:', {
+        challanNumber: challan?.challan_number,
+        hasStudent: !!challan?.student,
+        hasFeeSchedule: !!challan?.fee_schedule,
+        feeScheduleLength: challan?.fee_schedule?.length
+      })
+
+      alert(`Failed to generate PDF: ${error?.message || 'Unknown error'}. Please check console for details.`)
+    }
   }
 
   return (
@@ -341,123 +370,123 @@ const PrintChallan = ({ challan, school, onClose }) => {
         onClick={onClose}
         style={{ backdropFilter: 'blur(4px)' }}
       />
-      <div className="fixed inset-4 md:inset-10 bg-white rounded-2xl z-[10000] flex flex-col overflow-hidden shadow-2xl">
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-5xl max-h-[90vh] bg-white rounded-xl z-[10000] flex flex-col overflow-hidden shadow-2xl">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
+        <div className="bg-[#1e3a5f] text-white px-6 py-3 flex justify-between items-center">
           <div>
-            <h3 className="text-lg font-bold">Fee Challan Preview</h3>
+            <h3 className="text-xl font-bold">Fee Challan Preview</h3>
             <p className="text-blue-200 text-sm">Review and print the challan</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition font-medium"
+              className="flex items-center gap-2 bg-[#D12323] hover:bg-red-700 text-white px-4 py-2 rounded-lg transition font-medium text-sm"
             >
-              <Printer size={18} />
+              <Printer size={16} />
               Print Challan
             </button>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/10 p-2 rounded-full transition"
+              className="text-white hover:bg-white/10 p-2 rounded-lg transition"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
         {/* Printable Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
           <div ref={printRef}>
-            <div className="challan-container" style={{ maxWidth: '800px', margin: '0 auto', background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+            <div className="challan-container" style={{ width: '100%', background: 'white', borderRadius: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
               {/* Header */}
-              <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', color: 'white', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: '#1e3a5f', color: 'white', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px' }}>{school?.school_name || 'School Name'}</h1>
-                  <p style={{ fontSize: '13px', opacity: '0.9' }}>{school?.address || 'School Address'}</p>
-                  <p style={{ fontSize: '13px', opacity: '0.9' }}>{school?.phone && `Phone: ${school.phone}`} {school?.email && `| Email: ${school.email}`}</p>
+                  <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px' }}>{school?.name || school?.school_name || 'School Name'}</h1>
+                  <p style={{ fontSize: '12px', opacity: '0.9' }}>{school?.address || 'Bhakkar'}</p>
+                  <p style={{ fontSize: '12px', opacity: '0.9' }}>{school?.phone && `Phone: ${school.phone}`} {school?.email && `| Email: ${school.email}`}</p>
                 </div>
-                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px 20px', borderRadius: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', opacity: '0.8' }}>Challan No.</div>
-                  <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>{challan?.challan_number}</div>
+                <div style={{ background: 'rgba(255,255,255,0.15)', padding: '10px 16px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', opacity: '0.8' }}>Challan No.</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', marginTop: '2px' }}>{challan?.challan_number}</div>
                 </div>
               </div>
 
               {/* Student Info */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b', marginBottom: '12px', fontWeight: '600' }}>Student Information</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed #e2e8f0' }}>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>Name</span>
-                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{challan?.student?.first_name} {challan?.student?.last_name}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', padding: '20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '10px', fontWeight: '600' }}>Student Information</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed #e2e8f0' }}>
+                    <span style={{ color: '#64748b', fontSize: '12px' }}>Name</span>
+                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '12px' }}>{challan?.student?.first_name} {challan?.student?.last_name}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed #e2e8f0' }}>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>Admission No.</span>
-                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{challan?.student?.admission_number}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed #e2e8f0' }}>
+                    <span style={{ color: '#64748b', fontSize: '12px' }}>Admission No.</span>
+                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '12px' }}>{challan?.student?.admission_number}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>Class / Section</span>
-                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{challan?.student?.class?.class_name || 'N/A'} {challan?.student?.section?.section_name ? `- ${challan?.student?.section?.section_name}` : ''}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                    <span style={{ color: '#64748b', fontSize: '12px' }}>Class / Section</span>
+                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '12px' }}>{challan?.student?.class?.class_name || 'N/A'} {challan?.student?.section?.section_name ? `- ${challan?.student?.section?.section_name}` : ''}</span>
                   </div>
                 </div>
 
-                <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b', marginBottom: '12px', fontWeight: '600' }}>Challan Details</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed #e2e8f0' }}>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>Issue Date</span>
-                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{new Date(challan?.issue_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <div style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '10px', fontWeight: '600' }}>Challan Details</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed #e2e8f0' }}>
+                    <span style={{ color: '#64748b', fontSize: '12px' }}>Issue Date</span>
+                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '12px' }}>{new Date(challan?.issue_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed #e2e8f0' }}>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>Fee Plan</span>
-                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px', textTransform: 'capitalize' }}>{challan?.fee_plan || 'Monthly'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed #e2e8f0' }}>
+                    <span style={{ color: '#64748b', fontSize: '12px' }}>Fee Plan</span>
+                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '12px', textTransform: 'capitalize' }}>{challan?.fee_plan || 'Monthly'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>Status</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                    <span style={{ color: '#64748b', fontSize: '12px' }}>Status</span>
                     <span style={{
                       display: 'inline-block',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '11px',
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      fontSize: '10px',
                       fontWeight: '600',
                       textTransform: 'uppercase',
                       background: challan?.status === 'paid' ? '#dcfce7' : '#fef3c7',
                       color: challan?.status === 'paid' ? '#166534' : '#b45309'
-                    }}>{challan?.status || 'Pending'}</span>
+                    }}>{challan?.status || 'PENDING'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Fee Schedule */}
-              <div style={{ padding: '24px' }}>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '4px', height: '20px', background: '#2563eb', borderRadius: '2px', display: 'inline-block' }}></span>
+              <div style={{ padding: '20px' }}>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '3px', height: '18px', background: '#1e3a5f', borderRadius: '2px', display: 'inline-block' }}></span>
                   Fee Schedule - Academic Year {challan?.fee_year || new Date().getFullYear()}
                 </div>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
                     <tr>
-                      <th style={{ background: '#1e3a5f', color: 'white', padding: '12px 16px', textAlign: 'left', fontWeight: '600', borderRadius: '8px 0 0 0' }}>Sr.</th>
-                      <th style={{ background: '#1e3a5f', color: 'white', padding: '12px 16px', textAlign: 'left', fontWeight: '600' }}>Period</th>
-                      <th style={{ background: '#1e3a5f', color: 'white', padding: '12px 16px', textAlign: 'left', fontWeight: '600' }}>Months</th>
-                      <th style={{ background: '#1e3a5f', color: 'white', padding: '12px 16px', textAlign: 'left', fontWeight: '600' }}>Due Date</th>
-                      <th style={{ background: '#1e3a5f', color: 'white', padding: '12px 16px', textAlign: 'right', fontWeight: '600' }}>Amount</th>
-                      <th style={{ background: '#1e3a5f', color: 'white', padding: '12px 16px', textAlign: 'center', fontWeight: '600', borderRadius: '0 8px 0 0' }}>Status</th>
+                      <th style={{ background: '#1e3a5f', color: 'white', padding: '10px 12px', textAlign: 'left', fontWeight: '600', fontSize: '12px' }}>Sr.</th>
+                      <th style={{ background: '#1e3a5f', color: 'white', padding: '10px 12px', textAlign: 'left', fontWeight: '600', fontSize: '12px' }}>Period</th>
+                      <th style={{ background: '#1e3a5f', color: 'white', padding: '10px 12px', textAlign: 'left', fontWeight: '600', fontSize: '12px' }}>Months</th>
+                      <th style={{ background: '#1e3a5f', color: 'white', padding: '10px 12px', textAlign: 'left', fontWeight: '600', fontSize: '12px' }}>Due Date</th>
+                      <th style={{ background: '#1e3a5f', color: 'white', padding: '10px 12px', textAlign: 'right', fontWeight: '600', fontSize: '12px' }}>Amount</th>
+                      <th style={{ background: '#1e3a5f', color: 'white', padding: '10px 12px', textAlign: 'center', fontWeight: '600', fontSize: '12px' }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {feeSchedule.length > 0 ? feeSchedule.map((item, idx) => (
                       <tr key={idx} style={{ background: idx % 2 === 0 ? 'white' : '#f8fafc' }}>
-                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>{idx + 1}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', fontWeight: '600' }}>{item.period}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{item.months?.join(', ') || '-'}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>{new Date(item.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: '600' }}>Rs. {parseFloat(item.amount).toLocaleString()}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '12px' }}>{idx + 1}</td>
+                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', fontWeight: '600', fontSize: '12px' }}>{item.period}</td>
+                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px' }}>{item.months?.join(', ') || '-'}</td>
+                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '12px' }}>{new Date(item.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: '600', fontSize: '12px' }}>Rs. {parseFloat(item.amount).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>
                           <span style={{
                             display: 'inline-block',
-                            padding: '4px 12px',
-                            borderRadius: '20px',
-                            fontSize: '11px',
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            fontSize: '10px',
                             fontWeight: '600',
                             textTransform: 'uppercase',
                             background: item.status === 'paid' ? '#dcfce7' : '#fef3c7',
@@ -467,7 +496,7 @@ const PrintChallan = ({ challan, school, onClose }) => {
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                        <td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>
                           No fee schedule available. This may be an older challan.
                         </td>
                       </tr>
@@ -477,38 +506,38 @@ const PrintChallan = ({ challan, school, onClose }) => {
               </div>
 
               {/* Summary */}
-              <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                <div style={{ background: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b', marginBottom: '8px' }}>Base Fee (Monthly)</div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>Rs. {parseFloat(challan?.base_fee || 0).toLocaleString()}</div>
+              <div style={{ background: '#f8fafc', padding: '20px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                <div style={{ background: 'white', padding: '12px', borderRadius: '8px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>Base Fee (Monthly)</div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>Rs. {parseFloat(challan?.base_fee || 0).toLocaleString()}</div>
                 </div>
-                <div style={{ background: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b', marginBottom: '8px' }}>Discount ({challan?.discount_type || 'fixed'})</div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#16a34a' }}>Rs. {parseFloat(challan?.discount_amount || 0).toLocaleString()}</div>
+                <div style={{ background: 'white', padding: '12px', borderRadius: '8px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>Discount ({challan?.discount_type || 'fixed'})</div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#16a34a' }}>Rs. {parseFloat(challan?.discount_amount || 0).toLocaleString()}</div>
                 </div>
-                <div style={{ background: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b', marginBottom: '8px' }}>Paid Amount</div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>Rs. {parseFloat(challan?.paid_amount || 0).toLocaleString()}</div>
+                <div style={{ background: 'white', padding: '12px', borderRadius: '8px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>Paid Amount</div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>Rs. {parseFloat(challan?.paid_amount || 0).toLocaleString()}</div>
                 </div>
-                <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px' }}>Total Payable</div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: 'white' }}>Rs. {parseFloat(challan?.total_amount || 0).toLocaleString()}</div>
+                <div style={{ background: '#1e3a5f', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.8)', marginBottom: '6px' }}>Total Payable</div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>Rs. {parseFloat(challan?.total_amount || 0).toLocaleString()}</div>
                 </div>
               </div>
 
               {/* Footer */}
-              <div style={{ padding: '20px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '12px', color: '#64748b' }}>
+              <div style={{ padding: '16px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '11px', color: '#64748b' }}>
                 <div style={{ maxWidth: '400px' }}>
-                  <strong style={{ color: '#1e293b' }}>Terms & Conditions:</strong>
-                  <ul style={{ marginTop: '8px', paddingLeft: '16px' }}>
+                  <strong style={{ color: '#1e293b', fontSize: '11px' }}>Terms & Conditions:</strong>
+                  <ul style={{ marginTop: '6px', paddingLeft: '14px', fontSize: '10px' }}>
                     <li>Fee must be paid by the due date to avoid late fee charges.</li>
                     <li>This challan is computer generated and valid without signature.</li>
                     <li>Please retain this receipt for your records.</li>
                   </ul>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ width: '150px', borderTop: '1px solid #1e293b', marginBottom: '8px' }}></div>
-                  <span>Authorized Signature</span>
+                  <div style={{ width: '130px', borderTop: '1px solid #1e293b', marginBottom: '6px' }}></div>
+                  <span style={{ fontSize: '10px' }}>Authorized Signature</span>
                 </div>
               </div>
             </div>

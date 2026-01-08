@@ -497,7 +497,7 @@ export default function FeeChallanPage() {
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(parseInt(pdfSettings.fontSize) + 8) // Header title larger than base font
         doc.setFont('helvetica', 'bold')
-        doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
+        doc.text(schoolData.name || schoolName, pageWidth / 2, yPos + 5, { align: 'center' })
 
         doc.setFontSize(parseInt(pdfSettings.fontSize) + 1) // Subtitle slightly larger than base
         doc.setFont('helvetica', 'normal')
@@ -707,7 +707,7 @@ export default function FeeChallanPage() {
         doc.setFont('helvetica', 'normal')
 
         // Use footerText from settings if available, otherwise use school name
-        const footerText = pdfSettings.footerText || schoolData.name || 'Superior College Bhakkar'
+        const footerText = pdfSettings.footerText || schoolData.name || schoolName
         let footerContent = footerText
 
         // Add page numbers if includePageNumbers is true
@@ -719,7 +719,8 @@ export default function FeeChallanPage() {
       }
 
       // Download PDF directly
-      doc.save(`Fee_Challan_${challanToUse.challan_number}.pdf`)
+      const fileName = `Fee_Challan_${student?.admission_number || 'unknown'}_${new Date().getTime()}.pdf`
+      doc.save(fileName)
       showToast('PDF downloaded successfully!', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -864,7 +865,7 @@ export default function FeeChallanPage() {
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(16)
         doc.setFont('helvetica', 'bold')
-        doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
+        doc.text(schoolData.name || schoolName, pageWidth / 2, yPos + 5, { align: 'center' })
 
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
@@ -1031,7 +1032,8 @@ export default function FeeChallanPage() {
         doc.text('Amount in Words:', margins.left, yPos)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(0, 0, 0)
-        doc.text('Two Thousand Seven Hundred Only', margins.left, yPos + 5)
+        const amountInWords = numberToWords(challan.total_amount)
+        doc.text(amountInWords, margins.left, yPos + 5)
 
         yPos += 12
 
@@ -1055,10 +1057,11 @@ export default function FeeChallanPage() {
         doc.setFontSize(7)
         doc.setTextColor(150, 150, 150)
         doc.setFont('helvetica', 'normal')
-        doc.text(schoolData.name || 'Superior College Bhakkar', pageWidth / 2, yPos, { align: 'center' })
+        doc.text(schoolData.name || schoolName, pageWidth / 2, yPos, { align: 'center' })
 
         // Save each PDF
-        doc.save(`Challan_${challan.challan_number}.pdf`)
+        const fileName = `Fee_Challan_${student?.admission_number || 'unknown'}_${new Date().getTime()}.pdf`
+        doc.save(fileName)
 
         // Add small delay between downloads to prevent browser blocking
         await new Promise(resolve => setTimeout(resolve, 300))

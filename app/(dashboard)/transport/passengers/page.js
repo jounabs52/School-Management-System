@@ -598,7 +598,15 @@ export default function PassengersPage() {
     try {
       setLoading(true)
       const user = getUserFromCookie()
+
       if (!user) {
+        showToast('Please login to view passengers', 'error')
+        setLoading(false)
+        return
+      }
+
+      if (!user.school_id) {
+        showToast('User data incomplete - missing school_id', 'error')
         setLoading(false)
         return
       }
@@ -636,11 +644,17 @@ export default function PassengersPage() {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
 
-      if (!error) {
+      if (error) {
+        console.error('Error fetching passengers:', error)
+        showToast(`Error fetching passengers: ${error.message}`, 'error')
+        setPassengers([])
+      } else {
         setPassengers(data || [])
       }
     } catch (error) {
-      console.error('Error fetching passengers:', error)
+      console.error('Error in fetchPassengers:', error)
+      showToast('Failed to fetch passengers', 'error')
+      setPassengers([])
     } finally {
       setLoading(false)
     }

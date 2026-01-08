@@ -7,7 +7,13 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
 import {
-<<<<<<< HEAD
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  getLogoSize,
+  applyPdfSettings
+} from '@/lib/pdfSettings'
+import {
   addPDFHeader,
   addPDFWatermark,
   addPDFFooter,
@@ -18,14 +24,6 @@ import {
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
-=======
-  getPdfSettings,
-  hexToRgb,
-  getMarginValues,
-  getLogoSize,
-  applyPdfSettings
-} from '@/lib/pdfSettings'
->>>>>>> 631fd13 (By Naeem)
 
 export default function SalarySlipsPage() {
   const [currentUser, setCurrentUser] = useState(null)

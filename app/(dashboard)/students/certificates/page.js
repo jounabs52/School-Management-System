@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { FileText, Loader2, AlertCircle, X, Download, Save, Check, Settings } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
-import jsPDF from 'jspdf'
 import toast, { Toaster } from 'react-hot-toast'
 import {
   addDecorativeBorder,
@@ -11,6 +10,12 @@ import {
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
+import {
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  getLogoSize
+} from '@/lib/pdfSettings'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -30,6 +35,7 @@ export default function StudentCertificatesPage() {
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSection, setSelectedSection] = useState('')
   const [certificateFor, setCertificateFor] = useState('individual') // 'individual' or 'section'
+  const [certificateType, setCertificateType] = useState('character') // 'character', 'leaving', 'attendance'
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -37,8 +43,11 @@ export default function StudentCertificatesPage() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [schoolData, setSchoolData] = useState(null)
+  const [currentSession, setCurrentSession] = useState(null)
   const [certificateData, setCertificateData] = useState({
-    conduct: 'V.Good'
+    conduct: 'V.Good',
+    leavingReason: 'Change of residence',
+    attendancePercentage: 95
   })
   const [showCertificateSettings, setShowCertificateSettings] = useState(false)
   const [certificateSettings, setCertificateSettings] = useState(() => {
@@ -157,6 +166,7 @@ export default function StudentCertificatesPage() {
   useEffect(() => {
     fetchClasses()
     fetchSchoolData()
+    fetchCurrentSession()
   }, [])
 
   useEffect(() => {
@@ -267,6 +277,25 @@ export default function StudentCertificatesPage() {
     }
   }
 
+  const fetchCurrentSession = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('is_current', true)
+        .limit(1)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        throw error
+      }
+
+      setCurrentSession(data)
+    } catch (err) {
+      console.error('Error fetching current session:', err)
+    }
+  }
+
   const handleCertificateSettingChange = (key, value) => {
     setCertificateSettings(prev => {
       const updated = { ...prev, [key]: value }
@@ -335,17 +364,20 @@ export default function StudentCertificatesPage() {
     }
   }
 
-  const handlePrintCertificate = async (student, conduct, skipValidation = false) => {
+  const handleGenerateCertificatePDF = async (student, certType, skipValidation = false) => {
+    // Dynamic import of jsPDF
+    const { default: jsPDF } = await import('jspdf')
+
     // Use provided student or fall back to selectedStudent
     const studentData = student || selectedStudent
-    const conductValue = conduct || certificateData.conduct
+    const certificateTypeToUse = certType || certificateType
 
     if (!studentData) {
       setError('No student selected')
       return
     }
 
-    console.log('Generating certificate for:', studentData)
+    console.log('Generating certificate for:', studentData, 'Type:', certificateTypeToUse)
 
     // Check if certificate already exists BEFORE saving to database (unless validation is skipped)
     if (!skipValidation) {
@@ -362,13 +394,13 @@ export default function StudentCertificatesPage() {
             .select('id')
             .eq('student_id', studentData.id)
             .eq('school_id', schools.id)
-            .eq('certificate_type', 'character')
+            .eq('certificate_type', certificateTypeToUse)
             .limit(1)
 
           if (!checkError && existingCert && existingCert.length > 0) {
             // Certificate already exists
             const studentName = [studentData.first_name, studentData.last_name].filter(Boolean).join(' ')
-            toast(`Certificate already exists for ${studentName}!`, {
+            toast(`${certificateTypeToUse.charAt(0).toUpperCase() + certificateTypeToUse.slice(1)} certificate already exists for ${studentName}!`, {
               duration: 4000,
               position: 'top-right',
               style: {
@@ -387,6 +419,31 @@ export default function StudentCertificatesPage() {
       }
     }
 
+    // Fetch school data from Supabase
+    let schoolDataToUse = schoolData
+    if (!schoolDataToUse) {
+      try {
+        const { data, error } = await supabase
+          .from('schools')
+          .select('*')
+          .limit(1)
+          .single()
+
+        if (!error && data) {
+          let logoBase64 = data?.logo_url
+          if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+            logoBase64 = await convertImageToBase64(data.logo_url)
+          }
+          schoolDataToUse = { ...data, logo: logoBase64 }
+        }
+      } catch (err) {
+        console.error('Error fetching school data:', err)
+      }
+    }
+
+    // Get PDF settings from centralized location
+    const pdfSettings = getPdfSettings()
+
     // Fetch exam marks for the student
     let examMarksData = null
     try {
@@ -403,7 +460,6 @@ export default function StudentCertificatesPage() {
         .order('created_at', { ascending: false })
 
       if (!marksError && marksData && marksData.length > 0) {
-        // Calculate total marks and obtained marks
         let totalObtained = 0
         let totalPossible = 0
 
@@ -412,7 +468,6 @@ export default function StudentCertificatesPage() {
           totalPossible += mark.total_marks || 0
         })
 
-        // Calculate grade based on percentage
         const percentage = totalPossible > 0 ? (totalObtained / totalPossible) * 100 : 0
         let grade = 'N/A'
         if (percentage >= 90) grade = 'A+'
@@ -429,7 +484,6 @@ export default function StudentCertificatesPage() {
           percentage: percentage.toFixed(2)
         }
 
-        // Update studentData with marks
         studentData.marks_obtained = totalObtained
         studentData.total_marks = totalPossible
         studentData.grade = grade
@@ -438,9 +492,34 @@ export default function StudentCertificatesPage() {
       console.error('Error fetching exam marks:', err)
     }
 
+    // Fetch attendance data for attendance certificate
+    let attendanceData = null
+    if (certificateTypeToUse === 'attendance') {
+      try {
+        const { data: attData, error: attError } = await supabase
+          .from('attendance')
+          .select('status, date')
+          .eq('student_id', studentData.id)
+
+        if (!attError && attData && attData.length > 0) {
+          const totalDays = attData.length
+          const presentDays = attData.filter(a => a.status === 'present').length
+          const percentage = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(2) : 0
+
+          attendanceData = {
+            totalDays,
+            presentDays,
+            absentDays: totalDays - presentDays,
+            percentage
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching attendance:', err)
+      }
+    }
+
     // Save to database first
     try {
-      // Fetch school_id
       const { data: schools, error: schoolError} = await supabase
         .from('schools')
         .select('id')
@@ -451,9 +530,11 @@ export default function StudentCertificatesPage() {
         const certificateRecord = {
           student_id: studentData.id,
           school_id: schools.id,
-          certificate_type: 'character',
+          certificate_type: certificateTypeToUse,
           issue_date: new Date().toISOString().split('T')[0],
-          remarks: `Conduct: ${conductValue}`,
+          remarks: certificateTypeToUse === 'leaving'
+            ? `Reason: ${certificateData.leavingReason}, Conduct: ${certificateData.conduct}`
+            : `Conduct: ${certificateData.conduct}`,
           created_at: new Date().toISOString()
         }
 
@@ -463,277 +544,25 @@ export default function StudentCertificatesPage() {
       }
     } catch (err) {
       console.error('Error saving certificate:', err)
-      // Continue with printing even if save fails
     }
 
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    })
-
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 12
-
-    // Helper function to convert hex to RGB
-    const hexToRgb = (hex) => {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-      return result ? [
-        parseInt(result[1], 16),
-        parseInt(result[2], 16),
-        parseInt(result[3], 16)
-      ] : [0, 0, 0]
-    }
-
-    const borderRgb = hexToRgb(certificateSettings.borderColor || '#8B4513')
-    const headerRgb = hexToRgb(certificateSettings.headerTextColor || '#8B4513')
-    const textRgb = hexToRgb(certificateSettings.textColor || '#000000')
-    const accentRgb = hexToRgb(certificateSettings.accentColor || '#D2691E')
-
-    // Add decorative border if enabled
-    if (certificateSettings.showBorder) {
-      addDecorativeBorder(doc, certificateSettings.borderColor || '#8B4513')
-    }
-
-    // Generate a simple serial number (you can customize this logic)
-    const serialNumber = Math.floor(Math.random() * 1000) + 1
-
-    // Sr. No. at top left corner (clear of decorative border)
-    if (certificateSettings.showSerialNumber) {
-      doc.setFontSize(9)
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text('Sr. No.:', margin + 11, margin + 11)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.text(serialNumber.toString(), margin + 27, margin + 11)
-    }
-
-    // Dated at top right corner (clear of decorative border)
-    if (certificateSettings.showDate) {
-      const currentDate = new Date().toLocaleDateString('en-GB')
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text('Dated:', pageWidth - margin - 48, margin + 11)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.text(currentDate, pageWidth - margin - 31, margin + 11)
-    }
-
-    // Add school logo at top center
-    if (certificateSettings.showSchoolLogo && schoolData?.logo) {
-      try {
-        const logoSize = 20
-        const logoX = (pageWidth - logoSize) / 2
-        const logoY = margin + 8
-
-        let format = 'PNG'
-        if (schoolData.logo.includes('data:image/jpeg') || schoolData.logo.includes('data:image/jpg')) {
-          format = 'JPEG'
-        }
-
-        doc.addImage(schoolData.logo, format, logoX, logoY, logoSize, logoSize)
-      } catch (error) {
-        console.error('Error adding logo:', error)
-      }
-    }
-
-    // School Name (centered, below logo)
-    doc.setFontSize(20)
-    doc.setFont(PDF_FONTS.primary, 'bold')
-    doc.setTextColor(...headerRgb)
-    const instituteName = certificateSettings.instituteName || schoolData?.name || 'Superior College Bhakkar'
-    doc.text(instituteName, pageWidth / 2, margin + 35, { align: 'center' })
-
-    // School Address/Subtitle (small text under school name)
-    doc.setFontSize(9)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...textRgb)
-    doc.text(certificateSettings.instituteLocation || schoolData?.address || 'Bhakkar', pageWidth / 2, margin + 41, { align: 'center' })
-
-    // Certificate Title
-    doc.setFontSize(18)
-    doc.setFont(PDF_FONTS.primary, 'bold')
-    doc.setTextColor(...accentRgb)
-    doc.text(certificateSettings.certificateTitle || 'Character Certificate', pageWidth / 2, margin + 51, { align: 'center' })
-
-    // Student Details Section (Clean Table-like Layout)
-    const detailsY = margin + 62
-    const leftColX = margin + 18
-    const midColX = pageWidth / 2 + 10
-    const lineHeight = 7
-
-    let currentY = detailsY
-
-    doc.setFontSize(10)
-
-    // Prepare all data
-    const studentFullName = `${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim()
-    const className = getClassName(studentData.current_class_id) || 'SSC'
-    const currentYear = new Date().getFullYear()
-    const grade = studentData.grade || 'N/A'
-
-    // Row 1: Name of Student and Roll No
-    if (certificateSettings.showName) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.nameLabel || 'Name of Student:', leftColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(studentFullName || 'Nadeem', leftColX + 38, currentY)
-    }
-
-    if (certificateSettings.showRollNo) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.rollNoLabel || 'Roll No.:', midColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(studentData.roll_number || '43', midColX + 18, currentY)
-    }
-
-    currentY += lineHeight
-
-    // Row 2: Examination Passed and Session
-    if (certificateSettings.showExamination) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.examinationLabel || 'Examination Passed:', leftColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(className, leftColX + 43, currentY)
-    }
-
-    if (certificateSettings.showSession) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.sessionLabel || 'Session:', midColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(`${currentYear - 2}-${currentYear.toString().substr(2)}`, midColX + 18, currentY)
-    }
-
-    currentY += lineHeight
-
-    // Row 3: Marks Obtained and Total Marks
-    if (certificateSettings.showMarks) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.marksObtainedLabel || 'Marks Obtained:', leftColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(studentData.marks_obtained?.toString() || 'N/A', leftColX + 38, currentY)
-    }
-
-    if (certificateSettings.showTotalMarks) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.totalMarksLabel || 'Total Marks:', midColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(studentData.total_marks?.toString() || 'N/A', midColX + 28, currentY)
-    }
-
-    if (certificateSettings.showYear) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.yearLabel || 'Year:', midColX + 58, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(currentYear.toString(), midColX + 73, currentY)
-    }
-
-    currentY += lineHeight
-
-    // Row 4: Grade
-    if (certificateSettings.showGrade) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.gradeLabel || 'Grade:', leftColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(0, 0, 139)
-      doc.text(grade, leftColX + 16, currentY)
-    }
-
-    currentY += lineHeight + 8
-
-    // Professional Certificate Text with all dynamic fields merged
-    doc.setFontSize(10)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...textRgb)
-
-    const fatherName = studentData.father_name || 'Ali'
-    const collegeName = certificateSettings.instituteName || schoolData?.name || 'Superior College Bhakkar'
-    const marksObtained = studentData.marks_obtained || 'N/A'
-    const totalMarks = studentData.total_marks || 'N/A'
-
-    // Use template from settings and replace placeholders
-    let certificateText = certificateSettings.certificateText ||
-      'This is to certify that {studentName}, son of {fatherName}, has been a student of this {collegeName}. He is a brilliant student who secured {marksObtained}/{totalMarks} marks with an {grade} grade in his {className} examination. His academic dedication is exemplary, and he maintains a highly disciplined and respectful attitude toward his teachers and peers.'
-
-    // Replace all placeholders with actual data
-    certificateText = certificateText
-      .replace(/{studentName}/g, studentFullName)
-      .replace(/{fatherName}/g, fatherName)
-      .replace(/{collegeName}/g, collegeName)
-      .replace(/{marksObtained}/g, marksObtained)
-      .replace(/{totalMarks}/g, totalMarks)
-      .replace(/{grade}/g, grade)
-      .replace(/{className}/g, className)
-      .replace(/{rollNumber}/g, studentData.roll_number || '43')
-      .replace(/{session}/g, `${currentYear - 2}-${currentYear.toString().substr(2)}`)
-      .replace(/{year}/g, currentYear.toString())
-
-    doc.text(certificateText, leftColX, currentY, {
-      maxWidth: pageWidth - (2 * leftColX),
-      align: 'justify',
-      lineHeightFactor: 1.5
-    })
-
-    // Principal Signature Section (bottom right)
-    const signX = pageWidth - margin - 45
-    const signY = pageHeight - margin - 30
-
-    // Add signature image if available
-    if (certificateSettings.principalSignature) {
-      try {
-        doc.addImage(certificateSettings.principalSignature, 'PNG', signX - 10, signY - 10, 30, 12)
-      } catch (error) {
-        console.error('Error adding signature:', error)
-      }
-    }
-
-    // Signature line
-    doc.setLineWidth(0.3)
-    doc.setDrawColor(...textRgb)
-    doc.line(signX - 15, signY + 5, signX + 30, signY + 5)
-
-    doc.setFontSize(10)
-    doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...textRgb)
-    doc.text(certificateSettings.principalTitle || 'Principal Signature', signX + 7, signY + 10, { align: 'center' })
-
-    doc.setFontSize(9)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(0, 0, 139)
-    const schoolLines = (certificateSettings.schoolNameInSignature || instituteName).split('\n')
-    schoolLines.forEach((line, index) => {
-      doc.text(line, signX + 7, signY + 15 + (index * 4), { align: 'center' })
-    })
-
-    // Footer
-    if (certificateSettings.footerText) {
-      doc.setFontSize(8)
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.footerText, pageWidth / 2, pageHeight - margin - 5, { align: 'center' })
+    // Generate appropriate certificate based on type
+    let doc
+    if (certificateTypeToUse === 'character') {
+      doc = await generateCharacterCertificate(jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData)
+    } else if (certificateTypeToUse === 'leaving') {
+      doc = await generateLeavingCertificate(jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData)
+    } else if (certificateTypeToUse === 'attendance') {
+      doc = await generateAttendanceCertificate(jsPDF, studentData, schoolDataToUse, pdfSettings, attendanceData)
     }
 
     // Save PDF
-    const fileName = `Certificate_${studentData.first_name || 'Student'}_${studentData.admission_number || 'NA'}_${Date.now()}.pdf`
+    const fileName = `${certificateTypeToUse}-certificate-${studentData.first_name || 'Student'}-${studentData.admission_number || 'NA'}-${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
 
     // Show success toast
     const studentName = [studentData.first_name, studentData.last_name].filter(Boolean).join(' ')
-    toast.success(`Certificate generated successfully for ${studentName}!`, {
+    toast.success(`${certificateTypeToUse.charAt(0).toUpperCase() + certificateTypeToUse.slice(1)} certificate generated successfully for ${studentName}!`, {
       duration: 4000,
       position: 'top-right',
       style: {
@@ -746,6 +575,624 @@ export default function StudentCertificatesPage() {
       setShowPreview(false)
       setSelectedStudent(null)
     }
+  }
+
+  // Character Certificate Generator
+  const generateCharacterCertificate = async (jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData) => {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 12
+
+    const borderRgb = hexToRgb(certificateSettings.borderColor || pdfSettings.primaryColor)
+    const headerRgb = hexToRgb(certificateSettings.headerTextColor || pdfSettings.primaryColor)
+    const textRgb = hexToRgb(certificateSettings.textColor || pdfSettings.textColor)
+    const accentRgb = hexToRgb(certificateSettings.accentColor || pdfSettings.secondaryColor)
+
+    // Add decorative border if enabled
+    if (certificateSettings.showBorder) {
+      addDecorativeBorder(doc, certificateSettings.borderColor || pdfSettings.primaryColor)
+    }
+
+    const serialNumber = Math.floor(Math.random() * 10000) + 1
+
+    // Serial number at top left
+    if (certificateSettings.showSerialNumber) {
+      doc.setFontSize(9)
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Sr. No.:', margin + 11, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(serialNumber.toString(), margin + 27, margin + 11)
+    }
+
+    // Date at top right
+    if (certificateSettings.showDate) {
+      const currentDate = new Date().toLocaleDateString('en-GB')
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Dated:', pageWidth - margin - 48, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(currentDate, pageWidth - margin - 31, margin + 11)
+    }
+
+    // School logo at top center
+    if (certificateSettings.showSchoolLogo && schoolDataToUse?.logo) {
+      try {
+        const logoSize = getLogoSize(certificateSettings.logoSize || 'medium')
+        const logoX = (pageWidth - logoSize) / 2
+        const logoY = margin + 8
+
+        let format = 'PNG'
+        if (schoolDataToUse.logo.includes('data:image/jpeg') || schoolDataToUse.logo.includes('data:image/jpg')) {
+          format = 'JPEG'
+        }
+
+        doc.addImage(schoolDataToUse.logo, format, logoX, logoY, logoSize, logoSize)
+      } catch (error) {
+        console.error('Error adding logo:', error)
+      }
+    }
+
+    // School Name
+    doc.setFontSize(certificateSettings.instituteNameSize || 20)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...headerRgb)
+    const instituteName = certificateSettings.instituteName || schoolDataToUse?.name || 'School Name'
+    doc.text(instituteName, pageWidth / 2, margin + 35, { align: 'center' })
+
+    // School Address
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...textRgb)
+    doc.text(certificateSettings.instituteLocation || schoolDataToUse?.address || 'School Address', pageWidth / 2, margin + 41, { align: 'center' })
+
+    // Certificate Title
+    doc.setFontSize(certificateSettings.instituteTitleSize || 18)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...accentRgb)
+    doc.text(certificateSettings.certificateTitle || 'CHARACTER CERTIFICATE', pageWidth / 2, margin + 51, { align: 'center' })
+
+    // Student Details
+    const detailsY = margin + 62
+    const leftColX = margin + 18
+    const midColX = pageWidth / 2 + 10
+    const lineHeight = 7
+    let currentY = detailsY
+
+    doc.setFontSize(certificateSettings.fieldLabelSize || 10)
+
+    const studentFullName = `${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim()
+    const className = getClassName(studentData.current_class_id) || 'N/A'
+    const currentYear = new Date().getFullYear()
+    const grade = studentData.grade || 'N/A'
+
+    // Row 1: Name and Roll No
+    if (certificateSettings.showName) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.nameLabel || 'Name of Student:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(studentFullName, leftColX + 38, currentY)
+    }
+
+    if (certificateSettings.showRollNo) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.rollNoLabel || 'Roll No.:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(studentData.roll_number || 'N/A', midColX + 18, currentY)
+    }
+
+    currentY += lineHeight
+
+    // Row 2: Class and Session
+    if (certificateSettings.showExamination) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.examinationLabel || 'Class:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(className, leftColX + 43, currentY)
+    }
+
+    if (certificateSettings.showSession) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.sessionLabel || 'Session:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      const sessionText = currentSession?.name || `${currentYear - 1}-${currentYear}`
+      doc.text(sessionText, midColX + 18, currentY)
+    }
+
+    currentY += lineHeight
+
+    // Row 3: Marks
+    if (certificateSettings.showMarks && studentData.marks_obtained) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.marksObtainedLabel || 'Marks Obtained:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(studentData.marks_obtained?.toString() || 'N/A', leftColX + 38, currentY)
+    }
+
+    if (certificateSettings.showTotalMarks && studentData.total_marks) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.totalMarksLabel || 'Total Marks:', midColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(studentData.total_marks?.toString() || 'N/A', midColX + 28, currentY)
+    }
+
+    if (certificateSettings.showYear) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.yearLabel || 'Year:', midColX + 58, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(currentYear.toString(), midColX + 73, currentY)
+    }
+
+    currentY += lineHeight
+
+    // Row 4: Grade
+    if (certificateSettings.showGrade && grade) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.gradeLabel || 'Grade:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(grade, leftColX + 16, currentY)
+    }
+
+    currentY += lineHeight + 8
+
+    // Certificate Text
+    doc.setFontSize(certificateSettings.certificateTextSize || 10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...textRgb)
+
+    const fatherName = studentData.father_name || 'N/A'
+    const collegeName = certificateSettings.instituteName || schoolDataToUse?.name || 'This Institution'
+    const marksObtained = studentData.marks_obtained || 'N/A'
+    const totalMarks = studentData.total_marks || 'N/A'
+
+    let certificateText = certificateSettings.certificateText ||
+      'This is to certify that {studentName}, son/daughter of {fatherName}, has been a student of {collegeName}. During their time here, the student has demonstrated good character, discipline, and respectful behavior towards teachers and peers. We wish them success in their future endeavors.'
+
+    const sessionText = currentSession?.name || `${currentYear - 1}-${currentYear}`
+    certificateText = certificateText
+      .replace(/{studentName}/g, studentFullName)
+      .replace(/{fatherName}/g, fatherName)
+      .replace(/{collegeName}/g, collegeName)
+      .replace(/{marksObtained}/g, marksObtained)
+      .replace(/{totalMarks}/g, totalMarks)
+      .replace(/{grade}/g, grade)
+      .replace(/{className}/g, className)
+      .replace(/{rollNumber}/g, studentData.roll_number || 'N/A')
+      .replace(/{session}/g, sessionText)
+      .replace(/{year}/g, currentYear.toString())
+
+    doc.text(certificateText, leftColX, currentY, {
+      maxWidth: pageWidth - (2 * leftColX),
+      align: 'justify',
+      lineHeightFactor: 1.5
+    })
+
+    // Principal Signature Section
+    const signX = pageWidth - margin - 45
+    const signY = pageHeight - margin - 30
+
+    if (certificateSettings.principalSignature) {
+      try {
+        doc.addImage(certificateSettings.principalSignature, 'PNG', signX - 10, signY - 10, 30, 12)
+      } catch (error) {
+        console.error('Error adding signature:', error)
+      }
+    }
+
+    doc.setLineWidth(0.3)
+    doc.setDrawColor(...textRgb)
+    doc.line(signX - 15, signY + 5, signX + 30, signY + 5)
+
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text(certificateSettings.principalTitle || 'Principal Signature', signX + 7, signY + 10, { align: 'center' })
+
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    const schoolLines = (certificateSettings.schoolNameInSignature || instituteName).split('\n')
+    schoolLines.forEach((line, index) => {
+      doc.text(line, signX + 7, signY + 15 + (index * 4), { align: 'center' })
+    })
+
+    if (certificateSettings.footerText) {
+      doc.setFontSize(8)
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.footerText, pageWidth / 2, pageHeight - margin - 5, { align: 'center' })
+    }
+
+    return doc
+  }
+
+  // Leaving Certificate Generator
+  const generateLeavingCertificate = async (jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margins = getMarginValues(pdfSettings.margin || 'normal')
+
+    // Header with school logo
+    let yPos = margins.top
+
+    // School Logo
+    if (pdfSettings.includeLogo && schoolDataToUse?.logo) {
+      try {
+        const logoSize = getLogoSize(pdfSettings.logoSize || 'medium')
+        const logoX = (pageWidth - logoSize) / 2
+
+        let format = 'PNG'
+        if (schoolDataToUse.logo.includes('data:image/jpeg') || schoolDataToUse.logo.includes('data:image/jpg')) {
+          format = 'JPEG'
+        }
+
+        doc.addImage(schoolDataToUse.logo, format, logoX, yPos - 25, logoSize, logoSize)
+      } catch (error) {
+        console.error('Error adding logo:', error)
+      }
+    }
+
+    // School Name
+    doc.setFontSize(18)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...hexToRgb(pdfSettings.primaryColor))
+    doc.text(schoolDataToUse?.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
+
+    yPos += 8
+
+    // School Address
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.text(schoolDataToUse?.address || 'School Address', pageWidth / 2, yPos, { align: 'center' })
+    if (schoolDataToUse?.phone) {
+      yPos += 5
+      doc.text(`Phone: ${schoolDataToUse.phone}`, pageWidth / 2, yPos, { align: 'center' })
+    }
+
+    yPos += 12
+
+    // Title
+    doc.setFontSize(16)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
+    doc.text('SCHOOL LEAVING CERTIFICATE', pageWidth / 2, yPos, { align: 'center' })
+
+    yPos += 10
+
+    // Certificate Number and Date
+    const certNumber = `LC/${new Date().getFullYear()}/${Math.floor(Math.random() * 10000)}`
+    const issueDate = new Date().toLocaleDateString('en-GB')
+
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.text(`Certificate No: ${certNumber}`, margins.left, yPos)
+    doc.text(`Date: ${issueDate}`, pageWidth - margins.right, yPos, { align: 'right' })
+
+    yPos += 12
+
+    // Student Information Table
+    const tableData = [
+      ['Name of Student', `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim()],
+      ['Father Name', studentData.father_name || 'N/A'],
+      ['Date of Birth', studentData.date_of_birth ? new Date(studentData.date_of_birth).toLocaleDateString('en-GB') : 'N/A'],
+      ['Class', getClassName(studentData.current_class_id) || 'N/A'],
+      ['Admission Number', studentData.admission_number || 'N/A'],
+      ['Admission Date', studentData.admission_date ? new Date(studentData.admission_date).toLocaleDateString('en-GB') : 'N/A'],
+      ['Leaving Date', new Date().toLocaleDateString('en-GB')],
+      ['Reason for Leaving', certificateData.leavingReason || 'Personal Reasons'],
+    ]
+
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+
+    tableData.forEach((row, index) => {
+      const rowY = yPos + (index * 8)
+
+      // Label
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+      doc.text(row[0] + ':', margins.left, rowY)
+
+      // Value
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
+      doc.text(row[1], margins.left + 55, rowY)
+
+      // Underline
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.1)
+      doc.line(margins.left + 55, rowY + 1, pageWidth - margins.right, rowY + 1)
+    })
+
+    yPos += (tableData.length * 8) + 12
+
+    // Character and Conduct
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.text('Character:', margins.left, yPos)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
+    doc.text('Good', margins.left + 55, yPos)
+
+    yPos += 8
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.text('Conduct:', margins.left, yPos)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
+    doc.text(certificateData.conduct || 'V.Good', margins.left + 55, yPos)
+
+    yPos += 15
+
+    // Remarks
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    const remarksText = `This is to certify that the above particulars are correct as per the school records. The student has cleared all dues and is leaving the school with good character and conduct.`
+    doc.text(remarksText, margins.left, yPos, {
+      maxWidth: pageWidth - margins.left - margins.right,
+      align: 'justify',
+      lineHeightFactor: 1.5
+    })
+
+    // Signature Section
+    const signY = pageHeight - 60
+
+    // Class Teacher Signature
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.setDrawColor(...hexToRgb(pdfSettings.textColor))
+    doc.line(margins.left, signY, margins.left + 50, signY)
+    doc.text('Class Teacher', margins.left + 25, signY + 5, { align: 'center' })
+
+    // Principal Signature
+    doc.line(pageWidth - margins.right - 50, signY, pageWidth - margins.right, signY)
+    doc.text('Principal', pageWidth - margins.right - 25, signY + 5, { align: 'center' })
+    doc.text(schoolDataToUse?.name || 'School Name', pageWidth - margins.right - 25, signY + 10, { align: 'center' })
+
+    // School Seal Area
+    doc.setFontSize(8)
+    doc.text('(School Seal)', pageWidth / 2, signY + 20, { align: 'center' })
+    doc.setDrawColor(...hexToRgb(pdfSettings.primaryColor))
+    doc.setLineWidth(0.5)
+    doc.circle(pageWidth / 2, signY + 30, 15, 'S')
+
+    return doc
+  }
+
+  // Attendance Certificate Generator
+  const generateAttendanceCertificate = async (jsPDF, studentData, schoolDataToUse, pdfSettings, attendanceData) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margins = getMarginValues(pdfSettings.margin || 'normal')
+
+    let yPos = margins.top
+
+    // School Logo
+    if (pdfSettings.includeLogo && schoolDataToUse?.logo) {
+      try {
+        const logoSize = getLogoSize(pdfSettings.logoSize || 'medium')
+        const logoX = (pageWidth - logoSize) / 2
+
+        let format = 'PNG'
+        if (schoolDataToUse.logo.includes('data:image/jpeg') || schoolDataToUse.logo.includes('data:image/jpg')) {
+          format = 'JPEG'
+        }
+
+        doc.addImage(schoolDataToUse.logo, format, logoX, yPos - 25, logoSize, logoSize)
+      } catch (error) {
+        console.error('Error adding logo:', error)
+      }
+    }
+
+    // School Name
+    doc.setFontSize(18)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...hexToRgb(pdfSettings.primaryColor))
+    doc.text(schoolDataToUse?.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
+
+    yPos += 8
+
+    // School Address
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.text(schoolDataToUse?.address || 'School Address', pageWidth / 2, yPos, { align: 'center' })
+    if (schoolDataToUse?.phone) {
+      yPos += 5
+      doc.text(`Phone: ${schoolDataToUse.phone}`, pageWidth / 2, yPos, { align: 'center' })
+    }
+
+    yPos += 12
+
+    // Title
+    doc.setFontSize(16)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
+    doc.text('ATTENDANCE CERTIFICATE', pageWidth / 2, yPos, { align: 'center' })
+
+    yPos += 10
+
+    // Certificate Number and Date
+    const certNumber = `AC/${new Date().getFullYear()}/${Math.floor(Math.random() * 10000)}`
+    const issueDate = new Date().toLocaleDateString('en-GB')
+
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.text(`Certificate No: ${certNumber}`, margins.left, yPos)
+    doc.text(`Date: ${issueDate}`, pageWidth - margins.right, yPos, { align: 'right' })
+
+    yPos += 15
+
+    // Student Details
+    const studentFullName = `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim()
+    const className = getClassName(studentData.current_class_id) || 'N/A'
+    const currentYear = new Date().getFullYear()
+    const sessionText = currentSession?.name || `${currentYear - 1}-${currentYear}`
+
+    doc.setFontSize(11)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+
+    const studentInfoY = yPos
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.text('Student Name:', margins.left, studentInfoY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.text(studentFullName, margins.left + 40, studentInfoY)
+
+    yPos += 8
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.text('Father Name:', margins.left, yPos)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.text(studentData.father_name || 'N/A', margins.left + 40, yPos)
+
+    yPos += 8
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.text('Class:', margins.left, yPos)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.text(className, margins.left + 40, yPos)
+
+    yPos += 8
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.text('Academic Session:', margins.left, yPos)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.text(sessionText, margins.left + 40, yPos)
+
+    yPos += 15
+
+    // Attendance Statistics
+    doc.setFontSize(12)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
+    doc.text('ATTENDANCE RECORD', pageWidth / 2, yPos, { align: 'center' })
+
+    yPos += 10
+
+    if (attendanceData) {
+      const attStats = [
+        ['Total School Days', attendanceData.totalDays.toString()],
+        ['Days Present', attendanceData.presentDays.toString()],
+        ['Days Absent', attendanceData.absentDays.toString()],
+        ['Attendance Percentage', `${attendanceData.percentage}%`]
+      ]
+
+      doc.setFontSize(11)
+      attStats.forEach((row, index) => {
+        const rowY = yPos + (index * 8)
+
+        doc.setFont(PDF_FONTS.secondary, 'bold')
+        doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+        doc.text(row[0] + ':', margins.left + 20, rowY)
+
+        doc.setFont(PDF_FONTS.secondary, 'normal')
+        doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
+        doc.text(row[1], margins.left + 90, rowY)
+      })
+
+      yPos += (attStats.length * 8) + 15
+    } else {
+      doc.setFontSize(10)
+      doc.setFont(PDF_FONTS.secondary, 'italic')
+      doc.setTextColor(150, 150, 150)
+      doc.text('No attendance data available', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 15
+    }
+
+    // Certificate Text
+    doc.setFontSize(11)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+
+    const certificateText = attendanceData
+      ? `This is to certify that ${studentFullName}, son/daughter of ${studentData.father_name || 'N/A'}, studying in ${className}, has maintained an attendance record of ${attendanceData.percentage}% during the academic session ${sessionText}. The student has attended ${attendanceData.presentDays} days out of ${attendanceData.totalDays} total school days.`
+      : `This is to certify that ${studentFullName}, son/daughter of ${studentData.father_name || 'N/A'}, is a registered student of ${className} for the academic session ${sessionText}.`
+
+    doc.text(certificateText, margins.left, yPos, {
+      maxWidth: pageWidth - margins.left - margins.right,
+      align: 'justify',
+      lineHeightFactor: 1.6
+    })
+
+    yPos += 30
+
+    // Remarks
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'italic')
+    const remarks = attendanceData && parseFloat(attendanceData.percentage) >= 75
+      ? 'The student has maintained satisfactory attendance as per school policy.'
+      : 'This certificate is issued as per the student\'s attendance record in our school.'
+
+    doc.text(remarks, margins.left, yPos, {
+      maxWidth: pageWidth - margins.left - margins.right,
+      align: 'center'
+    })
+
+    // Signature Section
+    const signY = pageHeight - 60
+
+    // Class Teacher
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
+    doc.setDrawColor(...hexToRgb(pdfSettings.textColor))
+    doc.line(margins.left, signY, margins.left + 50, signY)
+    doc.text('Class Teacher', margins.left + 25, signY + 5, { align: 'center' })
+
+    // Principal
+    doc.line(pageWidth - margins.right - 50, signY, pageWidth - margins.right, signY)
+    doc.text('Principal', pageWidth - margins.right - 25, signY + 5, { align: 'center' })
+    doc.text(schoolDataToUse?.name || 'School Name', pageWidth - margins.right - 25, signY + 10, { align: 'center' })
+
+    // School Seal
+    doc.setFontSize(8)
+    doc.text('(School Seal)', pageWidth / 2, signY + 20, { align: 'center' })
+    doc.setDrawColor(...hexToRgb(pdfSettings.primaryColor))
+    doc.setLineWidth(0.5)
+    doc.circle(pageWidth / 2, signY + 30, 15, 'S')
+
+    return doc
   }
 
   return (
@@ -768,7 +1215,7 @@ export default function StudentCertificatesPage() {
         </div>
         <button
           onClick={() => setShowCertificateSettings(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition"
         >
           <Settings className="w-4 h-4" />
           Certificate Settings
@@ -793,14 +1240,20 @@ export default function StudentCertificatesPage() {
       <div className="bg-white rounded-xl shadow-lg p-6">
         {/* Selection Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Certificate Type (Fixed) */}
+          {/* Certificate Type Selection */}
           <div>
             <label className="block text-gray-700 font-semibold text-sm mb-2">
-              Certificate Type
+              Certificate Type <span className="text-red-500">*</span>
             </label>
-            <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-              Character Certificate
-            </div>
+            <select
+              value={certificateType}
+              onChange={(e) => setCertificateType(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="character">Character Certificate</option>
+              <option value="leaving">Leaving Certificate</option>
+              <option value="attendance">Attendance Certificate</option>
+            </select>
           </div>
 
           {/* Class Selection */}
@@ -915,9 +1368,10 @@ export default function StudentCertificatesPage() {
                       </div>
                       {certificateFor === 'individual' && (
                         <button
-                          onClick={() => handleGenerateCertificate(student)}
-                          className="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
+                          onClick={() => handleGenerateCertificatePDF(student, certificateType)}
+                          className="mt-3 w-full bg-[#D12323] text-white py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2"
                         >
+                          <Download size={16} />
                           Generate Certificate
                         </button>
                       )}
@@ -962,7 +1416,7 @@ export default function StudentCertificatesPage() {
                               .select('id')
                               .eq('student_id', student.id)
                               .eq('school_id', schools.id)
-                              .eq('certificate_type', 'character')
+                              .eq('certificate_type', certificateType)
                               .limit(1)
 
                             if (!checkError && existingCert && existingCert.length > 0) {
@@ -972,7 +1426,7 @@ export default function StudentCertificatesPage() {
                             }
 
                             // Generate certificate (skip validation since we already checked)
-                            await handlePrintCertificate(student, 'V.Good', true)
+                            await handleGenerateCertificatePDF(student, certificateType, true)
                             generatedCount++
                             // Small delay between downloads to prevent browser issues
                             await new Promise(resolve => setTimeout(resolve, 300))
@@ -1035,7 +1489,7 @@ export default function StudentCertificatesPage() {
                         }
                       }}
                       disabled={saving}
-                      className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-8 py-3 bg-[#D12323] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {saving ? (
                         <>
@@ -1045,7 +1499,7 @@ export default function StudentCertificatesPage() {
                       ) : (
                         <>
                           <Download size={18} />
-                          Print All Certificates
+                          Generate All Certificates
                         </>
                       )}
                     </button>
@@ -1141,11 +1595,11 @@ export default function StudentCertificatesPage() {
                   )}
                 </button>
                 <button
-                  onClick={() => handlePrintCertificate(selectedStudent, 'V.Good')}
-                  className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                  onClick={() => handleGenerateCertificatePDF(selectedStudent, certificateType)}
+                  className="flex-1 px-6 py-3 bg-[#D12323] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
                 >
                   <Download size={18} />
-                  Print
+                  Generate PDF
                 </button>
               </div>
             </div>
@@ -1576,7 +2030,7 @@ export default function StudentCertificatesPage() {
               </button>
               <button
                 onClick={saveCertificateSettings}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                className="px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
                 Save Settings

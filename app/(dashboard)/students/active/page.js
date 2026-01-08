@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle } from 'lucide-react'
+import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 
@@ -299,6 +299,45 @@ export default function ActiveStudentsPage() {
   const getClassName = (classId) => {
     const classObj = classes.find(c => c.id === classId)
     return classObj?.class_name || classId || 'N/A'
+  }
+
+  const exportToCSV = () => {
+    if (filteredStudents.length === 0) {
+      showToast('No data to export', 'error')
+      return
+    }
+
+    const csvData = filteredStudents.map((student, index) => ({
+      'Sr.': index + 1,
+      'Session': student.session || 'N/A',
+      'Class': student.class || 'N/A',
+      'Student Name': student.name || 'N/A',
+      'Father Name': student.father || 'N/A',
+      'Admission No.': student.admNo || 'N/A',
+      'CNIC': student.cnic || 'N/A',
+      'Gender': student.gender || 'N/A',
+      'Date of Birth': student.dateOfBirth || 'N/A',
+      'Admission Date': student.admissionDate || 'N/A'
+    }))
+
+    const headers = Object.keys(csvData[0])
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => {
+        const value = row[header]
+        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const date = new Date().toISOString().split('T')[0]
+    a.download = `active-students-${date}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    showToast('CSV exported successfully!', 'success')
   }
 
   const filteredStudents = students.filter(student => {
@@ -791,9 +830,18 @@ export default function ActiveStudentsPage() {
           </div>
         </div>
 
-        <p className="text-gray-600 mb-3 text-sm">
-          There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> active students{selectedClass ? ' in this class' : ''}.
-        </p>
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-gray-600 text-sm">
+            There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> active students{selectedClass ? ' in this class' : ''}.
+          </p>
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            <Download size={18} />
+            Export to Excel
+          </button>
+        </div>
 
         {loading && (
           <div className="flex justify-center items-center py-8">

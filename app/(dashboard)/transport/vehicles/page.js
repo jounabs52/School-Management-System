@@ -1,9 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, X, Trash2, CheckCircle, AlertCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { Plus, Search, Edit2, X, Trash2, CheckCircle, AlertCircle, Download } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Create Supabase client with custom auth
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: { schema: 'public' },
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false
+  }
+})
 
 // Toast Component
 function Toast({ message, type, onClose }) {
@@ -120,8 +132,15 @@ export default function VehiclesPage() {
     try {
       setLoading(true)
       const user = getUserFromCookie()
+
       if (!user) {
-        console.error('No user found')
+        showToast('Please login to view vehicles', 'error')
+        setLoading(false)
+        return
+      }
+
+      if (!user.school_id) {
+        showToast('User data incomplete - missing school_id', 'error')
         setLoading(false)
         return
       }
@@ -140,12 +159,15 @@ export default function VehiclesPage() {
 
       if (error) {
         console.error('Error fetching vehicles:', error)
+        showToast(`Error fetching vehicles: ${error.message}`, 'error')
         setVehicles([])
       } else {
         setVehicles(data || [])
       }
     } catch (error) {
-      console.error('Error fetching vehicles:', error)
+      console.error('Error in fetchVehicles:', error)
+      showToast('Failed to fetch vehicles', 'error')
+      setVehicles([])
     } finally {
       setLoading(false)
     }
@@ -331,6 +353,41 @@ export default function VehiclesPage() {
     )
   })
 
+  const exportToCSV = () => {
+    if (filteredVehicles.length === 0) {
+      showToast('No data to export', 'error')
+      return
+    }
+
+    const csvData = filteredVehicles.map((vehicle, index) => ({
+      'Sr.': index + 1,
+      'Registration No.': vehicle.registration_number || 'N/A',
+      'Route': vehicle.route_name || 'N/A',
+      'Driver Name': vehicle.driver_name || 'N/A',
+      'Driver Mobile': vehicle.driver_mobile || 'N/A',
+      'Seating Capacity': vehicle.seating_capacity || 'N/A'
+    }))
+
+    const headers = Object.keys(csvData[0])
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => {
+        const value = row[header]
+        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const date = new Date().toISOString().split('T')[0]
+    a.download = `transport-vehicles-${date}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    showToast('CSV exported successfully!', 'success')
+  }
+
   // Pagination calculations
   const totalPages = Math.ceil(filteredVehicles.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -362,6 +419,13 @@ export default function VehiclesPage() {
           >
             <Plus size={12} />
             Add Vehicle
+          </button>
+          <button
+            onClick={exportToCSV}
+            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-[#DC2626] text-white hover:bg-red-700"
+          >
+            <Download size={12} />
+            Export to Excel
           </button>
           <div className="flex-1 relative w-full">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={12} />

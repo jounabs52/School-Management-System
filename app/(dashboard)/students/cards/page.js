@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard, Settings, X } from 'lucide-react'
+import { CreditCard, Settings, X, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
-import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import toast from 'react-hot-toast'
 import { Toaster } from 'react-hot-toast'
+import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -373,33 +373,51 @@ export default function StudentIDCardsPage() {
       if (schoolError) throw new Error('Unable to fetch school information')
 
       // Fetch active session
-      let { data: session } = await supabase
+      let { data: session, error: sessionError } = await supabase
         .from('sessions')
-        .select('id')
+        .select('id, name, start_date, end_date')
+        .eq('is_current', true)
         .eq('status', 'active')
         .limit(1)
         .single()
 
-      // If no active session exists, create a default one
-      if (!session) {
-        const currentYear = new Date().getFullYear()
-        const { data: newSession, error: sessionCreateError } = await supabase
+      // If no current session exists, check for any active session
+      if (!session && (!sessionError || sessionError.code === 'PGRST116')) {
+        const { data: anySession } = await supabase
           .from('sessions')
-          .insert({
-            school_id: schools.id,
-            name: `${currentYear}-${currentYear + 1}`,
-            start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date(currentYear + 1, 5, 30).toISOString().split('T')[0],
-            status: 'active'
-          })
-          .select()
+          .select('id, name, start_date, end_date')
+          .eq('status', 'active')
+          .order('start_date', { ascending: false })
+          .limit(1)
           .single()
 
-        if (sessionCreateError) {
-          console.error('Session creation error:', sessionCreateError)
-          throw new Error(`Unable to create session: ${sessionCreateError.message}`)
+        if (anySession) {
+          session = anySession
+        } else {
+          // Only create session if none exists at all
+          const currentYear = new Date().getFullYear()
+          const currentMonth = new Date().getMonth()
+          const sessionStartYear = currentMonth >= 6 ? currentYear : currentYear - 1
+
+          const { data: newSession, error: sessionCreateError } = await supabase
+            .from('sessions')
+            .insert({
+              school_id: schools.id,
+              name: `${sessionStartYear}-${sessionStartYear + 1}`,
+              start_date: `${sessionStartYear}-07-01`,
+              end_date: `${sessionStartYear + 1}-06-30`,
+              is_current: true,
+              status: 'active'
+            })
+            .select()
+            .single()
+
+          if (sessionCreateError) {
+            console.error('Session creation error:', sessionCreateError)
+            throw new Error(`Unable to create session: ${sessionCreateError.message}`)
+          }
+          session = newSession
         }
-        session = newSession
       }
 
       // Generate card number
@@ -455,7 +473,7 @@ export default function StudentIDCardsPage() {
     }
   }
 
-  // Helper function to convert hex to RGB
+  // Helper function to convert hex to RGB (kept for backward compatibility with existing card generation)
   const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
     return result ? [
@@ -463,6 +481,414 @@ export default function StudentIDCardsPage() {
       parseInt(result[2], 16),
       parseInt(result[3], 16)
     ] : [255, 255, 255]
+  }
+
+  // Generate Student Card PDF using centralized PDF settings
+  const handleGenerateCardPDF = async (student) => {
+    if (!student) {
+      toast.error('Please select a student first', {
+        duration: 3000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+      return
+    }
+
+    if (!validityUpto) {
+      toast.error('Please select validity date', {
+        duration: 3000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+      return
+    }
+
+    try {
+      setPrintingStudentId(student.id)
+
+      // Dynamically import jsPDF and jspdf-autotable
+      const [{ default: jsPDF }, autoTable] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+      ])
+
+      // Fetch school data
+      const { data: schoolData, error: schoolError } = await supabase
+        .from('schools')
+        .select('name, address, phone, email, logo_url')
+        .limit(1)
+        .single()
+
+      if (schoolError) throw new Error('Unable to fetch school information')
+
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+
+      // Create PDF document
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Apply PDF settings
+      applyPdfSettings(doc, pdfSettings)
+
+      // Get margin values
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
+      const topMargin = margins.top
+
+      // Calculate color values from settings
+      const textColorRgb = hexToRgb(pdfSettings.textColor)
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const primaryColorRgb = hexToRgb(pdfSettings.primaryColor)
+
+      let yPos = topMargin
+
+      // Header background
+      const headerHeight = 35
+      doc.setFillColor(...headerBgColor)
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
+
+      // Logo in header
+      if (pdfSettings.includeLogo && schoolData.logo_url) {
+        try {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = schoolData.logo_url
+
+          await new Promise((resolve) => {
+            img.onload = () => {
+              try {
+                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                const logoY = (headerHeight - currentLogoSize) / 2
+                let logoX = 10
+
+                if (pdfSettings.logoPosition === 'right') {
+                  logoX = pageWidth - currentLogoSize - 10
+                } else if (pdfSettings.logoPosition === 'center') {
+                  logoX = (pageWidth - currentLogoSize) / 2
+                }
+
+                // Add logo with style
+                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const size = 200
+                  canvas.width = size
+                  canvas.height = size
+
+                  ctx.beginPath()
+                  if (pdfSettings.logoStyle === 'circle') {
+                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                  } else {
+                    const radius = size * 0.15
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(size - radius, 0)
+                    ctx.quadraticCurveTo(size, 0, size, radius)
+                    ctx.lineTo(size, size - radius)
+                    ctx.quadraticCurveTo(size, size, size - radius, size)
+                    ctx.lineTo(radius, size)
+                    ctx.quadraticCurveTo(0, size, 0, size - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  }
+                  ctx.closePath()
+                  ctx.clip()
+                  ctx.drawImage(img, 0, 0, size, size)
+
+                  const clippedImage = canvas.toDataURL('image/png')
+                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else {
+                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                }
+
+                resolve()
+              } catch (e) {
+                console.warn('Could not add logo to PDF:', e)
+                resolve()
+              }
+            }
+            img.onerror = () => {
+              console.warn('Could not load logo image')
+              resolve()
+            }
+          })
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
+      }
+
+      // School name and title
+      if (pdfSettings.includeHeader !== false) {
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(18)
+        doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+        doc.text(schoolData.name || 'SCHOOL NAME', pageWidth / 2, 15, { align: 'center' })
+
+        doc.setFontSize(10)
+        doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'normal')
+        if (schoolData.address) {
+          doc.text(schoolData.address, pageWidth / 2, 22, { align: 'center' })
+        }
+        if (schoolData.phone) {
+          doc.text(`Phone: ${schoolData.phone}`, pageWidth / 2, 28, { align: 'center' })
+        }
+      }
+
+      // Title
+      yPos = headerHeight + 10
+      doc.setTextColor(...textColorRgb)
+      doc.setFontSize(16)
+      doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+      doc.text('STUDENT ID CARD', pageWidth / 2, yPos, { align: 'center' })
+
+      // Underline
+      doc.setDrawColor(...primaryColorRgb)
+      doc.setLineWidth(0.5)
+      doc.line(leftMargin + 30, yPos + 2, rightMargin - 30, yPos + 2)
+
+      yPos += 15
+
+      // Card container
+      const cardX = leftMargin + 10
+      const cardY = yPos
+      const cardWidth = pageWidth - leftMargin - rightMargin - 20
+      const cardHeight = 80
+
+      // Card border
+      doc.setDrawColor(...hexToRgb(pdfSettings.primaryColor))
+      doc.setLineWidth(0.8)
+      doc.rect(cardX, cardY, cardWidth, cardHeight)
+
+      // Student photo
+      const photoSize = 25
+      const photoX = cardX + 5
+      const photoY = cardY + 5
+
+      if (student.photo_url && student.photo_url.trim() !== '') {
+        try {
+          const photoImg = new Image()
+          photoImg.crossOrigin = 'anonymous'
+          photoImg.src = student.photo_url
+
+          await new Promise((resolve) => {
+            photoImg.onload = () => {
+              try {
+                const canvas = document.createElement('canvas')
+                const ctx = canvas.getContext('2d')
+                const size = 200
+                canvas.width = size
+                canvas.height = size
+
+                ctx.beginPath()
+                ctx.rect(0, 0, size, size)
+                ctx.closePath()
+                ctx.clip()
+
+                const scale = Math.max(size / photoImg.width, size / photoImg.height)
+                const scaledWidth = photoImg.width * scale
+                const scaledHeight = photoImg.height * scale
+                const offsetX = (size - scaledWidth) / 2
+                const offsetY = (size - scaledHeight) / 2
+                ctx.drawImage(photoImg, offsetX, offsetY, scaledWidth, scaledHeight)
+
+                const photoData = canvas.toDataURL('image/png')
+                doc.addImage(photoData, 'PNG', photoX, photoY, photoSize, photoSize)
+                resolve()
+              } catch (e) {
+                console.warn('Could not add photo:', e)
+                resolve()
+              }
+            }
+            photoImg.onerror = () => {
+              console.warn('Could not load student photo')
+              resolve()
+            }
+          })
+        } catch (error) {
+          console.error('Error adding photo:', error)
+        }
+      } else {
+        // Placeholder for no photo
+        doc.setFillColor(240, 240, 240)
+        doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+      }
+
+      // Student details
+      const detailsX = photoX + photoSize + 8
+      const detailsY = cardY + 10
+      const labelWidth = 35
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize) || 9)
+      doc.setTextColor(...textColorRgb)
+
+      const drawField = (label, value, y) => {
+        doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'normal')
+        doc.text(label + ':', detailsX, y)
+        doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+        doc.text(value, detailsX + labelWidth, y)
+      }
+
+      let detailY = detailsY
+      const studentFullName = `${student.first_name || ''} ${student.last_name || ''}`.trim()
+      drawField('Name', studentFullName, detailY)
+      detailY += 6
+
+      drawField('Father Name', student.father_name || 'N/A', detailY)
+      detailY += 6
+
+      const className = getClassName(student.current_class_id)
+      const sectionName = getSectionName(student.current_section_id)
+      drawField('Class', `${className} ${sectionName}`.trim(), detailY)
+      detailY += 6
+
+      drawField('Roll Number', student.roll_number || 'N/A', detailY)
+      detailY += 6
+
+      drawField('Admission No', student.admission_number || 'N/A', detailY)
+      detailY += 6
+
+      if (student.date_of_birth) {
+        const dob = new Date(student.date_of_birth)
+        drawField('Date of Birth', dob.toLocaleDateString(), detailY)
+        detailY += 6
+      }
+
+      if (student.blood_group) {
+        drawField('Blood Group', student.blood_group, detailY)
+        detailY += 6
+      }
+
+      // Additional info section
+      yPos = cardY + cardHeight + 15
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 1 || 10)
+      doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+      doc.text('Additional Information:', leftMargin, yPos)
+
+      yPos += 8
+      doc.setFontSize(parseInt(pdfSettings.fontSize) || 9)
+      doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'normal')
+
+      if (student.address) {
+        doc.text(`Address: ${student.address}`, leftMargin, yPos)
+        yPos += 6
+      }
+
+      if (student.phone) {
+        doc.text(`Phone: ${student.phone}`, leftMargin, yPos)
+        yPos += 6
+      }
+
+      // Session and validity dates
+      yPos += 5
+      const currentYear = new Date().getFullYear()
+      const sessionYear = `${currentYear}-${currentYear + 1}`
+
+      doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+      doc.text(`Academic Year: ${sessionYear}`, leftMargin, yPos)
+      yPos += 6
+
+      const issueDate = new Date().toLocaleDateString()
+      doc.text(`Issue Date: ${issueDate}`, leftMargin, yPos)
+      yPos += 6
+
+      const validDate = new Date(validityUpto).toLocaleDateString()
+      doc.text(`Valid Until: ${validDate}`, leftMargin, yPos)
+
+      // Footer
+      if (pdfSettings.includeFooter !== false) {
+        const footerY = pageHeight - 15
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.3)
+        doc.line(leftMargin, footerY - 5, rightMargin, footerY - 5)
+
+        doc.setFontSize(8)
+        doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'italic')
+        doc.setTextColor(100, 100, 100)
+
+        const footerText = pdfSettings.footerText || `Generated on ${new Date().toLocaleDateString()}`
+        doc.text(footerText, pageWidth / 2, footerY, { align: 'center' })
+
+        if (pdfSettings.includePageNumbers !== false) {
+          doc.text('Page 1', rightMargin - 10, footerY, { align: 'right' })
+        }
+      }
+
+      // Save PDF
+      const fileName = `student-card-${student.admission_number || student.id}.pdf`
+      doc.save(fileName)
+
+      toast.success(`Card generated successfully for ${studentFullName}!`, {
+        duration: 4000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+    } catch (error) {
+      console.error('Error generating card PDF:', error)
+      toast.error(`Error generating card: ${error.message}`, {
+        duration: 3000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+    } finally {
+      setPrintingStudentId(null)
+    }
+  }
+
+  // Generate bulk cards PDF
+  const handleGenerateBulkCardsPDF = async () => {
+    if (!filteredStudents || filteredStudents.length === 0) {
+      toast.error('No students to generate cards for', {
+        duration: 3000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+      return
+    }
+
+    if (!validityUpto) {
+      toast.error('Please select validity date', {
+        duration: 3000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+      return
+    }
+
+    try {
+      setSaving(true)
+      let generatedCount = 0
+
+      // Generate individual PDFs for each student
+      for (const student of filteredStudents) {
+        await handleGenerateCardPDF(student)
+        generatedCount++
+        // Small delay to prevent overwhelming the browser
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+
+      toast.success(`Successfully generated ${generatedCount} student card(s)!`, {
+        duration: 4000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+    } catch (error) {
+      console.error('Error generating bulk cards:', error)
+      toast.error(`Error generating bulk cards: ${error.message}`, {
+        duration: 3000,
+        position: 'top-right',
+        style: { zIndex: 9999 }
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   // Check if card already exists and is still valid
@@ -1105,7 +1531,7 @@ export default function StudentIDCardsPage() {
         </div>
         <button
           onClick={() => setShowCardSettings(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition"
         >
           <Settings className="w-4 h-4" />
           Card Settings
@@ -1736,7 +2162,7 @@ export default function StudentIDCardsPage() {
               </button>
               <button
                 onClick={handleCardSettingSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                className="px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition"
               >
                 Save Settings
               </button>
@@ -1896,17 +2322,27 @@ export default function StudentIDCardsPage() {
                         </div>
                       </div>
                       {printFor === 'individual' && (
-                        <button
-                          onClick={() => handlePrint(student)}
-                          disabled={printingStudentId === student.id}
-                          className="w-full text-white py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                          style={{ backgroundColor: '#1E3A8A', '&:hover': { backgroundColor: '#1e40af' } }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#1e40af'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = '#1E3A8A'}
-                        >
-                          <CreditCard className="w-4 h-4" />
-                          {printingStudentId === student.id ? 'Printing...' : 'Print Card'}
-                        </button>
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => handlePrint(student)}
+                            disabled={printingStudentId === student.id}
+                            className="w-full text-white py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            style={{ backgroundColor: '#1E3A8A', '&:hover': { backgroundColor: '#1e40af' } }}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = '#1e40af'}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = '#1E3A8A'}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            {printingStudentId === student.id ? 'Printing...' : 'Print Card'}
+                          </button>
+                          <button
+                            onClick={() => handleGenerateCardPDF(student)}
+                            disabled={printingStudentId === student.id}
+                            className="w-full bg-[#DC2626] hover:bg-red-700 text-white py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            {printingStudentId === student.id ? 'Generating...' : 'Generate Card PDF'}
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1914,7 +2350,7 @@ export default function StudentIDCardsPage() {
 
                 {/* Print All Button */}
                 {printFor === 'all' && (
-                  <div className="mt-6 flex justify-center">
+                  <div className="mt-6 flex justify-center gap-4">
                     <button
                       onClick={async () => {
                         setSaving(true)
@@ -2001,6 +2437,14 @@ export default function StudentIDCardsPage() {
                     >
                       <CreditCard className="w-5 h-5" />
                       {saving ? 'Generating Cards...' : `Print All ${filteredStudents.length} Cards`}
+                    </button>
+                    <button
+                      onClick={handleGenerateBulkCardsPDF}
+                      disabled={saving}
+                      className="bg-[#DC2626] hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <Download className="w-5 h-5" />
+                      {saving ? 'Generating PDFs...' : `Generate All ${filteredStudents.length} Cards PDF`}
                     </button>
                   </div>
                 )}

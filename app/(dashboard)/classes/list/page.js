@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft, CheckCircle, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { getUserFromCookie } from '@/lib/clientAuth'
+import { getUserFromCookie, getSchoolId } from '@/lib/clientAuth'
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose }) => {
@@ -74,6 +74,24 @@ const Toast = ({ message, type, onClose }) => {
 }
 
 export default function ClassListPage() {
+  // Debug: Check Supabase initialization
+  useEffect(() => {
+    console.log('📋 ClassListPage mounted')
+    console.log('🔌 Supabase client:', supabase ? 'Initialized' : 'NOT INITIALIZED')
+    const user = getUserFromCookie()
+    const schoolId = getSchoolId(user)
+    console.log('👤 User from storage:', user)
+    console.log('🔑 User properties:', user ? Object.keys(user) : 'No user')
+    console.log('🏫 School ID resolved:', schoolId || 'NOT FOUND')
+    console.log('🏫 School ID check:', {
+      'user.school_id': user?.school_id,
+      'user.schoolId': user?.schoolId,
+      'user.school': user?.school,
+      'getSchoolId() result': schoolId,
+      'Full user': JSON.stringify(user, null, 2)
+    })
+  }, [])
+
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -261,16 +279,30 @@ export default function ClassListPage() {
 
   const fetchStaff = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
-        console.error('No user found')
+      if (!supabase) {
+        console.error('❌ Supabase client not initialized')
         return
       }
+
+      // Fetch school_id from schools table
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        return
+      }
+
+      const schoolId = school.id
+      console.log('✅ Fetching staff for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('staff')
         .select('*')
-        .eq('school_id', user.school_id)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .eq('department', 'TEACHING')
         .order('first_name', { ascending: true })
@@ -288,28 +320,54 @@ export default function ClassListPage() {
   const fetchClasses = async () => {
     try {
       setLoading(true)
-      const user = getUserFromCookie()
-      if (!user) {
-        console.error('No user found')
+
+      if (!supabase) {
+        console.error('❌ Supabase client not initialized')
         setLoading(false)
         return
       }
+
+      // Fetch school_id from schools table (same as students pages)
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        setLoading(false)
+        return
+      }
+
+      const schoolId = school.id
+      console.log('✅ Fetched school_id:', schoolId)
 
       // Get classes with student count and total discount
       const { data: classes, error } = await supabase
         .from('classes')
         .select('*')
-        .eq('school_id', user.school_id)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
       if (error) {
         console.error('❌ Error fetching classes:', error)
-        console.error('Error details:', JSON.stringify(error, null, 2))
+        console.error('Error details:', error)
         setClasses([])
-      } else {
-        console.log('✅ Fetched classes:', classes)
-        console.log('Number of classes:', classes?.length || 0)
+        setLoading(false)
+        return
+      }
+
+      if (!classes || classes.length === 0) {
+        console.log('⚠️ No classes found')
+        setClasses([])
+        setLoading(false)
+        return
+      }
+
+      console.log('✅ Fetched classes:', classes)
+      console.log('Number of classes:', classes?.length || 0)
         // For each class, get student count and total discount
         const classesWithStats = await Promise.all(
           (classes || []).map(async (cls) => {
@@ -317,7 +375,7 @@ export default function ClassListPage() {
             const { count: totalStudents } = await supabase
               .from('students')
               .select('*', { count: 'exact', head: true })
-              .eq('school_id', user.school_id)
+              .eq('school_id', schoolId)
               .eq('current_class_id', cls.id)
               .eq('status', 'active')
 
@@ -325,7 +383,7 @@ export default function ClassListPage() {
             const { data: discountData } = await supabase
               .from('students')
               .select('discount_amount')
-              .eq('school_id', user.school_id)
+              .eq('school_id', schoolId)
               .eq('current_class_id', cls.id)
               .eq('status', 'active')
 
@@ -345,9 +403,10 @@ export default function ClassListPage() {
 
         console.log('✅ Classes with stats:', classesWithStats)
         setClasses(classesWithStats)
-      }
+
     } catch (error) {
-      console.error('❌ Error fetching classes:', error)
+      console.error('❌ Error in fetchClasses:', error)
+      setClasses([])
     } finally {
       setLoading(false)
     }
@@ -358,6 +417,39 @@ export default function ClassListPage() {
     const matchesClassFilter = !classFilter || cls.class_name === classFilter
     return matchesSearch && matchesClassFilter
   })
+
+  const exportToCSV = () => {
+    if (filteredClasses.length === 0) {
+      showToast('No data to export', 'error')
+      return
+    }
+
+    const csvData = filteredClasses.map((cls, index) => ({
+      'Sr.': index + 1,
+      'Class Name': cls.class_name || 'N/A',
+      'Standard Fee': cls.standard_fee || 'N/A',
+      'Status': cls.status || 'active'
+    }))
+
+    const headers = Object.keys(csvData[0])
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => {
+        const value = row[header]
+        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const date = new Date().toISOString().split('T')[0]
+    a.download = `classes-list-${date}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    showToast('CSV exported successfully!', 'success')
+  }
 
   // Pagination logic
   const totalPages = Math.ceil(filteredClasses.length / rowsPerPage)
@@ -417,6 +509,11 @@ export default function ClassListPage() {
             return
           }
 
+          if (!retryData || !Array.isArray(retryData) || retryData.length === 0) {
+            showToast('Failed to create class: No data returned', 'error')
+            return
+          }
+
           showToast('Class created successfully! (Note: Fee will be set to 0)', 'success')
           setShowModal(false)
           setFormData({ incharge: '', className: '', classFee: '', markingSystem: '', feePlan: 'monthly' })
@@ -436,6 +533,11 @@ export default function ClassListPage() {
           showToast('Failed to create class: ' + error.message, 'error')
         }
       } else {
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          showToast('Failed to create class: No data returned', 'error')
+          return
+        }
+
         setShowModal(false)
         setFormData({ incharge: '', className: '', classFee: '', markingSystem: '', feePlan: 'monthly' })
         setInchargeSearchTerm('')
@@ -508,6 +610,11 @@ export default function ClassListPage() {
         console.error('Error updating class:', error)
         showToast('Failed to update class: ' + error.message, 'error')
       } else {
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          showToast('Failed to update class: No data returned', 'error')
+          return
+        }
+
         setShowEditModal(false)
         setFormData({ incharge: '', className: '', classFee: '', markingSystem: '', feePlan: 'monthly' })
         setInchargeSearchTerm('')
@@ -958,7 +1065,7 @@ export default function ClassListPage() {
                 </div>
                 <div className="p-4">
                   <p className="text-gray-700 text-sm mb-4">
-                    Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
+                    Are you sure you want to delete student <span className="font-bold text-red-600">{`${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''}`.trim()}</span>? This action cannot be undone.
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -1005,7 +1112,16 @@ export default function ClassListPage() {
 
       {/* Search Section */}
       <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
-        <h2 className="text-base font-bold text-gray-800 mb-3">Search Classes</h2>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-base font-bold text-gray-800">Search Classes</h2>
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            <Download size={18} />
+            Export to Excel
+          </button>
+        </div>
 
         <div className="flex flex-col md:flex-row gap-3">
           {/* Class Filter */}

@@ -1471,6 +1471,12 @@ export default function FeeCreatePage() {
       const leftMargin = margins.left
       const rightMargin = pageWidth - margins.right
 
+      // Calculate color values from settings for reuse
+      const textColorRgb = hexToRgb(pdfSettings.textColor)
+      const secondaryColorRgb = hexToRgb(pdfSettings.secondaryColor)
+      const primaryColorRgb = hexToRgb(pdfSettings.primaryColor)
+      const lineWidthValue = pdfSettings.lineWidth === 'thick' ? 0.3 : pdfSettings.lineWidth === 'normal' ? 0.2 : 0.1
+
       // Header background with header background color from settings
       const headerHeight = 40
       const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
@@ -1557,18 +1563,21 @@ export default function FeeCreatePage() {
         }
       }
 
-      // School name and subtitle in white
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
+      // School name and subtitle in white (only if includeHeader is true)
+      if (pdfSettings.includeHeader !== false) {
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 8) // Header title larger than base font
+        doc.setFont('helvetica', 'bold')
+        doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
 
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Student FEE CHALLAN', pageWidth / 2, yPos + 12, { align: 'center' })
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1) // Subtitle slightly larger than base
+        doc.setFont('helvetica', 'normal')
+        const headerText = pdfSettings.headerText || 'Student FEE CHALLAN'
+        doc.text(headerText, pageWidth / 2, yPos + 12, { align: 'center' })
+      }
 
       // Generated date - position based on logo position to avoid overlap
-      doc.setFontSize(7)
+      doc.setFontSize(parseInt(pdfSettings.fontSize) - 1) // Date slightly smaller than base
       doc.setTextColor(220, 220, 220)
       const now = new Date()
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -1580,12 +1589,12 @@ export default function FeeCreatePage() {
       const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
       doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
 
-      // Reset to black
-      doc.setTextColor(0, 0, 0)
+      // Reset to text color from settings
+      doc.setTextColor(...textColorRgb)
       yPos = headerHeight + 10
 
       // STUDENT INFORMATION Section
-      doc.setFontSize(10)
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2) // Section titles slightly larger
       doc.setFont('helvetica', 'bold')
       doc.text('STUDENT INFORMATION', leftMargin, yPos)
       yPos += 7
@@ -1595,39 +1604,39 @@ export default function FeeCreatePage() {
       let xPos = leftMargin
 
       // Row 1: Student Name and Student Roll#
-      doc.setFontSize(8)
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb) // Use secondary color for labels
       doc.text('Student Name:', xPos, yPos)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
-      doc.text(studentName || 'Nadeem', xPos + labelWidth, yPos)
+      doc.setTextColor(...textColorRgb) // Use text color for values
+      doc.text(studentName || 'N/A', xPos + labelWidth, yPos)
 
       xPos = pageWidth / 2 + 5
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb)
       doc.text('Student Roll#:', xPos, yPos)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
-      doc.text(student?.admission_number || '343', xPos + labelWidth, yPos)
+      doc.setTextColor(...textColorRgb)
+      doc.text(student?.admission_number || 'N/A', xPos + labelWidth, yPos)
 
       yPos += 6
       xPos = leftMargin
 
       // Row 2: Class and Father Name
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb)
       doc.text('Class:', xPos, yPos)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textColorRgb)
       doc.text(className, xPos + labelWidth, yPos)
 
       xPos = pageWidth / 2 + 5
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb)
       doc.text('Father Name:', xPos, yPos)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textColorRgb)
       doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
 
       yPos += 6
@@ -1635,27 +1644,28 @@ export default function FeeCreatePage() {
 
       // Row 3: Due Date and Fee Type
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb)
       doc.text('Due Date:', xPos, yPos)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textColorRgb)
       const formattedDueDate = new Date(challan.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
-      doc.text(formattedDueDate + ' Tuesday', xPos + labelWidth, yPos)
+      const dueDayName = days[new Date(challan.due_date).getDay()]
+      doc.text(formattedDueDate + ' ' + dueDayName, xPos + labelWidth, yPos)
 
       xPos = pageWidth / 2 + 5
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb)
       doc.text('Fee Type:', xPos, yPos)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textColorRgb)
       doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
 
       yPos += 12
 
       // FEE BREAKDOWN Section
-      doc.setFontSize(10)
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textColorRgb)
       doc.text('FEE BREAKDOWN', leftMargin, yPos)
       yPos += 2
 
@@ -1666,23 +1676,30 @@ export default function FeeCreatePage() {
           formatCurrency(item.amount)
         ])
 
+        // Calculate cell padding from settings
+        const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
+        const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
+
         autoTable(doc, {
           startY: yPos,
           head: [['Particulars', 'Amount']],
           body: tableData,
-          theme: 'grid',
+          theme: pdfSettings.tableStyle || 'grid',
           headStyles: {
             fillColor: hexToRgb(pdfSettings.tableHeaderColor),
             textColor: [255, 255, 255],
-            fontSize: 9,
+            fontSize: parseInt(pdfSettings.fontSize) + 1,
             fontStyle: 'bold',
             halign: 'left',
-            cellPadding: { top: 3, bottom: 3, left: 5, right: 5 }
+            cellPadding: { top: cellPaddingValue - 1, bottom: cellPaddingValue - 1, left: 5, right: 5 }
           },
           bodyStyles: {
-            fontSize: 9,
-            cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
-            textColor: [0, 0, 0]
+            fontSize: parseInt(pdfSettings.fontSize) + 1,
+            cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 },
+            textColor: textColorRgb
+          },
+          alternateRowStyles: {
+            fillColor: alternateRowColorRgb
           },
           columnStyles: {
             0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
@@ -1690,14 +1707,14 @@ export default function FeeCreatePage() {
           },
           margin: { left: leftMargin, right: leftMargin },
           didParseCell: function(data) {
-            data.cell.styles.lineColor = [200, 200, 200]
-            data.cell.styles.lineWidth = 0.1
+            data.cell.styles.lineColor = secondaryColorRgb
+            data.cell.styles.lineWidth = lineWidthValue
           },
           didDrawCell: function(data) {
             if (data.column.index === 1 && data.section === 'body') {
               const amountText = data.cell.raw || ''
               if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
-                doc.setTextColor(220, 38, 38)
+                doc.setTextColor(...primaryColorRgb) // Use primary color for discounts
               }
             }
           }
@@ -1707,59 +1724,111 @@ export default function FeeCreatePage() {
       }
 
       // TOTAL FEE PAYABLE
-      doc.setFillColor(240, 253, 244)
+      const bgColorRgb = hexToRgb(pdfSettings.backgroundColor || '#F0FDF4')
+      doc.setFillColor(...bgColorRgb)
       doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
-      doc.setDrawColor(200, 200, 200)
-      doc.setLineWidth(0.1)
+      doc.setDrawColor(...secondaryColorRgb)
+      doc.setLineWidth(lineWidthValue)
       doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
 
-      doc.setFontSize(10)
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(...textColorRgb)
       doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
 
-      doc.setTextColor(22, 163, 74)
+      doc.setTextColor(...primaryColorRgb)
       doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
 
       yPos += 15
 
       // Amount in words
-      doc.setFontSize(8)
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb)
       doc.text('Amount in Words:', margins.left, yPos)
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(0, 0, 0)
-      doc.text('Two Thousand Seven Hundred Only', margins.left, yPos + 5)
+      doc.setTextColor(...textColorRgb)
+
+      // Simple number to words conversion
+      const numberToWords = (num) => {
+        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+        const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+
+        if (num === 0) return 'Zero'
+
+        let words = ''
+
+        if (num >= 1000) {
+          words += ones[Math.floor(num / 1000)] + ' Thousand '
+          num %= 1000
+        }
+
+        if (num >= 100) {
+          words += ones[Math.floor(num / 100)] + ' Hundred '
+          num %= 100
+        }
+
+        if (num >= 20) {
+          words += tens[Math.floor(num / 10)] + ' '
+          num %= 10
+        } else if (num >= 10) {
+          words += teens[num - 10] + ' '
+          num = 0
+        }
+
+        if (num > 0) {
+          words += ones[num] + ' '
+        }
+
+        return words.trim() + ' Only'
+      }
+
+      const amountInWords = numberToWords(challan.total_amount)
+      doc.text(amountInWords, margins.left, yPos + 5)
 
       yPos += 12
 
       // Payment Status
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(100, 100, 100)
+      doc.setTextColor(...secondaryColorRgb)
       doc.text('Payment Status:', margins.left, yPos)
 
-      const statusColor = challan.status === 'paid' ? [22, 163, 74] : challan.status === 'overdue' ? [220, 38, 38] : [234, 179, 8]
+      // Use primary color for status with different shades based on status
+      const statusColor = challan.status === 'paid' ? primaryColorRgb : challan.status === 'overdue' ? [220, 38, 38] : secondaryColorRgb
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(...statusColor)
       doc.text(challan.status.charAt(0).toUpperCase() + challan.status.slice(1), margins.left + 32, yPos)
 
-      // Footer
-      yPos = pageHeight - margins.bottom - 8
+      // Footer (only if includeFooter is true)
+      if (pdfSettings.includeFooter !== false) {
+        yPos = pageHeight - margins.bottom + 5
 
-      // Horizontal line above footer text
-      doc.setDrawColor(200, 200, 200)
-      doc.setLineWidth(0.3)
-      doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
+        // Horizontal line above footer text
+        doc.setDrawColor(...secondaryColorRgb)
+        doc.setLineWidth(lineWidthValue)
+        doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
 
-      doc.setFontSize(7)
-      doc.setTextColor(150, 150, 150)
-      doc.setFont('helvetica', 'normal')
-      doc.text(schoolData.name || 'Superior College Bhakkar', pageWidth / 2, yPos, { align: 'center' })
+        doc.setFontSize(parseInt(pdfSettings.fontSize) - 1)
+        doc.setTextColor(...secondaryColorRgb)
+        doc.setFont('helvetica', 'normal')
 
-      // Open PDF in new window instead of downloading
-      window.open(doc.output('bloburl'), '_blank')
-      showToast('PDF opened successfully!', 'success')
+        // Use footerText from settings if available, otherwise use school name
+        const footerText = pdfSettings.footerText || schoolData.name || schoolName
+        let footerContent = footerText
+
+        // Add page numbers if includePageNumbers is true
+        if (pdfSettings.includePageNumbers) {
+          footerContent = `${footerText} - Page 1`
+        }
+
+        doc.text(footerContent, pageWidth / 2, yPos, { align: 'center' })
+      }
+
+      // Download PDF directly
+      const fileName = `Fee_Challan_${student?.admission_number || 'unknown'}_${new Date().getTime()}.pdf`
+      doc.save(fileName)
+      showToast('PDF downloaded successfully!', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast('Failed to generate PDF', 'error')

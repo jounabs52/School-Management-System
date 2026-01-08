@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown, CheckCircle } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown, CheckCircle, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 
@@ -74,6 +74,21 @@ const Toast = ({ message, type, onClose }) => {
 }
 
 export default function SubjectsPage() {
+  // Debug: Check Supabase initialization
+  useEffect(() => {
+    console.log('📋 SubjectsPage mounted')
+    console.log('🔌 Supabase client:', supabase ? 'Initialized' : 'NOT INITIALIZED')
+    const testUser = getUserFromCookie()
+    console.log('👤 User from storage:', testUser)
+    console.log('🔑 User properties:', testUser ? Object.keys(testUser) : 'No user')
+    console.log('🏫 School ID check:', {
+      'user.school_id': testUser?.school_id,
+      'user.schoolId': testUser?.schoolId,
+      'user.school': testUser?.school,
+      'Full user': JSON.stringify(testUser, null, 2)
+    })
+  }, [])
+
   const [showSidebar, setShowSidebar] = useState(false)
   const [showEditSidebar, setShowEditSidebar] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -92,7 +107,6 @@ export default function SubjectsPage() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingClasses, setLoadingClasses] = useState(true)
-  const [user, setUser] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage] = useState(10)
 
@@ -123,59 +137,44 @@ export default function SubjectsPage() {
     }
   }, [showSidebar, showEditSidebar, showDeleteModal])
 
-  // Fetch user and classes data on component mount
+  // Fetch classes and subjects on component mount
   useEffect(() => {
-    const initializeUser = () => {
-      try {
-        const userData = getUserFromCookie()
-
-        if (userData) {
-          console.log('User authenticated:', userData)
-          setUser(userData)
-        } else {
-          console.error('No user found in localStorage or cookies')
-          setLoadingClasses(false)
-          setLoading(false)
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error)
-        setLoadingClasses(false)
-        setLoading(false)
-      }
-    }
-
-    initializeUser()
+    fetchClasses()
+    fetchSubjects()
   }, [])
-
-  // Fetch classes and subjects when user is available
-  useEffect(() => {
-    if (user && user.school_id) {
-      console.log('User loaded, fetching data for school_id:', user.school_id)
-      fetchClasses()
-      fetchSubjects()
-    } else if (user) {
-      console.error('User found but school_id is missing:', user)
-      setLoadingClasses(false)
-      setLoading(false)
-    }
-  }, [user])
 
   const fetchClasses = async () => {
     try {
       setLoadingClasses(true)
 
-      if (!user || !user.school_id) {
-        console.error('Cannot fetch classes: user or school_id not available')
+      if (!supabase) {
+        console.error('❌ Supabase client not initialized')
         setClasses([])
+        setLoadingClasses(false)
         return
       }
 
-      console.log('Fetching classes for school_id:', user.school_id)
+      // Fetch school_id from schools table
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        setClasses([])
+        setLoadingClasses(false)
+        return
+      }
+
+      const schoolId = school.id
+      console.log('✅ Fetching classes for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name, incharge, exam_marking_system, standard_fee, order_number, status')
-        .eq('school_id', user.school_id)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -186,7 +185,7 @@ export default function SubjectsPage() {
         console.log('Fetched classes:', data)
 
         if (!data || data.length === 0) {
-          console.warn('No classes found in database for school_id:', user.school_id)
+          console.warn('No classes found in database for school_id:', schoolId)
           setClasses([])
         } else {
           const transformedClasses = data.map(cls => ({
@@ -213,29 +212,47 @@ export default function SubjectsPage() {
     try {
       setLoading(true)
 
-      if (!user || !user.school_id) {
-        console.error('Cannot fetch subjects: user or school_id not available')
+      if (!supabase) {
+        console.error('❌ Supabase client not initialized')
+        setLoading(false)
         return
       }
 
-      console.log('Fetching subjects for school_id:', user.school_id)
+      // Fetch school_id from schools table
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        setLoading(false)
+        return
+      }
+
+      const schoolId = school.id
+      console.log('✅ Fetching subjects for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('class_subjects')
         .select(`
           id,
           is_compulsory,
+          class_id,
+          subject_id,
           classes:class_id (id, class_name),
           subjects:subject_id (id, subject_name, subject_code)
         `)
-        .eq('school_id', user.school_id)
+        .eq('school_id', schoolId)
         .order('id', { ascending: true })
 
       if (error) {
         console.error('Error fetching subjects:', error)
+        console.error('Error details:', error)
         setSubjects([])
       } else {
-        console.log('Fetched subjects:', data)
+        console.log('✅ Fetched subjects:', data)
         const transformedData = data.map((item, index) => ({
           id: item.id,
           sr: index + 1,
@@ -247,10 +264,11 @@ export default function SubjectsPage() {
           teacher: '-',
           isCompulsory: item.is_compulsory
         }))
+        console.log('✅ Transformed subjects data:', transformedData)
         setSubjects(transformedData)
       }
     } catch (error) {
-      console.error('Error fetching subjects:', error)
+      console.error('❌ Error fetching subjects:', error)
       setSubjects([])
     } finally {
       setLoading(false)
@@ -258,12 +276,45 @@ export default function SubjectsPage() {
   }
 
   const filteredSubjects = subjects.filter(subject => {
-    const matchesSearch = subject.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         subject.subjectCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         subject.className.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = subject.subjectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         subject.subjectCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         subject.className?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesClass = !selectedClass || subject.className === selectedClass
     return matchesSearch && matchesClass
   })
+
+  const exportToCSV = () => {
+    if (filteredSubjects.length === 0) {
+      showToast('No data to export', 'error')
+      return
+    }
+
+    const csvData = filteredSubjects.map((subject, index) => ({
+      'Sr.': index + 1,
+      'Class': subject.className || 'N/A',
+      'Subject Name': subject.subjectName || 'N/A',
+      'Subject Code': subject.subjectCode || 'N/A'
+    }))
+
+    const headers = Object.keys(csvData[0])
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => {
+        const value = row[header]
+        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const date = new Date().toISOString().split('T')[0]
+    a.download = `subjects-${date}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    showToast('CSV exported successfully!', 'success')
+  }
 
   // Group subjects by class
   const groupedSubjects = filteredSubjects.reduce((acc, subject) => {
@@ -298,103 +349,242 @@ export default function SubjectsPage() {
   }, [searchTerm, selectedClass])
 
   const handleSave = async () => {
+    console.log('🚀 ========== SAVE SUBJECTS STARTED ==========')
+    
     try {
+      // Validation
       if (!formData.classId) {
+        console.log('❌ Validation failed: No class selected')
         showToast('Please select a class', 'error')
         return
       }
 
       const validSubjects = formData.subjects.filter(s => s.subjectName.trim())
       if (validSubjects.length === 0) {
+        console.log('❌ Validation failed: No valid subjects')
         showToast('Please enter at least one subject name', 'error')
         return
       }
 
-      if (!user || !user.school_id || !user.id) {
-        showToast('User authentication error', 'error')
+      console.log('✅ Validation passed')
+      console.log('📝 Valid subjects to save:', validSubjects)
+      console.log('🎓 Selected class ID:', formData.classId)
+
+      // Fetch school_id from schools table
+      console.log('🔍 Fetching school information...')
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        showToast('Error fetching school information', 'error')
         return
       }
 
+      const schoolId = school.id
+      console.log('✅ School ID retrieved:', schoolId)
+
+      // Get current user ID from cookie/auth
+      const currentUser = getUserFromCookie()
+      const userId = currentUser?.id || currentUser?.user_id || schoolId // Fallback to schoolId if no user
+      console.log('👤 User ID for created_by:', userId)
+
       const subjectsToProcess = [...validSubjects]
       const classId = formData.classId
+      const className = classes.find(c => c.id === classId)?.name || ''
 
-      // Close sidebar immediately
-      setShowSidebar(false)
-      setFormData({ classId: '', subjects: [{ subjectName: '', subjectCode: '' }] })
+      console.log('📊 Processing data:', {
+        schoolId,
+        userId,
+        classId,
+        className,
+        subjectsCount: subjectsToProcess.length
+      })
 
       const newSubjectsData = []
+      let hasErrors = false
+      let successCount = 0
 
-      for (const subject of subjectsToProcess) {
+      // Process each subject
+      for (let i = 0; i < subjectsToProcess.length; i++) {
+        const subject = subjectsToProcess[i]
+        console.log(`\n🔄 Processing subject ${i + 1}/${subjectsToProcess.length}: "${subject.subjectName}"`)
+        
         let subjectId = null
 
-        const { data: existingSubject } = await supabase
+        // Step 1: Check if subject already exists
+        console.log('  ├─ Step 1: Checking if subject exists...')
+        
+        const { data: existingSubject, error: checkError } = await supabase
           .from('subjects')
-          .select('id')
-          .eq('school_id', user.school_id)
+          .select('id, subject_name, subject_code')
+          .eq('school_id', schoolId)
           .eq('subject_name', subject.subjectName)
           .maybeSingle()
 
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('  ├─ ❌ Error checking existing subject:', checkError)
+          showToast(`Error checking subject: ${subject.subjectName}`, 'error')
+          hasErrors = true
+          continue
+        }
+
         if (existingSubject) {
           subjectId = existingSubject.id
+          console.log('  ├─ ✅ Subject already exists with ID:', subjectId)
+          console.log('  ├─ Existing subject details:', existingSubject)
         } else {
+          // Step 2: Create new subject
+          console.log('  ├─ Step 2: Creating new subject...')
+          
+          const subjectData = {
+            school_id: schoolId,
+            subject_name: subject.subjectName,
+            subject_code: subject.subjectCode?.trim() || null,
+            created_by: userId // Use user ID, not school ID
+          }
+          console.log('  ├─ Subject data to insert:', subjectData)
+
           const { data: newSubject, error: subjectError } = await supabase
             .from('subjects')
-            .insert({
-              school_id: user.school_id,
-              subject_name: subject.subjectName,
-              subject_code: subject.subjectCode || null,
-              created_by: user.id
-            })
+            .insert(subjectData)
             .select('id')
             .single()
 
           if (subjectError) {
-            console.error('Error creating subject:', subjectError)
-            showToast(`Failed to create subject: ${subject.subjectName}`, 'error')
-            continue
+            console.error('  ├─ ❌ Error creating subject:', subjectError)
+            console.error('  ├─ Error code:', subjectError.code)
+            console.error('  ├─ Error message:', subjectError.message)
+            
+            // If it's a conflict error (409 or 23505), try to fetch the existing record
+            if (subjectError.code === '23505' || subjectError.message?.includes('duplicate') || subjectError.message?.includes('unique')) {
+              console.log('  ├─ ⚠️ Conflict detected, fetching existing subject...')
+              const { data: retryExisting, error: retryError } = await supabase
+                .from('subjects')
+                .select('id')
+                .eq('school_id', schoolId)
+                .eq('subject_name', subject.subjectName)
+                .maybeSingle()
+              
+              if (retryError) {
+                console.error('  ├─ ❌ Error fetching existing subject:', retryError)
+                showToast(`Failed to handle subject: ${subject.subjectName}`, 'error')
+                hasErrors = true
+                continue
+              }
+              
+              if (retryExisting) {
+                subjectId = retryExisting.id
+                console.log('  ├─ ✅ Found existing subject with ID:', subjectId)
+              } else {
+                showToast(`Subject "${subject.subjectName}" exists but couldn't be retrieved`, 'error')
+                hasErrors = true
+                continue
+              }
+            } else {
+              showToast(`Failed to create subject: ${subject.subjectName}`, 'error')
+              hasErrors = true
+              continue
+            }
+          } else {
+            subjectId = newSubject.id
+            console.log('  ├─ ✅ New subject created with ID:', subjectId)
           }
-
-          subjectId = newSubject.id
         }
 
-        const { data: existingRelation } = await supabase
+        // At this point, we should have a valid subjectId
+        if (!subjectId) {
+          console.error('  ├─ ❌ No subject ID available')
+          showToast(`Failed to process subject: ${subject.subjectName}`, 'error')
+          hasErrors = true
+          continue
+        }
+
+        // Step 3: Check if class-subject relationship already exists
+        console.log('  ├─ Step 3: Checking class-subject relationship...')
+        const { data: existingRelation, error: relationCheckError } = await supabase
           .from('class_subjects')
           .select('id')
-          .eq('school_id', user.school_id)
+          .eq('school_id', schoolId)
           .eq('class_id', classId)
           .eq('subject_id', subjectId)
           .maybeSingle()
 
-        if (!existingRelation) {
-          const { data, error: classSubjectError } = await supabase
-            .from('class_subjects')
-            .insert({
-              school_id: user.school_id,
-              class_id: classId,
-              subject_id: subjectId,
-              is_compulsory: true,
-              created_by: user.id
-            })
-            .select('id')
-
-          if (classSubjectError) {
-            console.error('Error creating class-subject relationship:', classSubjectError)
-            showToast(`Failed to assign subject: ${subject.subjectName}`, 'error')
-          } else if (data && data[0]) {
-            newSubjectsData.push({
-              id: data[0].id,
-              classId: classId,
-              className: classes.find(c => c.id === classId)?.name || '',
-              subjectId: subjectId,
-              subjectName: subject.subjectName,
-              subjectCode: subject.subjectCode
-            })
-          }
+        if (relationCheckError && relationCheckError.code !== 'PGRST116') {
+          console.error('  ├─ ❌ Error checking relation:', relationCheckError)
+          showToast(`Error checking relation for: ${subject.subjectName}`, 'error')
+          hasErrors = true
+          continue
         }
+
+        if (existingRelation) {
+          console.log('  ├─ ⚠️ Relationship already exists, skipping...')
+          showToast(`Subject "${subject.subjectName}" is already assigned to ${className}`, 'error')
+          hasErrors = true
+          continue
+        }
+
+        // Step 4: Create class-subject relationship
+        console.log('  ├─ Step 4: Creating class-subject relationship...')
+        const relationData = {
+          school_id: schoolId,
+          class_id: classId,
+          subject_id: subjectId,
+          is_compulsory: true,
+          created_by: userId // Use user ID, not school ID
+        }
+        console.log('  ├─ Relationship data to insert:', relationData)
+
+        const { data: newRelation, error: classSubjectError } = await supabase
+          .from('class_subjects')
+          .insert(relationData)
+          .select('id')
+          .single()
+
+        if (classSubjectError) {
+          console.error('  ├─ ❌ Error creating relationship:', classSubjectError)
+          console.error('  ├─ Error code:', classSubjectError.code)
+          console.error('  ├─ Error message:', classSubjectError.message)
+          
+          if (classSubjectError.code === '23505' || classSubjectError.message?.includes('duplicate')) {
+            showToast(`Subject "${subject.subjectName}" is already assigned to ${className}`, 'error')
+          } else {
+            showToast(`Failed to assign subject: ${subject.subjectName}`, 'error')
+          }
+          hasErrors = true
+          continue
+        }
+
+        console.log('  └─ ✅ SUCCESS! Relationship created with ID:', newRelation.id)
+        successCount++
+
+        // Add to results array
+        newSubjectsData.push({
+          id: newRelation.id,
+          classId: classId,
+          className: className,
+          subjectId: subjectId,
+          subjectName: subject.subjectName,
+          subjectCode: subject.subjectCode || ''
+        })
       }
+
+      console.log('\n📊 ========== PROCESSING COMPLETE ==========')
+      console.log('✅ Successfully processed:', successCount)
+      console.log('❌ Failed:', subjectsToProcess.length - successCount)
+      console.log('📝 New subjects data:', newSubjectsData)
+
+      // Close sidebar and reset form AFTER all operations complete
+      console.log('🚪 Closing sidebar and resetting form...')
+      setShowSidebar(false)
+      setFormData({ classId: '', subjects: [{ subjectName: '', subjectCode: '' }] })
 
       // Update subjects state in real-time
       if (newSubjectsData.length > 0) {
+        console.log('🔄 Updating UI with new subjects...')
         setSubjects(prev => [...prev, ...newSubjectsData.map((item, idx) => ({
           id: item.id,
           sr: prev.length + idx + 1,
@@ -406,12 +596,29 @@ export default function SubjectsPage() {
           teacher: '-',
           isCompulsory: true
         }))])
+
+        if (hasErrors) {
+          showToast(`${newSubjectsData.length} subject(s) added successfully!`, 'success')
+        } else {
+          showToast('Subjects added successfully!', 'success')
+        }
+      } else {
+        if (hasErrors) {
+          showToast('Failed to add subjects. Please check the console for details.', 'error')
+        } else {
+          showToast('No new subjects were added', 'error')
+        }
       }
 
-      showToast('Subjects added successfully!', 'success')
+      console.log('✅ ========== SAVE COMPLETE ==========\n')
+
     } catch (error) {
-      console.error('Error saving subjects:', error)
-      showToast('An error occurred while saving', 'error')
+      console.error('❌ ========== UNEXPECTED ERROR ==========')
+      console.error('Error:', error)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+      console.error('========================================\n')
+      showToast('An unexpected error occurred while saving', 'error')
     }
   }
 
@@ -456,22 +663,47 @@ export default function SubjectsPage() {
   }
 
   const handleUpdate = async () => {
+    console.log('🚀 ========== UPDATE SUBJECTS STARTED ==========')
+
     try {
+      // Validation
       if (!editFormData.classId) {
+        console.log('❌ Validation failed: No class selected')
         showToast('Please select a class', 'error')
         return
       }
 
       const validSubjects = editFormData.subjects.filter(s => s.subjectName.trim())
       if (validSubjects.length === 0) {
+        console.log('❌ Validation failed: No valid subjects')
         showToast('Please enter at least one subject name', 'error')
         return
       }
 
-      if (!user || !user.school_id || !user.id) {
-        showToast('User authentication error', 'error')
+      console.log('✅ Validation passed')
+      console.log('📝 Valid subjects to update:', validSubjects)
+
+      // Fetch school_id from schools table
+      console.log('🔍 Fetching school information...')
+      const { data: school, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError || !school) {
+        console.error('❌ Error fetching school:', schoolError)
+        showToast('Error fetching school information', 'error')
         return
       }
+
+      const schoolId = school.id
+      console.log('✅ School ID retrieved:', schoolId)
+
+      // Get current user ID from cookie/auth
+      const currentUser = getUserFromCookie()
+      const userId = currentUser?.id || currentUser?.user_id || schoolId // Fallback to schoolId if no user
+      console.log('👤 User ID for created_by:', userId)
 
       const subjectsToDelete = selectedSubject.subjects
         .filter(s => !editFormData.subjects.find(es => es.id === s.id))
@@ -479,144 +711,241 @@ export default function SubjectsPage() {
       const classId = editFormData.classId
       const className = selectedSubject.className
 
-      // Close sidebar immediately
-      setShowEditSidebar(false)
-      setSelectedSubject(null)
-      setEditFormData({ classId: '', subjects: [] })
+      console.log('📊 Processing data:', {
+        schoolId,
+        userId,
+        classId,
+        className,
+        subjectsToDelete: subjectsToDelete.length,
+        subjectsToProcess: subjectsToProcess.length
+      })
 
       // Process deletions
+      console.log('\n🗑️  Processing deletions...')
       const deletedIds = []
+      let deletionErrors = 0
+
       for (const subject of subjectsToDelete) {
+        console.log(`  ├─ Deleting: "${subject.subjectName}"`)
         const { error } = await supabase
           .from('class_subjects')
           .delete()
           .eq('id', subject.id)
 
-        if (!error) {
+        if (error) {
+          console.error(`  ├─ ❌ Error deleting subject:`, error)
+          deletionErrors++
+        } else {
+          console.log(`  ├─ ✅ Deleted successfully`)
           deletedIds.push(subject.id)
         }
       }
 
-      const newSubjectsData = []
+      console.log(`✅ Deletions complete: ${deletedIds.length} deleted, ${deletionErrors} errors`)
 
-      for (const subject of subjectsToProcess) {
+      // Process updates and additions
+      const newSubjectsData = []
+      let updateErrors = 0
+      let updateSuccess = 0
+
+      for (let i = 0; i < subjectsToProcess.length; i++) {
+        const subject = subjectsToProcess[i]
+        console.log(`\n🔄 Processing subject ${i + 1}/${subjectsToProcess.length}: "${subject.subjectName}"`)
+
         if (subject.id && subject.subjectId) {
           // Update existing subject
-          await supabase
+          console.log('  ├─ Mode: UPDATE existing subject')
+          console.log('  ├─ Subject ID:', subject.subjectId)
+
+          const { error: updateError } = await supabase
             .from('subjects')
             .update({
               subject_name: subject.subjectName,
-              subject_code: subject.subjectCode || null
+              subject_code: subject.subjectCode?.trim() || null
             })
             .eq('id', subject.subjectId)
+
+          if (updateError) {
+            console.error('  ├─ ❌ Error updating subject:', updateError)
+            showToast(`Failed to update subject: ${subject.subjectName}`, 'error')
+            updateErrors++
+          } else {
+            console.log('  └─ ✅ Updated successfully')
+            updateSuccess++
+          }
         } else {
           // Create new subject
+          console.log('  ├─ Mode: CREATE new subject')
           let subjectId = null
 
-          const { data: existingSubject } = await supabase
+          // Check if subject exists
+          console.log('  ├─ Step 1: Checking if subject exists...')
+          const { data: existingSubject, error: checkError } = await supabase
             .from('subjects')
             .select('id')
-            .eq('school_id', user.school_id)
+            .eq('school_id', schoolId)
             .eq('subject_name', subject.subjectName)
             .maybeSingle()
 
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error('  ├─ ❌ Error checking existing subject:', checkError)
+            showToast(`Error checking subject: ${subject.subjectName}`, 'error')
+            updateErrors++
+            continue
+          }
+
           if (existingSubject) {
             subjectId = existingSubject.id
+            console.log('  ├─ ✅ Subject already exists with ID:', subjectId)
           } else {
+            // Create new subject
+            console.log('  ├─ Step 2: Creating new subject...')
             const { data: newSubject, error: subjectError } = await supabase
               .from('subjects')
               .insert({
-                school_id: user.school_id,
+                school_id: schoolId,
                 subject_name: subject.subjectName,
-                subject_code: subject.subjectCode || null,
-                created_by: user.id
+                subject_code: subject.subjectCode?.trim() || null,
+                created_by: userId
               })
               .select('id')
               .single()
 
             if (subjectError) {
-              console.error('Error creating subject:', subjectError)
+              console.error('  ├─ ❌ Error creating subject:', subjectError)
               showToast(`Failed to create subject: ${subject.subjectName}`, 'error')
+              updateErrors++
               continue
             }
 
             subjectId = newSubject.id
+            console.log('  ├─ ✅ New subject created with ID:', subjectId)
           }
 
-          const { data: existingRelation } = await supabase
+          // Create class-subject relationship
+          console.log('  ├─ Step 3: Checking class-subject relationship...')
+          const { data: existingRelation, error: relationCheckError } = await supabase
             .from('class_subjects')
             .select('id')
-            .eq('school_id', user.school_id)
+            .eq('school_id', schoolId)
             .eq('class_id', classId)
             .eq('subject_id', subjectId)
             .maybeSingle()
 
-          if (!existingRelation) {
+          if (relationCheckError && relationCheckError.code !== 'PGRST116') {
+            console.error('  ├─ ❌ Error checking relation:', relationCheckError)
+            showToast(`Error checking relation for: ${subject.subjectName}`, 'error')
+            updateErrors++
+            continue
+          }
+
+          if (existingRelation) {
+            console.log('  ├─ ⚠️ Relationship already exists')
+            updateSuccess++
+          } else {
+            console.log('  ├─ Step 4: Creating class-subject relationship...')
             const { data, error: classSubjectError } = await supabase
               .from('class_subjects')
               .insert({
-                school_id: user.school_id,
+                school_id: schoolId,
                 class_id: classId,
                 subject_id: subjectId,
                 is_compulsory: true,
-                created_by: user.id
+                created_by: userId
               })
               .select('id')
+              .single()
 
-            if (!classSubjectError && data && data[0]) {
-              newSubjectsData.push({
-                id: data[0].id,
-                classId: classId,
-                className: classes.find(c => c.id === classId)?.name || className,
-                subjectId: subjectId,
-                subjectName: subject.subjectName,
-                subjectCode: subject.subjectCode
-              })
+            if (classSubjectError) {
+              console.error('  ├─ ❌ Error creating relationship:', classSubjectError)
+              showToast(`Failed to assign subject: ${subject.subjectName}`, 'error')
+              updateErrors++
+              continue
             }
+
+            console.log('  └─ ✅ Relationship created with ID:', data.id)
+            updateSuccess++
+
+            newSubjectsData.push({
+              id: data.id,
+              classId: classId,
+              className: classes.find(c => c.id === classId)?.name || className,
+              subjectId: subjectId,
+              subjectName: subject.subjectName,
+              subjectCode: subject.subjectCode
+            })
           }
         }
       }
 
-      // Update subjects state in real-time
-      setSubjects(prev => {
-        // Remove deleted subjects
-        let updated = prev.filter(s => !deletedIds.includes(s.id))
+      console.log('\n📊 ========== PROCESSING COMPLETE ==========')
+      console.log('✅ Successfully updated/added:', updateSuccess)
+      console.log('❌ Failed:', updateErrors)
+      console.log('🗑️  Deleted:', deletedIds.length)
 
-        // Update existing subjects
-        updated = updated.map(s => {
-          const editedSubject = validSubjects.find(es => es.id === s.id)
-          if (editedSubject) {
-            return {
-              ...s,
-              subjectName: editedSubject.subjectName,
-              subjectCode: editedSubject.subjectCode
+      // Only close sidebar and update UI if there were no errors OR if some operations succeeded
+      if (updateErrors === 0 || updateSuccess > 0 || deletedIds.length > 0) {
+        console.log('🚪 Closing sidebar and resetting form...')
+        setShowEditSidebar(false)
+        setSelectedSubject(null)
+        setEditFormData({ classId: '', subjects: [] })
+
+        // Update subjects state in real-time
+        console.log('🔄 Updating UI...')
+        setSubjects(prev => {
+          // Remove deleted subjects
+          let updated = prev.filter(s => !deletedIds.includes(s.id))
+
+          // Update existing subjects
+          updated = updated.map(s => {
+            const editedSubject = validSubjects.find(es => es.id === s.id)
+            if (editedSubject) {
+              return {
+                ...s,
+                subjectName: editedSubject.subjectName,
+                subjectCode: editedSubject.subjectCode
+              }
             }
+            return s
+          })
+
+          // Add new subjects
+          if (newSubjectsData.length > 0) {
+            updated = [...updated, ...newSubjectsData.map((item, idx) => ({
+              id: item.id,
+              sr: updated.length + idx + 1,
+              classId: item.classId,
+              className: item.className,
+              subjectId: item.subjectId,
+              subjectName: item.subjectName,
+              subjectCode: item.subjectCode,
+              teacher: '-',
+              isCompulsory: true
+            }))]
           }
-          return s
+
+          return updated
         })
 
-        // Add new subjects
-        if (newSubjectsData.length > 0) {
-          updated = [...updated, ...newSubjectsData.map((item, idx) => ({
-            id: item.id,
-            sr: updated.length + idx + 1,
-            classId: item.classId,
-            className: item.className,
-            subjectId: item.subjectId,
-            subjectName: item.subjectName,
-            subjectCode: item.subjectCode,
-            teacher: '-',
-            isCompulsory: true
-          }))]
+        if (updateErrors > 0) {
+          showToast(`Partially updated: ${updateSuccess} succeeded, ${updateErrors} failed`, 'error')
+        } else {
+          showToast('Subjects updated successfully!', 'success')
         }
+      } else {
+        console.error('❌ All operations failed, keeping sidebar open')
+        showToast('Failed to update subjects. Please try again.', 'error')
+      }
 
-        return updated
-      })
+      console.log('✅ ========== UPDATE COMPLETE ==========\n')
 
-      showToast('Subjects updated successfully!', 'success')
     } catch (error) {
-      console.error('Error updating subjects:', error)
-      showToast('An error occurred while updating', 'error')
+      console.error('❌ ========== UNEXPECTED ERROR ==========')
+      console.error('Error:', error)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+      console.error('========================================\n')
+      showToast('An unexpected error occurred while updating', 'error')
     }
   }
 
@@ -671,7 +1000,16 @@ export default function SubjectsPage() {
 
       {/* Search Section */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Search Subjects</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Search Subjects</h2>
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            <Download size={18} />
+            Export to Excel
+          </button>
+        </div>
 
         <div className="flex flex-col md:flex-row gap-4">
           {/* Class Filter */}
@@ -1155,4 +1493,4 @@ export default function SubjectsPage() {
       )}
     </div>
   )
-}
+} 

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Loader2, AlertCircle, ToggleLeft, ToggleRight, Printer, CheckCircle } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, applyPdfSettings, getAutoTableStyles } from '@/lib/pdfSettings'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -88,6 +89,7 @@ const Toast = ({ message, type, onClose }) => {
 export default function AdmissionRegisterPage() {
   const [activeTab, setActiveTab] = useState('register')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [selectedOption, setSelectedOption] = useState('')
   const [showRegisterSidebar, setShowRegisterSidebar] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -116,6 +118,8 @@ export default function AdmissionRegisterPage() {
   const [rowsPerPage] = useState(10)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+  const [admissionNoExists, setAdmissionNoExists] = useState(false)
+  const [checkingAdmissionNo, setCheckingAdmissionNo] = useState(false)
 
   // Toast state
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
@@ -330,6 +334,26 @@ export default function AdmissionRegisterPage() {
     fetchStudents()
   }, [selectedOption])
 
+  // Debounce search term
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
+
+  // Check admission number uniqueness with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (formData.admissionNo && showRegisterSidebar) {
+        checkAdmissionNumberExists(formData.admissionNo)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [formData.admissionNo, showRegisterSidebar, isEditMode])
+
   // Prevent body scroll when modals are open
   useEffect(() => {
     if (showRegisterSidebar || showViewModal || showDeleteModal) {
@@ -399,6 +423,50 @@ export default function AdmissionRegisterPage() {
     }
   }
 
+  const checkAdmissionNumberExists = async (admissionNo) => {
+    if (!admissionNo || admissionNo.trim() === '') {
+      setAdmissionNoExists(false)
+      return
+    }
+
+    setCheckingAdmissionNo(true)
+    try {
+      const { data: schools, error: schoolError } = await supabase
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (schoolError) {
+        console.error('Error fetching school:', schoolError)
+        return
+      }
+
+      let query = supabase
+        .from('students')
+        .select('id, admission_number')
+        .eq('school_id', schools.id)
+        .eq('admission_number', admissionNo.trim())
+
+      if (isEditMode && formData.id) {
+        query = query.neq('id', formData.id)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error('Error checking admission number:', error)
+        return
+      }
+
+      setAdmissionNoExists(data && data.length > 0)
+    } catch (err) {
+      console.error('Error checking admission number:', err)
+    } finally {
+      setCheckingAdmissionNo(false)
+    }
+  }
+
   const fetchClasses = async () => {
     setLoadingClasses(true)
     try {
@@ -436,23 +504,38 @@ export default function AdmissionRegisterPage() {
 
       if (error) throw error
 
-      // Get current student count for each section
-      const sectionsWithCount = await Promise.all(
-        (data || []).map(async (section) => {
-          const { count, error: countError } = await supabase
-            .from('students')
-            .select('id', { count: 'exact', head: true })
-            .eq('current_section_id', section.id)
-            .eq('status', 'active')
+      // Get student counts for all sections in a single query
+      const sectionIds = (data || []).map(section => section.id)
 
-          if (countError) {
-            console.error('Error counting students:', countError)
-            return { ...section, current_count: 0 }
-          }
+      if (sectionIds.length === 0) {
+        setSections([])
+        return
+      }
 
-          return { ...section, current_count: count || 0 }
-        })
-      )
+      const { data: studentCounts, error: countError } = await supabase
+        .from('students')
+        .select('current_section_id')
+        .in('current_section_id', sectionIds)
+        .eq('status', 'active')
+
+      if (countError) {
+        console.error('Error counting students:', countError)
+        setSections(data.map(section => ({ ...section, current_count: 0 })))
+        return
+      }
+
+      // Count students per section
+      const countMap = {}
+      studentCounts.forEach(student => {
+        const sectionId = student.current_section_id
+        countMap[sectionId] = (countMap[sectionId] || 0) + 1
+      })
+
+      // Add counts to sections
+      const sectionsWithCount = data.map(section => ({
+        ...section,
+        current_count: countMap[section.id] || 0
+      }))
 
       setSections(sectionsWithCount)
     } catch (err) {
@@ -514,9 +597,9 @@ export default function AdmissionRegisterPage() {
   }
 
   const filteredAdmissions = admissions.filter(adm => {
-    const matchesSearch = adm.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      adm.father.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      adm.admNo.toString().includes(searchTerm)
+    const matchesSearch = adm.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      adm.father.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      adm.admNo.toString().includes(debouncedSearchTerm)
 
     const matchesClass = !selectedOption || adm.class === selectedOption
 
@@ -532,7 +615,7 @@ export default function AdmissionRegisterPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedOption])
+  }, [debouncedSearchTerm, selectedOption])
 
   const resetForm = () => {
     setFormData({
@@ -1114,147 +1197,482 @@ export default function AdmissionRegisterPage() {
     }
   }
 
-  const handlePrintStudent = () => {
+  const handlePrintStudent = async () => {
     if (!selectedStudent) return
 
-    const doc = new jsPDF()
+    try {
+      // Load PDF settings from centralized settings
+      const pdfSettings = getPdfSettings()
 
-    // Title
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Student Information', 105, 20, { align: 'center' })
+      console.log('PDF Settings loaded:', pdfSettings)
 
-    // Line
-    doc.setDrawColor(200, 200, 200)
-    doc.line(20, 25, 190, 25)
+      // Fetch school data for logo and name
+      const { data: schoolData, error: schoolError } = await supabase
+        .from('schools')
+        .select('*')
+        .limit(1)
+        .single()
 
-    let yPos = 35
-    const lineHeight = 7
-    const leftMargin = 20
-    const rightMargin = 110
+      if (schoolError) {
+        console.error('Error fetching school data:', schoolError)
+      }
 
-    // Helper function to add field
-    const addField = (label, value, isFullWidth = false) => {
-      if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text(label + ':', leftMargin, yPos)
-        doc.setFont('helvetica', 'normal')
-        const text = String(value)
-        if (isFullWidth) {
-          doc.text(text, leftMargin + 50, yPos)
-        } else {
-          doc.text(text, leftMargin + 45, yPos)
+      console.log('School data fetched:', schoolData)
+      console.log('School logo URL:', schoolData?.logo_url)
+
+      // Create PDF with settings - respect user's orientation choice
+      const orientation = pdfSettings.orientation || 'portrait'
+      const doc = new jsPDF({
+        orientation: orientation,
+        unit: 'mm',
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+      })
+
+      console.log('PDF created with orientation:', orientation)
+
+      const pageWidth = doc.internal.pageSize.width
+      const pageHeight = doc.internal.pageSize.height
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Set page background color
+      const bgRgb = hexToRgb(pdfSettings.backgroundColor || '#ffffff')
+      doc.setFillColor(...bgRgb)
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+
+      // Calculate margins using centralized function
+      const margins = getMarginValues(pdfSettings.margin)
+
+      // Helper to convert image URL to base64
+      const convertToBase64 = async (url) => {
+        try {
+          const response = await fetch(url)
+          const blob = await response.blob()
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+        } catch (error) {
+          console.error('Error converting image:', error)
+          return null
         }
-        yPos += lineHeight
-      }
-    }
-
-    // Basic Information Section
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Basic Information', leftMargin, yPos)
-    yPos += lineHeight + 2
-
-    addField('Admission No', selectedStudent.admission_number)
-    addField('Full Name', `${selectedStudent.first_name} ${selectedStudent.last_name || ''}`)
-    addField('Gender', selectedStudent.gender)
-    addField('Date of Birth', selectedStudent.date_of_birth)
-    addField('Blood Group', selectedStudent.blood_group)
-    addField('Religion', selectedStudent.religion)
-    addField('Caste', selectedStudent.caste)
-    addField('Nationality', selectedStudent.nationality)
-
-    yPos += 5
-
-    // Academic Information
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Academic Information', leftMargin, yPos)
-    yPos += lineHeight + 2
-
-    addField('Class', selectedStudent.className)
-    addField('Section', selectedStudent.sectionName)
-    addField('Roll Number', selectedStudent.roll_number)
-    addField('House', selectedStudent.house)
-    addField('Admission Date', selectedStudent.admission_date)
-    addField('Status', selectedStudent.status)
-
-    // Check if we need a new page
-    if (yPos > 250) {
-      doc.addPage()
-      yPos = 20
-    } else {
-      yPos += 5
-    }
-
-    // Father Information
-    if (selectedStudent.father_name) {
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Father Information', leftMargin, yPos)
-      yPos += lineHeight + 2
-
-      addField('Father Name', selectedStudent.father_name)
-      addField('Father CNIC', selectedStudent.father_cnic)
-      addField('Father Mobile', selectedStudent.father_mobile)
-      addField('Father Email', selectedStudent.father_email)
-      addField('Qualification', selectedStudent.father_qualification)
-      addField('Occupation', selectedStudent.father_occupation)
-      addField('Annual Income', selectedStudent.father_annual_income)
-
-      yPos += 5
-    }
-
-    // Check if we need a new page
-    if (yPos > 250) {
-      doc.addPage()
-      yPos = 20
-    }
-
-    // Mother Information
-    if (selectedStudent.mother_name) {
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Mother Information', leftMargin, yPos)
-      yPos += lineHeight + 2
-
-      addField('Mother Name', selectedStudent.mother_name)
-      addField('Mother CNIC', selectedStudent.mother_cnic)
-      addField('Mother Mobile', selectedStudent.mother_mobile)
-      addField('Mother Email', selectedStudent.mother_email)
-      addField('Qualification', selectedStudent.mother_qualification)
-      addField('Occupation', selectedStudent.mother_occupation)
-      addField('Annual Income', selectedStudent.mother_annual_income)
-
-      yPos += 5
-    }
-
-    // Fee Information
-    if (selectedStudent.base_fee || selectedStudent.discount_amount) {
-      if (yPos > 250) {
-        doc.addPage()
-        yPos = 20
       }
 
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Fee Information', leftMargin, yPos)
-      yPos += lineHeight + 2
+      const primaryRgb = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.primaryColor || '#1E3A8A')
+      const secondaryRgb = hexToRgb(pdfSettings.secondaryColor || '#3B82F6')
+      const textRgb = hexToRgb(pdfSettings.textColor || '#000000')
 
-      addField('Base Fee', selectedStudent.base_fee)
-      addField('Discount', selectedStudent.discount_amount)
-      addField('Final Fee', selectedStudent.final_fee)
-      addField('Discount Note', selectedStudent.discount_note, true)
+      console.log('Color settings:')
+      console.log('  Primary RGB:', primaryRgb, 'from', pdfSettings.headerBackgroundColor || pdfSettings.primaryColor)
+      console.log('  Secondary RGB:', secondaryRgb, 'from', pdfSettings.secondaryColor)
+      console.log('  Text RGB:', textRgb, 'from', pdfSettings.textColor)
+      console.log('  Table Header:', pdfSettings.tableHeaderColor)
+      console.log('  Alt Row:', pdfSettings.alternateRowColor)
+
+      // Header (if enabled)
+      if (pdfSettings.includeHeader !== false) {
+        doc.setFillColor(...primaryRgb)
+        doc.rect(0, 0, pageWidth, 40, 'F')
+
+        // School Logo (if available) - WITH CANVAS METHOD
+        // Always try to include logo if URL exists
+        if (schoolData?.logo_url) {
+          try {
+            console.log('Loading school logo from:', schoolData.logo_url)
+            console.log('Include logo setting:', pdfSettings.includeLogo)
+
+            const logoImg = new Image()
+            logoImg.crossOrigin = 'anonymous'
+
+            const logoBase64 = await new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 10000)
+
+              logoImg.onload = () => {
+                clearTimeout(timeout)
+                try {
+                  const canvas = document.createElement('canvas')
+                  canvas.width = logoImg.width
+                  canvas.height = logoImg.height
+                  const ctx = canvas.getContext('2d')
+                  ctx.drawImage(logoImg, 0, 0)
+                  const dataUrl = canvas.toDataURL('image/png', 0.9)
+                  console.log('Logo converted successfully, size:', dataUrl.length)
+                  resolve(dataUrl)
+                } catch (err) {
+                  console.error('Logo canvas error:', err)
+                  reject(err)
+                }
+              }
+
+              logoImg.onerror = (err) => {
+                clearTimeout(timeout)
+                console.error('Logo load failed:', err)
+                reject(err)
+              }
+
+              // Handle both absolute and relative URLs
+              const logoUrl = schoolData.logo_url.startsWith('http')
+                ? schoolData.logo_url
+                : `${window.location.origin}${schoolData.logo_url.startsWith('/') ? '' : '/'}${schoolData.logo_url}`
+
+              console.log('Final logo URL:', logoUrl)
+              logoImg.src = logoUrl
+            })
+
+            if (logoBase64 && logoBase64.length > 100) {
+              // Fixed size to match student photo (24mm)
+              const logoSize = 24
+              const logoX = 15
+              const logoY = 8
+
+              doc.addImage(logoBase64, 'PNG', logoX, logoY, logoSize, logoSize)
+              console.log('School logo added to PDF successfully at size:', logoSize)
+
+              // Add subtle border around logo
+              doc.setDrawColor(255, 255, 255)
+              doc.setLineWidth(0.5)
+              doc.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'S')
+            }
+          } catch (e) {
+            console.error('Error adding school logo:', e.message)
+          }
+        }
+
+        // Title
+        doc.setFontSize(20)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(pdfSettings.headerText || 'STUDENT INFORMATION RECORD', pageWidth / 2, 18, { align: 'center' })
+
+        // Subtitle - School Name
+        doc.setFontSize(10)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+        doc.text(schoolData?.name || 'School Management System', pageWidth / 2, 28, { align: 'center' })
+
+        // Date in header (if enabled)
+        if (pdfSettings.includeDate || pdfSettings.includeGeneratedDate) {
+          doc.setFontSize(8)
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 35, { align: 'right' })
+        }
+      }
+
+      let yPos = pdfSettings.includeHeader !== false ? 50 : 15
+
+      // Student Header Card - responsive height based on orientation
+      const headerCardHeight = orientation === 'landscape' ? 25 : 30
+
+      doc.setFillColor(248, 250, 252)
+      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'F')
+
+      // Add light border
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.5)
+      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'S')
+
+      // Student Photo (if available) - WITH CANVAS METHOD
+      const photoSize = orientation === 'landscape' ? 20 : 24 // Smaller for landscape
+      const photoX = margins.left + 3
+      const photoY = yPos + 2.5
+
+      if (selectedStudent.photo_url) {
+        try {
+          console.log('Loading student photo from:', selectedStudent.photo_url)
+
+          // Better image loading with canvas
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+
+          const photoBase64 = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Image load timeout')), 10000)
+
+            img.onload = () => {
+              clearTimeout(timeout)
+              try {
+                const canvas = document.createElement('canvas')
+                canvas.width = img.width
+                canvas.height = img.height
+                const ctx = canvas.getContext('2d')
+                ctx.drawImage(img, 0, 0)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+                console.log('Photo converted successfully, size:', dataUrl.length)
+                resolve(dataUrl)
+              } catch (err) {
+                console.error('Canvas error:', err)
+                reject(err)
+              }
+            }
+
+            img.onerror = (err) => {
+              clearTimeout(timeout)
+              console.error('Image load failed:', err)
+              reject(err)
+            }
+
+            // Handle both absolute and relative URLs
+            const photoUrl = selectedStudent.photo_url.startsWith('http')
+              ? selectedStudent.photo_url
+              : `${window.location.origin}${selectedStudent.photo_url.startsWith('/') ? '' : '/'}${selectedStudent.photo_url}`
+
+            console.log('Final photo URL:', photoUrl)
+            img.src = photoUrl
+          })
+
+          if (photoBase64 && photoBase64.length > 100) {
+            doc.addImage(photoBase64, 'JPEG', photoX, photoY, photoSize, photoSize)
+            console.log('Student photo added to PDF successfully')
+
+            // Professional rounded border
+            doc.setDrawColor(203, 213, 225) // Gray-300
+            doc.setLineWidth(0.5)
+            doc.roundedRect(photoX, photoY, photoSize, photoSize, 2, 2, 'S')
+          } else {
+            throw new Error('Invalid photo data')
+          }
+        } catch (e) {
+          console.error('❌ Error loading student photo:', e.message)
+          console.error('Photo URL was:', selectedStudent.photo_url)
+          console.error('Full error:', e)
+          // Fallback to avatar
+          doc.setFillColor(226, 232, 240)
+          doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+          doc.setFontSize(14)
+          doc.setTextColor(...textRgb)
+          doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
+        }
+      } else {
+        console.log('⚠️ No photo URL for student:', selectedStudent.first_name)
+        console.log('Student object:', selectedStudent)
+        // Photo placeholder
+        doc.setFillColor(226, 232, 240)
+        doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+        doc.setFontSize(14)
+        doc.setTextColor(...textRgb)
+        doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
+      }
+
+      // Student name and key info - positioned next to photo
+      const infoX = photoX + photoSize + 5
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') + 4)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+      doc.setTextColor(...primaryRgb)
+      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, yPos + 8)
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 1)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+      doc.setTextColor(75, 85, 99)
+      doc.text(`Admission No: ${selectedStudent.admission_number}`, infoX, yPos + 15)
+      doc.text(`Class: ${selectedStudent.className || 'N/A'} | Section: ${selectedStudent.sectionName || 'N/A'}`, infoX, yPos + 21)
+
+      // Status badge - positioned in top right of card
+      const status = selectedStudent.status || 'active'
+      const statusColor = status === 'active' ? [34, 197, 94] : [239, 68, 68]
+      doc.setFillColor(...statusColor)
+      doc.roundedRect(pageWidth - margins.right - 30, yPos + 5, 28, 7, 2, 2, 'F')
+      doc.setFontSize(8)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text(status.toUpperCase(), pageWidth - margins.right - 16, yPos + 10, { align: 'center' })
+
+      // Adjust spacing based on orientation
+      yPos += orientation === 'landscape' ? 28 : 35
+
+      // Helper function for COMPACT section headers with professional styling
+      const addSectionHeader = (title) => {
+        // Blue gradient-like header
+        const tableHeaderRgb = hexToRgb(pdfSettings.tableHeaderColor || pdfSettings.secondaryColor || '#3B82F6')
+        doc.setFillColor(...tableHeaderRgb)
+        doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, 7, 1, 1, 'F')
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize || '10'))
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(title, margins.left + 3, yPos + 4.5)
+        yPos += 9
+      }
+
+      // Helper function for responsive multi-column fields - adapts to orientation
+      const addTwoColumnFields = (fields) => {
+        // Use 3 columns for landscape, 2 for portrait
+        const numColumns = orientation === 'landscape' ? 3 : 2
+        const gapSize = 2.5
+        const totalGaps = (numColumns - 1) * gapSize
+        const colWidth = (pageWidth - margins.left - margins.right - totalGaps) / numColumns
+
+        let col = 0
+        let rowY = yPos
+
+        // Professional color scheme
+        const fieldBgRgb = [249, 250, 251] // Very light gray
+        const labelColorRgb = [107, 114, 128] // Gray-500
+        const borderRgb = [229, 231, 235] // Gray-200
+
+        fields.forEach(([label, value]) => {
+          if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
+            const xPos = margins.left + (col * (colWidth + gapSize))
+
+            // Card background with subtle shadow effect
+            doc.setFillColor(...fieldBgRgb)
+            doc.roundedRect(xPos, rowY, colWidth, 9, 1.5, 1.5, 'F')
+
+            // Subtle border for definition
+            doc.setDrawColor(...borderRgb)
+            doc.setLineWidth(0.2)
+            doc.roundedRect(xPos, rowY, colWidth, 9, 1.5, 1.5, 'S')
+
+            // Label - small gray uppercase
+            doc.setFontSize(6)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+            doc.setTextColor(...labelColorRgb)
+            doc.text(label.toUpperCase(), xPos + 2, rowY + 3.5)
+
+            // Value - larger and bold with proper text fitting
+            doc.setFontSize(8)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+            doc.setTextColor(31, 41, 55) // Gray-800
+
+            // Smart truncation based on column width
+            const maxChars = orientation === 'landscape' ? 28 : 35
+            let valueText = String(value)
+            if (valueText.length > maxChars) {
+              valueText = valueText.substring(0, maxChars - 3) + '...'
+            }
+
+            doc.text(valueText, xPos + 2, rowY + 7, { maxWidth: colWidth - 4 })
+
+            col++
+            if (col >= numColumns) {
+              col = 0
+              rowY += 10
+            }
+          }
+        })
+
+        yPos = col === 0 ? rowY : rowY + 10
+      }
+
+      // Basic Information
+      addSectionHeader('BASIC INFORMATION')
+      addTwoColumnFields([
+      ['First Name', selectedStudent.first_name],
+      ['Last Name', selectedStudent.last_name],
+      ['Gender', selectedStudent.gender],
+      ['Date of Birth', selectedStudent.date_of_birth],
+      ['Blood Group', selectedStudent.blood_group],
+      ['Religion', selectedStudent.religion],
+      ['Caste', selectedStudent.caste_race],
+        ['Nationality', selectedStudent.nationality || 'Pakistan']
+      ])
+
+      yPos += orientation === 'landscape' ? 2 : 3
+
+      // Academic Information
+      addSectionHeader('ACADEMIC INFORMATION')
+      addTwoColumnFields([
+        ['Class', selectedStudent.className],
+        ['Section', selectedStudent.sectionName],
+        ['Roll Number', selectedStudent.roll_number],
+        ['House', selectedStudent.house],
+        ['Admission Date', selectedStudent.admission_date],
+        ['Status', selectedStudent.status]
+      ])
+
+      yPos += orientation === 'landscape' ? 2 : 3
+
+      // Father Information
+      if (selectedStudent.father_name) {
+        addSectionHeader('FATHER INFORMATION')
+        addTwoColumnFields([
+          ['Father Name', selectedStudent.father_name],
+          ['Father CNIC', selectedStudent.father_cnic],
+          ['Mobile', selectedStudent.father_mobile],
+          ['Email', selectedStudent.father_email],
+          ['Qualification', selectedStudent.father_qualification],
+          ['Occupation', selectedStudent.father_occupation],
+          ['Annual Income', selectedStudent.father_annual_income]
+        ])
+        yPos += orientation === 'landscape' ? 2 : 3
+      }
+
+      // Mother Information
+      if (selectedStudent.mother_name) {
+        addSectionHeader('MOTHER INFORMATION')
+        addTwoColumnFields([
+          ['Mother Name', selectedStudent.mother_name],
+          ['Mother CNIC', selectedStudent.mother_cnic],
+          ['Mobile', selectedStudent.mother_mobile],
+          ['Email', selectedStudent.mother_email],
+          ['Qualification', selectedStudent.mother_qualification],
+          ['Occupation', selectedStudent.mother_occupation],
+          ['Annual Income', selectedStudent.mother_annual_income]
+        ])
+        yPos += orientation === 'landscape' ? 2 : 3
+      }
+
+      // Contact Information
+      if (selectedStudent.whatsapp_number || selectedStudent.current_address) {
+        addSectionHeader('CONTACT INFORMATION')
+        addTwoColumnFields([
+          ['WhatsApp Number', selectedStudent.whatsapp_number],
+          ['Guardian Mobile', selectedStudent.guardian_mobile],
+          ['Address', selectedStudent.current_address],
+          ['City', selectedStudent.city],
+          ['State', selectedStudent.state],
+          ['Postal Code', selectedStudent.postal_code]
+        ])
+        yPos += orientation === 'landscape' ? 2 : 3
+      }
+
+      // Fee Information
+      if (selectedStudent.base_fee || selectedStudent.discount_amount) {
+        addSectionHeader('FEE INFORMATION')
+        addTwoColumnFields([
+          ['Base Fee', selectedStudent.base_fee ? `PKR ${selectedStudent.base_fee}` : null],
+          ['Discount Amount', selectedStudent.discount_amount ? `PKR ${selectedStudent.discount_amount}` : null],
+          ['Final Fee', selectedStudent.final_fee ? `PKR ${selectedStudent.final_fee}` : null],
+          ['Fee Plan', selectedStudent.fee_plan],
+          ['Discount Note', selectedStudent.discount_note]
+        ])
+      }
+
+      // Footer (if enabled)
+      if (pdfSettings.includeFooter !== false) {
+        const footerY = pageHeight - 10
+
+        doc.setFontSize(8)
+        doc.setTextColor(100, 116, 139) // Gray-500
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+
+        // Footer text (left) - school name or custom text
+        const footerText = pdfSettings.footerText || schoolData?.name || 'School Management System'
+        doc.text(footerText, margins.left, footerY)
+
+        // Generated date (center)
+        if (pdfSettings.includeGeneratedDate !== false) {
+          const generatedText = `Generated: ${new Date().toLocaleDateString()}`
+          doc.text(generatedText, pageWidth / 2, footerY, { align: 'center' })
+        }
+
+        // Page number (right)
+        if (pdfSettings.includePageNumbers !== false) {
+          doc.text(`Page ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - margins.right, footerY, { align: 'right' })
+        }
+      }
+
+      // Save the PDF
+      doc.save(`Student_${selectedStudent.admission_number}_${selectedStudent.first_name}.pdf`)
+
+      // Close the modal
+      setShowViewModal(false)
+
+      showToast('PDF generated successfully!', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast('Failed to generate PDF. Please try again.', 'error')
     }
-
-    // Save the PDF
-    doc.save(`Student_${selectedStudent.admission_number}_${selectedStudent.first_name}.pdf`)
-
-    // Close the modal
-    setShowViewModal(false)
-
-    showToast('PDF generated successfully!', 'success')
   }
 
   const handleImportClassSelect = (classId, className) => {
@@ -1509,20 +1927,25 @@ export default function AdmissionRegisterPage() {
         if (fatherContact) {
           contactsWithStudentIds.push({
             ...fatherContact,
-            student_id: student.id
+            student_id: student.id,
+            school_id: schoolId
           })
         }
 
         if (motherContact) {
           contactsWithStudentIds.push({
             ...motherContact,
-            student_id: student.id
+            student_id: student.id,
+            school_id: schoolId
           })
         }
       })
 
       if (contactsWithStudentIds.length > 0) {
-        await supabase.from('student_contacts').insert(contactsWithStudentIds)
+        const { error: contactError } = await supabase.from('student_contacts').insert(contactsWithStudentIds)
+        if (contactError) {
+          console.error('Error inserting contacts:', contactError)
+        }
       }
 
       setSuccess(`Successfully imported ${insertedStudents.length} students!`)
@@ -2110,13 +2533,27 @@ export default function AdmissionRegisterPage() {
                     <label className="block text-gray-700 text-sm mb-2">
                       Admission/GR No <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={formData.admissionNo}
-                      onChange={(e) => setFormData({ ...formData, admissionNo: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.admissionNo}
+                        onChange={(e) => setFormData({ ...formData, admissionNo: e.target.value })}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 outline-none bg-white ${
+                          admissionNoExists
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                        required
+                      />
+                      {checkingAdmissionNo && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <Loader2 size={16} className="animate-spin text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    {admissionNoExists && (
+                      <p className="text-red-500 text-xs mt-1">This admission number already exists</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">Class</label>
@@ -2165,6 +2602,7 @@ export default function AdmissionRegisterPage() {
                       type="date"
                       value={formData.admissionDate}
                       onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                      max={new Date().toISOString().split('T')[0]}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     />
                   </div>
@@ -2434,6 +2872,7 @@ export default function AdmissionRegisterPage() {
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      max={new Date().toISOString().split('T')[0]}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
@@ -2816,7 +3255,7 @@ export default function AdmissionRegisterPage() {
                 </button>
                 <button
                   onClick={handleSaveStudent}
-                  disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo || !formData.whatsappNumber}
+                  disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo || admissionNoExists}
                   className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50"
                 >
                   {saving ? (
@@ -2885,8 +3324,8 @@ export default function AdmissionRegisterPage() {
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl flex-shrink-0">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Student Information</h3>
                   <div className="flex items-center gap-2">
@@ -2906,7 +3345,23 @@ export default function AdmissionRegisterPage() {
                   </div>
                 </div>
               </div>
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
+                <style jsx>{`
+                  .custom-scrollbar::-webkit-scrollbar {
+                    width: 8px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 4px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 4px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                  }
+                `}</style>
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden">
                     {selectedStudent.photo_url ? (

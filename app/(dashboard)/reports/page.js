@@ -18,9 +18,11 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  XCircle
+  XCircle,
+  Bus
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getPdfSettings, hexToRgb, getMarginValues, getCellPadding, getLineWidth, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
 
 export default function ReportsPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -64,12 +66,28 @@ export default function ReportsPage() {
     inactive: 0
   })
 
+  // Transport Data State
+  const [transportData, setTransportData] = useState({
+    total: 0,
+    students: 0,
+    staff: 0,
+    paid: 0,
+    pending: 0,
+    totalAmount: 0,
+    paidAmount: 0,
+    pendingAmount: 0,
+    totalVehicles: 0,
+    totalRoutes: 0
+  })
+
   const [selectedMonth, setSelectedMonth] = useState('12')
   const [selectedYear, setSelectedYear] = useState('2025')
   const [monthlyFeeData, setMonthlyFeeData] = useState([])
   const [monthlyPayrollData, setMonthlyPayrollData] = useState([])
+  const [monthlyTransportData, setMonthlyTransportData] = useState([])
   const [allYearData, setAllYearData] = useState([])
   const [allPayrollData, setAllPayrollData] = useState([])
+  const [allTransportData, setAllTransportData] = useState([])
   const [visibleBars, setVisibleBars] = useState({
     total: true,
     paid: true,
@@ -280,10 +298,15 @@ export default function ReportsPage() {
     if (allPayrollData.length > 0) {
       calculatePayrollMonthData()
     }
-  }, [selectedMonth, selectedYear, allYearData, allPayrollData, dateFilter, customStartDate, customEndDate])
+    if (allTransportData.length > 0) {
+      calculateTransportMonthData()
+    }
+  }, [selectedMonth, selectedYear, allYearData, allPayrollData, allTransportData, dateFilter, customStartDate, customEndDate])
 
   const fetchAllData = useCallback(async (showLoader = true) => {
-    if (!currentUser?.school_id || !supabase) return
+    if (!currentUser?.school_id || !supabase) {
+      return
+    }
 
     if (showLoader) {
       setLoading(true)
@@ -291,7 +314,7 @@ export default function ReportsPage() {
 
     try {
       // Parallel fetch for better performance
-      const [feeResult, salaryResult, studentResult, teacherResult] = await Promise.all([
+      const [feeResult, salaryResult, studentResult, teacherResult, transportResult, vehiclesResult, routesResult] = await Promise.all([
         supabase
           .from('fee_challans')
           .select('total_amount, status, created_at')
@@ -307,7 +330,22 @@ export default function ReportsPage() {
         supabase
           .from('staff')
           .select('status')
+          .eq('school_id', currentUser.school_id),
+        supabase
+          .from('passengers')
+          .select('payment_status, student_id, staff_id, created_at, final_fare, type')
           .eq('school_id', currentUser.school_id)
+          .eq('status', 'active'),
+        supabase
+          .from('vehicles')
+          .select('id')
+          .eq('school_id', currentUser.school_id)
+          .eq('status', 'active'),
+        supabase
+          .from('routes')
+          .select('id')
+          .eq('school_id', currentUser.school_id)
+          .eq('status', 'active')
       ])
 
       if (!feeResult.error && feeResult.data) {
@@ -331,6 +369,42 @@ export default function ReportsPage() {
           total: teacherResult.data.length,
           active: teacherResult.data.filter(t => t.status === 'active').length,
           inactive: teacherResult.data.filter(t => t.status === 'inactive').length
+        })
+      }
+
+      if (transportResult.error) {
+        console.error('Error fetching transport data:', transportResult.error)
+      }
+
+      if (!transportResult.error && transportResult.data) {
+        setAllTransportData(transportResult.data)
+
+        const totalPassengers = transportResult.data.length
+        const studentPassengers = transportResult.data.filter(p => p.student_id).length
+        const staffPassengers = transportResult.data.filter(p => p.staff_id).length
+        const paidPassengers = transportResult.data.filter(p => p.payment_status === 'paid').length
+        const pendingPassengers = transportResult.data.filter(p => p.payment_status === 'pending').length
+
+        // Calculate amounts based on final_fare
+        const paidAmount = transportResult.data
+          .filter(p => p.payment_status === 'paid')
+          .reduce((sum, p) => sum + (parseFloat(p.final_fare) || 0), 0)
+        const pendingAmount = transportResult.data
+          .filter(p => p.payment_status === 'pending')
+          .reduce((sum, p) => sum + (parseFloat(p.final_fare) || 0), 0)
+        const totalAmount = paidAmount + pendingAmount
+
+        setTransportData({
+          total: totalPassengers,
+          students: studentPassengers,
+          staff: staffPassengers,
+          paid: paidPassengers,
+          pending: pendingPassengers,
+          totalAmount,
+          paidAmount,
+          pendingAmount,
+          totalVehicles: vehiclesResult.data?.length || 0,
+          totalRoutes: routesResult.data?.length || 0
         })
       }
     } catch (error) {
@@ -629,6 +703,126 @@ export default function ReportsPage() {
     }
   }
 
+  const calculateTransportMonthData = () => {
+    if (allTransportData.length === 0) {
+      setMonthlyTransportData([])
+      return
+    }
+
+    // Apply date range filter first (for Overview and Earnings sections)
+    let dateFilteredData = activeSection === 'overview' || activeSection === 'earning-report'
+      ? filterByDateRange(allTransportData)
+      : allTransportData
+
+    let yearFilteredData = dateFilteredData
+    if (selectedYear !== 'all') {
+      const year = parseInt(selectedYear)
+      yearFilteredData = dateFilteredData.filter(passenger => {
+        const date = new Date(passenger.created_at)
+        return date.getFullYear() === year
+      })
+    }
+
+    let filteredPassengers = yearFilteredData
+    if (selectedMonth !== 'all') {
+      const monthNum = parseInt(selectedMonth)
+      filteredPassengers = yearFilteredData.filter(passenger => {
+        const date = new Date(passenger.created_at)
+        return date.getMonth() + 1 === monthNum
+      })
+    }
+
+    const totalPassengers = filteredPassengers.length
+    const paidPassengers = filteredPassengers.filter(p => p.payment_status === 'paid').length
+    const pendingPassengers = filteredPassengers.filter(p => p.payment_status === 'pending').length
+    const studentPassengers = filteredPassengers.filter(p => p.student_id).length
+    const staffPassengers = filteredPassengers.filter(p => p.staff_id).length
+
+    const paidAmount = filteredPassengers
+      .filter(p => p.payment_status === 'paid')
+      .reduce((sum, p) => sum + (parseFloat(p.final_fare) || 0), 0)
+    const pendingAmount = filteredPassengers
+      .filter(p => p.payment_status === 'pending')
+      .reduce((sum, p) => sum + (parseFloat(p.final_fare) || 0), 0)
+    const totalAmount = paidAmount + pendingAmount
+
+    setTransportData(prev => ({
+      ...prev,
+      total: totalPassengers,
+      students: studentPassengers,
+      staff: staffPassengers,
+      paid: paidPassengers,
+      pending: pendingPassengers,
+      totalAmount,
+      paidAmount,
+      pendingAmount
+    }))
+
+    if (selectedMonth !== 'all') {
+      const monthNum = parseInt(selectedMonth)
+      const year = parseInt(selectedYear)
+      const daysInMonth = new Date(year, monthNum, 0).getDate()
+
+      const dailyData = Array(daysInMonth).fill(0).map((_, i) => ({
+        month: (i + 1).toString(),
+        total: 0,
+        paid: 0,
+        pending: 0,
+        students: 0,
+        staff: 0
+      }))
+
+      filteredPassengers.forEach(passenger => {
+        const date = new Date(passenger.created_at)
+        const day = date.getDate()
+        const dayIndex = day - 1
+
+        if (dayIndex >= 0 && dayIndex < daysInMonth) {
+          dailyData[dayIndex].total += 1
+          if (passenger.payment_status === 'paid') {
+            dailyData[dayIndex].paid += 1
+          } else if (passenger.payment_status === 'pending') {
+            dailyData[dayIndex].pending += 1
+          }
+          if (passenger.student_id) {
+            dailyData[dayIndex].students += 1
+          } else if (passenger.staff_id) {
+            dailyData[dayIndex].staff += 1
+          }
+        }
+      })
+
+      setMonthlyTransportData(dailyData)
+    } else {
+      const monthlyData = Array(12).fill(0).map((_, i) => ({
+        month: months[i + 1].label,
+        total: 0,
+        paid: 0,
+        pending: 0,
+        students: 0,
+        staff: 0
+      }))
+
+      yearFilteredData.forEach(passenger => {
+        const date = new Date(passenger.created_at)
+        const monthIndex = date.getMonth()
+        monthlyData[monthIndex].total += 1
+        if (passenger.payment_status === 'paid') {
+          monthlyData[monthIndex].paid += 1
+        } else if (passenger.payment_status === 'pending') {
+          monthlyData[monthIndex].pending += 1
+        }
+        if (passenger.student_id) {
+          monthlyData[monthIndex].students += 1
+        } else if (passenger.staff_id) {
+          monthlyData[monthIndex].staff += 1
+        }
+      })
+
+      setMonthlyTransportData(monthlyData)
+    }
+  }
+
   const handleManualRefresh = async () => {
     setIsRealTimeActive(true)
     setLastUpdated(new Date())
@@ -671,6 +865,291 @@ export default function ReportsPage() {
     document.body.removeChild(link)
   }
 
+  // Export comprehensive report to PDF
+  const handleExportPDF = async () => {
+    try {
+      console.log('Starting PDF export...')
+
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+      console.log('PDF Settings loaded:', pdfSettings)
+
+      // Dynamically import jsPDF and autoTable
+      const jsPDF = (await import('jspdf')).default
+      const autoTable = (await import('jspdf-autotable')).default
+
+      const doc = new jsPDF(
+        pdfSettings.orientation === 'landscape' ? 'l' : 'p',
+        'mm',
+        pdfSettings.pageSize.toLowerCase()
+      )
+      console.log('jsPDF initialized')
+
+      // Fetch school data
+      let schoolData = { name: '', address: '', phone: '', logo_url: '' }
+      if (currentUser?.school_id) {
+        const { data, error } = await supabase
+          .from('schools')
+          .select('name, address, phone, logo_url')
+          .eq('id', currentUser.school_id)
+          .single()
+
+        if (!error && data) {
+          schoolData = data
+        }
+      }
+
+      const headerHeight = 35
+      const logoSize = pdfSettings.includeLogo ? getLogoSize(pdfSettings.logoSize) : 25
+
+      // Add decorative header background
+      if (pdfSettings.includeHeader) {
+        const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor)
+        doc.setFillColor(headerBgColor[0], headerBgColor[1], headerBgColor[2])
+        doc.rect(0, 0, doc.internal.pageSize.getWidth(), headerHeight, 'F')
+      }
+
+      // Add school logo if available
+      if (pdfSettings.includeLogo && schoolData.logo_url) {
+        try {
+          const logoX = pdfSettings.logoPosition === 'left' ? 10 :
+                       pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - logoSize - 10 :
+                       (doc.internal.pageSize.getWidth() - logoSize) / 2
+
+          const logoY = (headerHeight - logoSize) / 2
+
+          if (pdfSettings.logoStyle === 'circle') {
+            doc.addImage(
+              schoolData.logo_url,
+              'PNG',
+              logoX,
+              logoY,
+              logoSize,
+              logoSize,
+              undefined,
+              'FAST',
+              0
+            )
+            doc.setDrawColor(255, 255, 255)
+            doc.setLineWidth(0.5)
+            doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 'S')
+          } else {
+            doc.addImage(
+              schoolData.logo_url,
+              'PNG',
+              logoX,
+              logoY,
+              logoSize,
+              logoSize,
+              undefined,
+              'FAST'
+            )
+          }
+        } catch (error) {
+          console.warn('Failed to add logo:', error)
+        }
+      }
+
+      // Add school header info
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const centerX = pageWidth / 2
+
+      doc.setTextColor(255, 255, 255)
+      doc.setFont(undefined, 'bold')
+      doc.setFontSize(18)
+      doc.text(schoolData.name || 'School Management System', centerX, 12, { align: 'center' })
+
+      doc.setFont(undefined, 'normal')
+      doc.setFontSize(9)
+      if (schoolData.address) {
+        doc.text(schoolData.address, centerX, 18, { align: 'center' })
+      }
+      if (schoolData.phone) {
+        doc.text(`Phone: ${schoolData.phone}`, centerX, 23, { align: 'center' })
+      }
+
+      // Report title
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.text('School Management Report', centerX, 30, { align: 'center' })
+
+      // Reset colors for content
+      const textColor = hexToRgb(pdfSettings.textColor)
+      doc.setTextColor(textColor[0], textColor[1], textColor[2])
+
+      let currentY = headerHeight + 10
+
+      // Add date range/filter information
+      doc.setFontSize(10)
+      doc.setFont(undefined, 'normal')
+      const dateRangeText = dateFilter === 'all' ? 'All Time' :
+                           dateFilter === 'today' ? 'Today' :
+                           dateFilter === 'week' ? 'Last 7 Days' :
+                           dateFilter === '15days' ? 'Last 15 Days' :
+                           dateFilter === 'month' ? 'Last 30 Days' :
+                           dateFilter === 'custom' && customStartDate && customEndDate ?
+                           `${customStartDate} to ${customEndDate}` : 'All Time'
+
+      doc.text(`Report Period: ${dateRangeText}`, 10, currentY)
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - 10, currentY, { align: 'right' })
+      currentY += 10
+
+      // Get autoTable styles
+      const autoTableStyles = getAutoTableStyles(pdfSettings)
+      const margins = getMarginValues(pdfSettings.margin)
+
+      // Section 1: Fee Statistics
+      doc.setFontSize(12)
+      doc.setFont(undefined, 'bold')
+      doc.text('Fee Statistics', 10, currentY)
+      currentY += 7
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Status', 'Count', 'Amount (Rs.)']],
+        body: [
+          ['Total', feeData.total.toString(), feeData.totalAmount.toFixed(2)],
+          ['Paid', feeData.paid.toString(), feeData.paidAmount.toFixed(2)],
+          ['Pending', feeData.pending.toString(), feeData.pendingAmount.toFixed(2)],
+          ['Overdue', feeData.overdue.toString(), feeData.overdueAmount.toFixed(2)]
+        ],
+        theme: autoTableStyles.theme,
+        styles: autoTableStyles.styles,
+        headStyles: autoTableStyles.headStyles,
+        alternateRowStyles: autoTableStyles.alternateRowStyles,
+        margin: { left: margins.left, right: margins.right }
+      })
+
+      currentY = doc.lastAutoTable.finalY + 10
+
+      // Section 2: Payroll Statistics
+      doc.setFontSize(12)
+      doc.setFont(undefined, 'bold')
+      doc.text('Payroll Statistics', 10, currentY)
+      currentY += 7
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Status', 'Count', 'Amount (Rs.)']],
+        body: [
+          ['Total', payrollData.total.toString(), payrollData.totalAmount.toFixed(2)],
+          ['Paid', payrollData.paid.toString(), payrollData.paidAmount.toFixed(2)],
+          ['Pending', payrollData.pending.toString(), payrollData.pendingAmount.toFixed(2)],
+          ['Cancelled', payrollData.cancelled.toString(), payrollData.cancelledAmount.toFixed(2)]
+        ],
+        theme: autoTableStyles.theme,
+        styles: autoTableStyles.styles,
+        headStyles: autoTableStyles.headStyles,
+        alternateRowStyles: autoTableStyles.alternateRowStyles,
+        margin: { left: margins.left, right: margins.right }
+      })
+
+      currentY = doc.lastAutoTable.finalY + 10
+
+      // Section 3: Student & Teacher Statistics
+      doc.setFontSize(12)
+      doc.setFont(undefined, 'bold')
+      doc.text('Student & Teacher Statistics', 10, currentY)
+      currentY += 7
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Category', 'Total', 'Active', 'Inactive']],
+        body: [
+          ['Students', studentStats.total.toString(), studentStats.active.toString(), studentStats.inactive.toString()],
+          ['Teachers', teacherStats.total.toString(), teacherStats.active.toString(), teacherStats.inactive.toString()]
+        ],
+        theme: autoTableStyles.theme,
+        styles: autoTableStyles.styles,
+        headStyles: autoTableStyles.headStyles,
+        alternateRowStyles: autoTableStyles.alternateRowStyles,
+        margin: { left: margins.left, right: margins.right }
+      })
+
+      currentY = doc.lastAutoTable.finalY + 10
+
+      // Section 4: Transport Statistics
+      doc.setFontSize(12)
+      doc.setFont(undefined, 'bold')
+      doc.text('Transport Statistics', 10, currentY)
+      currentY += 7
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Metric', 'Value']],
+        body: [
+          ['Total Passengers', transportData.total.toString()],
+          ['Students', transportData.students.toString()],
+          ['Staff', transportData.staff.toString()],
+          ['Paid', transportData.paid.toString()],
+          ['Pending', transportData.pending.toString()],
+          ['Total Amount (Rs.)', transportData.totalAmount.toFixed(2)],
+          ['Paid Amount (Rs.)', transportData.paidAmount.toFixed(2)],
+          ['Pending Amount (Rs.)', transportData.pendingAmount.toFixed(2)],
+          ['Total Vehicles', transportData.totalVehicles.toString()],
+          ['Total Routes', transportData.totalRoutes.toString()]
+        ],
+        theme: autoTableStyles.theme,
+        styles: autoTableStyles.styles,
+        headStyles: autoTableStyles.headStyles,
+        alternateRowStyles: autoTableStyles.alternateRowStyles,
+        margin: { left: margins.left, right: margins.right }
+      })
+
+      // Add footer
+      if (pdfSettings.includeFooter) {
+        const pageCount = doc.internal.getNumberOfPages()
+        const footerColor = hexToRgb(pdfSettings.headerBackgroundColor)
+
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
+
+          doc.setDrawColor(footerColor[0], footerColor[1], footerColor[2])
+          doc.setLineWidth(0.5)
+          doc.line(10, doc.internal.pageSize.getHeight() - 15, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 15)
+
+          doc.setFontSize(8)
+          doc.setTextColor(100, 100, 100)
+          doc.setFont(undefined, 'normal')
+
+          const leftFooterText = pdfSettings.footerText || 'School Management Report'
+          doc.text(
+            leftFooterText,
+            10,
+            doc.internal.pageSize.getHeight() - 8
+          )
+
+          if (pdfSettings.includeDate) {
+            doc.text(
+              `Generated on ${new Date().toLocaleDateString()}`,
+              doc.internal.pageSize.getWidth() / 2,
+              doc.internal.pageSize.getHeight() - 8,
+              { align: 'center' }
+            )
+          }
+
+          if (pdfSettings.includePageNumbers) {
+            doc.text(
+              `Page ${i} of ${pageCount}`,
+              doc.internal.pageSize.getWidth() - 10,
+              doc.internal.pageSize.getHeight() - 8,
+              { align: 'right' }
+            )
+          }
+        }
+      }
+
+      // Save the PDF
+      const filename = `school-report-${new Date().toISOString().split('T')[0]}.pdf`
+      doc.save(filename)
+      console.log('PDF saved:', filename)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      console.error('Error details:', error.message, error.stack)
+      alert(`Failed to generate PDF: ${error.message}`)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -709,6 +1188,13 @@ export default function ReportsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm bg-[#DC2626] text-white hover:bg-red-700"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs">Download PDF</span>
+                </button>
+                <button
                   onClick={handleManualRefresh}
                   disabled={isRealTimeActive}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm ${
@@ -734,7 +1220,7 @@ export default function ReportsPage() {
         {/* Modern Navigation Tabs */}
         <div className="mb-4">
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-1.5">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-1.5">
               <button
                 onClick={() => setActiveSection('overview')}
                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-xs transition-all ${
@@ -767,6 +1253,17 @@ export default function ReportsPage() {
               >
                 <CreditCard className="w-4 h-4" />
                 <span>Payroll</span>
+              </button>
+              <button
+                onClick={() => setActiveSection('transport-analytics')}
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-xs transition-all ${
+                  activeSection === 'transport-analytics'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Bus className="w-4 h-4" />
+                <span>Transport</span>
               </button>
               <button
                 onClick={() => setActiveSection('earning-report')}
@@ -1548,6 +2045,237 @@ export default function ReportsPage() {
                     <span className="text-sm font-medium text-gray-700">Pending Amount</span>
                     <span className="text-lg font-bold text-yellow-600">PKR {payrollData.pendingAmount.toLocaleString()}</span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Transport Analytics Section */}
+        {activeSection === 'transport-analytics' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Filters */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-orange-100 rounded-lg">
+                  <Filter className="w-4 h-4 text-orange-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-800">Filter Reports</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Month</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white transition-all hover:border-orange-400"
+                  >
+                    {months.map(month => (
+                      <option key={month.value} value={month.value}>{month.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Year</label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white transition-all hover:border-orange-400"
+                  >
+                    {years.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bus className="w-5 h-5" />
+                  <p className="text-orange-100 text-xs font-medium">Total Passengers</p>
+                </div>
+                <p className="text-2xl font-bold">{transportData.total}</p>
+                <p className="text-orange-100 text-xs mt-1">PKR {transportData.totalAmount.toLocaleString()}</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <p className="text-green-100 text-xs font-medium">Paid</p>
+                </div>
+                <p className="text-2xl font-bold">{transportData.paid}</p>
+                <p className="text-green-100 text-xs mt-1">PKR {transportData.paidAmount.toLocaleString()}</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-5 h-5" />
+                  <p className="text-yellow-100 text-xs font-medium">Pending</p>
+                </div>
+                <p className="text-2xl font-bold">{transportData.pending}</p>
+                <p className="text-yellow-100 text-xs mt-1">PKR {transportData.pendingAmount.toLocaleString()}</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-5 h-5" />
+                  <p className="text-blue-100 text-xs font-medium">Students/Staff</p>
+                </div>
+                <p className="text-2xl font-bold">{transportData.students}/{transportData.staff}</p>
+                <p className="text-blue-100 text-xs mt-1">{transportData.totalVehicles} Vehicles, {transportData.totalRoutes} Routes</p>
+              </div>
+            </div>
+
+            {/* Passenger Type Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md">
+                    <GraduationCap className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">Student Passengers</h3>
+                    <p className="text-sm text-gray-600">Using transport services</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition-all border border-blue-200">
+                    <span className="text-gray-700 font-semibold">Total Students</span>
+                    <span className="text-2xl font-bold text-blue-600">{transportData.students}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md">
+                    <Users className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">Staff Passengers</h3>
+                    <p className="text-sm text-gray-600">Using transport services</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="group flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl hover:shadow-md transition-all border border-green-200">
+                    <span className="text-gray-700 font-semibold">Total Staff</span>
+                    <span className="text-2xl font-bold text-green-600">{transportData.staff}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Transport Infrastructure */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center gap-3">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Bus className="w-6 h-6 text-orange-600" />
+                </div>
+                Transport Infrastructure
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl hover:shadow-md transition-all border border-orange-200">
+                  <span className="text-sm text-gray-700 font-semibold">Active Vehicles</span>
+                  <span className="text-lg font-bold text-orange-600">{transportData.totalVehicles}</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl hover:shadow-md transition-all border border-purple-200">
+                  <span className="text-sm text-gray-700 font-semibold">Active Routes</span>
+                  <span className="text-lg font-bold text-purple-600">{transportData.totalRoutes}</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition-all border border-blue-200">
+                  <span className="text-sm text-gray-700 font-semibold">Total Passengers</span>
+                  <span className="text-lg font-bold text-blue-600">{transportData.total}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-bold text-gray-900 text-center mb-0.5">
+                  {selectedMonth !== 'all'
+                    ? `${months[parseInt(selectedMonth)].label} ${selectedYear} - Transport Payment Analysis`
+                    : `Transport Payment Analysis - ${selectedYear}`}
+                </h3>
+                <p className="text-xs text-gray-600 text-center">
+                  {selectedMonth !== 'all' ? 'Daily breakdown for selected month' : 'Monthly overview for selected year'}
+                </p>
+              </div>
+
+              {/* Legend */}
+              <div className="mb-3 flex flex-wrap justify-center gap-2">
+                {[
+                  { key: 'total', label: 'Total', color: 'orange' },
+                  { key: 'paid', label: 'Paid', color: 'green' },
+                  { key: 'pending', label: 'Pending', color: 'yellow' }
+                ].map(({ key, label, color }) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleBarVisibility(key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold shadow-sm ${
+                      visibleBars[key]
+                        ? color === 'orange' ? 'bg-orange-100 border-2 border-orange-500 text-orange-900' :
+                          color === 'green' ? 'bg-green-100 border-2 border-green-500 text-green-900' :
+                          'bg-yellow-100 border-2 border-yellow-500 text-yellow-900'
+                        : 'bg-gray-100 border-2 border-gray-300 text-gray-500 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <div className={`w-2.5 h-2.5 rounded-full ${
+                      visibleBars[key]
+                        ? color === 'orange' ? 'bg-orange-500' :
+                          color === 'green' ? 'bg-green-500' :
+                          'bg-yellow-500'
+                        : 'bg-gray-400'
+                    }`}></div>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Chart - No Scroll */}
+              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border border-gray-200">
+                <div className="h-80 flex items-end justify-between gap-1">
+                  {monthlyTransportData.map((data, index) => {
+                    const maxValue = Math.max(...monthlyTransportData.map(d => d.total), 1)
+                    const minHeight = 5
+                    const totalHeight = maxValue > 0 ? Math.max((data.total / maxValue) * 100, data.total > 0 ? minHeight : 0) : 0
+                    const paidHeight = maxValue > 0 ? Math.max((data.paid / maxValue) * 100, data.paid > 0 ? minHeight : 0) : 0
+                    const pendingHeight = maxValue > 0 ? Math.max((data.pending / maxValue) * 100, data.pending > 0 ? minHeight : 0) : 0
+
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center gap-2 group">
+                        <div className="w-full flex justify-center items-end gap-0.5 h-72 relative">
+                          {visibleBars.total && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-orange-600 to-orange-400 rounded-t-md hover:from-orange-700 hover:to-orange-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${totalHeight}%` }}
+                              title={`Total: ${data.total}`}
+                            ></div>
+                          )}
+                          {visibleBars.paid && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-green-600 to-green-400 rounded-t-md hover:from-green-700 hover:to-green-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${paidHeight}%` }}
+                              title={`Paid: ${data.paid}`}
+                            ></div>
+                          )}
+                          {visibleBars.pending && (
+                            <div
+                              className="flex-1 max-w-[8px] bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-md hover:from-yellow-700 hover:to-yellow-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                              style={{ height: `${pendingHeight}%` }}
+                              title={`Pending: ${data.pending}`}
+                            ></div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-700 font-medium text-center w-full truncate group-hover:text-orange-600 transition-colors">
+                          {selectedMonth !== 'all' ? data.month : data.month.substring(0, 3)}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>

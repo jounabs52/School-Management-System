@@ -1223,116 +1223,102 @@ export default function StudentReportsPage() {
 
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="p-4 lg:p-6 min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="mb-4 sm:mb-6 lg:mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 transform hover:scale-105 transition-transform flex-shrink-0">
-              <Award className="text-white" size={20} />
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#D12323] rounded-lg flex items-center justify-center">
+              <Award className="text-white" size={24} />
             </div>
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent truncate">
-                Student Reports
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1 truncate">Real-time certificates and ID cards management</p>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Student Reports</h1>
+              <p className="text-sm text-gray-600">Real-time certificates and ID cards management</p>
             </div>
           </div>
 
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 disabled:opacity-50 w-full md:w-auto"
+            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg shadow-md transition-all border border-gray-200 disabled:opacity-50"
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            <span className="font-medium text-sm sm:text-base">Refresh</span>
+            <span className="font-medium">Refresh</span>
           </button>
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                <FileText className="text-white" size={20} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <FileText className="text-red-600" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.totalCertificates}</p>
+                <p className="text-3xl font-bold text-gray-800">{stats.totalCertificates}</p>
               </div>
             </div>
-            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Certificates</p>
-            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp size={12} className="flex-shrink-0" />
-              <span className="truncate">All time</span>
-            </div>
+            <p className="text-sm font-medium text-gray-600 mt-2">Total Certificates</p>
+            <p className="text-xs text-green-600 mt-1">📈 All time</p>
           </div>
 
-          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                <CreditCard className="text-white" size={20} />
+          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <CreditCard className="text-blue-600" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.totalCards}</p>
+                <p className="text-3xl font-bold text-gray-800">{stats.totalCards}</p>
               </div>
             </div>
-            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total ID Cards</p>
-            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp size={12} className="flex-shrink-0" />
-              <span className="truncate">All time</span>
-            </div>
+            <p className="text-sm font-medium text-gray-600 mt-2">Total ID Cards</p>
+            <p className="text-xs text-green-600 mt-1">📈 All time</p>
           </div>
 
-          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                <Award className="text-white" size={20} />
+          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Award className="text-green-600" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.activeCards}</p>
+                <p className="text-3xl font-bold text-gray-800">{stats.activeCards}</p>
               </div>
             </div>
-            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Active Cards</p>
-            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-green-600">
-              <TrendingUp size={12} className="flex-shrink-0" />
-              <span className="truncate">Currently valid</span>
-            </div>
+            <p className="text-sm font-medium text-gray-600 mt-2">Active Cards</p>
+            <p className="text-xs text-green-600 mt-1">✅ Currently valid</p>
           </div>
 
-          <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-lg border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                <Calendar className="text-white" size={20} />
+          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Calendar className="text-orange-600" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.expiredCards}</p>
+                <p className="text-3xl font-bold text-gray-800">{stats.expiredCards}</p>
               </div>
             </div>
-            <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Expired Cards</p>
-            <div className="mt-1 sm:mt-2 flex items-center gap-1 text-xs text-orange-600">
-              <Calendar size={12} className="flex-shrink-0" />
-              <span className="truncate">Need renewal</span>
-            </div>
+            <p className="text-sm font-medium text-gray-600 mt-2">Expired Cards</p>
+            <p className="text-xs text-orange-600 mt-1">📅 Need renewal</p>
           </div>
         </div>
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white/80 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-xl border border-white/20">
+      <div className="bg-white rounded-xl shadow-lg">
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-2 p-3 sm:p-4">
+          <div className="flex gap-2 p-4">
             <button
               onClick={() => setActiveTab('certificates')}
-              className={`flex items-center justify-center sm:justify-start gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl font-semibold transition-all transform text-sm sm:text-base ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
                 activeTab === 'certificates'
-                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-500/30 scale-105'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
+                  ? 'bg-[#D12323] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <FileText size={18} className="flex-shrink-0" />
-              <span className="truncate">Certificates</span>
-              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold whitespace-nowrap ${
+              <FileText size={18} />
+              <span>Certificates</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
                 activeTab === 'certificates' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
                 {certificates.length}
@@ -1340,15 +1326,15 @@ export default function StudentReportsPage() {
             </button>
             <button
               onClick={() => setActiveTab('cards')}
-              className={`flex items-center justify-center sm:justify-start gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl font-semibold transition-all transform text-sm sm:text-base ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
                 activeTab === 'cards'
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
+                  ? 'bg-[#D12323] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <CreditCard size={18} className="flex-shrink-0" />
-              <span className="truncate">ID Cards</span>
-              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold whitespace-nowrap ${
+              <CreditCard size={18} />
+              <span>ID Cards</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
                 activeTab === 'cards' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
                 {idCards.length}
@@ -1358,71 +1344,64 @@ export default function StudentReportsPage() {
         </div>
 
         {/* Filters Section */}
-        <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200 bg-gradient-to-br from-gray-50 to-white">
-          <div className="flex items-center gap-2 mb-3 sm:mb-4 lg:mb-5">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Search size={14} className="text-white" />
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Search size={16} className="text-blue-600" />
             </div>
-            <h3 className="font-bold text-gray-800 text-base sm:text-lg truncate">Search & Filter</h3>
+            <h3 className="font-bold text-gray-800">Search & Filter</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Class Filter */}
-            <div className="group">
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Filter by Class
               </label>
-              <div className="relative">
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all group-hover:border-gray-300 appearance-none cursor-pointer font-medium text-sm"
-                >
-                  <option value="">All Classes</option>
-                  {classes.map((cls) => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.class_name}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+              >
+                <option value="">All Classes</option>
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.class_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Name Search */}
-            <div className="group">
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Search by Name
               </label>
               <div className="relative">
-                <User className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" size={18} />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   type="text"
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                   placeholder="Enter student name..."
-                  className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium text-sm"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
             </div>
 
             {/* Admission Number Search */}
-            <div className="group">
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Search by Admission No
               </label>
               <div className="relative">
-                <Hash className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" size={18} />
+                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   type="text"
                   value={searchAdmissionNo}
                   onChange={(e) => setSearchAdmissionNo(e.target.value)}
                   placeholder="Enter admission number..."
-                  className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all group-hover:border-gray-300 font-medium text-sm"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
             </div>
@@ -1430,12 +1409,12 @@ export default function StudentReportsPage() {
 
           {/* Clear Filters Button */}
           {(selectedClass || searchName || searchAdmissionNo) && (
-            <div className="mt-3 sm:mt-4 lg:mt-5">
+            <div className="mt-4">
               <button
                 onClick={clearFilters}
-                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-semibold transition-all text-xs sm:text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-semibold transition-all text-sm"
               >
-                <X size={14} className="flex-shrink-0" />
+                <X size={14} />
                 <span>Clear all filters</span>
               </button>
             </div>
@@ -1443,13 +1422,13 @@ export default function StudentReportsPage() {
         </div>
 
         {/* Results Section */}
-        <div className="p-3 sm:p-4 lg:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6">
-            <div className="min-w-0">
-              <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 truncate">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-800">
                 {activeTab === 'certificates' ? 'Certificates List' : 'ID Cards List'}
               </h3>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 truncate">
+              <p className="text-sm text-gray-500">
                 {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
               </p>
             </div>
@@ -1485,29 +1464,29 @@ export default function StudentReportsPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse min-w-max">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-gradient-to-r from-blue-900 to-blue-800 text-white">
-                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Sr.</th>
-                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Student Name</th>
-                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Father Name</th>
-                      <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Class</th>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Sr.</th>
+                      <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Student Name</th>
+                      <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Father Name</th>
+                      <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Class</th>
                     {activeTab === 'certificates' ? (
                       <>
-                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Type</th>
-                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Issue Date</th>
-                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Remarks</th>
+                        <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Type</th>
+                        <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Issue Date</th>
+                        <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Remarks</th>
                       </>
                     ) : (
                       <>
-                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Issue Date</th>
-                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Expiry Date</th>
-                        <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Status</th>
+                        <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Issue Date</th>
+                        <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Expiry Date</th>
+                        <th className="px-3 py-2 text-left font-bold border border-gray-300 text-sm">Status</th>
                       </>
                     )}
-                    <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-center font-bold border border-gray-300 text-xs sm:text-sm whitespace-nowrap">Actions</th>
+                    <th className="px-3 py-2 text-center font-bold border border-gray-300 text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1518,91 +1497,91 @@ export default function StudentReportsPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200 text-xs sm:text-sm">{startIndex + index + 1}</td>
-                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <td className="px-3 py-2 border border-gray-200 text-sm">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2 border border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
                             {item.photo_url ? (
                               <img src={item.photo_url} alt={item.student_first_name} className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm sm:text-base lg:text-lg font-bold">
+                              <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
                                 {item.student_first_name.charAt(0)}
                               </div>
                             )}
                           </div>
-                          <span className="text-blue-600 font-medium hover:underline cursor-pointer text-xs sm:text-sm truncate">
+                          <span className="text-blue-600 font-medium hover:underline cursor-pointer text-sm">
                             {item.student_first_name} {item.student_last_name}
                           </span>
                         </div>
                       </td>
-                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200 text-xs sm:text-sm">{item.father_name}</td>
-                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                        <span className="inline-block px-2 sm:px-3 py-0.5 sm:py-1 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap">
+                      <td className="px-3 py-2 border border-gray-200 text-sm">{item.father_name}</td>
+                      <td className="px-3 py-2 border border-gray-200">
+                        <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold">
                           {item.class_name}
                         </span>
                       </td>
                       {activeTab === 'certificates' ? (
                         <>
-                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                            <span className="inline-block px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs sm:text-sm font-semibold capitalize shadow-sm whitespace-nowrap">
+                          <td className="px-3 py-2 border border-gray-200">
+                            <span className="inline-block px-3 py-1 bg-green-500 text-white rounded-lg text-sm font-semibold capitalize">
                               {item.certificate_type}
                             </span>
                           </td>
-                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                            <div className="flex items-center gap-1 sm:gap-2 text-gray-700">
-                              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
-                              <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
+                          <td className="px-3 py-2 border border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Calendar size={14} className="text-gray-400" />
+                              <span className="text-sm">
                                 {new Date(item.issue_date).toLocaleDateString('en-GB')}
                               </span>
                             </div>
                           </td>
-                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                            <span className="text-gray-600 text-xs sm:text-sm">
+                          <td className="px-3 py-2 border border-gray-200">
+                            <span className="text-gray-600 text-sm">
                               {item.remarks || '-'}
                             </span>
                           </td>
                         </>
                       ) : (
                         <>
-                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                            <div className="flex items-center gap-1 sm:gap-2 text-gray-700">
-                              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
-                              <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
+                          <td className="px-3 py-2 border border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Calendar size={14} className="text-gray-400" />
+                              <span className="text-sm">
                                 {new Date(item.issue_date).toLocaleDateString('en-GB')}
                               </span>
                             </div>
                           </td>
-                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                            <div className="flex items-center gap-1 sm:gap-2 text-gray-700">
-                              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
-                              <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
+                          <td className="px-3 py-2 border border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Calendar size={14} className="text-gray-400" />
+                              <span className="text-sm">
                                 {new Date(item.expiry_date).toLocaleDateString('en-GB')}
                               </span>
                             </div>
                           </td>
-                          <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                            <span className={`inline-block px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow-sm capitalize whitespace-nowrap ${
+                          <td className="px-3 py-2 border border-gray-200">
+                            <span className={`inline-block px-3 py-1 rounded-lg text-sm font-bold capitalize ${
                               item.status === 'active'
-                                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
-                                : 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-red-500 text-white'
                             }`}>
                               {item.status}
                             </span>
                           </td>
                         </>
                       )}
-                      <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 border border-gray-200">
-                        <div className="flex items-center justify-center gap-0.5 sm:gap-1">
+                      <td className="px-3 py-2 border border-gray-200">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handlePrint(item)}
-                            className="p-1.5 sm:p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                             title="Download"
                           >
                             <Download size={16} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
-                            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
                             <Trash2 size={16} />
@@ -1617,30 +1596,29 @@ export default function StudentReportsPage() {
 
             {/* Pagination Controls */}
             {filteredData.length > 0 && (
-              <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 bg-gray-50">
-                <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                <div className="text-sm text-gray-600">
                   Showing {startIndex + 1} to {Math.min(endIndex, filteredData.length)} of {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'}
                 </div>
-                <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center">
+                <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-medium transition text-sm ${
                       currentPage === 1
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
+                        : 'bg-blue-900 text-white hover:bg-blue-800'
                     }`}
                   >
                     Previous
                   </button>
-                  <div className="flex items-center gap-1 sm:gap-2">
+                  <div className="flex items-center gap-2">
                     {(() => {
                       const pages = []
                       const maxVisiblePages = 4
                       let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
                       let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
 
-                      // Adjust startPage if we're near the end
                       if (endPage - startPage + 1 < maxVisiblePages) {
                         startPage = Math.max(1, endPage - maxVisiblePages + 1)
                       }
@@ -1650,9 +1628,9 @@ export default function StudentReportsPage() {
                           <button
                             key={i}
                             onClick={() => setCurrentPage(i)}
-                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg font-medium transition text-xs sm:text-sm ${
+                            className={`w-10 h-10 rounded-lg font-medium transition text-sm ${
                               currentPage === i
-                                ? 'bg-[#1E3A8A] text-white'
+                                ? 'bg-blue-900 text-white'
                                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                             }`}
                           >
@@ -1666,10 +1644,10 @@ export default function StudentReportsPage() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition text-xs sm:text-sm ${
+                    className={`px-4 py-2 rounded-lg font-medium transition text-sm ${
                       currentPage === totalPages
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
+                        : 'bg-blue-900 text-white hover:bg-blue-800'
                     }`}
                   >
                     Next
