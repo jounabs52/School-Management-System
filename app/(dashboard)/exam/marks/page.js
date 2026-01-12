@@ -6,13 +6,14 @@ import { X, Plus, Search, Save, AlertCircle, CheckCircle, XCircle, FileText, Pri
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
-  addPDFHeader,
-  addPDFFooter,
-  addPDFWatermark,
-  convertImageToBase64,
-  PDF_COLORS,
-  PDF_FONTS
-} from '@/lib/pdfUtils'
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  getLogoSize,
+  applyPdfSettings,
+  convertImageToBase64
+} from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function ExamMarksPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -48,6 +49,11 @@ export default function ExamMarksPage() {
   const [resultStudent, setResultStudent] = useState('')
   const [resultStudents, setResultStudents] = useState([])
   const [resultCardData, setResultCardData] = useState(null)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   const showToast = (message, type = 'info') => {
     const id = Date.now()
@@ -211,6 +217,7 @@ export default function ExamMarksPage() {
       const { data, error } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', currentUser.id)           // ✅ Filter by user
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('class_name')
@@ -229,6 +236,8 @@ export default function ExamMarksPage() {
         .from('exams')
         .select('class_id')
         .eq('id', selectedDatesheet)
+        .eq('user_id', currentUser.id)          // ✅ Filter by user
+        .eq('school_id', currentUser.school_id) // ✅ Filter by school
         .single()
 
       if (examError) throw examError
@@ -239,6 +248,7 @@ export default function ExamMarksPage() {
           .from('classes')
           .select('*')
           .eq('id', examData.class_id)
+          .eq('user_id', currentUser.id)          // ✅ Filter by user
           .eq('school_id', currentUser.school_id)
           .eq('status', 'active')
           .order('class_name')
@@ -829,7 +839,7 @@ export default function ExamMarksPage() {
     }
   }
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     if (!viewDatesheet || !viewClass || !viewSubject || viewMarks.length === 0) {
       showToast('No data to generate PDF', 'error')
       return
@@ -847,21 +857,52 @@ export default function ExamMarksPage() {
 
       console.log('Generating PDF for:', { datesheet, classData, subject, marksCount: viewMarks.length })
 
+      const pdfSettings = getPdfSettings()
       const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margins = getMarginValues(pdfSettings)
 
-      // Add professional header
-      const headerOptions = {
-        subtitle: 'Exam Marks Report',
-        info: `Exam: ${datesheet.exam_name || 'N/A'} | Class: ${classData.class_name || 'N/A'} | Subject: ${subject.subject_name || 'N/A'}`
+      // Add logo and header if enabled
+      let yPos = margins.top
+      if (pdfSettings.includeLogo && schoolData?.logo_url) {
+        try {
+          const logoData = await convertImageToBase64(schoolData.logo_url)
+          const logoSize = getLogoSize(pdfSettings.logoSize)
+          const logoX = (pageWidth - logoSize.width) / 2
+          doc.addImage(logoData, 'PNG', logoX, yPos, logoSize.width, logoSize.height)
+          yPos += logoSize.height + 5
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
       }
-      let yPos = addPDFHeader(doc, schoolData, 'EXAMINATION MARKS', headerOptions)
 
-      // Add watermark
-      if (schoolData?.logo) {
-        addPDFWatermark(doc, schoolData)
+      // Add school name and header
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
+      if (pdfSettings.includeSchoolName && schoolData?.name) {
+        doc.setFontSize(16)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...textColor)
+        doc.text(schoolData.name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 7
       }
 
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('EXAMINATION MARKS', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 6
+
+      // Subtitle
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Exam Marks Report', pageWidth / 2, yPos, { align: 'center' })
       yPos += 5
+
+      doc.text(`Exam: ${datesheet.exam_name || 'N/A'} | Class: ${classData.class_name || 'N/A'} | Subject: ${subject.subject_name || 'N/A'}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
 
       // Get total marks from first record
       const examTotalMarks = viewMarks[0]?.total_marks || 100
@@ -902,7 +943,7 @@ export default function ExamMarksPage() {
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: PDF_COLORS.headerBg,
+          fillColor: headerBgColor,
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold',
@@ -912,7 +953,8 @@ export default function ExamMarksPage() {
         bodyStyles: {
           fontSize: 8,
           cellPadding: 2,
-          valign: 'middle'
+          valign: 'middle',
+          textColor: textColor
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
@@ -946,91 +988,130 @@ export default function ExamMarksPage() {
         }
       })
 
-      // Add professional footer to all pages
-      const pageCount = doc.internal.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
-        addPDFFooter(doc, i, pageCount)
+      // Add footer to all pages if enabled
+      if (pdfSettings.includeFooter && pdfSettings.footerText) {
+        const pageCount = doc.internal.getNumberOfPages()
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
+          const footerY = pageHeight - margins.bottom + 5
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(...textColor)
+          doc.text(pdfSettings.footerText, pageWidth / 2, footerY, { align: 'center' })
+        }
       }
 
-      // Save PDF with sanitized filename
+      // Generate blob and show preview
       const examTitle = datesheet.exam_name || 'Exam'
       const subjectName = subject.subject_name || 'Subject'
       const fileName = `${examTitle}_${classData.class_name}_${subjectName}_Marks.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_')
 
       console.log('Saving PDF as:', fileName)
-      doc.save(fileName)
-
-      showToast('PDF generated successfully', 'success')
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
     }
   }
 
-  const generateResultCardPDF = () => {
+  const generateResultCardPDF = async () => {
     if (!resultCardData) {
       showToast('No result card data available', 'error')
       return
     }
 
     try {
+      const pdfSettings = getPdfSettings()
       const doc = new jsPDF()
       const { student, exam, class: classData, subjects, statistics } = resultCardData
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margins = getMarginValues(pdfSettings)
 
-      // Add professional header
-      const headerOptions = {
-        subtitle: 'Examination Result Card',
-        info: `${student.first_name} ${student.last_name} | Class: ${classData.class_name || 'N/A'}`
+      // Add logo and header if enabled
+      let yPos = margins.top
+      if (pdfSettings.includeLogo && schoolData?.logo_url) {
+        try {
+          const logoData = await convertImageToBase64(schoolData.logo_url)
+          const logoSize = getLogoSize(pdfSettings.logoSize)
+          const logoX = (pageWidth - logoSize.width) / 2
+          doc.addImage(logoData, 'PNG', logoX, yPos, logoSize.width, logoSize.height)
+          yPos += logoSize.height + 5
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
       }
-      let yPos = addPDFHeader(doc, schoolData, 'RESULT CARD', headerOptions)
 
-      // Add watermark
-      if (schoolData?.logo) {
-        addPDFWatermark(doc, schoolData)
+      // Add school name and header
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
+      if (pdfSettings.includeSchoolName && schoolData?.name) {
+        doc.setFontSize(16)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...textColor)
+        doc.text(schoolData.name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 7
       }
 
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('RESULT CARD', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 6
+
+      // Subtitle
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Examination Result Card', pageWidth / 2, yPos, { align: 'center' })
       yPos += 5
 
+      doc.text(`${student.first_name} ${student.last_name} | Class: ${classData.class_name || 'N/A'}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
+
       // Student Information Section
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
-      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.setTextColor(...textColor)
 
       // Student Details - Left Column
       doc.text('Student Name:', 15, yPos)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text(`${student.first_name} ${student.last_name}`, 55, yPos)
 
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Father Name:', 15, yPos + 7)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text(student.father_name || 'N/A', 55, yPos + 7)
 
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Roll Number:', 15, yPos + 14)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text(student.roll_number?.toString() || 'N/A', 55, yPos + 14)
 
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Admission No:', 15, yPos + 21)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text(student.admission_number || 'N/A', 55, yPos + 21)
 
       // Student Details - Right Column
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Class:', 120, yPos)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text(classData.class_name || 'N/A', 150, yPos)
 
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Exam:', 120, yPos + 7)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text(exam.exam_name || 'N/A', 150, yPos + 7)
 
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Exam Date:', 120, yPos + 14)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       const examDate = exam.start_date
         ? new Date(exam.start_date).toLocaleDateString('en-GB', {
             day: '2-digit',
@@ -1040,9 +1121,9 @@ export default function ExamMarksPage() {
         : 'N/A'
       doc.text(examDate, 150, yPos + 14)
 
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Result Date:', 120, yPos + 21)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       const resultDate = exam.result_declaration_date
         ? new Date(exam.result_declaration_date).toLocaleDateString('en-GB', {
             day: '2-digit',
@@ -1054,7 +1135,7 @@ export default function ExamMarksPage() {
 
       // Divider line
       yPos += 28
-      doc.setDrawColor(...PDF_COLORS.border)
+      doc.setDrawColor(...textColor)
       doc.setLineWidth(0.5)
       doc.line(15, yPos, 195, yPos)
 
@@ -1078,7 +1159,7 @@ export default function ExamMarksPage() {
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: PDF_COLORS.headerBg,
+          fillColor: headerBgColor,
           textColor: [255, 255, 255],
           fontSize: 10,
           fontStyle: 'bold',
@@ -1088,7 +1169,8 @@ export default function ExamMarksPage() {
         bodyStyles: {
           fontSize: 9,
           cellPadding: 3,
-          valign: 'middle'
+          valign: 'middle',
+          textColor: textColor
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 12 },
@@ -1154,7 +1236,7 @@ export default function ExamMarksPage() {
       // Final Result Box
       const finalY = doc.lastAutoTable.finalY + 10
       doc.setFontSize(12)
-      doc.setFont(PDF_FONTS.primary, 'bold')
+      doc.setFont('helvetica', 'bold')
 
       // Result status with colored background
       const resultText = `Final Result: ${statistics.result}`
@@ -1163,33 +1245,47 @@ export default function ExamMarksPage() {
       doc.setFillColor(resultColor[0], resultColor[1], resultColor[2])
       doc.setTextColor(255, 255, 255)
       const textWidth = doc.getTextWidth(resultText)
-      doc.rect(doc.internal.pageSize.width / 2 - textWidth / 2 - 5, finalY - 5, textWidth + 10, 10, 'F')
-      doc.text(resultText, doc.internal.pageSize.width / 2, finalY + 2, { align: 'center' })
+      doc.rect(pageWidth / 2 - textWidth / 2 - 5, finalY - 5, textWidth + 10, 10, 'F')
+      doc.text(resultText, pageWidth / 2, finalY + 2, { align: 'center' })
 
       // Grading Scale
-      doc.setTextColor(...PDF_COLORS.textDark)
+      doc.setTextColor(...textColor)
       doc.setFontSize(9)
-      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Grading Scale:', 15, finalY + 15)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text('A+ (90-100%)  |  A (80-89%)  |  B (70-79%)  |  C (60-69%)  |  D (50-59%)  |  E (40-49%)  |  F (<40%)', 15, finalY + 21)
 
-      // Add professional footer
-      const pageCount = doc.internal.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
-        addPDFFooter(doc, i, pageCount)
+      // Add footer to all pages if enabled
+      if (pdfSettings.includeFooter && pdfSettings.footerText) {
+        const pageCount = doc.internal.getNumberOfPages()
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
+          const footerY = pageHeight - margins.bottom + 5
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(...textColor)
+          doc.text(pdfSettings.footerText, pageWidth / 2, footerY, { align: 'center' })
+        }
       }
 
-      // Save PDF
+      // Generate blob and show preview
       const fileName = `ResultCard_${student.first_name}_${student.last_name}_${exam.exam_name}.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_')
-      doc.save(fileName)
-
-      showToast('Result card PDF generated successfully', 'success')
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
     } catch (error) {
       console.error('Error generating result card PDF:', error)
       showToast(`Failed to generate result card PDF: ${error.message}`, 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const selectedDatesheetData = datesheets.find(d => d.id === selectedDatesheet)
@@ -1898,6 +1994,14 @@ export default function ExamMarksPage() {
           </div>
         )}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

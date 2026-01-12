@@ -6,6 +6,7 @@ import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, Chevro
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, applyPdfSettings, getAutoTableStyles } from '@/lib/pdfSettings'
+import { addPDFFooter } from '@/lib/pdfUtils'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -375,9 +376,22 @@ export default function AdmissionRegisterPage() {
     setLoading(true)
     setError(null)
     try {
+      // ✅ Get logged-in user
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+      const userId = user?.id
+      const schoolId = user?.school_id
+
+      if (!userId || !schoolId) {
+        setError('User not logged in')
+        setLoading(false)
+        return
+      }
+
       let query = supabase
         .from('students')
         .select('*')
+        .eq('user_id', userId)          // ✅ Filter by user
+        .eq('school_id', schoolId)      // ✅ Filter by school
         .in('status', ['active', 'inactive'])
         .order('created_at', { ascending: false })
 
@@ -434,7 +448,7 @@ export default function AdmissionRegisterPage() {
       const { data: schools, error: schoolError } = await supabase
         .from('schools')
         .select('id')
-        .limit(1)
+        .eq('id', currentUser.school_id)
         .single()
 
       if (schoolError) {
@@ -470,9 +484,16 @@ export default function AdmissionRegisterPage() {
   const fetchClasses = async () => {
     setLoadingClasses(true)
     try {
+      // ✅ Get logged-in user
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+      const userId = user?.id
+      const schoolId = user?.school_id
+
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name, standard_fee, fee_plan, status')
+        .eq('user_id', userId)          // ✅ Filter by user
+        .eq('school_id', schoolId)      // ✅ Filter by school
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -495,10 +516,17 @@ export default function AdmissionRegisterPage() {
 
     setLoadingSections(true)
     try {
+      // ✅ Get logged-in user
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+      const userId = user?.id
+      const schoolId = user?.school_id
+
       const { data, error } = await supabase
         .from('sections')
         .select('id, section_name, status, capacity')
         .eq('class_id', classId)
+        .eq('user_id', userId)          // ✅ Filter by user
+        .eq('school_id', schoolId)      // ✅ Filter by school
         .eq('status', 'active')
         .order('section_name', { ascending: true })
 
@@ -549,12 +577,18 @@ export default function AdmissionRegisterPage() {
 
   const handleClassChange = (classId) => {
     const selectedClass = classes.find(c => c.id === classId)
+
+    // Validate fee_plan - only allow valid values from CHECK constraint
+    const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual']
+    const classFeePlan = selectedClass?.fee_plan
+    const validatedFeePlan = validFeePlans.includes(classFeePlan) ? classFeePlan : 'monthly'
+
     setFormData({
       ...formData,
       class: classId,
       section: '', // Reset section when class changes
       baseFee: selectedClass?.standard_fee || '',
-      feePlan: selectedClass?.fee_plan || 'monthly' // Get fee plan from class
+      feePlan: validatedFeePlan // Get fee plan from class with validation
     })
     // Fetch sections for the selected class
     fetchSections(classId)
@@ -700,6 +734,15 @@ export default function AdmissionRegisterPage() {
     setSuccess(null)
 
     try {
+      // ✅ Get logged-in user
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+      const userId = user?.id
+      const schoolId = user?.school_id
+
+      if (!userId || !schoolId) {
+        throw new Error('User not logged in. Please login again.')
+      }
+
       // Split student name
       const nameParts = formData.studentName.trim().split(' ')
       const firstName = nameParts[0]
@@ -742,21 +785,12 @@ export default function AdmissionRegisterPage() {
         }
       }
 
-      // Fetch the first school_id if we're creating a new student
-      let schoolId = null
-      if (!isEditMode) {
-        const { data: schools, error: schoolError } = await supabase
-          .from('schools')
-          .select('id')
-          .limit(1)
-          .single()
+      // schoolId is already set from user at the top of the function
+      // No need to fetch from schools table anymore
 
-        if (schoolError) {
-          throw new Error('Unable to fetch school information. Please ensure schools table has data.')
-        }
-
-        schoolId = schools?.id
-      }
+      // Validate fee_plan before database operation
+      const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual']
+      const safeFeePlan = validFeePlans.includes(formData.feePlan) ? formData.feePlan : 'monthly'
 
       if (isEditMode) {
         // Update existing student
@@ -787,7 +821,7 @@ export default function AdmissionRegisterPage() {
             discount_amount: calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
             discount_note: formData.discountNote || null,
             final_fee: (parseFloat(formData.baseFee) || 0) - calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
-            fee_plan: formData.feePlan || 'monthly',
+            fee_plan: safeFeePlan,
             starting_month: parseInt(formData.startingMonth) || new Date().getMonth() + 1,
             updated_at: new Date().toISOString()
           })
@@ -808,6 +842,7 @@ export default function AdmissionRegisterPage() {
         const { data: insertedStudent, error: insertError } = await supabase
           .from('students')
           .insert([{
+            user_id: userId,                // ✅ Add user_id
             school_id: schoolId,
             admission_number: formData.admissionNo,
             first_name: firstName,
@@ -833,7 +868,7 @@ export default function AdmissionRegisterPage() {
             discount_amount: calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
             discount_note: formData.discountNote || null,
             final_fee: (parseFloat(formData.baseFee) || 0) - calculateDiscount(formData.baseFee, formData.discount, formData.discountType),
-            fee_plan: formData.feePlan || 'monthly',
+            fee_plan: safeFeePlan,
             starting_month: parseInt(formData.startingMonth) || new Date().getMonth() + 1,
             status: 'active'
           }])
@@ -847,6 +882,7 @@ export default function AdmissionRegisterPage() {
 
         if (formData.fatherName && formData.fatherMobile) {
           contacts.push({
+            user_id: userId,                // ✅ Add user_id
             student_id: insertedStudent.id,
             school_id: schoolId,
             contact_type: 'father',
@@ -866,6 +902,7 @@ export default function AdmissionRegisterPage() {
 
         if (formData.motherName && formData.motherMobile) {
           contacts.push({
+            user_id: userId,                // ✅ Add user_id
             student_id: insertedStudent.id,
             school_id: schoolId,
             contact_type: 'mother',
@@ -884,6 +921,7 @@ export default function AdmissionRegisterPage() {
 
         if (formData.guardianName && formData.guardianMobile) {
           contacts.push({
+            user_id: userId,                // ✅ Add user_id
             student_id: insertedStudent.id,
             school_id: schoolId,
             contact_type: 'guardian',
@@ -929,6 +967,7 @@ export default function AdmissionRegisterPage() {
           // Create ONE fee challan with complete schedule stored in fee_schedule JSON
           const challanNumber = `CH-${insertedStudent.admission_number}-${new Date().getFullYear()}`
           const challanToInsert = {
+            user_id: userId,                // ✅ Add user_id
             school_id: schoolId,
             session_id: sessionId,
             student_id: insertedStudent.id,
@@ -1070,6 +1109,11 @@ export default function AdmissionRegisterPage() {
         setImagePreview(null) // Don't set preview for existing URL, show the saved image
       }
 
+      // Validate fee_plan from database
+      const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual']
+      const dbFeePlan = fullStudent.fee_plan
+      const validatedDbFeePlan = validFeePlans.includes(dbFeePlan) ? dbFeePlan : 'monthly'
+
       setFormData({
         id: fullStudent.id,
         admissionNo: fullStudent.admission_number || '',
@@ -1131,7 +1175,7 @@ export default function AdmissionRegisterPage() {
         nationality: fullStudent.nationality || 'Pakistan',
         permanentAddress: '',
         medicalProblem: '',
-        feePlan: fullStudent.fee_plan || 'monthly',
+        feePlan: validatedDbFeePlan,
         startingMonth: fullStudent.starting_month || new Date().getMonth() + 1,
         discountType: fullStudent.discount_type || 'fixed',
         discount: fullStudent.discount_value || fullStudent.discount_amount || ''
@@ -1162,15 +1206,19 @@ export default function AdmissionRegisterPage() {
       // Fetch class and section details
       let className = 'N/A'
       let sectionName = 'N/A'
+      let classFeePlan = null
 
       if (data.current_class_id) {
         const { data: classData } = await supabase
           .from('classes')
-          .select('class_name')
+          .select('class_name, fee_plan')
           .eq('id', data.current_class_id)
           .single()
 
-        if (classData) className = classData.class_name
+        if (classData) {
+          className = classData.class_name
+          classFeePlan = classData.fee_plan
+        }
       }
 
       if (data.current_section_id) {
@@ -1183,11 +1231,12 @@ export default function AdmissionRegisterPage() {
         if (sectionData) sectionName = sectionData.section_name
       }
 
-      // Set complete student data
+      // Set complete student data - use class fee_plan if available, otherwise student's fee_plan
       setSelectedStudent({
         ...data,
         className,
         sectionName,
+        fee_plan: classFeePlan || data.fee_plan, // Prioritize class fee_plan
         avatar: data.gender === 'female' ? '👧' : (data.gender === 'male' ? '👦' : '🧑')
       })
       setShowViewModal(true)
@@ -1277,40 +1326,84 @@ export default function AdmissionRegisterPage() {
         doc.setFillColor(...primaryRgb)
         doc.rect(0, 0, pageWidth, 40, 'F')
 
-        // School Logo (if available) - WITH CANVAS METHOD
-        // Always try to include logo if URL exists
-        if (schoolData?.logo_url) {
+        // School Logo (if available) - WITH SETTINGS
+        if (pdfSettings.includeLogo && schoolData?.logo_url) {
           try {
             console.log('Loading school logo from:', schoolData.logo_url)
-            console.log('Include logo setting:', pdfSettings.includeLogo)
 
             const logoImg = new Image()
             logoImg.crossOrigin = 'anonymous'
 
-            const logoBase64 = await new Promise((resolve, reject) => {
+            await new Promise((resolve, reject) => {
               const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 10000)
 
               logoImg.onload = () => {
                 clearTimeout(timeout)
                 try {
-                  const canvas = document.createElement('canvas')
-                  canvas.width = logoImg.width
-                  canvas.height = logoImg.height
-                  const ctx = canvas.getContext('2d')
-                  ctx.drawImage(logoImg, 0, 0)
-                  const dataUrl = canvas.toDataURL('image/png', 0.9)
-                  console.log('Logo converted successfully, size:', dataUrl.length)
-                  resolve(dataUrl)
+                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                  const headerHeight = 40
+                  const logoY = (headerHeight - currentLogoSize) / 2
+                  let logoX = 10 // Default to left with 10mm margin
+
+                  // Position logo based on settings
+                  if (pdfSettings.logoPosition === 'center') {
+                    logoX = 10 // Keep on left even if center selected (to avoid text overlap)
+                  } else if (pdfSettings.logoPosition === 'right') {
+                    logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                  }
+
+                  // Add logo with style
+                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                    // Create a canvas to clip the image
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const size = 200 // Higher resolution for better quality
+                    canvas.width = size
+                    canvas.height = size
+
+                    // Draw clipped image on canvas
+                    ctx.beginPath()
+                    if (pdfSettings.logoStyle === 'circle') {
+                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                    } else {
+                      // Rounded corners
+                      const radius = size * 0.15
+                      ctx.moveTo(radius, 0)
+                      ctx.lineTo(size - radius, 0)
+                      ctx.quadraticCurveTo(size, 0, size, radius)
+                      ctx.lineTo(size, size - radius)
+                      ctx.quadraticCurveTo(size, size, size - radius, size)
+                      ctx.lineTo(radius, size)
+                      ctx.quadraticCurveTo(0, size, 0, size - radius)
+                      ctx.lineTo(0, radius)
+                      ctx.quadraticCurveTo(0, 0, radius, 0)
+                    }
+                    ctx.closePath()
+                    ctx.clip()
+
+                    // Draw image
+                    ctx.drawImage(logoImg, 0, 0, size, size)
+
+                    // Convert canvas to data URL and add to PDF
+                    const clippedImage = canvas.toDataURL('image/png')
+                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  } else {
+                    // Square logo
+                    doc.addImage(logoImg, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  }
+
+                  console.log('School logo added to PDF successfully')
+                  resolve()
                 } catch (err) {
                   console.error('Logo canvas error:', err)
-                  reject(err)
+                  resolve()
                 }
               }
 
               logoImg.onerror = (err) => {
                 clearTimeout(timeout)
                 console.error('Logo load failed:', err)
-                reject(err)
+                resolve()
               }
 
               // Handle both absolute and relative URLs
@@ -1321,21 +1414,6 @@ export default function AdmissionRegisterPage() {
               console.log('Final logo URL:', logoUrl)
               logoImg.src = logoUrl
             })
-
-            if (logoBase64 && logoBase64.length > 100) {
-              // Fixed size to match student photo (24mm)
-              const logoSize = 24
-              const logoX = 15
-              const logoY = 8
-
-              doc.addImage(logoBase64, 'PNG', logoX, logoY, logoSize, logoSize)
-              console.log('School logo added to PDF successfully at size:', logoSize)
-
-              // Add subtle border around logo
-              doc.setDrawColor(255, 255, 255)
-              doc.setLineWidth(0.5)
-              doc.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'S')
-            }
           } catch (e) {
             console.error('Error adding school logo:', e.message)
           }
@@ -1359,10 +1437,10 @@ export default function AdmissionRegisterPage() {
         }
       }
 
-      let yPos = pdfSettings.includeHeader !== false ? 50 : 15
+      let yPos = pdfSettings.includeHeader !== false ? 48 : 15
 
-      // Student Header Card - responsive height based on orientation
-      const headerCardHeight = orientation === 'landscape' ? 25 : 30
+      // Student Header Card - COMPACT responsive height
+      const headerCardHeight = orientation === 'landscape' ? 20 : 24
 
       doc.setFillColor(248, 250, 252)
       doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'F')
@@ -1372,10 +1450,10 @@ export default function AdmissionRegisterPage() {
       doc.setLineWidth(0.5)
       doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'S')
 
-      // Student Photo (if available) - WITH CANVAS METHOD
-      const photoSize = orientation === 'landscape' ? 20 : 24 // Smaller for landscape
-      const photoX = margins.left + 3
-      const photoY = yPos + 2.5
+      // Student Photo (if available) - COMPACT
+      const photoSize = orientation === 'landscape' ? 16 : 20 // Smaller photo
+      const photoX = margins.left + 2
+      const photoY = yPos + 2
 
       if (selectedStudent.photo_url) {
         try {
@@ -1453,52 +1531,62 @@ export default function AdmissionRegisterPage() {
         doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
       }
 
-      // Student name and key info - positioned next to photo
-      const infoX = photoX + photoSize + 5
+      // Student name and key info - positioned next to photo - COMPACT
+      const infoX = photoX + photoSize + 4
 
-      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') + 4)
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') + 2)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
       doc.setTextColor(...primaryRgb)
-      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, yPos + 8)
+      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, yPos + 7)
 
-      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 1)
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 2)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
       doc.setTextColor(75, 85, 99)
-      doc.text(`Admission No: ${selectedStudent.admission_number}`, infoX, yPos + 15)
-      doc.text(`Class: ${selectedStudent.className || 'N/A'} | Section: ${selectedStudent.sectionName || 'N/A'}`, infoX, yPos + 21)
+      doc.text(`Admission No: ${selectedStudent.admission_number}`, infoX, yPos + 12)
+      doc.text(`Class: ${selectedStudent.className || 'N/A'} | Section: ${selectedStudent.sectionName || 'N/A'}`, infoX, yPos + 16)
 
-      // Status badge - positioned in top right of card
+      // Status badge - positioned in top right of card - COMPACT
       const status = selectedStudent.status || 'active'
       const statusColor = status === 'active' ? [34, 197, 94] : [239, 68, 68]
       doc.setFillColor(...statusColor)
-      doc.roundedRect(pageWidth - margins.right - 30, yPos + 5, 28, 7, 2, 2, 'F')
-      doc.setFontSize(8)
+      doc.roundedRect(pageWidth - margins.right - 25, yPos + 4, 23, 6, 2, 2, 'F')
+      doc.setFontSize(7)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
       doc.setTextColor(255, 255, 255)
-      doc.text(status.toUpperCase(), pageWidth - margins.right - 16, yPos + 10, { align: 'center' })
+      doc.text(status.toUpperCase(), pageWidth - margins.right - 13.5, yPos + 8, { align: 'center' })
 
-      // Adjust spacing based on orientation
-      yPos += orientation === 'landscape' ? 28 : 35
+      // Adjust spacing based on orientation - MORE COMPACT
+      yPos += orientation === 'landscape' ? 20 : 25
 
       // Helper function for COMPACT section headers with professional styling
       const addSectionHeader = (title) => {
-        // Blue gradient-like header
+        // Reserve space for footer
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+
+        // Check if we need a new page for the section header
+        if (yPos + 10 > maxContentY) {
+          doc.addPage()
+          yPos = margins.top || 15
+        }
+
+        // Blue gradient-like header - REDUCED HEIGHT
         const tableHeaderRgb = hexToRgb(pdfSettings.tableHeaderColor || pdfSettings.secondaryColor || '#3B82F6')
         doc.setFillColor(...tableHeaderRgb)
-        doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, 7, 1, 1, 'F')
+        doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, 6, 1, 1, 'F')
 
-        doc.setFontSize(parseInt(pdfSettings.fontSize || '10'))
+        doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 1)
         doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
         doc.setTextColor(255, 255, 255)
-        doc.text(title, margins.left + 3, yPos + 4.5)
-        yPos += 9
+        doc.text(title, margins.left + 3, yPos + 4)
+        yPos += 7.5
       }
 
       // Helper function for responsive multi-column fields - adapts to orientation
       const addTwoColumnFields = (fields) => {
         // Use 3 columns for landscape, 2 for portrait
         const numColumns = orientation === 'landscape' ? 3 : 2
-        const gapSize = 2.5
+        const gapSize = 2
         const totalGaps = (numColumns - 1) * gapSize
         const colWidth = (pageWidth - margins.left - margins.right - totalGaps) / numColumns
 
@@ -1510,27 +1598,41 @@ export default function AdmissionRegisterPage() {
         const labelColorRgb = [107, 114, 128] // Gray-500
         const borderRgb = [229, 231, 235] // Gray-200
 
+        // Reserve space for footer (footer area starts at pageHeight - 20)
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+
+        // COMPACT field height
+        const fieldHeight = 7.5
+
         fields.forEach(([label, value]) => {
           if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
+            // Check if we need a new page
+            if (rowY + 10 > maxContentY) {
+              doc.addPage()
+              rowY = margins.top || 15
+              col = 0
+            }
+
             const xPos = margins.left + (col * (colWidth + gapSize))
 
             // Card background with subtle shadow effect
             doc.setFillColor(...fieldBgRgb)
-            doc.roundedRect(xPos, rowY, colWidth, 9, 1.5, 1.5, 'F')
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'F')
 
             // Subtle border for definition
             doc.setDrawColor(...borderRgb)
             doc.setLineWidth(0.2)
-            doc.roundedRect(xPos, rowY, colWidth, 9, 1.5, 1.5, 'S')
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'S')
 
             // Label - small gray uppercase
-            doc.setFontSize(6)
+            doc.setFontSize(5.5)
             doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
             doc.setTextColor(...labelColorRgb)
-            doc.text(label.toUpperCase(), xPos + 2, rowY + 3.5)
+            doc.text(label.toUpperCase(), xPos + 1.5, rowY + 3)
 
             // Value - larger and bold with proper text fitting
-            doc.setFontSize(8)
+            doc.setFontSize(7.5)
             doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
             doc.setTextColor(31, 41, 55) // Gray-800
 
@@ -1541,17 +1643,17 @@ export default function AdmissionRegisterPage() {
               valueText = valueText.substring(0, maxChars - 3) + '...'
             }
 
-            doc.text(valueText, xPos + 2, rowY + 7, { maxWidth: colWidth - 4 })
+            doc.text(valueText, xPos + 1.5, rowY + 6, { maxWidth: colWidth - 3 })
 
             col++
             if (col >= numColumns) {
               col = 0
-              rowY += 10
+              rowY += fieldHeight + 1.5
             }
           }
         })
 
-        yPos = col === 0 ? rowY : rowY + 10
+        yPos = col === 0 ? rowY : rowY + fieldHeight + 1.5
       }
 
       // Basic Information
@@ -1567,7 +1669,7 @@ export default function AdmissionRegisterPage() {
         ['Nationality', selectedStudent.nationality || 'Pakistan']
       ])
 
-      yPos += orientation === 'landscape' ? 2 : 3
+      yPos += orientation === 'landscape' ? 1.5 : 2
 
       // Academic Information
       addSectionHeader('ACADEMIC INFORMATION')
@@ -1580,7 +1682,7 @@ export default function AdmissionRegisterPage() {
         ['Status', selectedStudent.status]
       ])
 
-      yPos += orientation === 'landscape' ? 2 : 3
+      yPos += orientation === 'landscape' ? 1.5 : 2
 
       // Father Information
       if (selectedStudent.father_name) {
@@ -1594,7 +1696,7 @@ export default function AdmissionRegisterPage() {
           ['Occupation', selectedStudent.father_occupation],
           ['Annual Income', selectedStudent.father_annual_income]
         ])
-        yPos += orientation === 'landscape' ? 2 : 3
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Mother Information
@@ -1609,7 +1711,7 @@ export default function AdmissionRegisterPage() {
           ['Occupation', selectedStudent.mother_occupation],
           ['Annual Income', selectedStudent.mother_annual_income]
         ])
-        yPos += orientation === 'landscape' ? 2 : 3
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Contact Information
@@ -1623,7 +1725,7 @@ export default function AdmissionRegisterPage() {
           ['State', selectedStudent.state],
           ['Postal Code', selectedStudent.postal_code]
         ])
-        yPos += orientation === 'landscape' ? 2 : 3
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Fee Information
@@ -1638,28 +1740,9 @@ export default function AdmissionRegisterPage() {
         ])
       }
 
-      // Footer (if enabled)
+      // Footer (using centralized footer function)
       if (pdfSettings.includeFooter !== false) {
-        const footerY = pageHeight - 10
-
-        doc.setFontSize(8)
-        doc.setTextColor(100, 116, 139) // Gray-500
-        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
-
-        // Footer text (left) - school name or custom text
-        const footerText = pdfSettings.footerText || schoolData?.name || 'School Management System'
-        doc.text(footerText, margins.left, footerY)
-
-        // Generated date (center)
-        if (pdfSettings.includeGeneratedDate !== false) {
-          const generatedText = `Generated: ${new Date().toLocaleDateString()}`
-          doc.text(generatedText, pageWidth / 2, footerY, { align: 'center' })
-        }
-
-        // Page number (right)
-        if (pdfSettings.includePageNumbers !== false) {
-          doc.text(`Page ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - margins.right, footerY, { align: 'right' })
-        }
+        addPDFFooter(doc, 1, 1, pdfSettings)
       }
 
       // Save the PDF
@@ -1764,7 +1847,7 @@ export default function AdmissionRegisterPage() {
       const { data: schools, error: schoolError } = await supabase
         .from('schools')
         .select('id')
-        .limit(1)
+        .eq('id', currentUser.school_id)
         .single()
 
       if (schoolError) {
@@ -2032,16 +2115,16 @@ export default function AdmissionRegisterPage() {
 
       {/* Main Content - Admission Register */}
       {activeTab === 'register' && (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Admission Register</h2>
+      <div className="bg-white rounded-xl shadow-lg p-4">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Admission Register</h2>
 
         {/* Search and Filter Section */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4">
           <div className="md:col-span-3">
             <select
               value={selectedOption}
               onChange={(e) => setSelectedOption(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="">All Classes</option>
               {classes.map((cls) => (
@@ -2060,14 +2143,14 @@ export default function AdmissionRegisterPage() {
                 placeholder="Search by name, father name, or admission number"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
         </div>
 
         {/* Info Text */}
-        <p className="text-gray-600 mb-4">
+        <p className="text-sm text-gray-600 mb-3">
           There are <span className="text-red-600 font-bold">{admissions.length}</span> admissions saved in the system.
         </p>
 
@@ -2085,19 +2168,19 @@ export default function AdmissionRegisterPage() {
               <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Session</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Father Name</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Adm.No</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold border border-blue-800">Sr.</th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold border border-blue-800">Session</th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold border border-blue-800">Class</th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold border border-blue-800">Student Name</th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold border border-blue-800">Father Name</th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold border border-blue-800">Adm.No</th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold border border-blue-800">Options</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAdmissions.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan="7" className="px-3 py-6 text-center text-sm text-gray-500">
                       No students found. Click "Register New Student" to add one.
                     </td>
                   </tr>
@@ -2109,44 +2192,44 @@ export default function AdmissionRegisterPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-4 py-3 border border-gray-200">{admission.session}</td>
-                      <td className="px-4 py-3 border border-gray-200">{getClassName(admission.class)}</td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200 text-sm">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2.5 border border-gray-200 text-sm">{admission.session}</td>
+                      <td className="px-3 py-2.5 border border-gray-200 text-sm">{getClassName(admission.class)}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <div className="flex items-center gap-2">
-                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                             {admission.photo_url ? (
                               <img src={admission.photo_url} alt={admission.name} className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-xl">{admission.avatar}</span>
+                              <span className="text-lg">{admission.avatar}</span>
                             )}
                           </div>
-                          <span className="text-blue-600 font-medium hover:underline cursor-pointer">
+                          <span className="text-blue-600 text-sm font-medium hover:underline cursor-pointer">
                             {admission.name}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">{admission.father}</td>
-                      <td className="px-4 py-3 border border-gray-200">{admission.admNo}</td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200 text-sm">{admission.father}</td>
+                      <td className="px-3 py-2.5 border border-gray-200 text-sm">{admission.admNo}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(admission)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                             title="View"
                           >
-                            <Eye size={18} />
+                            <Eye size={16} />
                           </button>
                           <button
                             onClick={() => handleEdit(admission)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                             title="Edit"
                           >
-                            <Edit2 size={18} />
+                            <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => handleToggleStatus(admission)}
-                            className={`p-2 rounded-lg transition ${
+                            className={`p-1.5 rounded-lg transition ${
                               admission.status === 'active'
                                 ? 'text-green-600 hover:bg-green-50'
                                 : 'text-gray-600 hover:bg-gray-50'
@@ -2154,17 +2237,17 @@ export default function AdmissionRegisterPage() {
                             title={admission.status === 'active' ? 'Deactivate Student' : 'Activate Student'}
                           >
                             {admission.status === 'active' ? (
-                              <ToggleRight size={18} />
+                              <ToggleRight size={16} />
                             ) : (
-                              <ToggleLeft size={18} />
+                              <ToggleLeft size={16} />
                             )}
                           </button>
                           <button
                             onClick={() => handleDelete(admission)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>
@@ -2177,23 +2260,19 @@ export default function AdmissionRegisterPage() {
 
           {/* Pagination Controls */}
           {filteredAdmissions.length > 0 && (
-            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-              <div className="text-sm text-gray-600">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredAdmissions.length)} of {filteredAdmissions.length} students
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-white">
+              <div className="text-xs text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredAdmissions.length)} of {filteredAdmissions.length} entries
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
-                    currentPage === 1
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
-                  }`}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Previous
                 </button>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {(() => {
                     const pages = []
                     const maxVisiblePages = 4
@@ -2210,9 +2289,9 @@ export default function AdmissionRegisterPage() {
                         <button
                           key={i}
                           onClick={() => setCurrentPage(i)}
-                          className={`w-10 h-10 rounded-lg font-medium transition ${
+                          className={`w-8 h-8 text-sm font-medium rounded-lg transition ${
                             currentPage === i
-                              ? 'bg-[#1E3A8A] text-white'
+                              ? 'bg-blue-800 text-white'
                               : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                           }`}
                         >
@@ -2226,11 +2305,7 @@ export default function AdmissionRegisterPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
-                    currentPage === totalPages
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
-                  }`}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Next
                 </button>
@@ -2630,10 +2705,10 @@ export default function AdmissionRegisterPage() {
                     />
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">
-                      Base Fee {formData.feePlan && `(${formData.feePlan.charAt(0).toUpperCase() + formData.feePlan.slice(1)} Plan)`}
+                      Base Fee <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -2641,6 +2716,17 @@ export default function AdmissionRegisterPage() {
                       value={formData.baseFee}
                       readOnly
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      Fee Plan <span className="text-blue-600">(From Class)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.feePlan ? formData.feePlan.charAt(0).toUpperCase() + formData.feePlan.slice(1) : 'Monthly'}
+                      readOnly
+                      className="w-full px-4 py-3 border border-blue-200 bg-blue-50 rounded-lg font-semibold text-blue-800 capitalize outline-none"
                     />
                   </div>
                   <div>
@@ -3667,20 +3753,37 @@ export default function AdmissionRegisterPage() {
                 )}
 
                 {/* Fee Information */}
-                {(selectedStudent.base_fee || selectedStudent.discount || selectedStudent.discount_note) && (
+                {(selectedStudent.base_fee || selectedStudent.discount_amount || selectedStudent.final_fee || selectedStudent.fee_plan || selectedStudent.discount_note) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Fee Information</h5>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {selectedStudent.base_fee && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Base Fee</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.base_fee}</p>
+                          <p className="font-semibold text-gray-800">Rs. {parseFloat(selectedStudent.base_fee).toLocaleString()}</p>
                         </div>
                       )}
-                      {selectedStudent.discount && (
+                      {(selectedStudent.discount_amount || selectedStudent.discount_value) && (
                         <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Discount</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.discount}</p>
+                          <p className="text-xs text-gray-500 mb-1">Discount ({selectedStudent.discount_type === 'percentage' ? '%' : 'Fixed'})</p>
+                          <p className="font-semibold text-red-600">
+                            {selectedStudent.discount_type === 'percentage'
+                              ? `${selectedStudent.discount_value}% (Rs. ${parseFloat(selectedStudent.discount_amount || 0).toLocaleString()})`
+                              : `Rs. ${parseFloat(selectedStudent.discount_amount || selectedStudent.discount_value || 0).toLocaleString()}`
+                            }
+                          </p>
+                        </div>
+                      )}
+                      {selectedStudent.final_fee !== undefined && (
+                        <div className="bg-green-50 p-3 rounded-lg border-2 border-green-200">
+                          <p className="text-xs text-gray-500 mb-1">Final Fee</p>
+                          <p className="font-bold text-green-700 text-lg">Rs. {parseFloat(selectedStudent.final_fee || 0).toLocaleString()}</p>
+                        </div>
+                      )}
+                      {selectedStudent.fee_plan && (
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Fee Plan</p>
+                          <p className="font-semibold text-blue-800 capitalize">{selectedStudent.fee_plan}</p>
                         </div>
                       )}
                       {selectedStudent.discount_note && (

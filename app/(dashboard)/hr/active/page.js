@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { convertImageToBase64, addPDFHeader, addPDFFooter } from '@/lib/pdfUtils'
+import { getPdfSettings, getAutoTableStyles } from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function ActiveStaffPage() {
   const [searchType, setSearchType] = useState('Via General Data')
@@ -38,6 +40,11 @@ export default function ActiveStaffPage() {
   // Photo upload state
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   // Form state matching Supabase staff table fields
   const [formData, setFormData] = useState({
@@ -206,22 +213,28 @@ export default function ActiveStaffPage() {
 
   // Auto search when query changes
   useEffect(() => {
+    // Only run search if staff data is loaded
+    if (staffData.length === 0 && !searchQuery && !filters.employmentType && !filters.designation && !filters.department && !filters.gender) {
+      return
+    }
+
     const timer = setTimeout(() => {
       handleSearch()
     }, 300) // Debounce search by 300ms
 
     return () => clearTimeout(timer)
-  }, [searchQuery, searchType, filters])
+  }, [searchQuery, searchType, filters, staffData])
 
   const fetchStaffData = async () => {
-    if (!currentUser?.school_id) return
+    if (!currentUser?.school_id || !currentUser?.id) return
 
     try {
       setLoading(true)
       const { data, error } = await supabase
         .from('staff')
         .select('*')
-        .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)          // ✅ Filter by user
+        .eq('school_id', currentUser.school_id) // ✅ Filter by school
         .eq('status', 'active')
         .order('created_at', { ascending: false })
 
@@ -324,6 +337,8 @@ export default function ActiveStaffPage() {
         .from('staff')
         .update({ status: newStatus })
         .eq('id', staffId)
+        .eq('user_id', currentUser.id)          // ✅ Security check
+        .eq('school_id', currentUser.school_id) // ✅ Security check
 
       if (error) throw error
 
@@ -349,6 +364,8 @@ export default function ActiveStaffPage() {
             .from('staff')
             .delete()
             .eq('id', staffId)
+            .eq('user_id', currentUser.id)
+            .eq('school_id', currentUser.school_id)
 
           if (error) throw error
 
@@ -471,25 +488,81 @@ export default function ActiveStaffPage() {
   // Export to PDF using jsPDF
   const exportToPDF = async () => {
     try {
-      const doc = new jsPDF()
+      // Get PDF settings from localStorage
+      const pdfSettings = getPdfSettings()
+      console.log('📄 Using PDF settings for Active Staff Report:', pdfSettings)
 
-      // Load school logo if available
+      const doc = new jsPDF({
+        orientation: pdfSettings.orientation || 'portrait',
+        unit: 'mm',
+        format: pdfSettings.pageSize || 'A4'
+      })
+
+      // Load school logo if available (check both logo and logo_url columns)
       let logoBase64 = null
-      if (schoolData?.logo) {
-        logoBase64 = await convertImageToBase64(schoolData.logo)
+      const logoUrl = schoolData?.logo || schoolData?.logo_url
+
+      if (logoUrl) {
+        console.log('📸 Logo URL found:', logoUrl)
+        // If it's a URL, convert it to base64
+        if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+          console.log('🔄 Converting logo URL to base64...')
+          logoBase64 = await convertImageToBase64(logoUrl)
+          console.log('✅ Logo conversion:', logoBase64 ? 'Success' : 'Failed')
+        } else {
+          // Already base64
+          logoBase64 = logoUrl
+          console.log('✅ Logo is already base64')
+        }
+      } else {
+        console.log('⚠️ No logo found in schoolData')
+        console.log('SchoolData:', schoolData)
       }
 
-      // Prepare school data for header
+      // Prepare school data for header (without logo - we'll add it manually)
       const schoolInfo = {
         name: schoolData?.name || 'SCHOOL NAME',
-        logo: logoBase64
+        logo: null  // Don't pass logo to addPDFHeader, we'll add it manually
       }
 
-      // Add professional header with logo
+      // Add professional header (with PDF settings)
       const startY = addPDFHeader(doc, schoolInfo, 'ACTIVE STAFF REPORT', {
         subtitle: `Total Staff: ${filteredStaffData.length}`,
-        info: `Status: Active`
+        info: `Status: Active`,
+        pdfSettings: pdfSettings
       })
+
+      // Add logo manually on top of the header (after header is drawn)
+      if (logoBase64) {
+        try {
+          const logoBoxSize = 25
+          const logoBoxX = 10
+          const logoBoxY = 5
+
+          // White box for logo (like datesheet)
+          doc.setFillColor(255, 255, 255)
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.5)
+          doc.rect(logoBoxX, logoBoxY, logoBoxSize, logoBoxSize, 'FD')
+
+          // Add logo inside box
+          const logoImageSize = 22
+          const logoPadding = (logoBoxSize - logoImageSize) / 2
+          const logoX = logoBoxX + logoPadding
+          const logoY = logoBoxY + logoPadding
+
+          // Determine image format
+          let format = 'PNG'
+          if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) {
+            format = 'JPEG'
+          }
+
+          // Add the logo
+          doc.addImage(logoBase64, format, logoX, logoY, logoImageSize, logoImageSize)
+        } catch (error) {
+          console.error('Error adding logo to PDF:', error)
+        }
+      }
 
       // Prepare table data
       const tableData = filteredStaffData.map((staff, index) => [
@@ -502,36 +575,42 @@ export default function ActiveStaffPage() {
         staff.status || ''
       ])
 
-      // Add table
+      // Get table styles from settings
+      const tableStyles = getAutoTableStyles(pdfSettings)
+
+      // Add table with settings
       autoTable(doc, {
         head: [['Sr.', 'Name', 'Employee #', 'Designation', 'Phone', 'Department', 'Status']],
         body: tableData,
         startY: startY,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [31, 78, 120],
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold'
-        },
-        bodyStyles: {
-          fontSize: 9
-        },
-        alternateRowStyles: {
-          fillColor: [248, 248, 248]
-        },
+        ...tableStyles,
         margin: { left: 15, right: 15 }
       })
 
-      // Add footer
-      addPDFFooter(doc, 1, 1)
+      // Add footer (with PDF settings)
+      addPDFFooter(doc, 1, 1, pdfSettings)
 
-      // Save the PDF
-      doc.save(`Active_Staff_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`)
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
+      const fileName = `Active_Staff_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      showToast('PDF generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast('Error generating PDF report', 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   // Download sample Excel template
@@ -600,6 +679,7 @@ export default function ActiveStaffPage() {
 
         // Map CSV columns to database fields
         const staffRecord = {
+          user_id: currentUser.id,
           school_id: currentUser.school_id,
           created_by: currentUser.id || null,
           employee_number: `EMP-${Date.now()}-${i}`,
@@ -722,6 +802,7 @@ export default function ActiveStaffPage() {
 
       // All staff members are saved to the staff table
       const staffRecord = {
+        user_id: currentUser.id,
         school_id: currentUser.school_id,
         created_by: currentUser.id || null,
         employee_number: `EMP-${Date.now()}`,
@@ -849,6 +930,8 @@ export default function ActiveStaffPage() {
         .from('staff')
         .update(staffRecord)
         .eq('id', editingStaff.id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
 
@@ -1821,6 +1904,14 @@ export default function ActiveStaffPage() {
           </div>
         ))}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

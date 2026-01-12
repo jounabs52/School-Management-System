@@ -6,13 +6,14 @@ import { X, Plus, Search, Save, AlertCircle, CheckCircle, XCircle, FileText, Pri
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
-  addPDFHeader,
-  addPDFFooter,
-  addPDFWatermark,
-  convertImageToBase64,
-  PDF_COLORS,
-  PDF_FONTS
-} from '@/lib/pdfUtils'
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  getLogoSize,
+  applyPdfSettings,
+  convertImageToBase64
+} from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function TestMarksPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -42,6 +43,11 @@ export default function TestMarksPage() {
   const [viewStudents, setViewStudents] = useState([])
   const [viewMarks, setViewMarks] = useState([])
   const [viewSubjectTotalMarks, setViewSubjectTotalMarks] = useState(0)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   const showToast = (message, type = 'info') => {
     const id = Date.now()
@@ -460,7 +466,7 @@ export default function TestMarksPage() {
     }
   }
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     if (!viewTest || !viewSubject || viewMarks.length === 0) {
       showToast('No data to generate PDF', 'error')
       return
@@ -477,7 +483,11 @@ export default function TestMarksPage() {
 
       console.log('Generating PDF for:', { test, subject, marksCount: viewMarks.length })
 
+      const pdfSettings = getPdfSettings()
       const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margins = getMarginValues(pdfSettings)
 
       // Test Details
       const testDate = new Date(test.test_date).toLocaleDateString('en-GB', {
@@ -486,19 +496,46 @@ export default function TestMarksPage() {
         year: 'numeric'
       })
 
-      // Add professional header
-      const headerOptions = {
-        subtitle: 'Test Marks Report',
-        info: `Test: ${test.test_name || 'N/A'} | Class: ${test.classes?.class_name || 'N/A'} | Subject: ${subject.subject_name || 'N/A'} | Date: ${testDate}`
+      // Add logo and header if enabled
+      let yPos = margins.top
+      if (pdfSettings.includeLogo && schoolData?.logo_url) {
+        try {
+          const logoData = await convertImageToBase64(schoolData.logo_url)
+          const logoSize = getLogoSize(pdfSettings.logoSize)
+          const logoX = (pageWidth - logoSize.width) / 2
+          doc.addImage(logoData, 'PNG', logoX, yPos, logoSize.width, logoSize.height)
+          yPos += logoSize.height + 5
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
       }
-      let yPos = addPDFHeader(doc, schoolData, 'TEST MARKS', headerOptions)
 
-      // Add watermark
-      if (schoolData?.logo) {
-        addPDFWatermark(doc, schoolData)
+      // Add school name and header
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
+      if (pdfSettings.includeSchoolName && schoolData?.name) {
+        doc.setFontSize(16)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...textColor)
+        doc.text(schoolData.name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 7
       }
 
+      // Title
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('TEST MARKS', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 6
+
+      // Subtitle
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Test Marks Report', pageWidth / 2, yPos, { align: 'center' })
       yPos += 5
+
+      doc.text(`Test: ${test.test_name || 'N/A'} | Class: ${test.classes?.class_name || 'N/A'} | Subject: ${subject.subject_name || 'N/A'} | Date: ${testDate}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
 
       // Prepare table data with null checks, percentage, and status
       const tableData = viewMarks.map((mark, index) => {
@@ -535,7 +572,7 @@ export default function TestMarksPage() {
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: PDF_COLORS.headerBg,
+          fillColor: headerBgColor,
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold',
@@ -545,7 +582,8 @@ export default function TestMarksPage() {
         bodyStyles: {
           fontSize: 8,
           cellPadding: 2,
-          valign: 'middle'
+          valign: 'middle',
+          textColor: textColor
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
@@ -579,26 +617,40 @@ export default function TestMarksPage() {
         }
       })
 
-      // Add professional footer to all pages
-      const pageCount = doc.internal.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
-        addPDFFooter(doc, i, pageCount)
+      // Add footer to all pages if enabled
+      if (pdfSettings.includeFooter && pdfSettings.footerText) {
+        const pageCount = doc.internal.getNumberOfPages()
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
+          const footerY = pageHeight - margins.bottom + 5
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(...textColor)
+          doc.text(pdfSettings.footerText, pageWidth / 2, footerY, { align: 'center' })
+        }
       }
 
-      // Save PDF with sanitized filename
+      // Generate blob and show preview
       const testName = test.test_name || 'Test'
       const subjectName = subject.subject_name || 'Subject'
       const fileName = `${testName}_${subjectName}_Marks.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_')
 
       console.log('Saving PDF as:', fileName)
-      doc.save(fileName)
-
-      showToast('PDF generated successfully', 'success')
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
     } catch (error) {
       console.error('Error generating PDF:', error)
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const selectedTestData = tests.find(t => t.id === selectedTest)
@@ -1008,6 +1060,14 @@ export default function TestMarksPage() {
           </div>
         )}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

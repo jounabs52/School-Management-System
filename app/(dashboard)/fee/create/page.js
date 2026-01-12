@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, X, Eye, Edit2, Trash2, RefreshCw, Printer, CheckCircle } from 'lucide-react'
+import { Plus, Search, X, Eye, Edit2, Trash2, RefreshCw, Printer, CheckCircle, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
@@ -53,6 +53,7 @@ export default function FeeCreatePage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
+  const [selectedSection, setSelectedSection] = useState('')
   const [selectedStudents, setSelectedStudents] = useState([])
   const [showChallanModal, setShowChallanModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('')
@@ -137,6 +138,7 @@ export default function FeeCreatePage() {
       const { data, error } = await supabase
         .from('schools')
         .select('school_name')
+        .eq('user_id', user.id)
         .eq('id', user.school_id)
         .single()
 
@@ -158,18 +160,20 @@ export default function FeeCreatePage() {
         return
       }
 
-      // Fetch challans immediately in parallel with other data
+      // Fetch challans immediately in parallel with other data - ✅ ALL FILTERED BY USER_ID
       const [classesResult, sectionsResult, feeTypesResult, studentsResult, challansResult] = await Promise.all([
         supabase
           .from('classes')
           .select('id, class_name')
+          .eq('user_id', user.id)
           .eq('school_id', user.school_id)
           .eq('status', 'active')
           .order('order_number', { ascending: true }),
 
         supabase
           .from('sections')
-          .select('id, section_name')
+          .select('id, section_name, class_id')
+          .eq('user_id', user.id)
           .eq('school_id', user.school_id)
           .eq('status', 'active')
           .order('section_name', { ascending: true }),
@@ -177,6 +181,7 @@ export default function FeeCreatePage() {
         supabase
           .from('fee_types')
           .select('id, fee_name, fee_code')
+          .eq('user_id', user.id)
           .eq('school_id', user.school_id)
           .eq('status', 'active'),
 
@@ -191,6 +196,7 @@ export default function FeeCreatePage() {
             current_class_id,
             current_section_id
           `)
+          .eq('user_id', user.id)
           .eq('school_id', user.school_id)
           .eq('status', 'active')
           .order('admission_number', { ascending: true }),
@@ -207,9 +213,16 @@ export default function FeeCreatePage() {
               last_name,
               father_name,
               current_class_id,
-              current_section_id
+              current_section_id,
+              fee_plan,
+              base_fee,
+              discount_amount,
+              discount_value,
+              discount_type,
+              final_fee
             )
           `)
+          .eq('user_id', user.id)
           .eq('school_id', user.school_id)
           .order('created_at', { ascending: false })
       ])
@@ -271,6 +284,111 @@ export default function FeeCreatePage() {
     }
   }
 
+  const downloadCSV = () => {
+    try {
+      // Prepare CSV headers
+      const headers = [
+        'Sr.', 'Student Name', 'Admission No.', 'Class', 'Fee Plan',
+        'Challan Number', 'Issue Date', 'Due Date', 'Total Amount',
+        'Paid Amount', 'Remaining', 'Status'
+      ]
+
+      // Prepare CSV rows from filtered challans
+      const rows = filteredChallans.map((challan, index) => {
+        const studentName = `${challan.students?.first_name || ''} ${challan.students?.last_name || ''}`.trim() || 'N/A'
+        const admissionNo = challan.students?.admission_number || 'N/A'
+        const className = challan.students?.classes?.class_name || 'N/A'
+        const sectionName = challan.students?.sections?.section_name || ''
+        const classWithSection = sectionName ? `${className} - ${sectionName}` : className
+        const feePlan = (challan.fee_plan || challan.students?.fee_plan || 'monthly')
+        const challanNumber = challan.challan_number || 'N/A'
+
+        // Format dates as text with tab prefix
+        let issueDate = 'N/A'
+        let dueDate = 'N/A'
+
+        if (challan.issue_date) {
+          const iDate = new Date(challan.issue_date)
+          const day = String(iDate.getDate()).padStart(2, '0')
+          const month = String(iDate.getMonth() + 1).padStart(2, '0')
+          const year = iDate.getFullYear()
+          issueDate = `\t${day}/${month}/${year}`
+        }
+
+        if (challan.due_date) {
+          const dDate = new Date(challan.due_date)
+          const day = String(dDate.getDate()).padStart(2, '0')
+          const month = String(dDate.getMonth() + 1).padStart(2, '0')
+          const year = dDate.getFullYear()
+          dueDate = `\t${day}/${month}/${year}`
+        }
+
+        // Calculate amounts properly based on status
+        const totalAmount = parseFloat(challan.total_amount || 0)
+        let paidAmount = 0
+        let remaining = 0
+
+        if (challan.status === 'paid') {
+          paidAmount = totalAmount
+          remaining = 0
+        } else {
+          paidAmount = parseFloat(challan.paid_amount || 0)
+          remaining = Math.max(0, totalAmount - paidAmount)
+        }
+
+        const status = (challan.status || 'N/A').toUpperCase()
+
+        return [
+          index + 1, studentName, admissionNo, classWithSection, feePlan,
+          challanNumber, issueDate, dueDate,
+          totalAmount.toFixed(0), paidAmount.toFixed(0), remaining.toFixed(0), status
+        ]
+      })
+
+      // Combine headers and rows with proper CSV escaping
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => {
+          const cellStr = String(cell)
+          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n') || cellStr.includes('\r')) {
+            return `"${cellStr.replace(/"/g, '""')}"`
+          }
+          return `"${cellStr}"`
+        }).join(','))
+      ].join('\n')
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+
+      // Generate filename with current date and filters
+      const date = new Date().toISOString().split('T')[0]
+      let filename = `created_challans_${date}`
+      if (selectedClass) {
+        const selectedClassData = classes.find(c => c.id === selectedClass)
+        if (selectedClassData) filename += `_${selectedClassData.class_name.replace(/\s+/g, '_')}`
+      }
+      if (selectedSection) {
+        const selectedSectionData = sections.find(s => s.id === selectedSection)
+        if (selectedSectionData) filename += `_${selectedSectionData.section_name.replace(/\s+/g, '_')}`
+      }
+      filename += '.csv'
+
+      link.setAttribute('href', url)
+      link.setAttribute('download', filename)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      showToast('CSV file downloaded successfully!', 'success')
+    } catch (error) {
+      console.error('Error downloading CSV:', error)
+      showToast('Failed to download CSV file', 'error')
+    }
+  }
+
   const handleCreateChallan = () => {
     setShowChallanModal(true)
     setSelectedCategory('instant')
@@ -320,6 +438,7 @@ export default function FeeCreatePage() {
 
           if (monthlyFeeType && monthlyFeeType.id) {
             const item = {
+              user_id: user?.id,
               school_id: user?.school_id,
               fee_type_id: monthlyFeeType.id,
               description: 'Monthly Fee',
@@ -342,6 +461,7 @@ export default function FeeCreatePage() {
         if (feeAmount > 0) {
           totalAmount += feeAmount
           const item = {
+            user_id: user?.id,
             school_id: user?.school_id,
             fee_type_id: fee.fee_type_id,
             description: fee.name || 'Other Fee',
@@ -386,7 +506,7 @@ export default function FeeCreatePage() {
         .select('id')
         .eq('school_id', user.school_id)
         .eq('status', 'active')
-        .single()
+        .maybeSingle()
 
       const { data: classData, error: classError } = await supabase
         .from('classes')
@@ -404,6 +524,7 @@ export default function FeeCreatePage() {
       const { data: sectionsData, error: sectionsError } = await supabase
         .from('sections')
         .select('id, section_name')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('class_id', classId)
         .eq('status', 'active')
@@ -424,6 +545,7 @@ export default function FeeCreatePage() {
           base_fee,
           discount_amount
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('current_class_id', classId)
         .eq('status', 'active')
@@ -442,7 +564,8 @@ export default function FeeCreatePage() {
             fee_type_id,
             fee_types(fee_name)
           `)
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
           .eq('session_id', sessionData.id)
           .eq('class_id', classId)
           .eq('status', 'active')
@@ -485,8 +608,10 @@ export default function FeeCreatePage() {
           admission_number,
           first_name,
           last_name,
-          father_name
+          father_name,
+          discount_amount
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('current_class_id', instantChallanForm.classId)
         .eq('current_section_id', sectionId)
@@ -526,13 +651,37 @@ export default function FeeCreatePage() {
             last_name,
             father_name,
             current_class_id,
-            current_section_id
+            current_section_id,
+            fee_plan,
+            base_fee,
+            discount_amount,
+            discount_value,
+            discount_type,
+            final_fee
           )
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
+        // Fetch all payments for these challans
+        const challanIds = data.map(c => c.id).filter(Boolean)
+        const { data: paymentsData } = await supabase
+          .from('fee_payments')
+          .select('challan_id, amount_paid')
+          .in('challan_id', challanIds)
+          .eq('school_id', user.school_id)
+
+        // Calculate total paid amount for each challan
+        const paymentMap = {}
+        paymentsData?.forEach(payment => {
+          if (!paymentMap[payment.challan_id]) {
+            paymentMap[payment.challan_id] = 0
+          }
+          paymentMap[payment.challan_id] += parseFloat(payment.amount_paid || 0)
+        })
+
         // Create lookup maps for efficient matching
         const classMap = {}
         classes.forEach(c => { classMap[c.id] = c })
@@ -540,15 +689,68 @@ export default function FeeCreatePage() {
         const sectionMap = {}
         sections.forEach(s => { sectionMap[s.id] = s })
 
-        // Enrich with class and section data
-        const enrichedData = data.map((challan) => ({
-          ...challan,
-          students: {
-            ...challan.students,
-            classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
-            sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
+        // Enrich with class and section data, payment data, and auto-calculate status
+        const enrichedData = data.map((challan) => {
+          // Use real-time student fee data if available
+          const studentFinalFee = challan.students?.final_fee
+          const studentBaseFee = challan.students?.base_fee
+          const studentDiscountAmount = challan.students?.discount_amount
+
+          // Calculate total amount
+          const totalAmount = studentFinalFee !== null && studentFinalFee !== undefined ? studentFinalFee : challan.total_amount
+
+          // Get paid amount from payment map
+          const paidAmount = paymentMap[challan.id] || 0
+
+          // Auto-calculate status based on payment and due date
+          let autoStatus = challan.status // Default to existing status
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const dueDate = challan.due_date ? new Date(challan.due_date) : null
+          if (dueDate) dueDate.setHours(0, 0, 0, 0)
+
+          // Status logic:
+          // 1. If fully paid, status = 'paid'
+          // 2. If past due date and not fully paid, status = 'overdue'
+          // 3. Otherwise, status = 'pending'
+          if (paidAmount >= totalAmount) {
+            autoStatus = 'paid'
+          } else if (dueDate && dueDate < today) {
+            autoStatus = 'overdue'
+          } else {
+            autoStatus = 'pending'
           }
-        }))
+
+          // Update status in database if it changed
+          if (autoStatus !== challan.status) {
+            supabase
+              .from('fee_challans')
+              .update({ status: autoStatus, updated_at: new Date().toISOString() })
+              .eq('id', challan.id)
+              .eq('user_id', user.id)
+              .eq('school_id', user.school_id)
+              .then(({ error: updateError }) => {
+                if (updateError) {
+                  console.error('Error auto-updating status:', updateError)
+                }
+              })
+          }
+
+          return {
+            ...challan,
+            // Override with current student fee data for real-time updates
+            total_amount: totalAmount,
+            base_fee: studentBaseFee !== null && studentBaseFee !== undefined ? studentBaseFee : challan.base_fee,
+            discount_amount: studentDiscountAmount !== null && studentDiscountAmount !== undefined ? studentDiscountAmount : challan.discount_amount,
+            paid_amount: paidAmount,
+            status: autoStatus,
+            students: {
+              ...challan.students,
+              classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
+              sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
+            }
+          }
+        })
 
         setCreatedChallans(enrichedData)
       } else if (error) {
@@ -556,6 +758,460 @@ export default function FeeCreatePage() {
       }
     } catch (error) {
       console.error('Error fetching challans:', error)
+    }
+  }
+
+  const numberToWords = (num) => {
+    if (num === 0) return 'Zero'
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+
+    const convertLessThanThousand = (n) => {
+      if (n === 0) return ''
+      if (n < 10) return ones[n]
+      if (n < 20) return teens[n - 10]
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '')
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '')
+    }
+
+    const integerPart = Math.floor(num)
+
+    if (integerPart < 1000) {
+      return convertLessThanThousand(integerPart) + ' Only'
+    }
+
+    if (integerPart < 100000) {
+      const thousands = Math.floor(integerPart / 1000)
+      const remainder = integerPart % 1000
+      return convertLessThanThousand(thousands) + ' Thousand' +
+             (remainder !== 0 ? ' ' + convertLessThanThousand(remainder) : '') + ' Only'
+    }
+
+    if (integerPart < 10000000) {
+      const lakhs = Math.floor(integerPart / 100000)
+      const remainder = integerPart % 100000
+      const thousands = Math.floor(remainder / 1000)
+      const hundreds = remainder % 1000
+
+      let result = convertLessThanThousand(lakhs) + ' Lakh'
+      if (thousands > 0) result += ' ' + convertLessThanThousand(thousands) + ' Thousand'
+      if (hundreds > 0) result += ' ' + convertLessThanThousand(hundreds)
+      return result + ' Only'
+    }
+
+    const crores = Math.floor(integerPart / 10000000)
+    const remainder = integerPart % 10000000
+    const lakhs = Math.floor(remainder / 100000)
+    const thousands = Math.floor((remainder % 100000) / 1000)
+    const hundreds = remainder % 1000
+
+    let result = convertLessThanThousand(crores) + ' Crore'
+    if (lakhs > 0) result += ' ' + convertLessThanThousand(lakhs) + ' Lakh'
+    if (thousands > 0) result += ' ' + convertLessThanThousand(thousands) + ' Thousand'
+    if (hundreds > 0) result += ' ' + convertLessThanThousand(hundreds)
+    return result + ' Only'
+  }
+
+  const handlePrintChallan = async (challan) => {
+    if (!challan) return
+
+    try {
+      // Get user for authentication
+      const user = getUserFromCookie()
+      if (!user) {
+        showToast('User not found', 'error')
+        return
+      }
+
+      // Fetch school data
+      const schoolResult = await supabase
+        .from('schools')
+        .select('name, address, phone, email, logo_url, code')
+        .eq('id', user.school_id)
+        .single()
+
+      const schoolData = schoolResult.data || {}
+
+      // Fetch challan items
+      const { data: items } = await supabase
+        .from('fee_challan_items')
+        .select(`
+          *,
+          fee_types!fee_type_id (
+            fee_name
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
+        .eq('challan_id', challan.id)
+
+      const itemsToUse = items || []
+      const student = challan.students
+      const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
+      const className = student?.classes?.class_name || 'N/A'
+
+      // Fetch class data for fee plan
+      const { data: classData } = await supabase
+        .from('classes')
+        .select('fee_plan')
+        .eq('id', student?.current_class_id)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
+        .single()
+
+      const feePlan = classData?.fee_plan || 'Monthly'
+
+      // Get PDF settings
+      const pdfSettings = getPdfSettings(user.id)
+
+      // Create PDF with settings from PAGE SETTINGS
+      const doc = new jsPDF({
+        orientation: pdfSettings.orientation || 'portrait',
+        unit: 'mm',
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+      })
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Get margin values from settings
+      const margins = getMarginValues(pdfSettings.margin)
+      const leftMargin = margins.left
+      const rightMargin = pageWidth - margins.right
+
+      // Calculate color values from settings for reuse
+      const textColorRgb = hexToRgb(pdfSettings.textColor)
+      const secondaryColorRgb = hexToRgb(pdfSettings.secondaryColor)
+      const primaryColorRgb = hexToRgb(pdfSettings.primaryColor)
+      const lineWidthValue = pdfSettings.lineWidth === 'thick' ? 0.3 : pdfSettings.lineWidth === 'normal' ? 0.2 : 0.1
+
+      // Header background with header background color from settings
+      const headerHeight = 40
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      doc.setFillColor(...headerBgColor)
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
+
+      // Logo in header
+      let yPos = 18
+      if (pdfSettings.includeLogo && schoolData.logo_url) {
+        try {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = schoolData.logo_url
+
+          await new Promise((resolve) => {
+            img.onload = () => {
+              try {
+                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                const logoY = (headerHeight - currentLogoSize) / 2
+                let logoX = 10
+
+                if (pdfSettings.logoPosition === 'right') {
+                  logoX = pageWidth - currentLogoSize - 10
+                }
+
+                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const size = 200
+                  canvas.width = size
+                  canvas.height = size
+
+                  ctx.beginPath()
+                  if (pdfSettings.logoStyle === 'circle') {
+                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                  } else {
+                    const radius = size * 0.15
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(size - radius, 0)
+                    ctx.quadraticCurveTo(size, 0, size, radius)
+                    ctx.lineTo(size, size - radius)
+                    ctx.quadraticCurveTo(size, size, size - radius, size)
+                    ctx.lineTo(radius, size)
+                    ctx.quadraticCurveTo(0, size, 0, size - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  }
+                  ctx.closePath()
+                  ctx.clip()
+
+                  ctx.drawImage(img, 0, 0, size, size)
+
+                  const clippedImage = canvas.toDataURL('image/png')
+                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else {
+                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                }
+
+                resolve()
+              } catch (e) {
+                console.warn('Could not add logo to PDF:', e)
+                resolve()
+              }
+            }
+            img.onerror = () => {
+              console.warn('Could not load logo image')
+              resolve()
+            }
+          })
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
+      }
+
+      // School name and subtitle in white
+      if (pdfSettings.includeHeader !== false) {
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 8)
+        doc.setFont('helvetica', 'bold')
+        doc.text(schoolData.name || schoolName, pageWidth / 2, yPos + 5, { align: 'center' })
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1)
+        doc.setFont('helvetica', 'normal')
+        const headerText = pdfSettings.headerText || 'Student FEE CHALLAN'
+        doc.text(headerText, pageWidth / 2, yPos + 12, { align: 'center' })
+      }
+
+      // Generated date
+      doc.setFontSize(parseInt(pdfSettings.fontSize) - 1)
+      doc.setTextColor(220, 220, 220)
+      const now = new Date()
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
+
+      const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
+      const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
+      doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
+
+      // Reset to text color from settings
+      doc.setTextColor(...textColorRgb)
+      yPos = headerHeight + 10
+
+      // STUDENT INFORMATION Section
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
+      doc.setFont('helvetica', 'bold')
+      doc.text('STUDENT INFORMATION', leftMargin, yPos)
+      yPos += 7
+
+      const labelWidth = 35
+      let xPos = leftMargin
+
+      // Row 1: Student Name and Student Roll#
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Student Name:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(studentName || 'N/A', xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Student Roll#:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(student?.admission_number || 'N/A', xPos + labelWidth, yPos)
+
+      yPos += 6
+      xPos = leftMargin
+
+      // Row 2: Class and Father Name
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Class:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(className, xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Father Name:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
+
+      yPos += 6
+      xPos = leftMargin
+
+      // Row 3: Due Date and Fee Type
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Due Date:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      const formattedDueDate = new Date(challan.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
+      const dueDayName = days[new Date(challan.due_date).getDay()]
+      doc.text(formattedDueDate + ' ' + dueDayName, xPos + labelWidth, yPos)
+
+      xPos = pageWidth / 2 + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Fee Type:', xPos, yPos)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text(`School Fee (${feePlan})`, xPos + labelWidth, yPos)
+
+      yPos += 12
+
+      // FEE BREAKDOWN Section
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text('FEE BREAKDOWN', leftMargin, yPos)
+      yPos += 2
+
+      // Build detailed fee breakdown table
+      const tableData = []
+
+      // Calculate base fee from items (sum of all positive amounts)
+      const baseFee = student?.base_fee || challan?.base_fee || 0
+      const discountAmount = student?.discount_amount || challan?.discount_amount || 0
+
+      // Add base fee row
+      if (baseFee > 0) {
+        tableData.push(['Base Fee', formatCurrency(baseFee)])
+      }
+
+      // Add other fee items
+      if (itemsToUse && itemsToUse.length > 0) {
+        itemsToUse.forEach(item => {
+          const itemName = item.fee_types?.fee_name || item.description
+          // Skip if it's labeled as "Monthly Fee" or "Base Fee" since we already added it
+          if (itemName !== 'Monthly Fee' && itemName !== 'Base Fee') {
+            tableData.push([itemName, formatCurrency(item.amount)])
+          }
+        })
+      }
+
+      // Add discount row if exists
+      if (discountAmount > 0) {
+        tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
+      }
+
+      const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
+      const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
+
+      if (tableData.length > 0) {
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Particulars', 'Amount']],
+          body: tableData,
+          theme: pdfSettings.tableStyle || 'grid',
+          headStyles: {
+            fillColor: hexToRgb(pdfSettings.tableHeaderColor),
+            textColor: [255, 255, 255],
+            fontSize: parseInt(pdfSettings.fontSize) + 1,
+            fontStyle: 'bold',
+            halign: 'left',
+            cellPadding: { top: cellPaddingValue - 1, bottom: cellPaddingValue - 1, left: 5, right: 5 }
+          },
+          bodyStyles: {
+            fontSize: parseInt(pdfSettings.fontSize) + 1,
+            cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 },
+            textColor: textColorRgb
+          },
+          alternateRowStyles: {
+            fillColor: alternateRowColorRgb
+          },
+          columnStyles: {
+            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+            1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+          },
+          margin: { left: leftMargin, right: leftMargin },
+          didParseCell: function(data) {
+            data.cell.styles.lineColor = secondaryColorRgb
+            data.cell.styles.lineWidth = lineWidthValue
+          },
+          didDrawCell: function(data) {
+            if (data.column.index === 1 && data.section === 'body') {
+              const amountText = data.cell.raw || ''
+              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
+                doc.setTextColor(220, 38, 38) // Red color for discount
+              }
+            }
+          }
+        })
+
+        yPos = doc.lastAutoTable.finalY + 3
+      }
+
+      // TOTAL FEE PAYABLE
+      const bgColorRgb = hexToRgb(pdfSettings.backgroundColor || '#F0FDF4')
+      doc.setFillColor(...bgColorRgb)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
+      doc.setDrawColor(...secondaryColorRgb)
+      doc.setLineWidth(lineWidthValue)
+      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColorRgb)
+      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
+
+      doc.setTextColor(...primaryColorRgb)
+      doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
+
+      yPos += 15
+
+      // Amount in words
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Amount in Words:', margins.left, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...textColorRgb)
+      const amountInWords = numberToWords(challan.total_amount)
+      doc.text(amountInWords, margins.left, yPos + 5)
+
+      yPos += 12
+
+      // Payment Status
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...secondaryColorRgb)
+      doc.text('Payment Status:', margins.left, yPos)
+
+      const statusColor = challan.status === 'paid' ? primaryColorRgb : challan.status === 'overdue' ? [220, 38, 38] : secondaryColorRgb
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...statusColor)
+      doc.text(challan.status.charAt(0).toUpperCase() + challan.status.slice(1), margins.left + 32, yPos)
+
+      // Footer
+      if (pdfSettings.includeFooter !== false) {
+        yPos = pageHeight - margins.bottom + 5
+
+        doc.setDrawColor(...secondaryColorRgb)
+        doc.setLineWidth(lineWidthValue)
+        doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize) - 1)
+        doc.setTextColor(...secondaryColorRgb)
+        doc.setFont('helvetica', 'normal')
+
+        const footerText = pdfSettings.footerText || schoolData.name || schoolName
+        let footerContent = footerText
+
+        if (pdfSettings.includePageNumbers) {
+          footerContent = `${footerText} - Page 1`
+        }
+
+        doc.text(footerContent, pageWidth / 2, yPos, { align: 'center' })
+      }
+
+      // Download PDF
+      const fileName = `Fee_Challan_${student?.admission_number || 'unknown'}_${new Date().getTime()}.pdf`
+      doc.save(fileName)
+      showToast('PDF downloaded successfully!', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      showToast(`Failed to generate PDF: ${error.message}`, 'error')
     }
   }
 
@@ -574,7 +1230,8 @@ export default function FeeCreatePage() {
         const { data: monthlyFeeType } = await supabase
           .from('fee_types')
           .select('id')
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
           .eq('fee_code', 'MONTHLY_FEE')
           .maybeSingle()
 
@@ -606,6 +1263,8 @@ export default function FeeCreatePage() {
             updated_at: new Date().toISOString()
           })
           .eq('id', editingChallan.id)
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
 
         if (updateError) throw updateError
 
@@ -614,6 +1273,8 @@ export default function FeeCreatePage() {
           .from('fee_challan_items')
           .delete()
           .eq('challan_id', editingChallan.id)
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
 
         if (deleteItemsError) throw deleteItemsError
 
@@ -662,15 +1323,26 @@ export default function FeeCreatePage() {
         return
       }
 
+      console.log('🔍 Fetching session for school_id:', user.school_id)
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select('id')
         .eq('school_id', user.school_id)
         .eq('status', 'active')
-        .single()
+        .maybeSingle()
 
-      if (sessionError || !sessionData) {
-        showToast('No active session found', 'error')
+      console.log('📊 Session query result:', { sessionData, sessionError })
+
+      if (!sessionData) {
+        console.error('❌ No active session found')
+        showToast('No active session found. Please logout and login again to create a session.', 'error')
+        setSubmitting(false)
+        return
+      }
+
+      if (sessionError) {
+        console.error('❌ Session error:', sessionError)
+        showToast('Error fetching session. Please try again.', 'error')
         setSubmitting(false)
         return
       }
@@ -698,7 +1370,8 @@ export default function FeeCreatePage() {
         let query = supabase
           .from('students')
           .select('id, admission_number')
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
           .eq('current_class_id', instantChallanForm.classId)
           .eq('status', 'active')
 
@@ -733,7 +1406,8 @@ export default function FeeCreatePage() {
         supabase
           .from('fee_challans')
           .select('id, student_id, due_date, status')
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
           .in('student_id', studentIds)
           .gte('due_date', monthStart)
           .lte('due_date', monthEnd),
@@ -748,7 +1422,8 @@ export default function FeeCreatePage() {
         supabase
           .from('fee_types')
           .select('id')
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
           .eq('fee_code', 'MONTHLY_FEE')
           .maybeSingle()
       ])
@@ -830,6 +1505,7 @@ export default function FeeCreatePage() {
 
         // Add to batch insert array
         challansToInsert.push({
+          user_id: user.id,
           school_id: user.school_id,
           session_id: sessionData.id,
           student_id: student.id,
@@ -933,10 +1609,15 @@ export default function FeeCreatePage() {
           .select('id')
           .eq('school_id', user.school_id)
           .eq('status', 'active')
-          .single()
+          .maybeSingle()
 
-        if (sessionError || !sessionData) {
-          showToast('No active session found', 'error')
+        if (!sessionData) {
+          showToast('No active session found. Please logout and login again to create a session.', 'error')
+          return
+        }
+
+        if (sessionError) {
+          showToast('Error fetching session. Please try again.', 'error')
           return
         }
 
@@ -954,7 +1635,8 @@ export default function FeeCreatePage() {
           supabase
             .from('students')
             .select('id, admission_number, first_name, last_name, father_name, discount_amount, base_fee, final_fee')
-            .eq('school_id', user.school_id)
+            .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
             .eq('current_class_id', challan.students.current_class_id)
             .eq('current_section_id', challan.students.current_section_id)
             .eq('status', 'active')
@@ -969,7 +1651,8 @@ export default function FeeCreatePage() {
               fee_type_id,
               fee_types(fee_name)
             `)
-            .eq('school_id', user.school_id)
+            .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
             .eq('session_id', sessionData.id)
             .eq('class_id', challan.students.current_class_id)
             .eq('status', 'active'),
@@ -1006,7 +1689,8 @@ export default function FeeCreatePage() {
           const { data: classFeeResult } = await supabase
             .from('fee_structures')
             .select('amount, discount')
-            .eq('school_id', user.school_id)
+            .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
             .eq('class_id', challan.students.current_class_id)
             .eq('session_id', sessionData.id)
             .eq('status', 'active')
@@ -1083,10 +1767,13 @@ export default function FeeCreatePage() {
     if (!deleteConfirmModal) return
 
     try {
+      const user = getUserFromCookie()
       const { error } = await supabase
         .from('fee_challans')
         .delete()
         .eq('id', deleteConfirmModal)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (error) throw error
 
@@ -1116,10 +1803,13 @@ export default function FeeCreatePage() {
     const newStatus = statusCycle[currentStatus] || 'pending'
 
     try {
+      const user = getUserFromCookie()
       const { error } = await supabase
         .from('fee_challans')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', challanId)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (error) throw error
 
@@ -1155,18 +1845,25 @@ export default function FeeCreatePage() {
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select('id')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
-        .single()
+        .maybeSingle()
 
-      if (sessionError || !sessionData) {
-        showToast('No active session found', 'error')
+      if (!sessionData) {
+        showToast('No active session found. Please logout and login again to create a session.', 'error')
+        return
+      }
+
+      if (sessionError) {
+        showToast('Error fetching session. Please try again.', 'error')
         return
       }
 
       let query = supabase
         .from('fee_challans')
         .select('id, student_id, students(current_class_id, current_section_id)')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('session_id', sessionData.id)
         .eq('status', 'pending')
@@ -1189,6 +1886,7 @@ export default function FeeCreatePage() {
       }
 
       const arrearItems = challans.map(challan => ({
+        user_id: user.id,
         school_id: user.school_id,
         challan_id: challan.id,
         fee_type_id: bulkEntriesForm.feeHead,
@@ -1206,6 +1904,8 @@ export default function FeeCreatePage() {
         const { data: items } = await supabase
           .from('fee_challan_items')
           .select('amount')
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
           .eq('challan_id', challan.id)
 
         const total = items.reduce((sum, item) => sum + parseFloat(item.amount), 0)
@@ -1214,6 +1914,8 @@ export default function FeeCreatePage() {
           .from('fee_challans')
           .update({ total_amount: total })
           .eq('id', challan.id)
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
       }
 
       showToast(`Arrear added successfully to ${challans.length} challan(s)!`, 'success')
@@ -1249,18 +1951,25 @@ export default function FeeCreatePage() {
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select('id')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
-        .single()
+        .maybeSingle()
 
-      if (sessionError || !sessionData) {
-        showToast('No active session found', 'error')
+      if (!sessionData) {
+        showToast('No active session found. Please logout and login again to create a session.', 'error')
+        return
+      }
+
+      if (sessionError) {
+        showToast('Error fetching session. Please try again.', 'error')
         return
       }
 
       let query = supabase
         .from('students')
         .select('id, admission_number, first_name, last_name, base_fee, discount_amount, final_fee')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .eq('current_class_id', monthlyChallanForm.class)
@@ -1281,6 +1990,7 @@ export default function FeeCreatePage() {
       const { data: feeStructures, error: feeError } = await supabase
         .from('fee_structures')
         .select('fee_type_id, amount, fee_types(id, fee_name)')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('session_id', sessionData.id)
         .eq('class_id', monthlyChallanForm.class)
@@ -1296,7 +2006,8 @@ export default function FeeCreatePage() {
         const { data: existingChallan } = await supabase
           .from('fee_challans')
           .select('id')
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
           .eq('challan_number', challanNumber)
           .single()
 
@@ -1316,6 +2027,7 @@ export default function FeeCreatePage() {
         const { data: challan, error: challanError } = await supabase
           .from('fee_challans')
           .insert([{
+            user_id: user.id,
             school_id: user.school_id,
             session_id: sessionData.id,
             student_id: student.id,
@@ -1336,6 +2048,7 @@ export default function FeeCreatePage() {
 
         if (feeStructures && feeStructures.length > 0) {
           const challanItems = feeStructures.map(fs => ({
+            user_id: user.id,
             school_id: user.school_id,
             challan_id: challan.id,
             fee_type_id: fs.fee_type_id,
@@ -1387,8 +2100,19 @@ export default function FeeCreatePage() {
   })
 
   const filteredChallans = createdChallans.filter(challan => {
-    if (!selectedClass) return true
-    return challan.students?.current_class_id === selectedClass
+    const searchLower = searchTerm.toLowerCase()
+    const student = challan.students
+    const fullName = student ? `${student.first_name} ${student.last_name || ''}`.toLowerCase() : ''
+
+    const matchesSearch =
+      challan.challan_number?.toLowerCase().includes(searchLower) ||
+      fullName.includes(searchLower) ||
+      (student?.admission_number || '').toLowerCase().includes(searchLower)
+
+    const matchesClass = !selectedClass || challan.students?.current_class_id === selectedClass
+    const matchesSection = !selectedSection || challan.students?.current_section_id === selectedSection
+
+    return matchesSearch && matchesClass && matchesSection
   })
 
   const totalPages = Math.ceil(filteredChallans.length / rowsPerPage)
@@ -1428,415 +2152,9 @@ export default function FeeCreatePage() {
     setCurrentPage(1)
   }, [selectedClass])
 
-  const handlePrintChallan = async (challan) => {
-    try {
-      // Fetch challan items and school data
-      const [itemsResult, schoolResult] = await Promise.all([
-        supabase
-          .from('fee_challan_items')
-          .select('description, amount, fee_types(fee_name)')
-          .eq('challan_id', challan.id),
-        supabase
-          .from('schools')
-          .select('name, address, phone, email, logo_url, code')
-          .eq('id', getUserFromCookie()?.school_id)
-          .single()
-      ])
-
-      const items = itemsResult.data || []
-      const schoolData = schoolResult.data || {}
-
-      const student = challan.students
-      const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
-      const className = student?.classes?.class_name || 'N/A'
-
-      // Get PDF settings
-      const pdfSettings = getPdfSettings()
-
-      // Create PDF with settings from PAGE SETTINGS
-      const doc = new jsPDF({
-        orientation: pdfSettings.orientation || 'portrait',
-        unit: 'mm',
-        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
-      })
-
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-
-      // Apply PDF settings (font, etc.)
-      applyPdfSettings(doc, pdfSettings)
-
-      // Get margin values from settings
-      const margins = getMarginValues(pdfSettings.margin)
-      const leftMargin = margins.left
-      const rightMargin = pageWidth - margins.right
-
-      // Calculate color values from settings for reuse
-      const textColorRgb = hexToRgb(pdfSettings.textColor)
-      const secondaryColorRgb = hexToRgb(pdfSettings.secondaryColor)
-      const primaryColorRgb = hexToRgb(pdfSettings.primaryColor)
-      const lineWidthValue = pdfSettings.lineWidth === 'thick' ? 0.3 : pdfSettings.lineWidth === 'normal' ? 0.2 : 0.1
-
-      // Header background with header background color from settings
-      const headerHeight = 40
-      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
-      doc.setFillColor(...headerBgColor)
-      doc.rect(0, 0, pageWidth, headerHeight, 'F')
-
-      // Logo in header
-      let yPos = 18
-      if (pdfSettings.includeLogo && schoolData.logo_url) {
-        try {
-          const img = new Image()
-          img.crossOrigin = 'anonymous'
-          img.src = schoolData.logo_url
-
-          await new Promise((resolve) => {
-            img.onload = () => {
-              try {
-                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
-                // Center logo vertically in header
-                const logoY = (headerHeight - currentLogoSize) / 2
-                let logoX = 10 // Default to left with 10mm margin
-
-                // Position logo based on settings
-                if (pdfSettings.logoPosition === 'center') {
-                  // Center logo - but this will overlap with text, so skip if center
-                  logoX = 10 // Keep on left
-                } else if (pdfSettings.logoPosition === 'right') {
-                  logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
-                }
-
-                // Add logo with style
-                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
-                  // Create a canvas to clip the image
-                  const canvas = document.createElement('canvas')
-                  const ctx = canvas.getContext('2d')
-                  const size = 200 // Higher resolution for better quality
-                  canvas.width = size
-                  canvas.height = size
-
-                  // Draw clipped image on canvas
-                  ctx.beginPath()
-                  if (pdfSettings.logoStyle === 'circle') {
-                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-                  } else {
-                    // Rounded corners
-                    const radius = size * 0.15
-                    ctx.moveTo(radius, 0)
-                    ctx.lineTo(size - radius, 0)
-                    ctx.quadraticCurveTo(size, 0, size, radius)
-                    ctx.lineTo(size, size - radius)
-                    ctx.quadraticCurveTo(size, size, size - radius, size)
-                    ctx.lineTo(radius, size)
-                    ctx.quadraticCurveTo(0, size, 0, size - radius)
-                    ctx.lineTo(0, radius)
-                    ctx.quadraticCurveTo(0, 0, radius, 0)
-                  }
-                  ctx.closePath()
-                  ctx.clip()
-
-                  // Draw image
-                  ctx.drawImage(img, 0, 0, size, size)
-
-                  // Convert canvas to data URL and add to PDF
-                  const clippedImage = canvas.toDataURL('image/png')
-                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
-                } else {
-                  // Square logo
-                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
-                }
-
-                resolve()
-              } catch (e) {
-                console.warn('Could not add logo to PDF:', e)
-                resolve()
-              }
-            }
-            img.onerror = () => {
-              console.warn('Could not load logo image')
-              resolve()
-            }
-          })
-        } catch (error) {
-          console.error('Error adding logo:', error)
-        }
-      }
-
-      // School name and subtitle in white (only if includeHeader is true)
-      if (pdfSettings.includeHeader !== false) {
-        doc.setTextColor(255, 255, 255)
-        doc.setFontSize(parseInt(pdfSettings.fontSize) + 8) // Header title larger than base font
-        doc.setFont('helvetica', 'bold')
-        doc.text(schoolData.name || schoolName || 'Superior College Bhakkar', pageWidth / 2, yPos + 5, { align: 'center' })
-
-        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1) // Subtitle slightly larger than base
-        doc.setFont('helvetica', 'normal')
-        const headerText = pdfSettings.headerText || 'Student FEE CHALLAN'
-        doc.text(headerText, pageWidth / 2, yPos + 12, { align: 'center' })
-      }
-
-      // Generated date - position based on logo position to avoid overlap
-      doc.setFontSize(parseInt(pdfSettings.fontSize) - 1) // Date slightly smaller than base
-      doc.setTextColor(220, 220, 220)
-      const now = new Date()
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-      const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
-
-      // If logo is on right, put date on left to avoid overlap
-      const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
-      const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
-      doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
-
-      // Reset to text color from settings
-      doc.setTextColor(...textColorRgb)
-      yPos = headerHeight + 10
-
-      // STUDENT INFORMATION Section
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2) // Section titles slightly larger
-      doc.setFont('helvetica', 'bold')
-      doc.text('STUDENT INFORMATION', leftMargin, yPos)
-      yPos += 7
-
-      // Student info grid with labels and values
-      const labelWidth = 35
-      let xPos = leftMargin
-
-      // Row 1: Student Name and Student Roll#
-      doc.setFontSize(parseInt(pdfSettings.fontSize))
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb) // Use secondary color for labels
-      doc.text('Student Name:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb) // Use text color for values
-      doc.text(studentName || 'N/A', xPos + labelWidth, yPos)
-
-      xPos = pageWidth / 2 + 5
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Student Roll#:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text(student?.admission_number || 'N/A', xPos + labelWidth, yPos)
-
-      yPos += 6
-      xPos = leftMargin
-
-      // Row 2: Class and Father Name
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Class:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text(className, xPos + labelWidth, yPos)
-
-      xPos = pageWidth / 2 + 5
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Father Name:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text(student?.father_name || 'N/A', xPos + labelWidth, yPos)
-
-      yPos += 6
-      xPos = leftMargin
-
-      // Row 3: Due Date and Fee Type
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Due Date:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      const formattedDueDate = new Date(challan.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
-      const dueDayName = days[new Date(challan.due_date).getDay()]
-      doc.text(formattedDueDate + ' ' + dueDayName, xPos + labelWidth, yPos)
-
-      xPos = pageWidth / 2 + 5
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Fee Type:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
-
-      yPos += 12
-
-      // FEE BREAKDOWN Section
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text('FEE BREAKDOWN', leftMargin, yPos)
-      yPos += 2
-
-      // Fee table with Particulars and Amount columns
-      if (items && items.length > 0) {
-        const tableData = items.map(item => [
-          item.fee_types?.fee_name || item.description,
-          formatCurrency(item.amount)
-        ])
-
-        // Calculate cell padding from settings
-        const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
-        const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [['Particulars', 'Amount']],
-          body: tableData,
-          theme: pdfSettings.tableStyle || 'grid',
-          headStyles: {
-            fillColor: hexToRgb(pdfSettings.tableHeaderColor),
-            textColor: [255, 255, 255],
-            fontSize: parseInt(pdfSettings.fontSize) + 1,
-            fontStyle: 'bold',
-            halign: 'left',
-            cellPadding: { top: cellPaddingValue - 1, bottom: cellPaddingValue - 1, left: 5, right: 5 }
-          },
-          bodyStyles: {
-            fontSize: parseInt(pdfSettings.fontSize) + 1,
-            cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 },
-            textColor: textColorRgb
-          },
-          alternateRowStyles: {
-            fillColor: alternateRowColorRgb
-          },
-          columnStyles: {
-            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
-            1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
-          },
-          margin: { left: leftMargin, right: leftMargin },
-          didParseCell: function(data) {
-            data.cell.styles.lineColor = secondaryColorRgb
-            data.cell.styles.lineWidth = lineWidthValue
-          },
-          didDrawCell: function(data) {
-            if (data.column.index === 1 && data.section === 'body') {
-              const amountText = data.cell.raw || ''
-              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
-                doc.setTextColor(...primaryColorRgb) // Use primary color for discounts
-              }
-            }
-          }
-        })
-
-        yPos = doc.lastAutoTable.finalY + 3
-      }
-
-      // TOTAL FEE PAYABLE
-      const bgColorRgb = hexToRgb(pdfSettings.backgroundColor || '#F0FDF4')
-      doc.setFillColor(...bgColorRgb)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
-      doc.setDrawColor(...secondaryColorRgb)
-      doc.setLineWidth(lineWidthValue)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
-
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
-
-      doc.setTextColor(...primaryColorRgb)
-      doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
-
-      yPos += 15
-
-      // Amount in words
-      doc.setFontSize(parseInt(pdfSettings.fontSize))
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Amount in Words:', margins.left, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(...textColorRgb)
-
-      // Simple number to words conversion
-      const numberToWords = (num) => {
-        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
-        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
-        const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
-
-        if (num === 0) return 'Zero'
-
-        let words = ''
-
-        if (num >= 1000) {
-          words += ones[Math.floor(num / 1000)] + ' Thousand '
-          num %= 1000
-        }
-
-        if (num >= 100) {
-          words += ones[Math.floor(num / 100)] + ' Hundred '
-          num %= 100
-        }
-
-        if (num >= 20) {
-          words += tens[Math.floor(num / 10)] + ' '
-          num %= 10
-        } else if (num >= 10) {
-          words += teens[num - 10] + ' '
-          num = 0
-        }
-
-        if (num > 0) {
-          words += ones[num] + ' '
-        }
-
-        return words.trim() + ' Only'
-      }
-
-      const amountInWords = numberToWords(challan.total_amount)
-      doc.text(amountInWords, margins.left, yPos + 5)
-
-      yPos += 12
-
-      // Payment Status
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Payment Status:', margins.left, yPos)
-
-      // Use primary color for status with different shades based on status
-      const statusColor = challan.status === 'paid' ? primaryColorRgb : challan.status === 'overdue' ? [220, 38, 38] : secondaryColorRgb
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...statusColor)
-      doc.text(challan.status.charAt(0).toUpperCase() + challan.status.slice(1), margins.left + 32, yPos)
-
-      // Footer (only if includeFooter is true)
-      if (pdfSettings.includeFooter !== false) {
-        yPos = pageHeight - margins.bottom + 5
-
-        // Horizontal line above footer text
-        doc.setDrawColor(...secondaryColorRgb)
-        doc.setLineWidth(lineWidthValue)
-        doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
-
-        doc.setFontSize(parseInt(pdfSettings.fontSize) - 1)
-        doc.setTextColor(...secondaryColorRgb)
-        doc.setFont('helvetica', 'normal')
-
-        // Use footerText from settings if available, otherwise use school name
-        const footerText = pdfSettings.footerText || schoolData.name || schoolName
-        let footerContent = footerText
-
-        // Add page numbers if includePageNumbers is true
-        if (pdfSettings.includePageNumbers) {
-          footerContent = `${footerText} - Page 1`
-        }
-
-        doc.text(footerContent, pageWidth / 2, yPos, { align: 'center' })
-      }
-
-      // Download PDF directly
-      const fileName = `Fee_Challan_${student?.admission_number || 'unknown'}_${new Date().getTime()}.pdf`
-      doc.save(fileName)
-      showToast('PDF downloaded successfully!', 'success')
-    } catch (error) {
-      console.error('Error generating PDF:', error)
-      showToast('Failed to generate PDF', 'error')
-    }
-  }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-2 bg-gray-50 min-h-screen">
       <style jsx global>{`
         @keyframes slide-in {
           from {
@@ -1857,70 +2175,104 @@ export default function FeeCreatePage() {
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
-      {/* Header */}
-      <div className="mb-6 flex flex-row items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Create Fee Challan</h1>
-          <p className="text-gray-600">Select students and create fee challans</p>
-        </div>
-        <button
-          onClick={handleCreateChallan}
-          className="bg-red-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 whitespace-nowrap"
-        >
-          <Plus size={20} />
-          Create Challan
-        </button>
-      </div>
+      {/* Compact Filter Section */}
+      <div className="bg-white rounded-lg shadow p-3 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <button
+            onClick={handleCreateChallan}
+            className="bg-red-600 text-white px-3 py-2 rounded text-xs font-semibold hover:bg-red-700 transition flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Plus size={14} />
+            Create Challan
+          </button>
 
-      {/* Filter Section - Matching fee/challans page */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="md:w-48">
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-            >
-              <option value="">All Classes</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.class_name}
+          <select
+            value={selectedClass}
+            onChange={(e) => {
+              setSelectedClass(e.target.value)
+              setSelectedSection('') // Reset section when class changes
+            }}
+            className="px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+          >
+            <option value="">All Classes</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.class_name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={selectedSection}
+            onChange={(e) => setSelectedSection(e.target.value)}
+            className="px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+            disabled={!selectedClass}
+          >
+            <option value="">All Sections</option>
+            {sections
+              .filter(sec => !selectedClass || sec.class_id === selectedClass)
+              .map((sec) => (
+                <option key={sec.id} value={sec.id}>
+                  {sec.section_name}
                 </option>
               ))}
-            </select>
+          </select>
+
+          <div className="flex-1 relative min-w-[200px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search by challan number, student name, or admission number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-7 pr-2.5 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+            />
           </div>
+
+          {/* Download CSV Button */}
+          <button
+            onClick={downloadCSV}
+            disabled={filteredChallans.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ml-auto"
+            title="Download CSV"
+          >
+            <Download size={14} />
+            <span>Download CSV</span>
+          </button>
         </div>
 
-        <div className="flex gap-4 text-sm">
-          <p className="text-gray-600">
+        <div className="flex flex-wrap gap-3 text-xs">
+          <span className="text-gray-600">
             Total: <span className="font-bold text-blue-600">{filteredChallans.length}</span>
-          </p>
-          <p className="text-gray-600">
+          </span>
+          <span className="text-gray-600">
             Pending: <span className="font-bold text-yellow-600">{filteredChallans.filter(c => c.status === 'pending').length}</span>
-          </p>
-          <p className="text-gray-600">
+          </span>
+          <span className="text-gray-600">
             Paid: <span className="font-bold text-green-600">{filteredChallans.filter(c => c.status === 'paid').length}</span>
-          </p>
-          <p className="text-gray-600">
+          </span>
+          <span className="text-gray-600">
             Overdue: <span className="font-bold text-red-600">{filteredChallans.filter(c => c.status === 'overdue').length}</span>
-          </p>
+          </span>
         </div>
       </div>
 
       {/* Table - Desktop View */}
-      <div className="hidden lg:block bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full border-collapse text-sm">
             <thead className="bg-blue-900 text-white">
               <tr>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Sr.</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Student Name</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Father Name</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Class</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Due Date</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Total Fees</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Status</th>
-                <th className="px-4 py-4 text-center font-semibold text-sm border border-blue-800">Options</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Sr.</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Student Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Father Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Class</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Due Date</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Total Amount</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Already Paid</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Balance Due</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Status</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-xs border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
@@ -1928,31 +2280,37 @@ export default function FeeCreatePage() {
                 // Loading skeleton rows
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} animate-pulse`}>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="h-4 bg-gray-200 rounded w-8"></div>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-8"></div>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-32"></div>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="h-4 bg-gray-200 rounded w-28"></div>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-28"></div>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-24"></div>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-20"></div>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-20"></div>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-20"></div>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="flex gap-3 justify-center">
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-3 bg-gray-200 rounded w-20"></div>
+                    </td>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="h-5 bg-gray-200 rounded-full w-16"></div>
+                    </td>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="flex gap-1 justify-center">
                         {[...Array(5)].map((_, j) => (
-                          <div key={j} className="h-8 w-8 bg-gray-200 rounded"></div>
+                          <div key={j} className="h-6 w-6 bg-gray-200 rounded"></div>
                         ))}
                       </div>
                     </td>
@@ -1960,30 +2318,42 @@ export default function FeeCreatePage() {
                 ))
               ) : filteredChallans.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="10" className="px-3 py-8 text-center text-gray-500 text-xs">
                     {createdChallans.length === 0 ? 'No challans created yet. Click "Create Challan" to get started.' : 'No challans found for the selected class.'}
                   </td>
                 </tr>
               ) : (
                 paginatedChallans.map((challan, index) => (
                   <tr key={challan.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                    <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">{startIndex + index + 1}</td>
-                    <td className="px-4 py-4 text-blue-600 font-medium text-sm border border-gray-200">
+                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">{startIndex + index + 1}</td>
+                    <td className="px-3 py-2.5 text-blue-600 font-medium text-xs border border-gray-200">
                       {challan.students?.first_name} {challan.students?.last_name}
                     </td>
-                    <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">
+                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
                       {challan.students?.father_name || 'N/A'}
                     </td>
-                    <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">
+                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
                       {challan.students?.classes?.class_name || 'N/A'}
                     </td>
-                    <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">
+                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
                       {new Date(challan.due_date).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-4 text-gray-900 font-bold text-sm border border-gray-200">
-                      Rs. {challan.total_amount.toLocaleString()}
+                    <td className="px-3 py-2.5 text-gray-900 font-bold text-xs border border-gray-200">
+                      Rs. {(challan.total_amount || 0).toLocaleString()}
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <span className="text-green-600 font-semibold text-xs">
+                        Rs. {(challan.paid_amount || 0).toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <span className={`font-bold text-xs ${
+                        (challan.total_amount - (challan.paid_amount || 0)) > 0 ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        Rs. {Math.max(0, (challan.total_amount || 0) - (challan.paid_amount || 0)).toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 border border-gray-200">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-block ${
                         challan.status === 'paid' ? 'bg-green-100 text-green-800' :
                         challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
@@ -1992,48 +2362,48 @@ export default function FeeCreatePage() {
                         {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-4 py-4 border border-gray-200">
-                      <div className="flex items-center justify-center gap-3">
+                    <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleViewChallan(challan)}
-                          className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                          className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
                           title="View Challan"
                         >
-                          <Eye size={18} />
+                          <Eye size={16} />
                         </button>
-                        {(challan.status === 'pending' || challan.status === 'overdue') && (
+                        {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
                           <button
                             onClick={() => handleEditChallan(challan)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"
                             title="Edit Challan"
                           >
-                            <Edit2 size={18} />
+                            <Edit2 size={16} />
                           </button>
                         )}
-                        {challan.status !== 'paid' && (
+                        {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
                           <button
                             onClick={() => handleDeleteChallan(challan.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
                             title="Delete Challan"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                           </button>
                         )}
-                        {challan.status !== 'paid' && (
+                        {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
                           <button
                             onClick={() => handleStatusToggle(challan.id, challan.status)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition"
                             title="Toggle Status"
                           >
-                            <RefreshCw size={18} />
+                            <RefreshCw size={16} />
                           </button>
                         )}
                         <button
                           onClick={() => handlePrintChallan(challan)}
-                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition"
                           title="Print Challan"
                         >
-                          <Printer size={18} />
+                          <Printer size={16} />
                         </button>
                       </div>
                     </td>
@@ -2045,45 +2415,45 @@ export default function FeeCreatePage() {
         </div>
 
         {!loading && filteredChallans.length > 0 && (
-          <div className="px-4 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
+          <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <div className="text-xs text-gray-500">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} challans
             </div>
-            
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                className={`px-3 py-1.5 rounded text-xs font-medium transition ${
                   currentPage === 1
-                    ? 'bg-blue-300 text-white cursor-not-allowed'
-                    : 'bg-blue-900 text-white hover:bg-blue-800'
+                    ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
+                    : 'bg-blue-800 text-white hover:bg-blue-900'
                 }`}
               >
                 Previous
               </button>
-              
+
               {getPageNumbers().map((page, idx) => (
                 <button
                   key={idx}
                   onClick={() => typeof page === 'number' && goToPage(page)}
-                  className={`min-w-[40px] h-10 rounded-lg text-sm font-medium transition ${
+                  className={`w-8 h-8 rounded text-xs font-medium transition ${
                     page === currentPage
-                      ? 'bg-blue-900 text-white'
+                      ? 'bg-blue-800 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   {page}
                 </button>
               ))}
-              
+
               <button
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                className={`px-3 py-1.5 rounded text-xs font-medium transition ${
                   currentPage === totalPages
-                    ? 'bg-blue-300 text-white cursor-not-allowed'
-                    : 'bg-blue-900 text-white hover:bg-blue-800'
+                    ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
+                    : 'bg-blue-800 text-white hover:bg-blue-900'
                 }`}
               >
                 Next

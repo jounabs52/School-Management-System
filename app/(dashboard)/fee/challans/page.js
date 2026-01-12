@@ -39,7 +39,9 @@ export default function FeeChallanPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [classFilter, setClassFilter] = useState('all')
+  const [sectionFilter, setSectionFilter] = useState('all')
   const [classes, setClasses] = useState([])
+  const [sections, setSections] = useState([])
   const [selectedChallan, setSelectedChallan] = useState(null)
   const [showViewModal, setShowViewModal] = useState(false)
   const [challanItems, setChallanItems] = useState([])
@@ -119,6 +121,7 @@ export default function FeeChallanPage() {
             current_class_id
           )
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
 
       // Get unique class IDs from challans
@@ -136,11 +139,25 @@ export default function FeeChallanPage() {
         .from('classes')
         .select('id, class_name')
         .in('id', classIdsWithChallans)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('class_name', { ascending: true })
 
       if (!error && allClasses) {
         setClasses(allClasses)
+      }
+
+      // Fetch sections for the classes that have challans
+      const { data: allSections, error: sectionsError } = await supabase
+        .from('sections')
+        .select('id, section_name, class_id')
+        .in('class_id', classIdsWithChallans)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
+        .order('section_name', { ascending: true })
+
+      if (!sectionsError && allSections) {
+        setSections(allSections)
       }
     } catch (error) {
       console.error('Error fetching classes:', error)
@@ -168,9 +185,16 @@ export default function FeeChallanPage() {
             last_name,
             father_name,
             current_class_id,
-            current_section_id
+            current_section_id,
+            fee_plan,
+            base_fee,
+            discount_amount,
+            discount_value,
+            discount_type,
+            final_fee
           )
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('issue_date', { ascending: false })
 
@@ -192,7 +216,8 @@ export default function FeeChallanPage() {
           .from('classes')
           .select('id, class_name, fee_plan')
           .in('id', classIds)
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
         if (classesData) {
           classesData.forEach(cls => {
@@ -214,14 +239,25 @@ export default function FeeChallanPage() {
         }
       }
 
-      const enrichedChallans = challansData?.map(challan => ({
-        ...challan,
-        students: challan.students ? {
-          ...challan.students,
-          classes: challan.students.current_class_id ? classesMap[challan.students.current_class_id] : null,
-          sections: challan.students.current_section_id ? sectionsMap[challan.students.current_section_id] : null
-        } : null
-      }))
+      const enrichedChallans = challansData?.map(challan => {
+        // Use real-time student fee data if available
+        const studentFinalFee = challan.students?.final_fee
+        const studentBaseFee = challan.students?.base_fee
+        const studentDiscountAmount = challan.students?.discount_amount
+
+        return {
+          ...challan,
+          // Override with current student fee data for real-time updates
+          total_amount: studentFinalFee !== null && studentFinalFee !== undefined ? studentFinalFee : challan.total_amount,
+          base_fee: studentBaseFee !== null && studentBaseFee !== undefined ? studentBaseFee : challan.base_fee,
+          discount_amount: studentDiscountAmount !== null && studentDiscountAmount !== undefined ? studentDiscountAmount : challan.discount_amount,
+          students: challan.students ? {
+            ...challan.students,
+            classes: challan.students.current_class_id ? classesMap[challan.students.current_class_id] : null,
+            sections: challan.students.current_section_id ? sectionsMap[challan.students.current_section_id] : null
+          } : null
+        }
+      })
 
       setChallans(enrichedChallans || [])
       setLoading(false)
@@ -245,6 +281,7 @@ export default function FeeChallanPage() {
             fee_name
           )
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('challan_id', challanId)
 
@@ -280,6 +317,7 @@ export default function FeeChallanPage() {
             fee_name
           )
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('challan_id', challan.id)
 
@@ -379,8 +417,22 @@ export default function FeeChallanPage() {
       const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
       const className = student?.classes?.class_name || 'N/A'
 
+      // Get user ID for PDF settings
+      const currentUser = getUserFromCookie()
+
+      // Fetch class data for fee plan
+      const { data: classData } = await supabase
+        .from('classes')
+        .select('fee_plan')
+        .eq('id', student?.current_class_id)
+        .eq('user_id', currentUser?.id)
+        .eq('school_id', currentUser?.school_id)
+        .single()
+
+      const feePlan = classData?.fee_plan || 'Monthly'
+
       // Get PDF settings
-      const pdfSettings = getPdfSettings()
+      const pdfSettings = getPdfSettings(currentUser?.id)
 
       // Create PDF with settings from PAGE SETTINGS
       const doc = new jsPDF({
@@ -587,7 +639,7 @@ export default function FeeChallanPage() {
       doc.text('Fee Type:', xPos, yPos)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(...textColorRgb)
-      doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
+      doc.text(`School Fee (${feePlan})`, xPos + labelWidth, yPos)
 
       yPos += 12
 
@@ -598,17 +650,38 @@ export default function FeeChallanPage() {
       doc.text('FEE BREAKDOWN', leftMargin, yPos)
       yPos += 2
 
-      // Fee table with Particulars and Amount columns
+      // Build detailed fee breakdown table
+      const tableData = []
+
+      // Calculate base fee from items (sum of all positive amounts)
+      const baseFee = student?.base_fee || challanToUse?.base_fee || 0
+      const discountAmount = student?.discount_amount || challanToUse?.discount_amount || 0
+
+      // Add base fee row
+      if (baseFee > 0) {
+        tableData.push(['Base Fee', formatCurrency(baseFee)])
+      }
+
+      // Add other fee items
       if (itemsToUse && itemsToUse.length > 0) {
-        const tableData = itemsToUse.map(item => [
-          item.fee_types?.fee_name || item.description,
-          formatCurrency(item.amount)
-        ])
+        itemsToUse.forEach(item => {
+          const itemName = item.fee_types?.fee_name || item.description
+          // Skip if it's labeled as "Monthly Fee" or "Base Fee" since we already added it
+          if (itemName !== 'Monthly Fee' && itemName !== 'Base Fee') {
+            tableData.push([itemName, formatCurrency(item.amount)])
+          }
+        })
+      }
 
-        // Calculate cell padding from settings
-        const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
-        const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
+      // Add discount row if exists
+      if (discountAmount > 0) {
+        tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
+      }
 
+      const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
+      const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
+
+      if (tableData.length > 0) {
         autoTable(doc, {
           startY: yPos,
           head: [['Particulars', 'Amount']],
@@ -643,7 +716,7 @@ export default function FeeChallanPage() {
             if (data.column.index === 1 && data.section === 'body') {
               const amountText = data.cell.raw || ''
               if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
-                doc.setTextColor(...primaryColorRgb) // Use primary color for discounts
+                doc.setTextColor(220, 38, 38) // Red color for discount
               }
             }
           }
@@ -748,7 +821,7 @@ export default function FeeChallanPage() {
         .single()
 
       const schoolData = schoolResult.data || {}
-      const pdfSettings = getPdfSettings()
+      const pdfSettings = getPdfSettings(user?.id)
 
       // Process each challan
       for (let i = 0; i < filteredChallans.length; i++) {
@@ -763,13 +836,25 @@ export default function FeeChallanPage() {
               fee_name
             )
           `)
-          .eq('school_id', user.school_id)
+          .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
           .eq('challan_id', challan.id)
 
         const itemsToUse = items || []
         const student = challan.students
         const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
         const className = student?.classes?.class_name || 'N/A'
+
+        // Fetch class data for fee plan
+        const { data: classData } = await supabase
+          .from('classes')
+          .select('fee_plan')
+          .eq('id', student?.current_class_id)
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
+          .single()
+
+        const feePlan = classData?.fee_plan || 'Monthly'
 
         // Create PDF
         const doc = new jsPDF({
@@ -950,7 +1035,7 @@ export default function FeeChallanPage() {
         doc.text('Fee Type:', xPos, yPos)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(0, 0, 0)
-        doc.text('School Fee (Monthly)', xPos + labelWidth, yPos)
+        doc.text(`School Fee (${feePlan})`, xPos + labelWidth, yPos)
 
         yPos += 12
 
@@ -961,13 +1046,35 @@ export default function FeeChallanPage() {
         doc.text('FEE BREAKDOWN', leftMargin, yPos)
         yPos += 2
 
-        // Fee table
-        if (itemsToUse && itemsToUse.length > 0) {
-          const tableData = itemsToUse.map(item => [
-            item.fee_types?.fee_name || item.description,
-            formatCurrency(item.amount)
-          ])
+        // Build detailed fee breakdown table
+        const tableData = []
 
+        // Calculate base fee from items (sum of all positive amounts)
+        const baseFee = student?.base_fee || challan?.base_fee || 0
+        const discountAmount = student?.discount_amount || challan?.discount_amount || 0
+
+        // Add base fee row
+        if (baseFee > 0) {
+          tableData.push(['Base Fee', formatCurrency(baseFee)])
+        }
+
+        // Add other fee items
+        if (itemsToUse && itemsToUse.length > 0) {
+          itemsToUse.forEach(item => {
+            const itemName = item.fee_types?.fee_name || item.description
+            // Skip if it's labeled as "Monthly Fee" or "Base Fee" since we already added it
+            if (itemName !== 'Monthly Fee' && itemName !== 'Base Fee') {
+              tableData.push([itemName, formatCurrency(item.amount)])
+            }
+          })
+        }
+
+        // Add discount row if exists
+        if (discountAmount > 0) {
+          tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
+        }
+
+        if (tableData.length > 0) {
           autoTable(doc, {
             startY: yPos,
             head: [['Particulars', 'Amount']],
@@ -1086,8 +1193,9 @@ export default function FeeChallanPage() {
 
     const matchesStatus = statusFilter === 'all' || challan.status === statusFilter
     const matchesClass = classFilter === 'all' || challan.students?.classes?.id === classFilter
+    const matchesSection = sectionFilter === 'all' || challan.students?.sections?.id === sectionFilter
 
-    return matchesSearch && matchesStatus && matchesClass
+    return matchesSearch && matchesStatus && matchesClass && matchesSection
   })
 
   // Pagination calculations
@@ -1126,26 +1234,25 @@ export default function FeeChallanPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-2 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">View Challans</h1>
-        <p className="text-gray-600">View and manage fee challans</p>
+      <div className="mb-3">
+        <h1 className="text-xl font-bold text-gray-800">View Challans</h1>
       </div>
 
-      {/* Search & Filter Section - REORDERED: Status, Classes, Search */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="md:w-48">
+      {/* Search & Filter Section - Compact */}
+      <div className="bg-white rounded-lg shadow p-3 mb-3">
+        <div className="flex flex-col md:flex-row gap-2 mb-2">
+          <div className="md:w-40">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -1154,11 +1261,14 @@ export default function FeeChallanPage() {
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
-          <div className="md:w-48">
+          <div className="md:w-40">
             <select
               value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              onChange={(e) => {
+                setClassFilter(e.target.value)
+                setSectionFilter('all') // Reset section when class changes
+              }}
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="all">All Classes</option>
               {classes.map((cls) => (
@@ -1168,31 +1278,46 @@ export default function FeeChallanPage() {
               ))}
             </select>
           </div>
+          <div className="md:w-40">
+            <select
+              value={sectionFilter}
+              onChange={(e) => setSectionFilter(e.target.value)}
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+              disabled={classFilter === 'all'}
+            >
+              <option value="all">All Sections</option>
+              {sections
+                .filter(sec => classFilter === 'all' || sec.class_id === classFilter)
+                .map((sec) => (
+                  <option key={sec.id} value={sec.id}>
+                    {sec.section_name}
+                  </option>
+                ))}
+            </select>
+          </div>
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <input
               type="text"
               placeholder="Search by challan number, student name, or admission number..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 pr-2.5 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
-          {/* Bulk Download Button - appears when filters are applied */}
-          {(statusFilter !== 'all' || classFilter !== 'all') && (
-            <button
-              onClick={handleBulkDownload}
-              disabled={filteredChallans.length === 0}
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              title="Download all filtered challans"
-            >
-              <Download size={20} />
-              <span className="font-medium">Download All ({filteredChallans.length})</span>
-            </button>
-          )}
+          {/* Download CSV Button - Always visible */}
+          <button
+            onClick={handleBulkDownload}
+            disabled={filteredChallans.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            title="Download CSV"
+          >
+            <Download size={14} />
+            <span>Download CSV</span>
+          </button>
         </div>
 
-        <div className="flex gap-4 text-sm">
+        <div className="flex gap-3 text-xs">
           <p className="text-gray-600">
             Total: <span className="font-bold text-blue-600">{filteredChallans.length}</span>
           </p>
@@ -1209,32 +1334,32 @@ export default function FeeChallanPage() {
       </div>
 
       {/* Table - Desktop View */}
-      <div className="hidden lg:block bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-blue-900 text-white">
               <tr>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Sr.</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Student Name</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Admission No.</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Class</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Issue Date</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Due Date</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Amount</th>
-                <th className="px-4 py-4 text-left font-semibold text-sm border border-blue-800">Status</th>
-                <th className="px-4 py-4 text-center font-semibold text-sm border border-blue-800">Options</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Sr.</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Student Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Admission No.</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Class</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Issue Date</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Due Date</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Amount</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Status</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-xs border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="9" className="px-3 py-8 text-center text-gray-500 text-xs">
                     Loading...
                   </td>
                 </tr>
               ) : paginatedChallans.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="9" className="px-3 py-8 text-center text-gray-500 text-xs">
                     No challans found
                   </td>
                 </tr>
@@ -1243,43 +1368,43 @@ export default function FeeChallanPage() {
                   const student = challan.students
                   return (
                     <tr key={challan.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                      <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-4 py-4 text-blue-600 font-medium text-sm border border-gray-200">
+                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2.5 text-blue-600 font-medium text-xs border border-gray-200">
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'N/A'}
                       </td>
-                      <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">{student?.admission_number || 'N/A'}</td>
-                      <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">
+                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">{student?.admission_number || 'N/A'}</td>
+                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
                         {student?.classes?.class_name || 'N/A'}{student?.sections?.section_name ? ` - ${student.sections.section_name}` : ''}
                       </td>
-                      <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">
+                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
                         {new Date(challan.issue_date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-4 text-gray-600 text-sm border border-gray-200">
+                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
                         {new Date(challan.due_date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-4 text-gray-900 font-bold text-sm border border-gray-200">
+                      <td className="px-3 py-2.5 text-gray-900 font-bold text-xs border border-gray-200">
                         Rs. {parseFloat(challan.total_amount).toLocaleString()}
                       </td>
-                      <td className="px-4 py-4 border border-gray-200">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
+                      <td className="px-3 py-2.5 border border-gray-200">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
                           {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                         </span>
                       </td>
-                      <td className="px-4 py-4 border border-gray-200">
-                        <div className="flex items-center justify-center gap-3">
+                      <td className="px-3 py-2.5 border border-gray-200">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleViewChallan(challan)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
                             title="View Details"
                           >
-                            <Eye size={18} />
+                            <Eye size={14} />
                           </button>
                           <button
                             onClick={() => handleDirectDownloadPDF(challan)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
                             title="Print Challan"
                           >
-                            <Printer size={18} />
+                            <Printer size={14} />
                           </button>
                         </div>
                       </td>
@@ -1293,16 +1418,16 @@ export default function FeeChallanPage() {
 
         {/* Pagination */}
         {!loading && filteredChallans.length > 0 && (
-          <div className="px-4 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} challans
+          <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <div className="text-xs text-gray-500">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length}
             </div>
-            
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                className={`px-3 py-2 rounded text-xs font-medium transition ${
                   currentPage === 1
                     ? 'bg-blue-300 text-white cursor-not-allowed'
                     : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -1310,12 +1435,12 @@ export default function FeeChallanPage() {
               >
                 Previous
               </button>
-              
+
               {getPageNumbers().map((page, idx) => (
                 <button
                   key={idx}
                   onClick={() => typeof page === 'number' && goToPage(page)}
-                  className={`min-w-[40px] h-10 rounded-lg text-sm font-medium transition ${
+                  className={`w-8 h-8 rounded text-xs font-medium transition ${
                     page === currentPage
                       ? 'bg-blue-900 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -1324,11 +1449,11 @@ export default function FeeChallanPage() {
                   {page}
                 </button>
               ))}
-              
+
               <button
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                className={`px-3 py-2 rounded text-xs font-medium transition ${
                   currentPage === totalPages
                     ? 'bg-blue-300 text-white cursor-not-allowed'
                     : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -1342,13 +1467,13 @@ export default function FeeChallanPage() {
       </div>
 
       {/* Mobile/Tablet Card View */}
-      <div className="lg:hidden space-y-4">
+      <div className="lg:hidden space-y-2">
         {loading ? (
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center text-gray-500">
+          <div className="bg-white rounded-lg shadow p-4 text-center text-gray-500 text-xs">
             Loading...
           </div>
         ) : paginatedChallans.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center text-gray-500">
+          <div className="bg-white rounded-lg shadow p-4 text-center text-gray-500 text-xs">
             No challans found
           </div>
         ) : (
@@ -1356,20 +1481,20 @@ export default function FeeChallanPage() {
             {paginatedChallans.map((challan, index) => {
               const student = challan.students
               return (
-                <div key={challan.id} className="bg-white rounded-xl shadow-lg p-4 border border-gray-200">
-                  <div className="flex justify-between items-start mb-3">
+                <div key={challan.id} className="bg-white rounded-lg shadow p-3 border border-gray-200">
+                  <div className="flex justify-between items-start mb-2">
                     <div>
-                      <div className="text-xs text-gray-500 mb-1">Challan #{startIndex + index + 1}</div>
-                      <div className="font-bold text-blue-600 text-sm">
+                      <div className="text-xs text-gray-500 mb-0.5">Challan #{startIndex + index + 1}</div>
+                      <div className="font-bold text-blue-600 text-xs">
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'Student Info Not Available'}
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
                       {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                     </span>
                   </div>
 
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Admission No:</span>
                       <span className="font-semibold text-gray-900">{student?.admission_number || 'N/A'}</span>
@@ -1388,28 +1513,28 @@ export default function FeeChallanPage() {
                       <span className="text-gray-600">Due Date:</span>
                       <span className="text-gray-900">{new Date(challan.due_date).toLocaleDateString()}</span>
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <div className="flex justify-between items-center pt-1.5 border-t border-gray-200">
                       <span className="text-gray-600 font-semibold">Amount:</span>
-                      <span className="text-red-600 font-bold text-lg">
+                      <span className="text-red-600 font-bold text-sm">
                         Rs. {parseFloat(challan.total_amount).toLocaleString()}
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-gray-200">
+                  <div className="mt-2.5 pt-2.5 border-t border-gray-200">
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleViewChallan(challan)}
-                        className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                        className="flex-1 bg-blue-600 text-white py-1.5 rounded font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-1.5 text-xs"
                       >
-                        <Eye size={18} />
+                        <Eye size={14} />
                         View
                       </button>
                       <button
                         onClick={() => handleDirectDownloadPDF(challan)}
-                        className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2"
+                        className="flex-1 bg-red-600 text-white py-1.5 rounded font-semibold hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-xs"
                       >
-                        <Printer size={18} />
+                        <Printer size={14} />
                         Print
                       </button>
                     </div>
@@ -1420,16 +1545,16 @@ export default function FeeChallanPage() {
 
             {/* Mobile Pagination */}
             {filteredChallans.length > 0 && (
-              <div className="bg-white rounded-xl shadow-lg p-4 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
+              <div className="bg-white rounded-lg shadow p-3 flex items-center justify-between">
+                <div className="text-xs text-gray-500">
                   {startIndex + 1}-{Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length}
                 </div>
-                
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => goToPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`px-3 py-2 rounded text-xs font-medium transition ${
                       currentPage === 1
                         ? 'bg-blue-300 text-white cursor-not-allowed'
                         : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -1437,11 +1562,11 @@ export default function FeeChallanPage() {
                   >
                     Previous
                   </button>
-                  
+
                   <button
                     onClick={() => goToPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`px-3 py-2 rounded text-xs font-medium transition ${
                       currentPage === totalPages
                         ? 'bg-blue-300 text-white cursor-not-allowed'
                         : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -1465,26 +1590,26 @@ export default function FeeChallanPage() {
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+            <div className="bg-[#2B5AA8] text-white px-4 py-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Challan Details</h3>
-                  <p className="text-blue-200 text-sm mt-1">{selectedChallan.challan_number}</p>
+                  <h3 className="text-base font-bold">Challan Details</h3>
+                  <p className="text-blue-100 text-xs mt-0.5">{selectedChallan.challan_number}</p>
                 </div>
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/20 p-1.5 rounded transition"
                 >
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
               {/* Student Info */}
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4">
-                <h4 className="font-bold text-gray-800 mb-3">Student Information</h4>
-                <div className="space-y-2 text-sm">
+              <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 mb-3">
+                <h4 className="font-bold text-gray-800 mb-2 text-sm">Student Information</h4>
+                <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Name:</span>
                     <span className="font-semibold text-gray-900">
@@ -1505,9 +1630,9 @@ export default function FeeChallanPage() {
               </div>
 
               {/* Challan Info */}
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4">
-                <h4 className="font-bold text-gray-800 mb-3">Challan Information</h4>
-                <div className="space-y-2 text-sm">
+              <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 mb-3">
+                <h4 className="font-bold text-gray-800 mb-2 text-sm">Challan Information</h4>
+                <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Issue Date:</span>
                     <span className="font-semibold text-gray-900">
@@ -1522,7 +1647,7 @@ export default function FeeChallanPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Status:</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(selectedChallan.status)}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(selectedChallan.status)}`}>
                       {selectedChallan.status.charAt(0).toUpperCase() + selectedChallan.status.slice(1)}
                     </span>
                   </div>
@@ -1530,21 +1655,21 @@ export default function FeeChallanPage() {
               </div>
 
               {/* Fee Items */}
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4">
-                <h4 className="font-bold text-gray-800 mb-3">Fee Breakdown</h4>
-                <div className="space-y-2">
+              <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 mb-3">
+                <h4 className="font-bold text-gray-800 mb-2 text-sm">Fee Breakdown</h4>
+                <div className="space-y-1.5">
                   {challanItems.length === 0 ? (
-                    <p className="text-sm text-gray-500">No fee items found</p>
+                    <p className="text-xs text-gray-500">No fee items found</p>
                   ) : (
                     challanItems.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center border-b border-gray-100 pb-2">
+                      <div key={item.id} className="flex justify-between items-center border-b border-gray-100 pb-1.5">
                         <div>
-                          <p className="font-medium text-gray-800">{item.fee_types?.fee_name || 'Fee'}</p>
+                          <p className="font-medium text-gray-800 text-xs">{item.fee_types?.fee_name || 'Fee'}</p>
                           {item.description && (
                             <p className="text-xs text-gray-500">{item.description}</p>
                           )}
                         </div>
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-gray-900 text-xs">
                           Rs. {parseFloat(item.amount).toLocaleString()}
                         </span>
                       </div>
@@ -1554,21 +1679,21 @@ export default function FeeChallanPage() {
               </div>
 
               {/* Total */}
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-800 text-lg">Total Amount:</span>
-                  <span className="font-bold text-red-600 text-2xl">
+                  <span className="font-bold text-gray-800 text-sm">Total Amount:</span>
+                  <span className="font-bold text-red-600 text-lg">
                     Rs. {parseFloat(selectedChallan.total_amount).toLocaleString()}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
+            <div className="border-t border-gray-200 px-4 py-2.5 bg-white">
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
+                  className="px-4 py-1.5 text-gray-700 font-medium hover:bg-gray-100 rounded transition border border-gray-300 text-xs"
                 >
                   Close
                 </button>
@@ -1577,9 +1702,9 @@ export default function FeeChallanPage() {
                     downloadChallanPDF()
                     showToast('PDF downloaded successfully!', 'success')
                   }}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
+                  className="px-4 py-1.5 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition flex items-center gap-1.5 text-xs"
                 >
-                  <Printer size={14} />
+                  <Printer size={12} />
                   Print
                 </button>
               </div>

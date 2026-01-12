@@ -43,6 +43,12 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (response.ok) {
+        // Validate user data has required fields
+        if (!data.user || !data.user.school_id) {
+          setError('Login successful but user data is incomplete. Please contact administrator.')
+          return
+        }
+
         // Save user data to localStorage for session persistence
         localStorage.setItem('user', JSON.stringify(data.user))
         // Use hard redirect to ensure localStorage is read on dashboard

@@ -73,6 +73,17 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
+// Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
+
 export default function SubjectsPage() {
   // Debug: Check Supabase initialization
   useEffect(() => {
@@ -154,26 +165,20 @@ export default function SubjectsPage() {
         return
       }
 
-      // Fetch school_id from schools table
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
         setClasses([])
         setLoadingClasses(false)
         return
       }
 
-      const schoolId = school.id
       console.log('✅ Fetching classes for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name, incharge, exam_marking_system, standard_fee, order_number, status')
+        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
@@ -218,20 +223,13 @@ export default function SubjectsPage() {
         return
       }
 
-      // Fetch school_id from schools table
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
         setLoading(false)
         return
       }
 
-      const schoolId = school.id
       console.log('✅ Fetching subjects for school_id:', schoolId)
 
       const { data, error } = await supabase
@@ -244,6 +242,7 @@ export default function SubjectsPage() {
           classes:class_id (id, class_name),
           subjects:subject_id (id, subject_name, subject_code)
         `)
+        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .order('id', { ascending: true })
 
@@ -370,27 +369,17 @@ export default function SubjectsPage() {
       console.log('📝 Valid subjects to save:', validSubjects)
       console.log('🎓 Selected class ID:', formData.classId)
 
-      // Fetch school_id from schools table
-      console.log('🔍 Fetching school information...')
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
-        showToast('Error fetching school information', 'error')
+      // Get logged-in user
+      console.log('🔍 Getting logged-in user information...')
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
+        showToast('Error: User not logged in', 'error')
         return
       }
 
-      const schoolId = school.id
+      console.log('✅ User ID retrieved:', userId)
       console.log('✅ School ID retrieved:', schoolId)
-
-      // Get current user ID from cookie/auth
-      const currentUser = getUserFromCookie()
-      const userId = currentUser?.id || currentUser?.user_id || schoolId // Fallback to schoolId if no user
-      console.log('👤 User ID for created_by:', userId)
 
       const subjectsToProcess = [...validSubjects]
       const classId = formData.classId
@@ -421,6 +410,7 @@ export default function SubjectsPage() {
         const { data: existingSubject, error: checkError } = await supabase
           .from('subjects')
           .select('id, subject_name, subject_code')
+          .eq('user_id', userId)
           .eq('school_id', schoolId)
           .eq('subject_name', subject.subjectName)
           .maybeSingle()
@@ -441,10 +431,11 @@ export default function SubjectsPage() {
           console.log('  ├─ Step 2: Creating new subject...')
           
           const subjectData = {
+            user_id: userId,
             school_id: schoolId,
             subject_name: subject.subjectName,
             subject_code: subject.subjectCode?.trim() || null,
-            created_by: userId // Use user ID, not school ID
+            created_by: userId
           }
           console.log('  ├─ Subject data to insert:', subjectData)
 
@@ -465,6 +456,7 @@ export default function SubjectsPage() {
               const { data: retryExisting, error: retryError } = await supabase
                 .from('subjects')
                 .select('id')
+                .eq('user_id', userId)
                 .eq('school_id', schoolId)
                 .eq('subject_name', subject.subjectName)
                 .maybeSingle()
@@ -508,6 +500,7 @@ export default function SubjectsPage() {
         const { data: existingRelation, error: relationCheckError } = await supabase
           .from('class_subjects')
           .select('id')
+          .eq('user_id', userId)
           .eq('school_id', schoolId)
           .eq('class_id', classId)
           .eq('subject_id', subjectId)
@@ -530,11 +523,12 @@ export default function SubjectsPage() {
         // Step 4: Create class-subject relationship
         console.log('  ├─ Step 4: Creating class-subject relationship...')
         const relationData = {
+          user_id: userId,
           school_id: schoolId,
           class_id: classId,
           subject_id: subjectId,
           is_compulsory: true,
-          created_by: userId // Use user ID, not school ID
+          created_by: userId
         }
         console.log('  ├─ Relationship data to insert:', relationData)
 
@@ -683,27 +677,17 @@ export default function SubjectsPage() {
       console.log('✅ Validation passed')
       console.log('📝 Valid subjects to update:', validSubjects)
 
-      // Fetch school_id from schools table
-      console.log('🔍 Fetching school information...')
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
-        showToast('Error fetching school information', 'error')
+      // Get logged-in user
+      console.log('🔍 Getting logged-in user information...')
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
+        showToast('Error: User not logged in', 'error')
         return
       }
 
-      const schoolId = school.id
+      console.log('✅ User ID retrieved:', userId)
       console.log('✅ School ID retrieved:', schoolId)
-
-      // Get current user ID from cookie/auth
-      const currentUser = getUserFromCookie()
-      const userId = currentUser?.id || currentUser?.user_id || schoolId // Fallback to schoolId if no user
-      console.log('👤 User ID for created_by:', userId)
 
       const subjectsToDelete = selectedSubject.subjects
         .filter(s => !editFormData.subjects.find(es => es.id === s.id))
@@ -951,6 +935,7 @@ export default function SubjectsPage() {
 
   const confirmDelete = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const deletedIds = []
       const deletedClassName = selectedSubject.className
 
@@ -959,6 +944,8 @@ export default function SubjectsPage() {
           .from('class_subjects')
           .delete()
           .eq('id', subject.id)
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
 
         if (error) {
           console.error('Error deleting subject:', error)

@@ -64,6 +64,7 @@ export default function LateFeeConfigPage() {
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('start_date', { ascending: false })
 
@@ -77,6 +78,7 @@ export default function LateFeeConfigPage() {
           *,
           sessions (session_name)
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('created_at', { ascending: false })
 
@@ -103,6 +105,7 @@ export default function LateFeeConfigPage() {
       const user = getUserFromCookie()
       const dataToSave = {
         ...formData,
+        user_id: user.id,
         school_id: user.school_id,
         created_by: user.id,
         session_id: formData.session_id || null,
@@ -115,6 +118,8 @@ export default function LateFeeConfigPage() {
           .from('late_fee_config')
           .update(dataToSave)
           .eq('id', editingConfig.id)
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
 
         if (error) throw error
         showToast('Late fee configuration updated successfully!')
@@ -160,10 +165,13 @@ export default function LateFeeConfigPage() {
     if (!confirm('Are you sure you want to delete this configuration?')) return
 
     try {
+      const user = getUserFromCookie()
       const { error } = await supabase
         .from('late_fee_config')
         .delete()
         .eq('id', configId)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (error) throw error
       showToast('Configuration deleted successfully!')

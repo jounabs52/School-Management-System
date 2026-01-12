@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom'
 import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
+import { addPDFFooter } from '@/lib/pdfUtils'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -18,6 +20,17 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: false
   }
 })
+
+// ✅ Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose, disabled = false }) => {
@@ -168,9 +181,12 @@ export default function InactiveStudentsPage() {
   const fetchClasses = async () => {
     setLoadingClasses(true)
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name, status')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -189,9 +205,12 @@ export default function InactiveStudentsPage() {
     setLoading(true)
     setError(null)
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       let query = supabase
         .from('students')
         .select('*')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('status', 'inactive')
         .order('created_at', { ascending: false })
 
@@ -307,60 +326,62 @@ export default function InactiveStudentsPage() {
   }, [searchQuery, selectedClass])
 
   const handleView = async (student) => {
-    setShowViewModal(true)
-
     try {
-      // Fetch full student details from database
-      const { data: fullStudent, error } = await supabase
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      // Fetch complete student data from Supabase
+      const { data, error } = await supabase
         .from('students')
         .select('*')
         .eq('id', student.id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .single()
 
-      if (error) throw error
-
-      // Fetch student contacts (father, mother, guardian info)
-      const { data: contacts, error: contactsError } = await supabase
-        .from('student_contacts')
-        .select('*')
-        .eq('student_id', student.id)
-
-      // Process contacts data
-      let contactsData = {}
-      if (!contactsError && contacts) {
-        contacts.forEach(contact => {
-          const prefix = contact.contact_type // 'father', 'mother', 'guardian'
-          contactsData[`${prefix}_mobile`] = contact.phone
-          contactsData[`${prefix}_email`] = contact.email
-          contactsData[`${prefix}_cnic`] = contact.cnic
-          contactsData[`${prefix}_occupation`] = contact.occupation
-          contactsData[`${prefix}_annual_income`] = contact.annual_income
-          contactsData[`${prefix}_qualification`] = contact.qualification
-          if (contact.contact_type === 'father') {
-            contactsData.whatsapp_number = contact.alternate_phone
-            contactsData.current_address = contact.address
-            contactsData.city = contact.city
-            contactsData.state = contact.state
-            contactsData.postal_code = contact.postal_code
-          }
-          if (contact.contact_type === 'guardian') {
-            contactsData.guardian_name = contact.name
-            contactsData.guardian_relation = contact.relation
-          }
-        })
+      if (error) {
+        console.error('Error fetching student details:', error)
+        showToast('Failed to load student details', 'error')
+        return
       }
 
-      // Set the complete student data
+      // Fetch class and section details
+      let className = 'N/A'
+      let sectionName = 'N/A'
+
+      if (data.current_class_id) {
+        const { data: classData } = await supabase
+          .from('classes')
+          .select('class_name')
+          .eq('id', data.current_class_id)
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
+          .single()
+
+        if (classData) className = classData.class_name
+      }
+
+      if (data.current_section_id) {
+        const { data: sectionData } = await supabase
+          .from('sections')
+          .select('section_name')
+          .eq('id', data.current_section_id)
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
+          .single()
+
+        if (sectionData) sectionName = sectionData.section_name
+      }
+
+      // Set complete student data
       setSelectedStudent({
-        ...student,
-        fullData: {
-          ...fullStudent,
-          ...contactsData
-        }
+        ...data,
+        className,
+        sectionName,
+        avatar: data.gender === 'female' ? '👧' : (data.gender === 'male' ? '👦' : '🧑')
       })
+      setShowViewModal(true)
     } catch (err) {
-      console.error('Error fetching full student details:', err)
-      setSelectedStudent(student)
+      console.error('Error in handleView:', err)
+      showToast('An error occurred while loading student details', 'error')
     }
   }
 
@@ -373,6 +394,7 @@ export default function InactiveStudentsPage() {
     setDeleting(true)
 
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const studentId = selectedStudent.id
       const studentName = selectedStudent.name
 
@@ -385,6 +407,8 @@ export default function InactiveStudentsPage() {
         .from('students')
         .delete()
         .eq('id', studentId)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (deleteError) throw deleteError
 
@@ -402,11 +426,14 @@ export default function InactiveStudentsPage() {
 
   const handleToggleStatus = async (student) => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       // Toggle to active status
       const { error: updateError } = await supabase
         .from('students')
         .update({ status: 'active', updated_at: new Date().toISOString() })
         .eq('id', student.id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (updateError) throw updateError
 
@@ -425,11 +452,14 @@ export default function InactiveStudentsPage() {
     setShowEditSidebar(true)
 
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       // Fetch full student details in background
       const { data: fullStudent, error } = await supabase
         .from('students')
         .select('*')
         .eq('id', student.id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .single()
 
       if (error) throw error
@@ -439,6 +469,8 @@ export default function InactiveStudentsPage() {
         .from('student_contacts')
         .select('*')
         .eq('student_id', student.id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       // Process contacts data for all contact types
       let fatherData = {}
@@ -565,6 +597,7 @@ export default function InactiveStudentsPage() {
       const firstName = nameParts[0]
       const lastName = nameParts.slice(1).join(' ') || null
 
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       // Update student table with basic and extended student info
       const { error: updateError } = await supabase
         .from('students')
@@ -597,6 +630,8 @@ export default function InactiveStudentsPage() {
           updated_at: new Date().toISOString()
         })
         .eq('id', formData.id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (updateError) throw updateError
 
@@ -606,6 +641,8 @@ export default function InactiveStudentsPage() {
       // Father contact
       if (formData.fatherMobile || formData.fatherEmail || formData.fatherCnic || formData.fatherOccupation || formData.fatherAnnualIncome || formData.whatsappNumber || formData.currentAddress) {
         contactUpdates.push({
+          user_id: userId,
+          school_id: schoolId,
           student_id: formData.id,
           contact_type: 'father',
           name: formData.fatherName,
@@ -622,6 +659,8 @@ export default function InactiveStudentsPage() {
       // Mother contact
       if (formData.motherMobile || formData.motherEmail || formData.motherCnic || formData.motherQualification || formData.motherOccupation || formData.motherAnnualIncome) {
         contactUpdates.push({
+          user_id: userId,
+          school_id: schoolId,
           student_id: formData.id,
           contact_type: 'mother',
           name: formData.motherName,
@@ -637,6 +676,8 @@ export default function InactiveStudentsPage() {
       // Guardian contact
       if (formData.guardianName || formData.guardianMobile || formData.guardianEmail) {
         contactUpdates.push({
+          user_id: userId,
+          school_id: schoolId,
           student_id: formData.id,
           contact_type: 'guardian',
           name: formData.guardianName || null,
@@ -649,6 +690,8 @@ export default function InactiveStudentsPage() {
       // Emergency contact
       if (formData.emergencyContactName || formData.emergencyPhone || formData.emergencyMobile) {
         contactUpdates.push({
+          user_id: userId,
+          school_id: schoolId,
           student_id: formData.id,
           contact_type: 'emergency',
           name: formData.emergencyContactName || null,
@@ -662,6 +705,8 @@ export default function InactiveStudentsPage() {
       // Student contact
       if (formData.studentCnic || formData.studentMobile) {
         contactUpdates.push({
+          user_id: userId,
+          school_id: schoolId,
           student_id: formData.id,
           contact_type: 'student',
           name: formData.studentName,
@@ -675,6 +720,8 @@ export default function InactiveStudentsPage() {
         .from('student_contacts')
         .delete()
         .eq('student_id', formData.id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       // Insert new contact records
       if (contactUpdates.length > 0) {
@@ -698,143 +745,463 @@ export default function InactiveStudentsPage() {
     }
   }
 
-  const handlePrintStudent = () => {
+  const handlePrintStudent = async () => {
     if (!selectedStudent) return
 
-    const doc = new jsPDF()
+    try {
+      const loggedInUser = getLoggedInUser()
 
-    // Title
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Student Information', 105, 20, { align: 'center' })
+      // Check if user is logged in
+      if (!loggedInUser || !loggedInUser.id || !loggedInUser.school_id) {
+        console.error('User not logged in or missing data:', loggedInUser)
+        showToast('User session not found. Please refresh the page.', 'error')
+        return
+      }
 
-    // Line
-    doc.setDrawColor(200, 200, 200)
-    doc.line(20, 25, 190, 25)
+      const { id: userId, school_id: schoolId } = loggedInUser
+      // Load PDF settings from centralized settings with user ID
+      const pdfSettings = getPdfSettings(userId)
 
-    let yPos = 35
-    const lineHeight = 7
-    const leftMargin = 20
+      console.log('PDF Settings loaded for user:', userId)
+      console.log('User school_id:', schoolId)
 
-    // Helper function to add field
-    const addField = (label, value, isFullWidth = false) => {
-      if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text(label + ':', leftMargin, yPos)
-        doc.setFont('helvetica', 'normal')
-        const text = String(value)
-        if (isFullWidth) {
-          doc.text(text, leftMargin + 50, yPos)
-        } else {
-          doc.text(text, leftMargin + 45, yPos)
+      // Fetch school data for logo and name
+      const { data: schoolData, error: schoolError} = await supabase
+        .from('schools')
+        .select('*')
+        .eq('id', schoolId)
+        .single()
+
+      if (schoolError) {
+        console.error('Error fetching school data:', schoolError)
+      }
+
+      // Create PDF with settings - respect user's orientation choice
+      const orientation = pdfSettings.orientation || 'portrait'
+      const doc = new jsPDF({
+        orientation: orientation,
+        unit: 'mm',
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+      })
+
+      const pageWidth = doc.internal.pageSize.width
+      const pageHeight = doc.internal.pageSize.height
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Set page background color
+      const bgRgb = hexToRgb(pdfSettings.backgroundColor || '#ffffff')
+      doc.setFillColor(...bgRgb)
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+
+      // Calculate margins using centralized function
+      const margins = getMarginValues(pdfSettings.margin)
+
+      const primaryRgb = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.primaryColor || '#1E3A8A')
+      const secondaryRgb = hexToRgb(pdfSettings.secondaryColor || '#3B82F6')
+      const textRgb = hexToRgb(pdfSettings.textColor || '#000000')
+
+      // Header (if enabled)
+      if (pdfSettings.includeHeader !== false) {
+        doc.setFillColor(...primaryRgb)
+        doc.rect(0, 0, pageWidth, 40, 'F')
+
+        // School Logo (if available) - WITH SETTINGS
+        if (pdfSettings.includeLogo && schoolData?.logo_url) {
+          try {
+            const logoImg = new Image()
+            logoImg.crossOrigin = 'anonymous'
+
+            await new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 10000)
+
+              logoImg.onload = () => {
+                clearTimeout(timeout)
+                try {
+                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                  const headerHeight = 40
+                  const logoY = (headerHeight - currentLogoSize) / 2
+                  let logoX = 10 // Default to left with 10mm margin
+
+                  // Position logo based on settings
+                  if (pdfSettings.logoPosition === 'center') {
+                    logoX = 10 // Keep on left even if center selected (to avoid text overlap)
+                  } else if (pdfSettings.logoPosition === 'right') {
+                    logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                  }
+
+                  // Add logo with style
+                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                    // Create a canvas to clip the image
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const size = 200 // Higher resolution for better quality
+                    canvas.width = size
+                    canvas.height = size
+
+                    // Draw clipped image on canvas
+                    ctx.beginPath()
+                    if (pdfSettings.logoStyle === 'circle') {
+                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                    } else {
+                      // Rounded corners
+                      const radius = size * 0.15
+                      ctx.moveTo(radius, 0)
+                      ctx.lineTo(size - radius, 0)
+                      ctx.quadraticCurveTo(size, 0, size, radius)
+                      ctx.lineTo(size, size - radius)
+                      ctx.quadraticCurveTo(size, size, size - radius, size)
+                      ctx.lineTo(radius, size)
+                      ctx.quadraticCurveTo(0, size, 0, size - radius)
+                      ctx.lineTo(0, radius)
+                      ctx.quadraticCurveTo(0, 0, radius, 0)
+                    }
+                    ctx.closePath()
+                    ctx.clip()
+
+                    // Draw image
+                    ctx.drawImage(logoImg, 0, 0, size, size)
+
+                    // Convert canvas to data URL and add to PDF
+                    const clippedImage = canvas.toDataURL('image/png')
+                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  } else {
+                    // Square logo
+                    doc.addImage(logoImg, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  }
+
+                  resolve()
+                } catch (err) {
+                  console.error('Logo canvas error:', err)
+                  resolve()
+                }
+              }
+
+              logoImg.onerror = (err) => {
+                clearTimeout(timeout)
+                console.error('Logo load failed:', err)
+                resolve()
+              }
+
+              const logoUrl = schoolData.logo_url.startsWith('http')
+                ? schoolData.logo_url
+                : `${window.location.origin}${schoolData.logo_url.startsWith('/') ? '' : '/'}${schoolData.logo_url}`
+
+              logoImg.src = logoUrl
+            })
+          } catch (e) {
+            console.error('Error adding school logo:', e.message)
+          }
         }
-        yPos += lineHeight
-      }
-    }
 
-    // Basic Information Section
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Basic Information', leftMargin, yPos)
-    yPos += lineHeight + 2
+        // Title
+        doc.setFontSize(20)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(pdfSettings.headerText || 'STUDENT INFORMATION RECORD', pageWidth / 2, 18, { align: 'center' })
 
-    addField('Admission No', selectedStudent.fullData?.admission_number || selectedStudent.admNo)
-    addField('Full Name', selectedStudent.name)
-    addField('Gender', selectedStudent.fullData?.gender)
-    addField('Date of Birth', selectedStudent.fullData?.date_of_birth)
-    addField('Blood Group', selectedStudent.fullData?.blood_group)
-    addField('Religion', selectedStudent.fullData?.religion)
-    addField('Caste', selectedStudent.fullData?.caste)
-    addField('Nationality', selectedStudent.fullData?.nationality)
+        // Subtitle - School Name
+        doc.setFontSize(10)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+        doc.text(schoolData?.name || 'School Management System', pageWidth / 2, 28, { align: 'center' })
 
-    yPos += 5
-
-    // Academic Information
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Academic Information', leftMargin, yPos)
-    yPos += lineHeight + 2
-
-    addField('Class', getClassName(selectedStudent.class))
-    addField('Section', selectedStudent.fullData?.current_section_id)
-    addField('Roll Number', selectedStudent.fullData?.roll_number)
-    addField('House', selectedStudent.fullData?.house)
-    addField('Admission Date', selectedStudent.fullData?.admission_date)
-    addField('Status', 'Inactive')
-
-    // Check if we need a new page
-    if (yPos > 250) {
-      doc.addPage()
-      yPos = 20
-    } else {
-      yPos += 5
-    }
-
-    // Father Information
-    if (selectedStudent.father || selectedStudent.fullData?.father_name) {
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Father Information', leftMargin, yPos)
-      yPos += lineHeight + 2
-
-      addField('Father Name', selectedStudent.father || selectedStudent.fullData?.father_name)
-      addField('Father CNIC', selectedStudent.fullData?.father_cnic)
-      addField('Father Mobile', selectedStudent.fullData?.father_mobile)
-      addField('Father Email', selectedStudent.fullData?.father_email)
-      addField('Qualification', selectedStudent.fullData?.father_qualification)
-      addField('Occupation', selectedStudent.fullData?.father_occupation)
-      addField('Annual Income', selectedStudent.fullData?.father_annual_income)
-
-      yPos += 5
-    }
-
-    // Check if we need a new page
-    if (yPos > 250) {
-      doc.addPage()
-      yPos = 20
-    }
-
-    // Mother Information
-    if (selectedStudent.fullData?.mother_name) {
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Mother Information', leftMargin, yPos)
-      yPos += lineHeight + 2
-
-      addField('Mother Name', selectedStudent.fullData?.mother_name)
-      addField('Mother CNIC', selectedStudent.fullData?.mother_cnic)
-      addField('Mother Mobile', selectedStudent.fullData?.mother_mobile)
-      addField('Mother Email', selectedStudent.fullData?.mother_email)
-      addField('Qualification', selectedStudent.fullData?.mother_qualification)
-      addField('Occupation', selectedStudent.fullData?.mother_occupation)
-      addField('Annual Income', selectedStudent.fullData?.mother_annual_income)
-
-      yPos += 5
-    }
-
-    // Fee Information
-    if (selectedStudent.fullData?.base_fee || selectedStudent.fullData?.discount_amount) {
-      if (yPos > 250) {
-        doc.addPage()
-        yPos = 20
+        // Date in header (if enabled)
+        if (pdfSettings.includeDate || pdfSettings.includeGeneratedDate) {
+          doc.setFontSize(8)
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 35, { align: 'right' })
+        }
       }
 
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Fee Information', leftMargin, yPos)
-      yPos += lineHeight + 2
+      let yPos = pdfSettings.includeHeader !== false ? 48 : 15
 
-      addField('Base Fee', selectedStudent.fullData?.base_fee)
-      addField('Discount', selectedStudent.fullData?.discount_amount)
-      addField('Final Fee', selectedStudent.fullData?.final_fee)
-      addField('Discount Note', selectedStudent.fullData?.discount_note, true)
+      // Student Header Card - COMPACT responsive height
+      const headerCardHeight = orientation === 'landscape' ? 20 : 24
+
+      doc.setFillColor(248, 250, 252)
+      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'F')
+
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.5)
+      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'S')
+
+      // Student Photo (if available) - COMPACT
+      const photoSize = orientation === 'landscape' ? 16 : 20
+      const photoX = margins.left + 2
+      const photoY = yPos + 2
+
+      if (selectedStudent.photo_url) {
+        try {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+
+          const photoBase64 = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Image load timeout')), 10000)
+
+            img.onload = () => {
+              clearTimeout(timeout)
+              try {
+                const canvas = document.createElement('canvas')
+                canvas.width = img.width
+                canvas.height = img.height
+                const ctx = canvas.getContext('2d')
+                ctx.drawImage(img, 0, 0)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+                resolve(dataUrl)
+              } catch (err) {
+                console.error('Canvas error:', err)
+                reject(err)
+              }
+            }
+
+            img.onerror = (err) => {
+              clearTimeout(timeout)
+              reject(err)
+            }
+
+            const photoUrl = selectedStudent.photo_url.startsWith('http')
+              ? selectedStudent.photo_url
+              : `${window.location.origin}${selectedStudent.photo_url.startsWith('/') ? '' : '/'}${selectedStudent.photo_url}`
+
+            img.src = photoUrl
+          })
+
+          if (photoBase64 && photoBase64.length > 100) {
+            doc.addImage(photoBase64, 'JPEG', photoX, photoY, photoSize, photoSize)
+
+            doc.setDrawColor(203, 213, 225)
+            doc.setLineWidth(0.5)
+            doc.roundedRect(photoX, photoY, photoSize, photoSize, 2, 2, 'S')
+          } else {
+            throw new Error('Invalid photo data')
+          }
+        } catch (e) {
+          console.error('Error loading student photo:', e.message)
+          // Fallback to avatar
+          doc.setFillColor(226, 232, 240)
+          doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+          doc.setFontSize(14)
+          doc.setTextColor(...textRgb)
+          doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
+        }
+      } else {
+        // Photo placeholder
+        doc.setFillColor(226, 232, 240)
+        doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+        doc.setFontSize(14)
+        doc.setTextColor(...textRgb)
+        doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
+      }
+
+      // Student name and key info - COMPACT
+      const infoX = photoX + photoSize + 4
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') + 2)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+      doc.setTextColor(...primaryRgb)
+      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, yPos + 7)
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 2)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+      doc.setTextColor(75, 85, 99)
+      doc.text(`Admission No: ${selectedStudent.admission_number}`, infoX, yPos + 12)
+      doc.text(`Class: ${selectedStudent.className || 'N/A'} | Section: ${selectedStudent.sectionName || 'N/A'}`, infoX, yPos + 16)
+
+      // Status badge - INACTIVE
+      const statusColor = [239, 68, 68]
+      doc.setFillColor(...statusColor)
+      doc.roundedRect(pageWidth - margins.right - 25, yPos + 4, 23, 6, 2, 2, 'F')
+      doc.setFontSize(7)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text('INACTIVE', pageWidth - margins.right - 13.5, yPos + 8, { align: 'center' })
+
+      yPos += orientation === 'landscape' ? 20 : 25
+
+      // Helper function for section headers
+      const addSectionHeader = (title) => {
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+
+        if (yPos + 10 > maxContentY) {
+          doc.addPage()
+          yPos = margins.top || 15
+        }
+
+        const tableHeaderRgb = hexToRgb(pdfSettings.tableHeaderColor || pdfSettings.secondaryColor || '#3B82F6')
+        doc.setFillColor(...tableHeaderRgb)
+        doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, 6, 1, 1, 'F')
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 1)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(title, margins.left + 3, yPos + 4)
+        yPos += 7.5
+      }
+
+      // Helper function for fields
+      const addTwoColumnFields = (fields) => {
+        const numColumns = orientation === 'landscape' ? 3 : 2
+        const gapSize = 2
+        const totalGaps = (numColumns - 1) * gapSize
+        const colWidth = (pageWidth - margins.left - margins.right - totalGaps) / numColumns
+
+        let col = 0
+        let rowY = yPos
+
+        const fieldBgRgb = [249, 250, 251]
+        const labelColorRgb = [107, 114, 128]
+        const borderRgb = [229, 231, 235]
+
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+        const fieldHeight = 7.5
+
+        fields.forEach(([label, value]) => {
+          if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
+            if (rowY + 10 > maxContentY) {
+              doc.addPage()
+              rowY = margins.top || 15
+              col = 0
+            }
+
+            const xPos = margins.left + (col * (colWidth + gapSize))
+
+            doc.setFillColor(...fieldBgRgb)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'F')
+
+            doc.setDrawColor(...borderRgb)
+            doc.setLineWidth(0.2)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'S')
+
+            doc.setFontSize(5.5)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+            doc.setTextColor(...labelColorRgb)
+            doc.text(label.toUpperCase(), xPos + 1.5, rowY + 3)
+
+            doc.setFontSize(7.5)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+            doc.setTextColor(31, 41, 55)
+
+            const maxChars = orientation === 'landscape' ? 28 : 35
+            let valueText = String(value)
+            if (valueText.length > maxChars) {
+              valueText = valueText.substring(0, maxChars - 3) + '...'
+            }
+
+            doc.text(valueText, xPos + 1.5, rowY + 6, { maxWidth: colWidth - 3 })
+
+            col++
+            if (col >= numColumns) {
+              col = 0
+              rowY += fieldHeight + 1.5
+            }
+          }
+        })
+
+        yPos = col === 0 ? rowY : rowY + fieldHeight + 1.5
+      }
+
+      // Basic Information
+      addSectionHeader('BASIC INFORMATION')
+      addTwoColumnFields([
+        ['First Name', selectedStudent.first_name],
+        ['Last Name', selectedStudent.last_name],
+        ['Gender', selectedStudent.gender],
+        ['Date of Birth', selectedStudent.date_of_birth],
+        ['Blood Group', selectedStudent.blood_group],
+        ['Religion', selectedStudent.religion],
+        ['Caste', selectedStudent.caste],
+        ['Nationality', selectedStudent.nationality || 'Pakistan']
+      ])
+
+      yPos += orientation === 'landscape' ? 1.5 : 2
+
+      // Academic Information
+      addSectionHeader('ACADEMIC INFORMATION')
+      addTwoColumnFields([
+        ['Class', selectedStudent.className],
+        ['Section', selectedStudent.sectionName],
+        ['Roll Number', selectedStudent.roll_number],
+        ['House', selectedStudent.house],
+        ['Admission Date', selectedStudent.admission_date],
+        ['Status', 'Inactive']
+      ])
+
+      yPos += orientation === 'landscape' ? 1.5 : 2
+
+      // Father Information
+      if (selectedStudent.father_name) {
+        addSectionHeader('FATHER INFORMATION')
+        addTwoColumnFields([
+          ['Father Name', selectedStudent.father_name],
+          ['Father CNIC', selectedStudent.father_cnic],
+          ['Mobile', selectedStudent.father_phone],
+          ['Email', selectedStudent.father_email],
+          ['Qualification', selectedStudent.father_qualification],
+          ['Occupation', selectedStudent.father_occupation],
+          ['Annual Income', selectedStudent.father_annual_income]
+        ])
+        yPos += orientation === 'landscape' ? 1.5 : 2
+      }
+
+      // Mother Information
+      if (selectedStudent.mother_name) {
+        addSectionHeader('MOTHER INFORMATION')
+        addTwoColumnFields([
+          ['Mother Name', selectedStudent.mother_name],
+          ['Mother CNIC', selectedStudent.mother_cnic],
+          ['Mobile', selectedStudent.mother_phone],
+          ['Email', selectedStudent.mother_email],
+          ['Qualification', selectedStudent.mother_qualification],
+          ['Occupation', selectedStudent.mother_occupation],
+          ['Annual Income', selectedStudent.mother_annual_income]
+        ])
+        yPos += orientation === 'landscape' ? 1.5 : 2
+      }
+
+      // Contact Information
+      if (selectedStudent.whatsapp_number || selectedStudent.current_address) {
+        addSectionHeader('CONTACT INFORMATION')
+        addTwoColumnFields([
+          ['WhatsApp Number', selectedStudent.whatsapp_number],
+          ['Guardian Mobile', selectedStudent.guardian_mobile],
+          ['Address', selectedStudent.current_address],
+          ['City', selectedStudent.city],
+          ['State', selectedStudent.state],
+          ['Postal Code', selectedStudent.postal_code]
+        ])
+        yPos += orientation === 'landscape' ? 1.5 : 2
+      }
+
+      // Fee Information
+      if (selectedStudent.base_fee || selectedStudent.discount_amount) {
+        addSectionHeader('FEE INFORMATION')
+        addTwoColumnFields([
+          ['Base Fee', selectedStudent.base_fee ? `PKR ${selectedStudent.base_fee}` : null],
+          ['Discount Amount', selectedStudent.discount_amount ? `PKR ${selectedStudent.discount_amount}` : null],
+          ['Final Fee', selectedStudent.final_fee ? `PKR ${selectedStudent.final_fee}` : null],
+          ['Fee Plan', selectedStudent.fee_plan],
+          ['Discount Note', selectedStudent.discount_note]
+        ])
+      }
+
+      // Footer
+      if (pdfSettings.includeFooter !== false) {
+        addPDFFooter(doc, 1, 1, pdfSettings)
+      }
+
+      // Save the PDF
+      doc.save(`Student_${selectedStudent.admission_number}_${selectedStudent.first_name}.pdf`)
+
+      setShowViewModal(false)
+
+      showToast('PDF generated successfully!', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      console.error('Error details:', error.message, error.stack)
+      showToast(`Failed to generate PDF: ${error.message || 'Please try again'}`, 'error')
     }
-
-    // Save the PDF
-    doc.save(`Student_${selectedStudent.admNo}_${selectedStudent.name.replace(/\s+/g, '_')}.pdf`)
-
-    showToast('PDF generated successfully!', 'success')
   }
 
   return (
@@ -1068,8 +1435,8 @@ export default function InactiveStudentsPage() {
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl flex-shrink-0">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Student Information</h3>
                   <div className="flex items-center gap-2">
@@ -1089,23 +1456,36 @@ export default function InactiveStudentsPage() {
                   </div>
                 </div>
               </div>
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                {/* Student Header */}
+              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
+                <style jsx>{`
+                  .custom-scrollbar::-webkit-scrollbar {
+                    width: 8px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 4px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 4px;
+                  }
+                  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                  }
+                `}</style>
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden">
-                    {selectedStudent.fullData?.photo_url || selectedStudent.photo_url ? (
-                      <img
-                        src={selectedStudent.fullData?.photo_url || selectedStudent.photo_url}
-                        alt={selectedStudent.name}
-                        className="w-full h-full object-cover"
-                      />
+                    {selectedStudent.photo_url ? (
+                      <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
                     ) : (
                       selectedStudent.avatar
                     )}
                   </div>
                   <div>
-                    <h4 className="text-xl font-bold text-gray-800">{selectedStudent.name}</h4>
-                    <p className="text-gray-600">Admission No: <span className="font-semibold">{selectedStudent.admNo}</span></p>
+                    <h4 className="text-xl font-bold text-gray-800">
+                      {selectedStudent.first_name} {selectedStudent.last_name || ''}
+                    </h4>
+                    <p className="text-gray-600">Admission No: <span className="font-semibold">{selectedStudent.admission_number}</span></p>
                     <p className="text-sm text-gray-500">Status: <span className="font-semibold text-red-600">Inactive</span></p>
                   </div>
                 </div>
@@ -1113,11 +1493,17 @@ export default function InactiveStudentsPage() {
                 {/* Basic Information */}
                 <div className="mb-6">
                   <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Basic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedStudent.name && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {selectedStudent.first_name && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">First Name</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.name}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.first_name}</p>
+                      </div>
+                    )}
+                    {selectedStudent.last_name && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Last Name</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.last_name}</p>
                       </div>
                     )}
                     {selectedStudent.gender && (
@@ -1126,34 +1512,40 @@ export default function InactiveStudentsPage() {
                         <p className="font-semibold text-gray-800 capitalize">{selectedStudent.gender}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.date_of_birth && (
+                    {selectedStudent.date_of_birth && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Date of Birth</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.date_of_birth}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.date_of_birth}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.blood_group && (
+                    {selectedStudent.student_cnic && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Student CNIC/B-Form</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.student_cnic}</p>
+                      </div>
+                    )}
+                    {selectedStudent.blood_group && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Blood Group</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.blood_group}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.blood_group}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.religion && (
+                    {selectedStudent.religion && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Religion</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.religion}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.religion}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.caste && (
+                    {selectedStudent.caste_race && (
                       <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Caste</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.caste}</p>
+                        <p className="text-xs text-gray-500 mb-1">Caste/Race</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.caste_race}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.nationality && (
+                    {selectedStudent.nationality && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Nationality</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.nationality}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.nationality}</p>
                       </div>
                     )}
                   </div>
@@ -1162,85 +1554,85 @@ export default function InactiveStudentsPage() {
                 {/* Academic Information */}
                 <div className="mb-6">
                   <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Academic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedStudent.class && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {selectedStudent.className && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Class</p>
-                        <p className="font-semibold text-gray-800">{getClassName(selectedStudent.class)}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.className}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.current_section_id && (
+                    {selectedStudent.sectionName && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Section</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.current_section_id}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.sectionName}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.roll_number && (
+                    {selectedStudent.roll_number && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Roll Number</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.roll_number}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.roll_number}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.admission_date && (
+                    {selectedStudent.admission_date && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Admission Date</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.admission_date}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.admission_date}</p>
                       </div>
                     )}
-                    {selectedStudent.fullData?.house && (
+                    {selectedStudent.house && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">House</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.fullData.house}</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.house}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Father Information */}
-                {selectedStudent.father && (
+                {selectedStudent.father_name && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Father Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedStudent.father && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.father_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father Name</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_name}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.father_cnic && (
+                      {selectedStudent.father_cnic && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father CNIC</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.father_cnic}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_cnic}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.father_mobile && (
+                      {selectedStudent.father_mobile && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father Mobile</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.father_mobile}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_mobile}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.father_email && (
+                      {selectedStudent.father_email && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father Email</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.father_email}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_email}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.father_qualification && (
+                      {selectedStudent.father_qualification && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father Qualification</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.father_qualification}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_qualification}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.father_occupation && (
+                      {selectedStudent.father_occupation && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father Occupation</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.father_occupation}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_occupation}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.father_annual_income && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      {selectedStudent.father_annual_income && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
                           <p className="text-xs text-gray-500 mb-1">Father Annual Income</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.father_annual_income}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_annual_income}</p>
                         </div>
                       )}
                     </div>
@@ -1248,50 +1640,50 @@ export default function InactiveStudentsPage() {
                 )}
 
                 {/* Mother Information */}
-                {selectedStudent.fullData?.mother_name && (
+                {selectedStudent.mother_name && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Mother Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedStudent.fullData?.mother_name && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.mother_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother Name</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.mother_name}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_name}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.mother_cnic && (
+                      {selectedStudent.mother_cnic && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother CNIC</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.mother_cnic}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_cnic}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.mother_mobile && (
+                      {selectedStudent.mother_mobile && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother Mobile</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.mother_mobile}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_mobile}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.mother_email && (
+                      {selectedStudent.mother_email && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother Email</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.mother_email}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_email}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.mother_qualification && (
+                      {selectedStudent.mother_qualification && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother Qualification</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.mother_qualification}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_qualification}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.mother_occupation && (
+                      {selectedStudent.mother_occupation && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother Occupation</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.mother_occupation}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_occupation}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.mother_annual_income && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      {selectedStudent.mother_annual_income && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
                           <p className="text-xs text-gray-500 mb-1">Mother Annual Income</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.mother_annual_income}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_annual_income}</p>
                         </div>
                       )}
                     </div>
@@ -1299,38 +1691,38 @@ export default function InactiveStudentsPage() {
                 )}
 
                 {/* Contact Information */}
-                {(selectedStudent.fullData?.whatsapp_number || selectedStudent.fullData?.current_address || selectedStudent.fullData?.city || selectedStudent.fullData?.state || selectedStudent.fullData?.postal_code) && (
+                {(selectedStudent.whatsapp_number || selectedStudent.current_address || selectedStudent.city || selectedStudent.state || selectedStudent.postal_code) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Contact Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedStudent.fullData?.whatsapp_number && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.whatsapp_number && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">WhatsApp Number</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.whatsapp_number}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.whatsapp_number}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.current_address && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      {selectedStudent.current_address && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
                           <p className="text-xs text-gray-500 mb-1">Current Address</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.current_address}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.current_address}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.city && (
+                      {selectedStudent.city && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">City</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.city}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.city}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.state && (
+                      {selectedStudent.state && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">State/Province</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.state}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.state}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.postal_code && (
+                      {selectedStudent.postal_code && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Postal Code</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.postal_code}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.postal_code}</p>
                         </div>
                       )}
                     </div>
@@ -1338,32 +1730,32 @@ export default function InactiveStudentsPage() {
                 )}
 
                 {/* Fee Information */}
-                {(selectedStudent.fullData?.base_fee || selectedStudent.fullData?.discount_amount) && (
+                {(selectedStudent.base_fee || selectedStudent.discount_amount || selectedStudent.final_fee) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Fee Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedStudent.fullData?.base_fee && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.base_fee && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Base Fee</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.base_fee}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.base_fee}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.discount_amount && (
+                      {selectedStudent.discount_amount && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Discount</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.discount_amount}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.discount_amount}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.final_fee && (
+                      {selectedStudent.final_fee && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Final Fee</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.final_fee}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.final_fee}</p>
                         </div>
                       )}
-                      {selectedStudent.fullData?.discount_note && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                      {selectedStudent.discount_note && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
                           <p className="text-xs text-gray-500 mb-1">Discount Note</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.fullData.discount_note}</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.discount_note}</p>
                         </div>
                       )}
                     </div>
@@ -1394,7 +1786,7 @@ export default function InactiveStudentsPage() {
               </div>
               <div className="p-6">
                 <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
+                  Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.first_name} {selectedStudent.last_name || ''}</span>? This action cannot be undone.
                 </p>
                 <div className="flex gap-3">
                   <button

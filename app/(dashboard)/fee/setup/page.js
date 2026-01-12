@@ -314,7 +314,8 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
   const loadClassFeeStructures = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const user = getUserFromCookie()
+      const { data, error} = await supabase
         .from('class_fee_structure')
         .select(`
           *,
@@ -326,6 +327,8 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
             collection_frequency
           )
         `)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
         .eq('class_id', classItem.id)
         .eq('session_id', selectedSession)
         .order('fee_types(display_order)')
@@ -357,6 +360,7 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
       const user = getUserFromCookie()
       const dataToSave = {
         ...structureData,
+        user_id: user.id,
         school_id: user.school_id,
         session_id: selectedSession,
         class_id: classItem.id,
@@ -369,6 +373,8 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
           .from('class_fee_structure')
           .update(dataToSave)
           .eq('id', structureData.id)
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
         if (error) throw error
       } else {
         // Insert new
@@ -391,10 +397,13 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
     if (!confirm('Are you sure you want to delete this fee structure?')) return
 
     try {
+      const user = getUserFromCookie()
       const { error } = await supabase
         .from('class_fee_structure')
         .delete()
         .eq('id', structureId)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (error) throw error
       await loadClassFeeStructures()
@@ -730,6 +739,7 @@ export default function FeeSetupPage() {
       const { data: feeTypesData, error: feeTypesError } = await supabase
         .from('fee_types')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('display_order', { ascending: true })
 
@@ -740,6 +750,7 @@ export default function FeeSetupPage() {
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('class_name')
@@ -751,6 +762,7 @@ export default function FeeSetupPage() {
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('start_date', { ascending: false })
 
@@ -774,6 +786,7 @@ export default function FeeSetupPage() {
       const user = getUserFromCookie()
       const dataToSave = {
         ...feeTypeData,
+        user_id: user.id,
         school_id: user.school_id
       }
 
@@ -783,6 +796,8 @@ export default function FeeSetupPage() {
           .from('fee_types')
           .update(dataToSave)
           .eq('id', feeTypeData.id)
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
         if (error) throw error
         showToastMessage('Fee type updated successfully!')
       } else {
@@ -806,10 +821,13 @@ export default function FeeSetupPage() {
     if (!confirm('Are you sure you want to delete this fee type?')) return
 
     try {
+      const user = getUserFromCookie()
       const { error } = await supabase
         .from('fee_types')
         .delete()
         .eq('id', feeTypeId)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (error) throw error
       showToastMessage('Fee type deleted successfully!')

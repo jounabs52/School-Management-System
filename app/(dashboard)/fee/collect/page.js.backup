@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, CheckCircle, X, Printer, Eye, Calendar, CreditCard, Building2, GraduationCap, Phone, Mail, MapPin, Download } from 'lucide-react'
+import { Search, CheckCircle, X, Printer, Eye, Calendar, CreditCard, Building2, GraduationCap, Phone, Mail, MapPin } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
@@ -47,22 +47,8 @@ const PrintChallan = ({ challan, school, onClose }) => {
 
   const handlePrint = async () => {
     try {
-      // Get user ID for PDF settings
-      const currentUser = getUserFromCookie()
-
-      // Fetch class data for fee plan
-      const { data: classData } = await supabase
-        .from('classes')
-        .select('fee_plan')
-        .eq('id', challan?.student?.class?.id)
-        .eq('user_id', currentUser?.id)
-        .eq('school_id', currentUser?.school_id)
-        .single()
-
-      const feePlan = classData?.fee_plan || challan?.fee_plan || 'Monthly'
-
       // Get PDF settings
-      const pdfSettings = getPdfSettings(currentUser?.id)
+      const pdfSettings = getPdfSettings()
 
       // Create PDF with settings from PAGE SETTINGS
       const doc = new jsPDF({
@@ -173,30 +159,30 @@ const PrintChallan = ({ challan, school, onClose }) => {
         }
       }
 
-      // School name and subtitle in white (centered, like fee/create)
+      // School name and subtitle in white (only if includeHeader is true)
       if (pdfSettings.includeHeader !== false) {
         doc.setTextColor(255, 255, 255)
-        doc.setFontSize(parseInt(pdfSettings.fontSize) + 8)
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 8) // Header title larger than base font
         doc.setFont('helvetica', 'bold')
-        doc.text(school?.name || school?.school_name || 'School Name', pageWidth / 2, yPos + 5, { align: 'center' })
+        doc.text(school?.name || school?.school_name || 'School Name', leftMargin, 15)
 
-        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1)
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1) // Subtitle slightly larger than base
         doc.setFont('helvetica', 'normal')
-        const headerText = pdfSettings.headerText || 'Student FEE CHALLAN'
-        doc.text(headerText, pageWidth / 2, yPos + 12, { align: 'center' })
+        doc.text(school?.address || 'Bhakkar', leftMargin, 22)
+        if (school?.phone || school?.email) {
+          doc.text(`Phone: ${school?.phone || ''} | Email: ${school?.email || ''}`, leftMargin, 27)
+        }
       }
 
-      // Generated date
-      doc.setFontSize(parseInt(pdfSettings.fontSize) - 1)
-      doc.setTextColor(220, 220, 220)
-      const now = new Date()
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-      const genDate = `Generated: ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`
-
-      const dateAlign = pdfSettings.logoPosition === 'right' ? 'left' : 'right'
-      const dateX = pdfSettings.logoPosition === 'right' ? leftMargin : rightMargin
-      doc.text(genDate, dateX, yPos + 18, { align: dateAlign })
+      // Challan Number Badge
+      doc.setFillColor(255, 255, 255, 0.15)
+      doc.roundedRect(pageWidth - 70, 10, 55, 20, 3, 3, 'F')
+      doc.setFontSize(parseInt(pdfSettings.fontSize))
+      doc.setTextColor(255, 255, 255)
+      doc.text('CHALLAN NO.', pageWidth - 42.5, 16, { align: 'center' })
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 4)
+      doc.setFont('helvetica', 'bold')
+      doc.text(challan?.challan_number || '', pageWidth - 42.5, 24, { align: 'center' })
 
       // Reset to text color from settings
       doc.setTextColor(...textColorRgb)
@@ -206,258 +192,154 @@ const PrintChallan = ({ challan, school, onClose }) => {
       const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
       const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
 
-      // STUDENT INFORMATION Section (manual layout like fee/create)
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
+      // Student and Challan Details
+      autoTable(doc, {
+        startY: yPos,
+        theme: 'plain',
+        body: [
+          [
+            { content: 'STUDENT INFORMATION', colSpan: 2, styles: { fontSize: parseInt(pdfSettings.fontSize) + 1, fontStyle: 'bold', fillColor: alternateRowColorRgb, textColor: secondaryColorRgb, cellPadding: cellPaddingValue - 1 } }
+          ],
+          ['Name', `${challan?.student?.first_name || ''} ${challan?.student?.last_name || ''}`],
+          ['Admission No.', challan?.student?.admission_number || ''],
+          ['Class / Section', `${challan?.student?.class?.class_name || 'N/A'} ${challan?.student?.section?.section_name ? '- ' + challan?.student?.section?.section_name : ''}`]
+        ],
+        columnStyles: {
+          0: { cellWidth: 40, fontStyle: 'normal', textColor: secondaryColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 },
+          1: { fontStyle: 'bold', textColor: textColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 }
+        },
+        styles: { cellPadding: cellPaddingValue - 2, lineColor: secondaryColorRgb, lineWidth: lineWidthValue },
+        margin: { left: leftMargin, right: pageWidth / 2 + 5 }
+      })
+
+      autoTable(doc, {
+        startY: yPos,
+        theme: 'plain',
+        body: [
+          [
+            { content: 'CHALLAN DETAILS', colSpan: 2, styles: { fontSize: parseInt(pdfSettings.fontSize) + 1, fontStyle: 'bold', fillColor: alternateRowColorRgb, textColor: secondaryColorRgb, cellPadding: cellPaddingValue - 1 } }
+          ],
+          ['Issue Date', new Date(challan?.issue_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+          ['Fee Plan', (challan?.fee_plan || 'Monthly').toUpperCase()],
+          ['Status', (challan?.status || 'PENDING').toUpperCase()]
+        ],
+        columnStyles: {
+          0: { cellWidth: 35, fontStyle: 'normal', textColor: secondaryColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 },
+          1: { fontStyle: 'bold', textColor: textColorRgb, fontSize: parseInt(pdfSettings.fontSize) + 1 }
+        },
+        styles: { cellPadding: cellPaddingValue - 2, lineColor: secondaryColorRgb, lineWidth: lineWidthValue },
+        margin: { left: pageWidth / 2 + 5, right: margins.right }
+      })
+
+      yPos = doc.lastAutoTable.finalY + 15
+
+      // Fee Schedule
+      doc.setFontSize(parseInt(pdfSettings.fontSize) + 4)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(...textColorRgb)
-      doc.text('STUDENT INFORMATION', leftMargin, yPos)
-      yPos += 7
+      doc.setFillColor(...headerBgColor)
+      doc.rect(leftMargin, yPos - 5, 3, 8, 'F')
+      doc.text(`Fee Schedule - Academic Year ${challan?.fee_year || new Date().getFullYear()}`, leftMargin + 5, yPos)
 
-      const labelWidth = 35
-      let xPos = leftMargin
+      yPos += 5
 
-      // Row 1: Student Name and Student Roll#
-      doc.setFontSize(parseInt(pdfSettings.fontSize))
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Student Name:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text(`${challan?.student?.first_name || ''} ${challan?.student?.last_name || ''}`, xPos + labelWidth, yPos)
+      const scheduleData = feeSchedule.length > 0
+        ? feeSchedule.map((item, idx) => [
+            idx + 1,
+            item.period,
+            item.months?.join(', ') || '-',
+            new Date(item.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            formatCurrency(item.amount),
+            (item.status || 'Pending').toUpperCase()
+          ])
+        : [['', 'No fee schedule available. This may be an older challan.', '', '', '', '']]
 
-      xPos = pageWidth / 2 + 5
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Student Roll#:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text(challan?.student?.admission_number || 'N/A', xPos + labelWidth, yPos)
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Sr.', 'Period', 'Months', 'Due Date', 'Amount', 'Status']],
+        body: scheduleData,
+        theme: pdfSettings.tableStyle || 'grid',
+        headStyles: {
+          fillColor: hexToRgb(pdfSettings.tableHeaderColor),
+          textColor: [255, 255, 255],
+          fontSize: parseInt(pdfSettings.fontSize) + 1,
+          fontStyle: 'bold',
+          cellPadding: cellPaddingValue
+        },
+        bodyStyles: {
+          fontSize: parseInt(pdfSettings.fontSize) + 1,
+          cellPadding: cellPaddingValue,
+          textColor: textColorRgb
+        },
+        styles: {
+          lineColor: secondaryColorRgb,
+          lineWidth: lineWidthValue
+        },
+        alternateRowStyles: { fillColor: alternateRowColorRgb },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 30, fontStyle: 'bold' },
+          2: { cellWidth: 45, textColor: secondaryColorRgb },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+          5: { cellWidth: 30, halign: 'center', fontStyle: 'bold' }
+        },
+        margin: { left: leftMargin, right: margins.right }
+      })
 
-      yPos += 6
-      xPos = leftMargin
+      yPos = doc.lastAutoTable.finalY + 10
 
-      // Row 2: Class and Father Name
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Class:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      const className = `${challan?.student?.class?.class_name || 'N/A'} ${challan?.student?.section?.section_name ? '- ' + challan?.student?.section?.section_name : ''}`
-      doc.text(className, xPos + labelWidth, yPos)
+      // Financial Summary
+      const summaryData = [
+        ['BASE FEE (MONTHLY)', formatCurrency(challan?.base_fee || 0)],
+        [`DISCOUNT (${challan?.discount_type || 'fixed'})`, formatCurrency(challan?.discount_amount || 0)],
+        ['PAID AMOUNT', formatCurrency(challan?.paid_amount || 0)],
+        ['TOTAL PAYABLE', formatCurrency(challan?.total_amount || 0)]
+      ]
 
-      xPos = pageWidth / 2 + 5
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Father Name:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text(challan?.student?.father_name || 'N/A', xPos + labelWidth, yPos)
-
-      yPos += 6
-      xPos = leftMargin
-
-      // Row 3: Due Date and Fee Type
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Due Date:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      const formattedDueDate = new Date(challan?.due_date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')
-      const dueDayName = days[new Date(challan?.due_date).getDay()]
-      doc.text(formattedDueDate + ' ' + dueDayName, xPos + labelWidth, yPos)
-
-      xPos = pageWidth / 2 + 5
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Fee Type:', xPos, yPos)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text(`School Fee (${feePlan})`, xPos + labelWidth, yPos)
-
-      yPos += 12
-
-      // FEE BREAKDOWN Section
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text('FEE BREAKDOWN', leftMargin, yPos)
-      yPos += 2
-
-      // Build detailed fee breakdown table
-      const tableData = []
-
-      // Get base fee and discount
-      const baseFee = challan?.student?.base_fee || challan?.base_fee || 0
-      const discountAmount = challan?.student?.discount_amount || challan?.discount_amount || 0
-
-      // Add base fee row
-      if (baseFee > 0) {
-        tableData.push(['Base Fee', formatCurrency(baseFee)])
-      }
-
-      // Add other fees from fee schedule if available
-      if (feeSchedule && feeSchedule.length > 0) {
-        feeSchedule.forEach(item => {
-          if (item.period && item.period !== 'Monthly Fee' && item.period !== 'Base Fee') {
-            tableData.push([item.period, formatCurrency(item.amount)])
+      autoTable(doc, {
+        startY: yPos,
+        body: summaryData,
+        theme: 'plain',
+        columnStyles: {
+          0: { cellWidth: (pageWidth - leftMargin - margins.right) / 4, fontSize: parseInt(pdfSettings.fontSize), textColor: secondaryColorRgb, halign: 'center', fillColor: [255, 255, 255], cellPadding: cellPaddingValue },
+          1: { cellWidth: (pageWidth - leftMargin - margins.right) / 4, fontSize: parseInt(pdfSettings.fontSize) + 6, fontStyle: 'bold', textColor: textColorRgb, halign: 'center', fillColor: [255, 255, 255], cellPadding: cellPaddingValue }
+        },
+        styles: { lineColor: secondaryColorRgb, lineWidth: lineWidthValue * 2 },
+        didDrawCell: (data) => {
+          if (data.row.index === 3 && data.column.index === 0) {
+            doc.setFillColor(...headerBgColor)
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F')
+            doc.setTextColor(255, 255, 255)
           }
-        })
-      }
-
-      // Add discount row if exists
-      if (discountAmount > 0) {
-        tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
-      }
-
-      if (tableData.length > 0) {
-        autoTable(doc, {
-          startY: yPos,
-          head: [['Particulars', 'Amount']],
-          body: tableData,
-          theme: pdfSettings.tableStyle || 'grid',
-          headStyles: {
-            fillColor: hexToRgb(pdfSettings.tableHeaderColor),
-            textColor: [255, 255, 255],
-            fontSize: parseInt(pdfSettings.fontSize) + 1,
-            fontStyle: 'bold',
-            halign: 'left',
-            cellPadding: { top: cellPaddingValue - 1, bottom: cellPaddingValue - 1, left: 5, right: 5 }
-          },
-          bodyStyles: {
-            fontSize: parseInt(pdfSettings.fontSize) + 1,
-            cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 },
-            textColor: textColorRgb
-          },
-          alternateRowStyles: {
-            fillColor: alternateRowColorRgb
-          },
-          columnStyles: {
-            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
-            1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
-          },
-          margin: { left: leftMargin, right: leftMargin },
-          didParseCell: function(data) {
-            data.cell.styles.lineColor = secondaryColorRgb
-            data.cell.styles.lineWidth = lineWidthValue
-          },
-          didDrawCell: function(data) {
-            if (data.column.index === 1 && data.section === 'body') {
-              const amountText = data.cell.raw || ''
-              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
-                doc.setTextColor(220, 38, 38) // Red color for discount
-              }
-            }
+          if (data.row.index === 3 && data.column.index === 1) {
+            doc.setFillColor(...headerBgColor)
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F')
+            doc.setTextColor(255, 255, 255)
           }
-        })
+        },
+        margin: { left: leftMargin, right: margins.right }
+      })
 
-        yPos = doc.lastAutoTable.finalY + 3
-      }
-
-      // TOTAL FEE PAYABLE
-      const bgColorRgb = hexToRgb(pdfSettings.backgroundColor || '#F0FDF4')
-      doc.setFillColor(...bgColorRgb)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
-      doc.setDrawColor(...secondaryColorRgb)
-      doc.setLineWidth(lineWidthValue)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
-
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
-
-      doc.setTextColor(...primaryColorRgb)
-      doc.text(formatCurrency(challan?.total_amount || 0), rightMargin - 5, yPos + 6.5, { align: 'right' })
-
-      yPos += 15
-
-      // Amount in words
-      doc.setFontSize(parseInt(pdfSettings.fontSize))
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Amount in Words:', margins.left, yPos)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(...textColorRgb)
-
-      // Simple number to words conversion
-      const numberToWords = (num) => {
-        if (num === 0) return 'Zero'
-        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
-        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
-        const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
-
-        const convertLessThanThousand = (n) => {
-          if (n === 0) return ''
-          if (n < 10) return ones[n]
-          if (n < 20) return teens[n - 10]
-          if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '')
-          return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '')
-        }
-
-        const integerPart = Math.floor(num)
-        if (integerPart < 1000) return convertLessThanThousand(integerPart) + ' Only'
-        if (integerPart < 100000) {
-          const thousands = Math.floor(integerPart / 1000)
-          const remainder = integerPart % 1000
-          return convertLessThanThousand(thousands) + ' Thousand' + (remainder !== 0 ? ' ' + convertLessThanThousand(remainder) : '') + ' Only'
-        }
-        if (integerPart < 10000000) {
-          const lakhs = Math.floor(integerPart / 100000)
-          const remainder = integerPart % 100000
-          const thousands = Math.floor(remainder / 1000)
-          const hundreds = remainder % 1000
-          let result = convertLessThanThousand(lakhs) + ' Lakh'
-          if (thousands > 0) result += ' ' + convertLessThanThousand(thousands) + ' Thousand'
-          if (hundreds > 0) result += ' ' + convertLessThanThousand(hundreds)
-          return result + ' Only'
-        }
-        const crores = Math.floor(integerPart / 10000000)
-        const remainder = integerPart % 10000000
-        const lakhs = Math.floor(remainder / 100000)
-        const thousands = Math.floor((remainder % 100000) / 1000)
-        const hundreds = remainder % 1000
-        let result = convertLessThanThousand(crores) + ' Crore'
-        if (lakhs > 0) result += ' ' + convertLessThanThousand(lakhs) + ' Lakh'
-        if (thousands > 0) result += ' ' + convertLessThanThousand(thousands) + ' Thousand'
-        if (hundreds > 0) result += ' ' + convertLessThanThousand(hundreds)
-        return result + ' Only'
-      }
-
-      const amountInWords = numberToWords(challan?.total_amount || 0)
-      doc.text(amountInWords, margins.left, yPos + 5)
-
-      yPos += 12
-
-      // Payment Status
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...secondaryColorRgb)
-      doc.text('Payment Status:', margins.left, yPos)
-
-      const statusColor = challan?.status === 'paid' ? primaryColorRgb : challan?.status === 'overdue' ? [220, 38, 38] : secondaryColorRgb
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...statusColor)
-      doc.text((challan?.status || 'pending').charAt(0).toUpperCase() + (challan?.status || 'pending').slice(1), margins.left + 32, yPos)
-
-      // Footer
+      // Footer (only if includeFooter is true)
       if (pdfSettings.includeFooter !== false) {
-        yPos = pageHeight - margins.bottom + 5
+        yPos = pageHeight - 25
+        doc.setFontSize(parseInt(pdfSettings.fontSize) + 1)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...textColorRgb)
+        doc.text('Terms & Conditions:', leftMargin, yPos)
 
-        doc.setDrawColor(...secondaryColorRgb)
-        doc.setLineWidth(lineWidthValue)
-        doc.line(leftMargin, yPos - 3, rightMargin, yPos - 3)
-
-        doc.setFontSize(parseInt(pdfSettings.fontSize) - 1)
-        doc.setTextColor(...secondaryColorRgb)
+        doc.setFontSize(parseInt(pdfSettings.fontSize))
         doc.setFont('helvetica', 'normal')
+        doc.setTextColor(...secondaryColorRgb)
+        doc.text('• Fee must be paid by the due date to avoid late fee charges.', leftMargin, yPos + 4)
+        doc.text('• This challan is computer generated and valid without signature.', leftMargin, yPos + 8)
+        doc.text('• Please retain this receipt for your records.', leftMargin, yPos + 12)
 
-        const footerText = pdfSettings.footerText || school?.name || school?.school_name || 'School Name'
-        let footerContent = footerText
-
-        if (pdfSettings.includePageNumbers) {
-          footerContent = `${footerText} - Page 1`
-        }
-
-        doc.text(footerContent, pageWidth / 2, yPos, { align: 'center' })
+        doc.setDrawColor(...textColorRgb)
+        doc.line(pageWidth - 55, yPos + 8, pageWidth - margins.right, yPos + 8)
+        doc.setFontSize(parseInt(pdfSettings.fontSize))
+        doc.text('Authorized Signature', pageWidth - 35, yPos + 12, { align: 'center' })
       }
 
       // Download PDF directly
@@ -704,135 +586,6 @@ export default function FeeCollectPage() {
     setToast({ show: false, message: '', type: '' })
   }
 
-  // CSV Download function
-  const downloadCSV = () => {
-    try {
-      // Prepare CSV headers
-      const headers = [
-        'Sr.',
-        'Student Name',
-        'Admission No.',
-        'Class',
-        'Fee Plan',
-        'Challan Number',
-        'Issue Date',
-        'Due Date',
-        'Total Amount',
-        'Paid Amount',
-        'Remaining',
-        'Status'
-      ]
-
-      // Prepare CSV rows from filtered challans
-      const rows = filteredChallans.map((challan, index) => {
-        const studentName = `${challan.student?.first_name || ''} ${challan.student?.last_name || ''}`.trim() || 'N/A'
-        const admissionNo = challan.student?.admission_number || 'N/A'
-        const className = challan.student?.class?.class_name || 'N/A'
-        const sectionName = challan.student?.section?.section_name || ''
-        const classWithSection = sectionName ? `${className} - ${sectionName}` : className
-        // Get fee_plan from challan first, then from student, then default to 'Monthly'
-        const feePlan = (challan.fee_plan || challan.students?.fee_plan || challan.student?.fee_plan || 'monthly')
-        const challanNumber = challan.challan_number || 'N/A'
-
-        // Format dates as text - force Excel to treat as text by prepending with tab character
-        let issueDate = 'N/A'
-        let dueDate = 'N/A'
-
-        if (challan.issue_date) {
-          const iDate = new Date(challan.issue_date)
-          const day = String(iDate.getDate()).padStart(2, '0')
-          const month = String(iDate.getMonth() + 1).padStart(2, '0')
-          const year = iDate.getFullYear()
-          // Add tab character prefix to force text format in Excel
-          issueDate = `\t${day}/${month}/${year}`
-        }
-
-        if (challan.due_date) {
-          const dDate = new Date(challan.due_date)
-          const day = String(dDate.getDate()).padStart(2, '0')
-          const month = String(dDate.getMonth() + 1).padStart(2, '0')
-          const year = dDate.getFullYear()
-          // Add tab character prefix to force text format in Excel
-          dueDate = `\t${day}/${month}/${year}`
-        }
-
-        // Calculate amounts properly based on status
-        const totalAmount = parseFloat(challan.total_amount || 0)
-        let paidAmount = 0
-        let remaining = 0
-
-        if (challan.status === 'paid') {
-          // If paid, show total amount in paid column, 0 in remaining
-          paidAmount = totalAmount
-          remaining = 0
-        } else {
-          // If pending/overdue, show actual paid amount and calculate remaining
-          paidAmount = parseFloat(challan.paid_amount || 0)
-          remaining = Math.max(0, totalAmount - paidAmount)
-        }
-
-        const status = (challan.status || 'N/A').toUpperCase()
-
-        return [
-          index + 1,
-          studentName,
-          admissionNo,
-          classWithSection,
-          feePlan,
-          challanNumber,
-          issueDate,
-          dueDate,
-          totalAmount.toFixed(0), // Show as whole number
-          paidAmount.toFixed(0), // Show as whole number
-          remaining.toFixed(0), // Show as whole number
-          status
-        ]
-      })
-
-      // Combine headers and rows with proper CSV escaping
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => {
-          // Convert to string and escape
-          const cellStr = String(cell)
-          // Always quote fields that contain commas, quotes, newlines, or special characters
-          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n') || cellStr.includes('\r')) {
-            return `"${cellStr.replace(/"/g, '""')}"`
-          }
-          // Quote the field to prevent Excel from treating it as a formula or number
-          return `"${cellStr}"`
-        }).join(','))
-      ].join('\n')
-
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-
-      // Generate filename with current date and filters
-      const date = new Date().toISOString().split('T')[0]
-      let filename = `fee_collection_${date}`
-      if (statusFilter !== 'all') filename += `_${statusFilter}`
-      if (classFilter !== 'all') {
-        const selectedClass = classes.find(c => c.id === classFilter)
-        if (selectedClass) filename += `_${selectedClass.class_name.replace(/\s+/g, '_')}`
-      }
-      filename += '.csv'
-
-      link.setAttribute('href', url)
-      link.setAttribute('download', filename)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      showToast('CSV file downloaded successfully!', 'success')
-    } catch (error) {
-      console.error('Error downloading CSV:', error)
-      showToast('Failed to download CSV file', 'error')
-    }
-  }
-
   const [paymentData, setPaymentData] = useState({
     paymentMethod: 'cash',
     amountPaid: '',
@@ -892,7 +645,6 @@ export default function FeeCollectPage() {
       const { data: allClasses, error } = await supabase
         .from('classes')
         .select('id, class_name')
-        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('class_name', { ascending: true })
 
@@ -924,16 +676,9 @@ export default function FeeCollectPage() {
             first_name,
             last_name,
             current_class_id,
-            current_section_id,
-            fee_plan,
-            base_fee,
-            discount_amount,
-            discount_value,
-            discount_type,
-            final_fee
+            current_section_id
           )
         `)
-        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('issue_date', { ascending: false })
 
@@ -946,15 +691,11 @@ export default function FeeCollectPage() {
         .from('classes')
         .select('id, class_name, fee_plan')
         .in('id', classIds)
-        .eq('user_id', user.id)
-        .eq('school_id', user.school_id)
 
       const { data: sectionsData } = await supabase
         .from('sections')
         .select('id, section_name')
         .in('id', sectionIds)
-        .eq('user_id', user.id)
-        .eq('school_id', user.school_id)
 
       const classMap = {}
       classesData?.forEach(c => { classMap[c.id] = c })
@@ -962,46 +703,14 @@ export default function FeeCollectPage() {
       const sectionMap = {}
       sectionsData?.forEach(s => { sectionMap[s.id] = s })
 
-      // Fetch all payments for these challans
-      const challanIds = challansData?.map(c => c.id).filter(Boolean) || []
-      const { data: paymentsData } = await supabase
-        .from('fee_payments')
-        .select('challan_id, amount_paid')
-        .in('challan_id', challanIds)
-        .eq('school_id', user.school_id)
-
-      // Calculate total paid amount for each challan
-      const paymentMap = {}
-      paymentsData?.forEach(payment => {
-        if (!paymentMap[payment.challan_id]) {
-          paymentMap[payment.challan_id] = 0
+      const challansWithDetails = (challansData || []).map(challan => ({
+        ...challan,
+        student: {
+          ...challan.students,
+          class: classMap[challan.students?.current_class_id],
+          section: sectionMap[challan.students?.current_section_id]
         }
-        paymentMap[payment.challan_id] += parseFloat(payment.amount_paid || 0)
-      })
-
-      const challansWithDetails = (challansData || []).map(challan => {
-        // Use real-time student fee data if available
-        const studentFinalFee = challan.students?.final_fee
-        const studentBaseFee = challan.students?.base_fee
-        const studentDiscountAmount = challan.students?.discount_amount
-
-        // Calculate paid amount from payments
-        const paidAmount = paymentMap[challan.id] || 0
-
-        return {
-          ...challan,
-          // Override with current student fee data for real-time updates
-          total_amount: studentFinalFee !== null && studentFinalFee !== undefined ? studentFinalFee : challan.total_amount,
-          base_fee: studentBaseFee !== null && studentBaseFee !== undefined ? studentBaseFee : challan.base_fee,
-          discount_amount: studentDiscountAmount !== null && studentDiscountAmount !== undefined ? studentDiscountAmount : challan.discount_amount,
-          paid_amount: paidAmount,
-          student: {
-            ...challan.students,
-            class: classMap[challan.students?.current_class_id],
-            section: sectionMap[challan.students?.current_section_id]
-          }
-        }
-      })
+      }))
 
       setChallans(challansWithDetails)
       setLoading(false)
@@ -1014,11 +723,9 @@ export default function FeeCollectPage() {
   const handleSelectChallan = async (challan) => {
     setSelectedChallan(challan)
     setShowPaymentModal(true)
-    // Calculate remaining balance
-    const remainingBalance = parseFloat(challan.total_amount) - parseFloat(challan.paid_amount || 0)
     setPaymentData({
       paymentMethod: 'cash',
-      amountPaid: remainingBalance.toString(),
+      amountPaid: challan.total_amount.toString(),
       chequeNumber: '',
       bankName: '',
       transactionId: '',
@@ -1033,16 +740,11 @@ export default function FeeCollectPage() {
 
   const handlePayment = async () => {
     try {
-      console.log('handlePayment called')
       const user = getUserFromCookie()
       if (!user) {
-        console.error('No user found')
         showToast('User not found', 'error')
         return
       }
-
-      console.log('Payment Data:', paymentData)
-      console.log('Selected Challan:', selectedChallan)
 
       if (!paymentData.amountPaid || parseFloat(paymentData.amountPaid) <= 0) {
         showToast('Please enter a valid amount', 'error')
@@ -1050,105 +752,59 @@ export default function FeeCollectPage() {
       }
 
       const amountPaid = parseFloat(paymentData.amountPaid)
-      const challanTotalAmount = parseFloat(selectedChallan.total_amount)
-      const previouslyPaidAmount = parseFloat(selectedChallan.paid_amount || 0)
-      const remainingBalance = challanTotalAmount - previouslyPaidAmount
-
-      console.log('Amount Paid:', amountPaid)
-      console.log('Total Amount:', challanTotalAmount)
-      console.log('Previously Paid:', previouslyPaidAmount)
-      console.log('Remaining Balance:', remainingBalance)
-
-      // Validate payment amount
-      if (amountPaid > remainingBalance) {
-        showToast(`Payment amount cannot exceed remaining balance of Rs. ${remainingBalance.toLocaleString()}`, 'error')
-        return
-      }
+      const challanAmount = parseFloat(selectedChallan.total_amount)
 
       const receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
 
-      console.log('Inserting payment record...')
-      const paymentRecord = {
-        school_id: user.school_id,
-        challan_id: selectedChallan.id,
-        student_id: selectedChallan.student_id,
-        payment_date: new Date().toISOString().split('T')[0],
-        amount_paid: amountPaid,
-        payment_method: paymentData.paymentMethod,
-        transaction_id: paymentData.transactionId || null,
-        cheque_number: paymentData.chequeNumber || null,
-        bank_name: paymentData.bankName || null,
-        received_by: user.id,
-        receipt_number: receiptNumber,
-        remarks: paymentData.remarks || null
-      }
-      console.log('Payment Record:', paymentRecord)
-
       const { error: paymentError } = await supabase
         .from('fee_payments')
-        .insert([paymentRecord])
+        .insert([{
+          school_id: user.school_id,
+          challan_id: selectedChallan.id,
+          student_id: selectedChallan.student_id,
+          payment_date: new Date().toISOString().split('T')[0],
+          amount_paid: amountPaid,
+          payment_method: paymentData.paymentMethod,
+          transaction_id: paymentData.transactionId || null,
+          cheque_number: paymentData.chequeNumber || null,
+          bank_name: paymentData.bankName || null,
+          received_by: user.id,
+          receipt_number: receiptNumber,
+          remarks: paymentData.remarks || null
+        }])
 
-      if (paymentError) {
-        console.error('Payment insertion error:', paymentError)
-        throw paymentError
-      }
+      if (paymentError) throw paymentError
 
-      console.log('Payment record inserted successfully')
+      const newStatus = amountPaid >= challanAmount ? 'paid' : 'pending'
+      const newPaidAmount = parseFloat(selectedChallan.paid_amount || 0) + amountPaid
 
-      // Calculate new paid amount and determine status
-      const newPaidAmount = previouslyPaidAmount + amountPaid
-      const newStatus = newPaidAmount >= challanTotalAmount ? 'paid' : 'pending'
-
-      console.log('New Paid Amount:', newPaidAmount)
-      console.log('New Status:', newStatus)
-
-      console.log('Updating challan...')
       const { error: updateError } = await supabase
         .from('fee_challans')
         .update({
           status: newStatus,
+          paid_amount: newPaidAmount,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedChallan.id)
-        .eq('user_id', user.id)
-        .eq('school_id', user.school_id)
 
-      if (updateError) {
-        console.error('Challan update error:', updateError)
-        throw updateError
-      }
+      if (updateError) throw updateError
 
-      console.log('Challan updated successfully')
-
-      const successMessage = newStatus === 'paid'
-        ? 'Full payment collected successfully!'
-        : `Partial payment of Rs. ${amountPaid.toLocaleString()} collected. Remaining: Rs. ${(challanTotalAmount - newPaidAmount).toLocaleString()}`
-
-      showToast(successMessage, 'success')
+      showToast('Payment collected successfully!', 'success')
       setShowPaymentModal(false)
 
-      // Update the challan locally without reloading the entire page
+      // Update the challan status locally without reloading the entire page
       setChallans(prevChallans =>
         prevChallans.map(challan =>
           challan.id === selectedChallan.id
-            ? {
-                ...challan,
-                status: newStatus,
-                paid_amount: newPaidAmount,
-                updated_at: new Date().toISOString()
-              }
+            ? { ...challan, status: newStatus, paid_amount: newPaidAmount, updated_at: new Date().toISOString() }
             : challan
         )
       )
 
       setSelectedChallan(null)
-      console.log('Payment process completed')
     } catch (error) {
-      console.error('Payment Error Details:', error)
-      console.error('Error message:', error?.message)
-      console.error('Error code:', error?.code)
-      console.error('Error details:', error?.details)
-      showToast(`Failed to process payment: ${error?.message || 'Unknown error'}`, 'error')
+      console.error('Error:', error)
+      showToast('Failed to process payment', 'error')
     }
   }
 
@@ -1239,58 +895,49 @@ export default function FeeCollectPage() {
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow p-3 mb-3">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-          </select>
-
-          <select
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="all">All Classes</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>
-                {cls.class_name}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex-1 relative min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+      <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="md:w-40">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
+          <div className="md:w-40">
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="all">All Classes</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.class_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"
-              placeholder="Search by challan number, student name, or admission number..."
+              placeholder="Search by name, admission number, challan number, or class..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
-
-          {/* Download CSV Button */}
-          <button
-            onClick={downloadCSV}
-            disabled={filteredChallans.length === 0}
-            className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ml-auto"
-            title="Download CSV"
-          >
-            <Download size={14} />
-            <span>Download CSV</span>
-          </button>
         </div>
 
-        <div className="flex flex-wrap gap-3 text-xs">
+        <div className="flex flex-wrap gap-3 mt-3 text-xs">
           <p className="text-gray-600">
-            Total: <span className="font-bold text-blue-600">{filteredChallans.length}</span>
+            Total challans: <span className="font-bold text-blue-600">{filteredChallans.length}</span>
           </p>
           <p className="text-gray-600">
             Pending: <span className="font-bold text-yellow-600">{filteredChallans.filter(c => c.status === 'pending').length}</span>
@@ -1315,9 +962,7 @@ export default function FeeCollectPage() {
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Admission No.</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class</th>
                 <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fee Plan</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total Amount</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Already Paid</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Balance Due</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Amount</th>
                 <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Status</th>
                 <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Action</th>
               </tr>
@@ -1325,85 +970,69 @@ export default function FeeCollectPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : paginatedChallans.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
                     No challans found
                   </td>
                 </tr>
               ) : (
-                paginatedChallans.map((challan, index) => {
-                  const totalAmount = parseFloat(challan.total_amount)
-                  const paidAmount = parseFloat(challan.paid_amount || 0)
-                  const balanceDue = totalAmount - paidAmount
-
-                  return (
-                    <tr
-                      key={challan.id}
-                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition ${challan.status === 'paid' ? 'bg-green-50' : ''}`}
-                    >
-                      <td className="px-3 py-2.5 text-gray-700 border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-3 py-2.5 text-gray-900 font-medium border border-gray-200">
-                        {challan.student?.first_name} {challan.student?.last_name}
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-700 border border-gray-200">{challan.student?.admission_number}</td>
-                      <td className="px-3 py-2.5 text-gray-700 border border-gray-200">
-                        {challan.student?.class?.class_name || 'N/A'}
-                        {challan.student?.section?.section_name ? ` - ${challan.student.section.section_name}` : ''}
-                      </td>
-                      <td className="px-3 py-2.5 text-center border border-gray-200">
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">
-                          {getFeePlanLabel(challan.student?.class?.fee_plan || 'monthly')}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-900 font-bold border border-gray-200">
-                        Rs. {totalAmount.toLocaleString()}
-                      </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <span className="text-green-600 font-semibold">
-                          Rs. {paidAmount.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <span className={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          Rs. {balanceDue.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center border border-gray-200">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
-                          challan.status === 'paid' ? 'bg-green-100 text-green-800' :
-                          challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center border border-gray-200">
-                        <div className="flex items-center justify-center gap-1">
+                paginatedChallans.map((challan, index) => (
+                  <tr
+                    key={challan.id}
+                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition ${challan.status === 'paid' ? 'bg-green-50' : ''}`}
+                  >
+                    <td className="px-3 py-2.5 text-gray-700 border border-gray-200">{startIndex + index + 1}</td>
+                    <td className="px-3 py-2.5 text-gray-900 font-medium border border-gray-200">
+                      {challan.student?.first_name} {challan.student?.last_name}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-700 border border-gray-200">{challan.student?.admission_number}</td>
+                    <td className="px-3 py-2.5 text-gray-700 border border-gray-200">
+                      {challan.student?.class?.class_name || 'N/A'}
+                      {challan.student?.section?.section_name ? ` - ${challan.student.section.section_name}` : ''}
+                    </td>
+                    <td className="px-3 py-2.5 text-center border border-gray-200">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">
+                        {getFeePlanLabel(challan.student?.class?.fee_plan || 'monthly')}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-900 font-bold border border-gray-200">
+                      Rs. {parseFloat(challan.total_amount).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2.5 text-center border border-gray-200">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                        challan.status === 'paid' ? 'bg-green-100 text-green-800' :
+                        challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center border border-gray-200">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleViewChallan(challan)}
+                          className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 transition"
+                          title="View & Print"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        {(challan.status === 'pending' || challan.status === 'overdue') && (
                           <button
-                            onClick={() => handleViewChallan(challan)}
-                            className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 transition"
-                            title="View & Print"
+                            onClick={() => handleSelectChallan(challan)}
+                            className="bg-red-600 text-white px-2.5 py-1 rounded hover:bg-red-700 transition text-xs font-medium"
                           >
-                            <Eye size={14} />
+                            Collect
                           </button>
-                          {(challan.status === 'pending' || challan.status === 'overdue' || paidAmount < totalAmount) && (
-                            <button
-                              onClick={() => handleSelectChallan(challan)}
-                              className="bg-red-600 text-white px-2.5 py-1 rounded hover:bg-red-700 transition text-xs font-medium"
-                            >
-                              Collect
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { AlertCircle } from 'lucide-react'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function StaffPayrollPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -14,10 +15,6 @@ export default function StaffPayrollPage() {
   const [salaryStructure, setSalaryStructure] = useState(null)
   const [paymentHistory, setPaymentHistory] = useState([])
   const [activeTab, setActiveTab] = useState('pay-salary')
-
-  // Notification states
-  const [success, setSuccess] = useState(null)
-  const [error, setError] = useState(null)
 
   // Payment form state
   const [paymentMonth, setPaymentMonth] = useState(new Date().getMonth() + 1)
@@ -36,16 +33,6 @@ export default function StaffPayrollPage() {
   const [showDeletePaymentModal, setShowDeletePaymentModal] = useState(false)
   const [paymentToDelete, setPaymentToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
-
-  const showToast = (message, type = 'success') => {
-    if (type === 'success') {
-      setSuccess(message)
-      setTimeout(() => setSuccess(null), 5000)
-    } else if (type === 'error' || type === 'warning') {
-      setError(message)
-      setTimeout(() => setError(null), 5000)
-    }
-  }
 
   useEffect(() => {
     const userData = document.cookie
@@ -106,6 +93,7 @@ export default function StaffPayrollPage() {
       let query = supabase
         .from('staff')
         .select('*')
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('first_name')
@@ -125,7 +113,7 @@ export default function StaffPayrollPage() {
       setStaffList(data || [])
     } catch (error) {
       console.error('Error loading staff:', error)
-      showToast('Failed to load staff list', 'error')
+      toast.error('Failed to load staff list')
     } finally {
       setLoading(false)
     }
@@ -147,6 +135,7 @@ export default function StaffPayrollPage() {
       const { data, error } = await supabase
         .from('salary_structures')
         .select('*')
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('staff_id', staffId)
         .eq('status', 'active')
@@ -168,6 +157,7 @@ export default function StaffPayrollPage() {
       const { data, error } = await supabase
         .from('salary_payments')
         .select('*')
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('staff_id', staffId)
         .order('payment_year', { ascending: false })
@@ -184,7 +174,7 @@ export default function StaffPayrollPage() {
 
   const checkAndShowPaymentConfirmation = () => {
     if (!selectedStaff || !salaryStructure) {
-      showToast('Please ensure staff has a salary structure defined', 'warning')
+      toast.error('Please ensure staff has a salary structure defined')
       return
     }
 
@@ -208,6 +198,7 @@ export default function StaffPayrollPage() {
       const { data: paymentData, error: paymentError } = await supabase
         .from('salary_payments')
         .insert({
+          user_id: currentUser.id,
           school_id: currentUser.school_id,
           staff_id: selectedStaff.id,
           payment_month: paymentMonth,
@@ -238,6 +229,7 @@ export default function StaffPayrollPage() {
 
       // Automatically create salary slip record
       const slipData = {
+        user_id: currentUser.id,
         school_id: currentUser.school_id,
         staff_id: selectedStaff.id,
         payment_id: paymentData.id,
@@ -259,11 +251,10 @@ export default function StaffPayrollPage() {
         // Don't fail the whole operation if slip creation fails
       }
 
-      showToast(
+      toast.success(
         paymentStatus === 'paid'
           ? 'Salary paid successfully! Slip record created.'
-          : 'Salary payment record created successfully!',
-        'success'
+          : 'Salary payment record created successfully!'
       )
 
       // Reload payment history
@@ -275,9 +266,9 @@ export default function StaffPayrollPage() {
     } catch (error) {
       console.error('Error paying salary:', error)
       if (error.code === '23505') {
-        showToast('Payment for this month already exists!', 'error')
+        toast.error('Payment for this month already exists!')
       } else {
-        showToast('Failed to pay salary', 'error')
+        toast.error('Failed to pay salary')
       }
     } finally {
       setProcessingPayment(false)
@@ -298,16 +289,18 @@ export default function StaffPayrollPage() {
         .from('salary_payments')
         .delete()
         .eq('id', paymentToDelete)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
 
-      showToast('Payment record deleted successfully', 'success')
+      toast.success('Payment record deleted successfully')
       setShowDeletePaymentModal(false)
       setPaymentToDelete(null)
       await loadPaymentHistory(selectedStaff.id)
     } catch (error) {
       console.error('Error deleting payment:', error)
-      showToast('Failed to delete payment record', 'error')
+      toast.error('Failed to delete payment record')
     } finally {
       setDeleting(false)
     }
@@ -346,18 +339,30 @@ export default function StaffPayrollPage() {
 
   return (
     <div className="p-1">
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="mb-2 bg-green-100 border border-green-400 text-green-700 px-3 py-2 rounded relative text-sm">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded relative flex items-center gap-2 text-sm">
-          <AlertCircle size={16} />
-          {error}
-        </div>
-      )}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
 
       {/* Search Section */}
       <div className="bg-white rounded-lg shadow-md p-3 mb-2">

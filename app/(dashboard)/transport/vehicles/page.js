@@ -189,6 +189,7 @@ export default function VehiclesPage() {
       const { data, error } = await supabase
         .from('vehicles')
         .insert([{
+          user_id: user.id,
           school_id: user.school_id,
           created_by: user.id,
           vehicle_number: formData.registrationNo,

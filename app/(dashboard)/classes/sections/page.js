@@ -73,6 +73,17 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
+// Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
+
 export default function SectionsPage() {
   // Debug: Check Supabase initialization
   useEffect(() => {
@@ -162,24 +173,18 @@ export default function SectionsPage() {
         return
       }
 
-      // Fetch school_id from schools table
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
         return
       }
 
-      const schoolId = school.id
       console.log('✅ Fetching classes for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name')
+        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
@@ -201,24 +206,18 @@ export default function SectionsPage() {
         return
       }
 
-      // Fetch school_id from schools table
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
         return
       }
 
-      const schoolId = school.id
       console.log('✅ Fetching staff for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('staff')
         .select('*')
+        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .eq('status', 'active')
         .eq('department', 'TEACHING')
@@ -244,20 +243,13 @@ export default function SectionsPage() {
         return
       }
 
-      // Fetch school_id from schools table
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
         setLoading(false)
         return
       }
 
-      const schoolId = school.id
       console.log('✅ Fetching sections for school_id:', schoolId)
 
       // Get sections with class name and teacher name
@@ -273,6 +265,7 @@ export default function SectionsPage() {
           status,
           classes(class_name)
         `)
+        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .in('status', ['active', 'inactive'])
         .order('section_name', { ascending: true })
@@ -293,6 +286,8 @@ export default function SectionsPage() {
                 .from('staff')
                 .select('first_name, last_name')
                 .eq('id', section.class_teacher_id)
+                .eq('user_id', userId)
+                .eq('school_id', schoolId)
                 .maybeSingle()
 
               if (!teacherError && teacher) {
@@ -305,6 +300,8 @@ export default function SectionsPage() {
               .from('students')
               .select('*', { count: 'exact', head: true })
               .eq('current_section_id', section.id)
+              .eq('user_id', userId)
+              .eq('school_id', schoolId)
               .eq('status', 'active')
 
             return {
@@ -392,8 +389,8 @@ export default function SectionsPage() {
 
   const handleSave = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -403,7 +400,8 @@ export default function SectionsPage() {
         const { data: existingRoom, error: roomCheckError } = await supabase
           .from('sections')
           .select('id, section_name, classes!inner(class_name)')
-          .eq('school_id', user.school_id)
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
           .eq('room_number', formData.roomNumber.trim())
           .eq('status', 'active')
           .limit(1)
@@ -421,13 +419,14 @@ export default function SectionsPage() {
       const { data, error } = await supabase
         .from('sections')
         .insert([{
-          school_id: user.school_id,
+          user_id: userId,
+          school_id: schoolId,
           class_id: formData.class,
           section_name: formData.section,
           class_teacher_id: formData.incharge || null,
           room_number: formData.roomNumber || null,
           capacity: formData.capacity ? parseInt(formData.capacity) : null,
-          created_by: user.id,
+          created_by: userId,
           status: 'active'
         }])
         .select()
@@ -481,8 +480,8 @@ export default function SectionsPage() {
 
   const handleUpdate = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -492,7 +491,8 @@ export default function SectionsPage() {
         const { data: existingRoom, error: roomCheckError } = await supabase
           .from('sections')
           .select('id, section_name, classes!inner(class_name)')
-          .eq('school_id', user.school_id)
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
           .eq('room_number', editFormData.roomNumber.trim())
           .eq('status', 'active')
           .neq('id', selectedSection.id)
@@ -519,7 +519,8 @@ export default function SectionsPage() {
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedSection.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .select()
 
       if (error) {
@@ -563,8 +564,8 @@ export default function SectionsPage() {
 
   const confirmDelete = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -573,7 +574,8 @@ export default function SectionsPage() {
         .from('sections')
         .delete()
         .eq('id', selectedSection.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (error) {
         console.error('Error deleting section:', error)
@@ -596,8 +598,8 @@ export default function SectionsPage() {
 
   const handleToggleStatus = async (section) => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -611,7 +613,8 @@ export default function SectionsPage() {
           updated_at: new Date().toISOString()
         })
         .eq('id', section.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .select()
 
       if (error) {

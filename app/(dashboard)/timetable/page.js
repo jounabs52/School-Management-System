@@ -5,6 +5,7 @@ import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, Ch
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { getPdfSettings, hexToRgb, getMarginValues, getCellPadding, getLineWidth, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -59,6 +60,11 @@ export default function TimetablePage() {
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState('')
   const [showTeacherMode, setShowTeacherMode] = useState(false)
   const [deleteMode, setDeleteMode] = useState(false)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
   const [allClassesTimetables, setAllClassesTimetables] = useState([])
   const [showAutoGenerateModal, setShowAutoGenerateModal] = useState(false)
   const [autoGenerateForm, setAutoGenerateForm] = useState({
@@ -1627,10 +1633,17 @@ export default function TimetablePage() {
         }
       }
 
-      // Save the PDF
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
       const filename = `All_Timetables_${new Date().toISOString().split('T')[0]}.pdf`
-      doc.save(filename)
-      console.log('All Classes PDF saved:', filename)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(filename)
+      setShowPdfPreview(true)
+
+      console.log('All Classes PDF generated for preview:', filename)
     } catch (error) {
       console.error('Error generating All Classes PDF:', error)
       console.error('Error details:', error.message, error.stack)
@@ -2021,15 +2034,28 @@ export default function TimetablePage() {
 
       console.log('Footer added')
 
-      // Save the PDF
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
       const filename = `Timetable_${selectedClassName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
-      doc.save(filename)
-      console.log('PDF saved:', filename)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(filename)
+      setShowPdfPreview(true)
+
+      console.log('PDF generated for preview:', filename)
     } catch (error) {
       console.error('Error generating PDF:', error)
       console.error('Error details:', error.message, error.stack)
       showToast(`Failed to generate PDF: ${error.message}`, 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const filteredPeriods = periods.filter(period => {
@@ -3531,6 +3557,14 @@ export default function TimetablePage() {
           </div>
         </>
       )}
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

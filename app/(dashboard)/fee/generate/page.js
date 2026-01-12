@@ -90,6 +90,7 @@ export default function FeeGeneratePage() {
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('start_date', { ascending: false })
 
@@ -107,6 +108,7 @@ export default function FeeGeneratePage() {
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('class_name')
@@ -128,6 +130,7 @@ export default function FeeGeneratePage() {
       const { data, error } = await supabase
         .from('fee_periods')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('session_id', sessionId)
         .order('period_number')
@@ -145,6 +148,7 @@ export default function FeeGeneratePage() {
       const { data, error } = await supabase
         .from('students')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('current_class_id', challanForm.class_id)
         .eq('status', 'active')

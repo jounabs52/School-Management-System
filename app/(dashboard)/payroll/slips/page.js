@@ -13,6 +13,7 @@ import {
   getLogoSize,
   applyPdfSettings
 } from '@/lib/pdfSettings'
+
 import {
   addPDFHeader,
   addPDFWatermark,
@@ -24,6 +25,10 @@ import {
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
+
+import { convertImageToBase64 } from '@/lib/pdfUtils'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
+
 
 export default function SalarySlipsPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -42,6 +47,11 @@ export default function SalarySlipsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [paymentToDelete, setPaymentToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   useEffect(() => {
     const userData = document.cookie
@@ -192,6 +202,7 @@ export default function SalarySlipsPage() {
             photo_url
           )
         `)
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('payment_year', { ascending: false })
         .order('payment_month', { ascending: false })
@@ -288,205 +299,6 @@ export default function SalarySlipsPage() {
     console.log('School Details for PDF:', schoolDetails)
 
     try {
-<<<<<<< HEAD
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-
-      // Use schoolDetails directly (already mapped in fetchSchoolDetails)
-      const schoolData = {
-        name: schoolDetails.name || schoolDetails.school_name,
-        school_name: schoolDetails.school_name || schoolDetails.name,
-        address: schoolDetails.address || '',
-        phone: schoolDetails.phone || '',
-        email: schoolDetails.email || '',
-        website: schoolDetails.website || '',
-        logo: schoolDetails.logo || null,
-        principal_name: schoolDetails.principal_name || '',
-        tagline: schoolDetails.tagline || '',
-        established_date: schoolDetails.established_date || ''
-      }
-
-      // Add professional header with new style
-      const headerOptions = {
-        subtitle: `${getMonthName(payment.payment_month)} ${payment.payment_year}`,
-        info: `Employee: ${payment.staff?.employee_number || 'N/A'}`
-      }
-      let yPos = addPDFHeader(pdf, schoolData, 'SALARY SLIP', headerOptions)
-
-      // Add watermark for security
-      addPDFWatermark(pdf, schoolData, 'CONFIDENTIAL')
-
-      yPos += 5
-
-      // Employee Information Box
-      const boxY = yPos
-      const boxHeight = 28
-
-      // Info box with light background
-      pdf.setFillColor(245, 247, 250)
-      pdf.rect(15, boxY, pageWidth - 30, boxHeight, 'F')
-      pdf.setDrawColor(...PDF_COLORS.border)
-      pdf.setLineWidth(0.3)
-      pdf.rect(15, boxY, pageWidth - 30, boxHeight, 'S')
-
-      // Section title
-      pdf.setFont(PDF_FONTS.primary, 'bold')
-      pdf.setFontSize(11)
-      pdf.setTextColor(...PDF_COLORS.primary)
-      pdf.text('EMPLOYEE INFORMATION', 20, boxY + 6)
-
-      // Employee details - Two column layout
-      pdf.setFont(PDF_FONTS.secondary, 'normal')
-      pdf.setFontSize(9)
-
-      let infoY = boxY + 12
-      const col1X = 20
-      const col2X = pageWidth / 2 + 5
-
-      // Column 1
-      pdf.setTextColor(...PDF_COLORS.textLight)
-      pdf.text('Name:', col1X, infoY)
-      pdf.text('Designation:', col1X, infoY + 5)
-      pdf.text('Payment Date:', col1X, infoY + 10)
-
-      pdf.setFont(PDF_FONTS.secondary, 'bold')
-      pdf.setTextColor(...PDF_COLORS.textDark)
-      const staffName = `${payment.staff?.first_name || ''} ${payment.staff?.last_name || ''}`.trim() || 'N/A'
-      pdf.text(staffName, col1X + 25, infoY)
-      pdf.text(payment.staff?.designation || 'N/A', col1X + 25, infoY + 5)
-      pdf.text(formatDate(payment.payment_date), col1X + 25, infoY + 10)
-
-      // Column 2
-      pdf.setFont(PDF_FONTS.secondary, 'normal')
-      pdf.setTextColor(...PDF_COLORS.textLight)
-      pdf.text('Employee No:', col2X, infoY)
-      pdf.text('Department:', col2X, infoY + 5)
-      pdf.text('Payment Method:', col2X, infoY + 10)
-
-      pdf.setFont(PDF_FONTS.secondary, 'bold')
-      pdf.setTextColor(...PDF_COLORS.textDark)
-      pdf.text(payment.staff?.employee_number || 'N/A', col2X + 32, infoY)
-      pdf.text(payment.staff?.department || 'N/A', col2X + 32, infoY + 5)
-      pdf.text((payment.payment_method?.replace('_', ' ') || 'N/A').toUpperCase(), col2X + 32, infoY + 10)
-
-      yPos = boxY + boxHeight + 12
-
-      // Salary Breakdown Section Title
-      pdf.setFont(PDF_FONTS.primary, 'bold')
-      pdf.setFontSize(11)
-      pdf.setTextColor(...PDF_COLORS.primary)
-      pdf.text('SALARY BREAKDOWN', 15, yPos)
-      yPos += 5
-
-      // Salary breakdown table using autotable
-      const salaryData = [
-        ['Basic Salary', formatCurrency(payment.basic_salary)],
-        ['Total Allowances', formatCurrency(payment.total_allowances)],
-        ['Gross Salary', formatCurrency(payment.gross_salary)],
-        ['Total Deductions', formatCurrency(payment.total_deductions)],
-        ['NET SALARY PAYABLE', formatCurrency(payment.net_salary)]
-      ]
-
-      autoTable(pdf, {
-        startY: yPos,
-        head: [['Particulars', 'Amount']],
-        body: salaryData,
-        theme: 'striped',
-        headStyles: {
-          fillColor: PDF_COLORS.headerBg,
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold',
-          halign: 'left'
-        },
-        styles: {
-          fontSize: 9,
-          cellPadding: 4
-        },
-        columnStyles: {
-          0: { cellWidth: 130, fontStyle: 'normal' },
-          1: { cellWidth: 50, halign: 'right', fontStyle: 'bold' }
-        },
-        alternateRowStyles: {
-          fillColor: [248, 248, 248]
-        },
-        didParseCell: function(data) {
-          // Highlight gross salary row
-          if (data.row.index === 2 && data.section === 'body') {
-            data.cell.styles.fillColor = [227, 242, 253]
-            data.cell.styles.fontStyle = 'bold'
-          }
-          // Highlight net salary row
-          if (data.row.index === 4 && data.section === 'body') {
-            data.cell.styles.fillColor = [232, 245, 233]
-            data.cell.styles.fontStyle = 'bold'
-            data.cell.styles.fontSize = 11
-            data.cell.styles.textColor = [27, 94, 32]
-          }
-          // Color deductions red
-          if (data.row.index === 3 && data.section === 'body' && data.column.index === 1) {
-            data.cell.styles.textColor = [198, 40, 40]
-          }
-          // Color allowances green
-          if (data.row.index === 1 && data.section === 'body' && data.column.index === 1) {
-            data.cell.styles.textColor = [27, 94, 32]
-          }
-        }
-      })
-
-      yPos = pdf.lastAutoTable.finalY + 10
-
-      // Remarks if available
-      if (payment.remarks) {
-        pdf.setFont(PDF_FONTS.secondary, 'bold')
-        pdf.setFontSize(9)
-        pdf.setTextColor(...PDF_COLORS.textLight)
-        pdf.text('Remarks:', 15, yPos)
-        yPos += 4
-
-        pdf.setFont(PDF_FONTS.secondary, 'normal')
-        pdf.setTextColor(...PDF_COLORS.textDark)
-        const remarksLines = pdf.splitTextToSize(payment.remarks, pageWidth - 30)
-        pdf.text(remarksLines, 15, yPos)
-        yPos += remarksLines.length * 4 + 8
-      }
-
-      // Signature Section
-      const sigY = pageHeight - 50
-      const signatures = [
-        {
-          label: 'Prepared By',
-          name: '',
-          title: 'Accounts Department'
-        },
-        {
-          label: 'Verified By',
-          name: '',
-          title: 'Finance Officer'
-        },
-        {
-          label: 'Authorized By',
-          name: schoolData.principal_name || '',
-          title: 'Principal / Director'
-        }
-      ]
-      addSignatureSection(pdf, signatures, sigY)
-
-      // Payment ID/Reference (bottom left corner)
-      pdf.setFont(PDF_FONTS.secondary, 'normal')
-      pdf.setFontSize(7)
-      pdf.setTextColor(...PDF_COLORS.textLight)
-      const paymentRef = `PAY-${payment.id || Date.now()}`
-      pdf.text(paymentRef, 15, pageHeight - 25)
-
-      // Professional footer
-      addPDFFooter(pdf, 1, 1)
-
-      // Auto download PDF
-      const fileName = `Salary-Slip-${payment.staff?.first_name || 'Staff'}-${payment.staff?.last_name || ''}-${getMonthName(payment.payment_month)}-${payment.payment_year}.pdf`
-      pdf.save(fileName)
-=======
       // Get PDF settings
       const pdfSettings = getPdfSettings()
 
@@ -742,11 +554,15 @@ export default function SalarySlipsPage() {
         }
       })
 
-      // Save PDF
+      // Generate PDF blob for preview
       const fileName = `Salary_Slip_${staffName.replace(/\s+/g, '_')}_${paymentMonth}_${paymentYear}.pdf`
-      doc.save(fileName)
->>>>>>> 631fd13 (By Naeem)
-      toast.success('Salary slip downloaded successfully!')
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      toast.success('Salary slip generated successfully. Preview opened.')
     } catch (error) {
       console.error('Error generating PDF:', error)
       const errorMessage = error.message || 'Unknown error occurred'
@@ -769,12 +585,16 @@ export default function SalarySlipsPage() {
         .from('salary_slips')
         .delete()
         .eq('payment_id', paymentToDelete.id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
 
       // Then delete the payment
       const { error } = await supabase
         .from('salary_payments')
         .delete()
         .eq('id', paymentToDelete.id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
 
@@ -794,6 +614,12 @@ export default function SalarySlipsPage() {
     setSearchQuery('')
     setStatusFilter('all')
     setSearchType('all')
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   if (!currentUser) {
@@ -1152,28 +978,28 @@ export default function SalarySlipsPage() {
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-2 rounded-t-xl">
-                <h3 className="text-sm font-bold">Confirm Delete</h3>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-2">
-                <p className="text-gray-700 text-xs mb-2">
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
                   Are you sure you want to delete the salary payment for <span className="font-bold text-red-600">{paymentToDelete.staff?.first_name} {paymentToDelete.staff?.last_name}</span> ({getMonthName(paymentToDelete.payment_month)} {paymentToDelete.payment_year})? This action cannot be undone.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
                       setPaymentToDelete(null)
                     }}
                     disabled={deleting}
-                    className="flex-1 px-4 py-1 text-sm text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeletePayment}
                     disabled={deleting}
-                    className="flex-1 px-4 py-1 text-sm bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50"
                   >
                     {deleting ? 'Deleting...' : 'Delete'}
                   </button>
@@ -1183,6 +1009,14 @@ export default function SalarySlipsPage() {
           </div>
         </>
       )}
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

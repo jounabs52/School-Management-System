@@ -108,6 +108,7 @@ export default function AdmissionFeePolicyPage() {
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select('id, class_name, order_number')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('order_number', { ascending: true })
@@ -129,6 +130,7 @@ export default function AdmissionFeePolicyPage() {
       const { data, error } = await supabase
         .from('fee_types')
         .select('id, fee_name, fee_code')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('fee_name')
@@ -156,6 +158,7 @@ export default function AdmissionFeePolicyPage() {
             fee_code
           )
         `)
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('class_id', selectedClass.id)
         .eq('status', 'active')
@@ -205,6 +208,8 @@ export default function AdmissionFeePolicyPage() {
         .from('classes')
         .update({ standard_fee: newStandardFee })
         .eq('id', selectedClass.id)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (updateError) throw updateError
 
@@ -251,6 +256,8 @@ export default function AdmissionFeePolicyPage() {
         .from('classes')
         .update({ standard_fee: newStandardFee })
         .eq('id', selectedClass.id)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (updateError) throw updateError
 
@@ -286,6 +293,7 @@ export default function AdmissionFeePolicyPage() {
       const { data: existingFeeType } = await supabase
         .from('fee_types')
         .select('id')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('fee_name', feeTypeName)
         .eq('status', 'active')
@@ -297,6 +305,7 @@ export default function AdmissionFeePolicyPage() {
         const { data: newFeeType, error: feeTypeError } = await supabase
           .from('fee_types')
           .insert({
+            user_id: user.id,
             school_id: user.school_id,
             fee_name: feeTypeName,
             fee_code: feeTypeName.toUpperCase().replace(/\s+/g, '_'),
@@ -309,6 +318,7 @@ export default function AdmissionFeePolicyPage() {
         feeTypeId = newFeeType.id
       }
 
+      const user2 = getUserFromCookie()
       const { error: updateError } = await supabase
         .from('fee_structures')
         .update({
@@ -316,6 +326,8 @@ export default function AdmissionFeePolicyPage() {
           amount: parseFloat(feeAmount)
         })
         .eq('id', editingPolicy.id)
+        .eq('user_id', user2.id)
+        .eq('school_id', user2.school_id)
 
       if (updateError) throw updateError
 
@@ -352,10 +364,13 @@ export default function AdmissionFeePolicyPage() {
     if (!deletingPolicyId) return
 
     try {
+      const user = getUserFromCookie()
       const { error } = await supabase
         .from('fee_structures')
         .delete()
         .eq('id', deletingPolicyId)
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
 
       if (error) throw error
 
@@ -409,6 +424,7 @@ export default function AdmissionFeePolicyPage() {
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select('id')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('is_current', true)
         .single()
@@ -420,19 +436,27 @@ export default function AdmissionFeePolicyPage() {
 
       let addedCount = 0
       let skippedCount = 0
+      let errorCount = 0
       const newPolicies = []
+      const errors = []
 
       for (const fee of validFees) {
         try {
           // Get or create fee type
           let feeTypeId = null
-          const { data: existingFeeType } = await supabase
+          const { data: existingFeeType, error: feeTypeQueryError } = await supabase
             .from('fee_types')
             .select('id')
+            .eq('user_id', user.id)
             .eq('school_id', user.school_id)
             .eq('fee_name', fee.feeType)
             .eq('status', 'active')
             .maybeSingle()
+
+          if (feeTypeQueryError) {
+            console.error('Error querying fee type:', feeTypeQueryError)
+            throw feeTypeQueryError
+          }
 
           if (existingFeeType) {
             feeTypeId = existingFeeType.id
@@ -440,6 +464,7 @@ export default function AdmissionFeePolicyPage() {
             const { data: newFeeType, error: feeTypeError } = await supabase
               .from('fee_types')
               .insert({
+                user_id: user.id,
                 school_id: user.school_id,
                 fee_name: fee.feeType,
                 fee_code: fee.feeType.toUpperCase().replace(/\s+/g, '_'),
@@ -448,20 +473,29 @@ export default function AdmissionFeePolicyPage() {
               .select('id')
               .single()
 
-            if (feeTypeError) throw feeTypeError
+            if (feeTypeError) {
+              console.error('Error creating fee type:', feeTypeError)
+              throw feeTypeError
+            }
             feeTypeId = newFeeType.id
           }
 
           // Check if policy already exists
-          const { data: existingPolicy } = await supabase
+          const { data: existingPolicy, error: policyQueryError } = await supabase
             .from('fee_structures')
             .select('id')
+            .eq('user_id', user.id)
             .eq('school_id', user.school_id)
             .eq('session_id', sessionData.id)
             .eq('class_id', selectedClass.id)
             .eq('fee_type_id', feeTypeId)
             .eq('status', 'active')
             .maybeSingle()
+
+          if (policyQueryError) {
+            console.error('Error checking existing policy:', policyQueryError)
+            throw policyQueryError
+          }
 
           if (existingPolicy) {
             skippedCount++
@@ -472,6 +506,7 @@ export default function AdmissionFeePolicyPage() {
           const { data: newPolicy, error: insertError } = await supabase
             .from('fee_structures')
             .insert({
+              user_id: user.id,
               school_id: user.school_id,
               session_id: sessionData.id,
               class_id: selectedClass.id,
@@ -490,7 +525,10 @@ export default function AdmissionFeePolicyPage() {
             `)
             .single()
 
-          if (insertError) throw insertError
+          if (insertError) {
+            console.error('Error inserting fee policy:', insertError)
+            throw insertError
+          }
 
           if (newPolicy) {
             newPolicies.push(newPolicy)
@@ -498,7 +536,8 @@ export default function AdmissionFeePolicyPage() {
           }
         } catch (error) {
           console.error(`Error adding fee ${fee.feeType}:`, error)
-          skippedCount++
+          errors.push({ feeType: fee.feeType, error: error.message })
+          errorCount++
         }
       }
 
@@ -508,19 +547,34 @@ export default function AdmissionFeePolicyPage() {
       }
 
       // Show appropriate message
-      if (addedCount > 0 && skippedCount === 0) {
+      if (errorCount > 0 && addedCount === 0) {
+        // All failed with errors
+        console.error('Errors occurred:', errors)
+        showToast(`Failed to add fees. Check console for details.`, 'error')
+      } else if (addedCount > 0 && skippedCount === 0 && errorCount === 0) {
+        // All succeeded
         showToast(`${addedCount} fee ${addedCount === 1 ? 'policy' : 'policies'} added successfully!`, 'success')
-      } else if (addedCount > 0 && skippedCount > 0) {
-        showToast(`${addedCount} added, ${skippedCount} skipped (already exist)`, 'warning')
-      } else {
+        setShowAddPolicyModal(false)
+        setMultipleFees([{ feeType: '', amount: '' }])
+        setFeeTypeName('')
+        setFeeAmount('')
+      } else if (addedCount > 0 && (skippedCount > 0 || errorCount > 0)) {
+        // Some succeeded, some failed or skipped
+        let message = `${addedCount} added`
+        if (skippedCount > 0) message += `, ${skippedCount} skipped`
+        if (errorCount > 0) message += `, ${errorCount} failed`
+        showToast(message, 'warning')
+        setShowAddPolicyModal(false)
+        setMultipleFees([{ feeType: '', amount: '' }])
+        setFeeTypeName('')
+        setFeeAmount('')
+      } else if (skippedCount > 0 && addedCount === 0 && errorCount === 0) {
+        // All were skipped (already exist)
         showToast('All fee policies already exist for this class', 'warning')
-        return
+      } else {
+        // Nothing happened
+        showToast('No changes made', 'warning')
       }
-
-      setShowAddPolicyModal(false)
-      setMultipleFees([{ feeType: '', amount: '' }])
-      setFeeTypeName('')
-      setFeeAmount('')
     } catch (error) {
       console.error('Error adding fee policies:', error)
       showToast('Failed to add fee policies', 'error')
@@ -540,6 +594,7 @@ export default function AdmissionFeePolicyPage() {
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select('id')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('is_current', true)
         .single()
@@ -554,6 +609,7 @@ export default function AdmissionFeePolicyPage() {
       const { data: existingFeeType } = await supabase
         .from('fee_types')
         .select('id')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('fee_name', feeTypeName)
         .eq('status', 'active')
@@ -565,6 +621,7 @@ export default function AdmissionFeePolicyPage() {
         const { data: newFeeType, error: feeTypeError } = await supabase
           .from('fee_types')
           .insert({
+            user_id: user.id,
             school_id: user.school_id,
             fee_name: feeTypeName,
             fee_code: feeTypeName.toUpperCase().replace(/\s+/g, '_'),
@@ -580,6 +637,7 @@ export default function AdmissionFeePolicyPage() {
       const { data: existingPolicy } = await supabase
         .from('fee_structures')
         .select('id')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('session_id', sessionData.id)
         .eq('class_id', selectedClass.id)
@@ -595,6 +653,7 @@ export default function AdmissionFeePolicyPage() {
       const { data: newPolicy, error: insertError } = await supabase
         .from('fee_structures')
         .insert({
+          user_id: user.id,
           school_id: user.school_id,
           session_id: sessionData.id,
           class_id: selectedClass.id,
@@ -679,7 +738,7 @@ export default function AdmissionFeePolicyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gray-50 p-2">
       {/* Animation Styles */}
       <style jsx global>{`
         @keyframes slide-in {
@@ -718,145 +777,117 @@ export default function AdmissionFeePolicyPage() {
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Admission Fee Management</h1>
-        <p className="text-gray-600 mt-1">Manage admission fees and increments for each class</p>
+      {/* Compact Filter Section */}
+      <div className="bg-white rounded-lg shadow p-2 mb-2">
+        <div className="flex flex-col md:flex-row gap-1.5 items-center">
+          {/* Class Dropdown - First */}
+          <select
+            value={selectedClass?.id || ''}
+            onChange={(e) => {
+              const cls = classes.find(c => c.id === e.target.value)
+              if (cls) {
+                handleViewClass(cls)
+              } else {
+                setSelectedClass(null)
+                setFeePolicy([])
+              }
+            }}
+            className="md:w-40 px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+          >
+            <option value="">Select Class</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.class_name}
+              </option>
+            ))}
+          </select>
+
+          {/* Show increment/decrement buttons when class is selected */}
+          {selectedClass && (
+            <>
+              <button
+                onClick={() => setShowIncrementModal(true)}
+                className="bg-[#B91C1C] text-white px-2.5 py-1.5 rounded text-xs font-semibold hover:bg-[#991B1B] transition flex items-center gap-1 whitespace-nowrap"
+              >
+                <TrendingUp size={12} />
+                Increment
+              </button>
+              <button
+                onClick={() => setShowDecrementModal(true)}
+                className="bg-[#B91C1C] text-white px-2.5 py-1.5 rounded text-xs font-semibold hover:bg-[#991B1B] transition flex items-center gap-1 whitespace-nowrap"
+              >
+                <TrendingDown size={12} />
+                Decrement
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="mb-6 flex gap-4">
-        <button
-          onClick={() => setActiveTab('policy')}
-          className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
-            activeTab === 'policy'
-              ? 'bg-red-600 text-white'
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          <FileText size={20} />
-          Admission Fee
-        </button>
-        <button
-          onClick={() => setActiveTab('increment')}
-          className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
-            activeTab === 'increment'
-              ? 'bg-red-600 text-white'
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          <TrendingUp size={20} />
-          Fee Increment
-        </button>
-        <button
-          onClick={() => setActiveTab('decrement')}
-          className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
-            activeTab === 'decrement'
-              ? 'bg-red-600 text-white'
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          <TrendingDown size={20} />
-          Fee Decrement
-        </button>
-      </div>
-
-      {/* Class Dropdown */}
-      <div className="mb-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Select Class
-        </label>
-        <select
-          value={selectedClass?.id || ''}
-          onChange={(e) => {
-            const cls = classes.find(c => c.id === e.target.value)
-            if (cls) {
-              handleViewClass(cls)
-            } else {
-              setSelectedClass(null)
-              setFeePolicy([])
-            }
-          }}
-          className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-        >
-          <option value="">-- Select a class --</option>
-          {classes.map((cls) => (
-            <option key={cls.id} value={cls.id}>
-              {cls.class_name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Tab Content */}
-      {selectedClass && activeTab === 'policy' && (
+      {/* Fee Policy Table - Always show when class is selected */}
+      {selectedClass && (
         <div>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">
-                Fee Policy for Class: {selectedClass.class_name}
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                All fees shown below are specific to this class only
-              </p>
-            </div>
+          <div className="bg-white rounded-lg shadow p-2 mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-700">
+              {selectedClass.class_name} - Admission Fee Policy
+            </span>
             <button
               onClick={() => setShowAddPolicyModal(true)}
-              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
+              className="bg-red-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold hover:bg-red-700 transition flex items-center gap-1"
             >
-              <Plus size={20} />
-              Add Fee Policy
+              <Plus size={12} />
+              Add Fee
             </button>
           </div>
 
           {/* Fee Policy Table */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[#1E3A8A] text-white">
-                    <th className="px-4 py-4 text-left text-sm font-semibold border border-blue-800">Sr.</th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold border border-blue-800">Fee Head</th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold border border-blue-800">Title</th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold border border-blue-800">Amount</th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold border border-blue-800">Options</th>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Sr.</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Fee Head</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Title</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Amount</th>
+                    <th className="px-3 py-2.5 text-center text-xs font-semibold border border-blue-800">Options</th>
                   </tr>
                 </thead>
                 <tbody>
                   {feePolicy.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-sm text-gray-500 border border-gray-200">
-                        No fee policy found for this class. Click "Add Fee Policy" to get started.
+                      <td colSpan="5" className="px-3 py-8 text-center text-xs text-gray-500 border border-gray-200">
+                        No fee policy found for this class. Click "Add Fee" to get started.
                       </td>
                     </tr>
                   ) : (
                     paginatedPolicies.map((policy, index) => (
                       <tr key={policy.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                        <td className="px-4 py-4 border border-gray-200 text-sm text-gray-600">{startIndex + index + 1}</td>
-                        <td className="px-4 py-4 border border-gray-200 text-sm">
+                        <td className="px-3 py-2.5 border border-gray-200 text-xs text-gray-600">{startIndex + index + 1}</td>
+                        <td className="px-3 py-2.5 border border-gray-200 text-xs">
                           <span className="text-blue-600 font-medium">{policy.fee_types?.fee_name || 'N/A'}</span>
                         </td>
-                        <td className="px-4 py-4 border border-gray-200 text-sm text-gray-600">
+                        <td className="px-3 py-2.5 border border-gray-200 text-xs text-gray-600">
                           {policy.fee_types?.fee_name || 'N/A'}
                         </td>
-                        <td className="px-4 py-4 border border-gray-200 text-sm text-blue-600 font-medium">
+                        <td className="px-3 py-2.5 border border-gray-200 text-xs text-blue-600 font-bold">
                           Rs. {policy.amount ? policy.amount.toLocaleString() : '0'}
                         </td>
-                        <td className="px-4 py-4 border border-gray-200">
-                          <div className="flex items-center justify-center gap-3">
+                        <td className="px-3 py-2.5 border border-gray-200">
+                          <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => handleEditPolicy(policy)}
-                              className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                              className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
                               title="Edit Policy"
                             >
-                              <Edit size={18} />
+                              <Edit size={16} />
                             </button>
                             <button
                               onClick={() => handleDeletePolicy(policy.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
                               title="Delete Policy"
                             >
-                              <Trash2 size={18} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </td>
@@ -869,45 +900,45 @@ export default function AdmissionFeePolicyPage() {
 
             {/* Pagination */}
             {feePolicy.length > 0 && (
-              <div className="px-4 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
+              <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                <div className="text-xs text-gray-500">
                   Showing {startIndex + 1} to {Math.min(endIndex, feePolicy.length)} of {feePolicy.length} policies
                 </div>
-                
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => goToPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition ${
                       currentPage === 1
-                        ? 'bg-blue-300 text-white cursor-not-allowed'
-                        : 'bg-blue-900 text-white hover:bg-blue-800'
+                        ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
+                        : 'bg-blue-800 text-white hover:bg-blue-900'
                     }`}
                   >
                     Previous
                   </button>
-                  
+
                   {getPageNumbers().map((page, idx) => (
                     <button
                       key={idx}
                       onClick={() => goToPage(page)}
-                      className={`min-w-[40px] h-10 rounded-lg text-sm font-medium transition ${
+                      className={`w-8 h-8 rounded text-xs font-medium transition ${
                         page === currentPage
-                          ? 'bg-blue-900 text-white'
+                          ? 'bg-blue-800 text-white'
                           : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                       }`}
                     >
                       {page}
                     </button>
                   ))}
-                  
+
                   <button
                     onClick={() => goToPage(currentPage + 1)}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition ${
                       currentPage === totalPages || totalPages === 0
-                        ? 'bg-blue-300 text-white cursor-not-allowed'
-                        : 'bg-blue-900 text-white hover:bg-blue-800'
+                        ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
+                        : 'bg-blue-800 text-white hover:bg-blue-900'
                     }`}
                   >
                     Next
@@ -919,47 +950,7 @@ export default function AdmissionFeePolicyPage() {
         </div>
       )}
 
-      {selectedClass && activeTab === 'increment' && (
-        <div>
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Fee Increment for {selectedClass.class_name}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Click the button below to open the fee increment modal. This will increase the Standard Fee (base monthly tuition) for this class.
-            </p>
-            <button
-              onClick={() => setShowIncrementModal(true)}
-              className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
-            >
-              <TrendingUp size={20} />
-              Open Fee Increment Modal
-            </button>
-          </div>
-        </div>
-      )}
-
-      {selectedClass && activeTab === 'decrement' && (
-        <div>
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Fee Decrement for {selectedClass.class_name}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Click the button below to open the fee decrement modal. This will decrease the Standard Fee (base monthly tuition) for this class.
-            </p>
-            <button
-              onClick={() => setShowDecrementModal(true)}
-              className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
-            >
-              <TrendingDown size={20} />
-              Open Fee Decrement Modal
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Fee Increment Modal - Matching Design */}
+      {/* Fee Increment Modal - Simple Blue Header Design */}
       {showIncrementModal && selectedClass && (
         <>
           <div
@@ -968,6 +959,7 @@ export default function AdmissionFeePolicyPage() {
             onClick={() => {
               setShowIncrementModal(false)
               setIncrementAmount('')
+              setIncrementType('percentage')
             }}
           />
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
@@ -981,6 +973,7 @@ export default function AdmissionFeePolicyPage() {
                 onClick={() => {
                   setShowIncrementModal(false)
                   setIncrementAmount('')
+                  setIncrementType('percentage')
                 }}
                 className="text-white hover:bg-white/20 p-1.5 rounded transition"
               >
@@ -994,25 +987,25 @@ export default function AdmissionFeePolicyPage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Increment Type</label>
                   <div className="flex gap-4">
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="radio"
                         name="incrementType"
                         value="percentage"
                         checked={incrementType === 'percentage'}
                         onChange={(e) => setIncrementType(e.target.value)}
-                        className="mr-2"
+                        className="mr-2 w-4 h-4 text-blue-600"
                       />
                       <span className="text-gray-700">Percentage (%)</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="radio"
                         name="incrementType"
                         value="fixed"
                         checked={incrementType === 'fixed'}
                         onChange={(e) => setIncrementType(e.target.value)}
-                        className="mr-2"
+                        className="mr-2 w-4 h-4 text-blue-600"
                       />
                       <span className="text-gray-700">Fixed Amount</span>
                     </label>
@@ -1032,9 +1025,9 @@ export default function AdmissionFeePolicyPage() {
                   />
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Note:</strong> This will increment the Standard Fee for this class.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> This will increment the admission fee for all fee types in this class.
                   </p>
                 </div>
               </div>
@@ -1046,6 +1039,7 @@ export default function AdmissionFeePolicyPage() {
                 onClick={() => {
                   setShowIncrementModal(false)
                   setIncrementAmount('')
+                  setIncrementType('percentage')
                 }}
                 className="px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300"
               >
@@ -1053,7 +1047,8 @@ export default function AdmissionFeePolicyPage() {
               </button>
               <button
                 onClick={handleApplyFeeIncrement}
-                className="px-8 py-2.5 bg-[#2B5AA8] text-white font-medium hover:bg-[#234a8f] rounded-lg transition flex items-center gap-2"
+                disabled={!incrementAmount || incrementAmount <= 0}
+                className="px-8 py-2.5 bg-[#2B5AA8] text-white font-medium hover:bg-[#234a8f] rounded-lg transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <TrendingUp size={18} />
                 Apply Increment
@@ -1063,7 +1058,7 @@ export default function AdmissionFeePolicyPage() {
         </>
       )}
 
-      {/* Fee Decrement Modal - Matching Design */}
+      {/* Fee Decrement Modal - Simple Blue Header Design */}
       {showDecrementModal && selectedClass && (
         <>
           <div
@@ -1072,6 +1067,7 @@ export default function AdmissionFeePolicyPage() {
             onClick={() => {
               setShowDecrementModal(false)
               setDecrementAmount('')
+              setDecrementType('percentage')
             }}
           />
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
@@ -1085,6 +1081,7 @@ export default function AdmissionFeePolicyPage() {
                 onClick={() => {
                   setShowDecrementModal(false)
                   setDecrementAmount('')
+                  setDecrementType('percentage')
                 }}
                 className="text-white hover:bg-white/20 p-1.5 rounded transition"
               >
@@ -1098,25 +1095,25 @@ export default function AdmissionFeePolicyPage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Decrement Type</label>
                   <div className="flex gap-4">
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="radio"
                         name="decrementType"
                         value="percentage"
                         checked={decrementType === 'percentage'}
                         onChange={(e) => setDecrementType(e.target.value)}
-                        className="mr-2"
+                        className="mr-2 w-4 h-4 text-blue-600"
                       />
                       <span className="text-gray-700">Percentage (%)</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="radio"
                         name="decrementType"
                         value="fixed"
                         checked={decrementType === 'fixed'}
                         onChange={(e) => setDecrementType(e.target.value)}
-                        className="mr-2"
+                        className="mr-2 w-4 h-4 text-blue-600"
                       />
                       <span className="text-gray-700">Fixed Amount</span>
                     </label>
@@ -1138,7 +1135,7 @@ export default function AdmissionFeePolicyPage() {
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-800">
-                    <strong>Note:</strong> This will decrement the Standard Fee for this class. Fees cannot go below 0.
+                    <strong>Note:</strong> This will decrement the admission fee for all fee types in this class. Fees cannot go below 0.
                   </p>
                 </div>
               </div>
@@ -1150,6 +1147,7 @@ export default function AdmissionFeePolicyPage() {
                 onClick={() => {
                   setShowDecrementModal(false)
                   setDecrementAmount('')
+                  setDecrementType('percentage')
                 }}
                 className="px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300"
               >
@@ -1157,7 +1155,8 @@ export default function AdmissionFeePolicyPage() {
               </button>
               <button
                 onClick={handleApplyFeeDecrement}
-                className="px-8 py-2.5 bg-[#2B5AA8] text-white font-medium hover:bg-[#234a8f] rounded-lg transition flex items-center gap-2"
+                disabled={!decrementAmount || decrementAmount <= 0}
+                className="px-8 py-2.5 bg-[#2B5AA8] text-white font-medium hover:bg-[#234a8f] rounded-lg transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <TrendingDown size={18} />
                 Apply Decrement

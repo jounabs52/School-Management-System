@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { X, FileDown } from 'lucide-react'
 import { jsPDF } from 'jspdf'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 import autoTable from 'jspdf-autotable'
 import {
   addPDFHeader,
@@ -22,6 +23,11 @@ export default function AttendanceReportsPage() {
   const [activeReport, setActiveReport] = useState(null)
   const [reportData, setReportData] = useState(null)
   const [loading, setLoading] = useState(false)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   // Report filters
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -109,17 +115,36 @@ export default function AttendanceReportsPage() {
     }
   }, [selectedClass])
 
-  // Prevent body scrolling when modal is open
+  // Prevent body scrolling and blur sidebar when modal is open
   useEffect(() => {
-    if (activeReport) {
+    if (activeReport || showPdfPreview) {
       document.body.style.overflow = 'hidden'
+      
+      // Blur only the sidebar
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = 'blur(4px)'
+        sidebar.style.pointerEvents = 'none'
+      }
     } else {
       document.body.style.overflow = 'unset'
+      
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
     }
+    
     return () => {
       document.body.style.overflow = 'unset'
+      const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
+      if (sidebar) {
+        sidebar.style.filter = ''
+        sidebar.style.pointerEvents = ''
+      }
     }
-  }, [activeReport])
+  }, [activeReport, showPdfPreview])
 
   const loadClasses = async () => {
     if (!currentUser?.school_id) {
@@ -132,6 +157,7 @@ export default function AttendanceReportsPage() {
       const { data, error } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', currentUser.id)           // ✅ Filter by user
         .eq('school_id', currentUser.school_id)
         .order('order_number')
 
@@ -154,6 +180,8 @@ export default function AttendanceReportsPage() {
         .from('sections')
         .select('*')
         .eq('class_id', selectedClass)
+        .eq('user_id', currentUser.id)           // ✅ Filter by user
+        .eq('school_id', currentUser.school_id)  // ✅ Filter by school
         .order('section_name')
 
       if (error) throw error
@@ -209,6 +237,12 @@ export default function AttendanceReportsPage() {
   const handleCloseReport = () => {
     setActiveReport(null)
     setReportData(null)
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const handleDownloadPDF = () => {
@@ -357,10 +391,17 @@ export default function AttendanceReportsPage() {
         addPDFFooter(doc, i, pageCount)
       }
 
-      // Save PDF
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
       const fileName = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
-      doc.save(fileName)
-      showToast('PDF downloaded successfully', 'success')
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      showToast('PDF generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       console.error('Error details:', error.message, error.stack)
@@ -395,34 +436,33 @@ export default function AttendanceReportsPage() {
         ))}
       </div>
 
-      {/* Report Modal */}
+      {/* Report Modal - Full Screen Slide from Right */}
       {activeReport && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+        <>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={handleCloseReport}></div>
+          <div className="fixed top-0 right-0 h-full w-full bg-white shadow-2xl z-50 overflow-y-auto flex flex-col">
             {/* Modal Header */}
-            <div className="bg-blue-600 text-white p-4 flex items-center justify-between rounded-t-lg print:hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-lg print:hidden">
               <h2 className="text-xl font-semibold">
                 {activeTab === 'student'
                   ? studentReports.find(r => r.id === activeReport)?.name
                   : staffReports.find(r => r.id === activeReport)?.name
                 }
               </h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCloseReport}
-                  className="text-white hover:bg-blue-700 p-1 rounded"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+              <button
+                onClick={handleCloseReport}
+                className="text-white hover:bg-blue-800 p-2 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
 
             {/* Modal Body */}
-            <div id="report-content" className="flex-1 overflow-auto p-6">
+            <div id="report-content" className="flex-1 overflow-auto p-6 bg-gray-50">
               {renderReportContent()}
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Tabs */}
@@ -487,6 +527,14 @@ export default function AttendanceReportsPage() {
           </div>
         </>
       )}
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 
@@ -644,13 +692,10 @@ export default function AttendanceReportsPage() {
     }, [reportDate, currentUser])
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         {/* Filters */}
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
@@ -698,7 +743,7 @@ export default function AttendanceReportsPage() {
           <div className="text-center py-8 text-gray-500">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse border border-gray-300 bg-white">
               <thead>
                 <tr className="bg-blue-900 text-white">
                   <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Class</th>
@@ -875,13 +920,10 @@ export default function AttendanceReportsPage() {
     }
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         {/* Filters */}
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
@@ -1165,13 +1207,10 @@ export default function AttendanceReportsPage() {
     }
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         {/* Filters */}
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
@@ -1406,13 +1445,10 @@ export default function AttendanceReportsPage() {
     }
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         {/* Filters */}
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
@@ -1675,13 +1711,10 @@ export default function AttendanceReportsPage() {
     }
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         {/* Filters */}
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
@@ -1858,12 +1891,9 @@ export default function AttendanceReportsPage() {
     }, [reportDate, currentUser])
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
@@ -2023,12 +2053,9 @@ export default function AttendanceReportsPage() {
     }
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
@@ -2222,12 +2249,9 @@ export default function AttendanceReportsPage() {
     }
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
@@ -2366,12 +2390,10 @@ export default function AttendanceReportsPage() {
     }
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        {/* Filters */}
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
@@ -2501,12 +2523,9 @@ export default function AttendanceReportsPage() {
     }, [currentUser, reportDate])
 
     return (
-      <div>
+      <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6 print:hidden">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-medium">Report Filters</h3>
-          </div>
-          <div className="border border-t-0 border-gray-200 rounded-b-lg p-4 bg-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>

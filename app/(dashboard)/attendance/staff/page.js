@@ -87,6 +87,7 @@ export default function StaffAttendancePage() {
       const { data: staff, error: staffError } = await supabase
         .from('staff')
         .select('*')
+        .eq('user_id', currentUser.id)          // ✅ Filter by user
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('first_name')

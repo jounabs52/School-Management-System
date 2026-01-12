@@ -75,6 +75,7 @@ export default function FeeReportsPage() {
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('start_date', { ascending: false })
 
@@ -91,6 +92,7 @@ export default function FeeReportsPage() {
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .eq('status', 'active')
         .order('class_name')
@@ -114,6 +116,7 @@ export default function FeeReportsPage() {
       let defaultersQuery = supabase
         .from('v_fee_defaulters')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
 
       if (minDaysOverdue > 0) {
@@ -134,6 +137,7 @@ export default function FeeReportsPage() {
       const { data: summaryData, error: summaryError } = await supabase
         .from('v_class_fee_summary')
         .select('*')
+        .eq('user_id', user.id)
         .eq('school_id', user.school_id)
         .order('class_name')
 

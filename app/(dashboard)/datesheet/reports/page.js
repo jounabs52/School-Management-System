@@ -6,6 +6,8 @@ import { X, Printer, Download, CheckCircle, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getPdfSettings, hexToRgb } from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function DatesheetReportsPage() {
   const router = useRouter()
@@ -25,6 +27,11 @@ export default function DatesheetReportsPage() {
   const [filteredStudentsForSlip, setFilteredStudentsForSlip] = useState([])
   const [selectedStudentForSlip, setSelectedStudentForSlip] = useState('')
   const [selectedDatesheet, setSelectedDatesheet] = useState('')
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   // Toast notification
   const showToast = (message, type = 'info') => {
@@ -289,6 +296,11 @@ export default function DatesheetReportsPage() {
 
   const generateRollNoSlipPDF = async (student, datesheet, scheduleData) => {
     try {
+      // Get PDF settings
+      const pdfSettings = getPdfSettings()
+      const headerColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+
       const doc = new jsPDF()
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
@@ -298,6 +310,7 @@ export default function DatesheetReportsPage() {
       // School name and details
       doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...textColor)
       doc.text(schoolInfo?.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
       yPos += 7
 
@@ -380,14 +393,15 @@ export default function DatesheetReportsPage() {
         body: tableBody,
         theme: 'grid',
         headStyles: {
-          fillColor: [30, 58, 138],
+          fillColor: headerColor,
           textColor: 255,
           fontStyle: 'bold',
           fontSize: 8
         },
         styles: {
           fontSize: 8,
-          cellPadding: 2
+          cellPadding: 2,
+          textColor: textColor
         },
         columnStyles: {
           0: { cellWidth: 10 },
@@ -411,9 +425,15 @@ export default function DatesheetReportsPage() {
       doc.text('Controller Examination', pageWidth - 60, footerY)
 
       const fileName = `RollNoSlip_${student.admission_number}_${datesheet.title}.pdf`
-      doc.save(fileName)
 
-      showToast('Roll No Slip generated successfully', 'success')
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      showToast('Roll No Slip generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating roll no slip:', error)
       showToast(`Error generating slip: ${error.message}`, 'error')
@@ -441,6 +461,12 @@ export default function DatesheetReportsPage() {
     } catch {
       return timeString
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   return (
@@ -599,6 +625,14 @@ export default function DatesheetReportsPage() {
           </div>
         ))}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

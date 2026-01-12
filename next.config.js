@@ -3,7 +3,14 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'euwmoawbdkmtuhccpexz.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'euwmoawbdkmtuhccpexz.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
   webpack: (config, { isServer }) => {
     // Fix for jsPDF in Next.js
@@ -14,6 +21,29 @@ const nextConfig = {
         encoding: false,
       };
     }
+
+    // Optimize cache and memory usage
+    config.cache = false;
+
+    // Increase memory limits for webpack
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+      runtimeChunk: 'single',
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          commons: {
+            name: 'commons',
+            chunks: 'all',
+            minChunks: 2,
+          },
+        },
+      },
+    };
+
     return config;
   },
 }

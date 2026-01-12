@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
+import { addPDFFooter } from '@/lib/pdfUtils'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -85,6 +87,7 @@ const Toast = ({ message, type, onClose }) => {
 }
 
 export default function ActiveStudentsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
   const [selectedClass, setSelectedClass] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [students, setStudents] = useState([])
@@ -173,13 +176,40 @@ export default function ActiveStudentsPage() {
     bloodGroup: ''
   })
 
+  // Load current user from cookie
   useEffect(() => {
-    fetchClasses()
+    const getCookie = (name) => {
+      const value = `; ${document.cookie}`
+      const parts = value.split(`; ${name}=`)
+      if (parts.length === 2) return parts.pop().split(';').shift()
+      return null
+    }
+
+    const userData = getCookie('user-data')
+    if (userData) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userData))
+        setCurrentUser(user)
+        console.log('✅ Current user loaded:', user)
+      } catch (e) {
+        console.error('❌ Error parsing user data:', e)
+      }
+    } else {
+      console.error('❌ No user-data cookie found')
+    }
   }, [])
 
   useEffect(() => {
-    fetchStudents()
-  }, [selectedClass])
+    if (currentUser?.school_id) {
+      fetchClasses()
+    }
+  }, [currentUser])
+
+  useEffect(() => {
+    if (currentUser?.school_id) {
+      fetchStudents()
+    }
+  }, [selectedClass, currentUser])
 
   // Prevent body scroll when modals are open
   useEffect(() => {
@@ -199,11 +229,18 @@ export default function ActiveStudentsPage() {
   }, [showEditModal, showViewModal, showDeleteModal])
 
   const fetchClasses = async () => {
+    if (!currentUser?.id || !currentUser?.school_id) {
+      console.log('⏳ Waiting for currentUser to load classes...')
+      return
+    }
+
     setLoadingClasses(true)
     try {
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name, standard_fee, status')
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -245,12 +282,21 @@ export default function ActiveStudentsPage() {
   }
 
   const fetchStudents = async () => {
+    if (!currentUser?.id || !currentUser?.school_id) {
+      console.log('⏳ Waiting for currentUser to load...')
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {
+      console.log('📚 Fetching students for user:', currentUser.id, 'school:', currentUser.school_id)
+
       let query = supabase
         .from('students')
         .select('*')
+        .eq('user_id', currentUser.id)          // ✅ Filter by user
+        .eq('school_id', currentUser.school_id)      // ✅ Filter by school
         .eq('status', 'active')
         .order('created_at', { ascending: false })
 
@@ -411,134 +457,515 @@ export default function ActiveStudentsPage() {
     }
   }
 
-  const handlePrintStudent = () => {
+  const handlePrintStudent = async () => {
     if (!selectedStudent) return
 
-    const doc = new jsPDF()
+    // Check if currentUser exists
+    if (!currentUser || !currentUser.school_id) {
+      console.error('Current user not found or missing school_id:', currentUser)
+      showToast('User session not found. Please refresh the page.', 'error')
+      return
+    }
 
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Student Information', 105, 20, { align: 'center' })
+    try {
+      // Load PDF settings from centralized settings with user ID
+      const pdfSettings = getPdfSettings(currentUser.id)
 
-    doc.setDrawColor(200, 200, 200)
-    doc.line(20, 25, 190, 25)
+      console.log('PDF Settings loaded for user:', currentUser.id)
+      console.log('PDF Settings:', pdfSettings)
+      console.log('Current user school_id:', currentUser.school_id)
 
-    let yPos = 35
-    const lineHeight = 7
-    const leftMargin = 20
+      // Fetch school data for logo and name
+      const { data: schoolData, error: schoolError } = await supabase
+        .from('schools')
+        .select('*')
+        .eq('id', currentUser.school_id)
+        .single()
 
-    const addField = (label, value, isFullWidth = false) => {
-      if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text(label + ':', leftMargin, yPos)
-        doc.setFont('helvetica', 'normal')
-        const text = String(value)
-        if (isFullWidth) {
-          doc.text(text, leftMargin + 50, yPos)
-        } else {
-          doc.text(text, leftMargin + 45, yPos)
+      if (schoolError) {
+        console.error('Error fetching school data:', schoolError)
+        throw new Error('Failed to fetch school data: ' + schoolError.message)
+      }
+
+      if (!schoolData) {
+        console.error('No school data found for school_id:', currentUser.school_id)
+        throw new Error('School data not found')
+      }
+
+      console.log('School data fetched:', schoolData)
+      console.log('School logo URL:', schoolData?.logo_url)
+
+      // Create PDF with settings - respect user's orientation choice
+      const orientation = pdfSettings.orientation || 'portrait'
+      const doc = new jsPDF({
+        orientation: orientation,
+        unit: 'mm',
+        format: pdfSettings.pageSize?.toLowerCase() || 'a4'
+      })
+
+      console.log('PDF created with orientation:', orientation)
+
+      const pageWidth = doc.internal.pageSize.width
+      const pageHeight = doc.internal.pageSize.height
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Set page background color
+      const bgRgb = hexToRgb(pdfSettings.backgroundColor || '#ffffff')
+      doc.setFillColor(...bgRgb)
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+
+      // Calculate margins using centralized function
+      const margins = getMarginValues(pdfSettings.margin)
+
+      const primaryRgb = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.primaryColor || '#1E3A8A')
+      const secondaryRgb = hexToRgb(pdfSettings.secondaryColor || '#3B82F6')
+      const textRgb = hexToRgb(pdfSettings.textColor || '#000000')
+
+      console.log('Color settings:')
+      console.log('  Primary RGB:', primaryRgb, 'from', pdfSettings.headerBackgroundColor || pdfSettings.primaryColor)
+      console.log('  Secondary RGB:', secondaryRgb, 'from', pdfSettings.secondaryColor)
+      console.log('  Text RGB:', textRgb, 'from', pdfSettings.textColor)
+      console.log('  Table Header:', pdfSettings.tableHeaderColor)
+      console.log('  Alt Row:', pdfSettings.alternateRowColor)
+
+      // Header (if enabled)
+      if (pdfSettings.includeHeader !== false) {
+        doc.setFillColor(...primaryRgb)
+        doc.rect(0, 0, pageWidth, 40, 'F')
+
+        // School Logo (if available) - WITH SETTINGS
+        if (pdfSettings.includeLogo && schoolData?.logo_url) {
+          try {
+            console.log('Loading school logo from:', schoolData.logo_url)
+
+            const logoImg = new Image()
+            logoImg.crossOrigin = 'anonymous'
+
+            await new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 10000)
+
+              logoImg.onload = () => {
+                clearTimeout(timeout)
+                try {
+                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                  const headerHeight = 40
+                  const logoY = (headerHeight - currentLogoSize) / 2
+                  let logoX = 10 // Default to left with 10mm margin
+
+                  // Position logo based on settings
+                  if (pdfSettings.logoPosition === 'center') {
+                    logoX = 10 // Keep on left even if center selected (to avoid text overlap)
+                  } else if (pdfSettings.logoPosition === 'right') {
+                    logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
+                  }
+
+                  // Add logo with style
+                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
+                    // Create a canvas to clip the image
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const size = 200 // Higher resolution for better quality
+                    canvas.width = size
+                    canvas.height = size
+
+                    // Draw clipped image on canvas
+                    ctx.beginPath()
+                    if (pdfSettings.logoStyle === 'circle') {
+                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                    } else {
+                      // Rounded corners
+                      const radius = size * 0.15
+                      ctx.moveTo(radius, 0)
+                      ctx.lineTo(size - radius, 0)
+                      ctx.quadraticCurveTo(size, 0, size, radius)
+                      ctx.lineTo(size, size - radius)
+                      ctx.quadraticCurveTo(size, size, size - radius, size)
+                      ctx.lineTo(radius, size)
+                      ctx.quadraticCurveTo(0, size, 0, size - radius)
+                      ctx.lineTo(0, radius)
+                      ctx.quadraticCurveTo(0, 0, radius, 0)
+                    }
+                    ctx.closePath()
+                    ctx.clip()
+
+                    // Draw image
+                    ctx.drawImage(logoImg, 0, 0, size, size)
+
+                    // Convert canvas to data URL and add to PDF
+                    const clippedImage = canvas.toDataURL('image/png')
+                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  } else {
+                    // Square logo
+                    doc.addImage(logoImg, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  }
+
+                  console.log('School logo added to PDF successfully')
+                  resolve()
+                } catch (err) {
+                  console.error('Logo canvas error:', err)
+                  resolve()
+                }
+              }
+
+              logoImg.onerror = (err) => {
+                clearTimeout(timeout)
+                console.error('Logo load failed:', err)
+                resolve()
+              }
+
+              // Handle both absolute and relative URLs
+              const logoUrl = schoolData.logo_url.startsWith('http')
+                ? schoolData.logo_url
+                : `${window.location.origin}${schoolData.logo_url.startsWith('/') ? '' : '/'}${schoolData.logo_url}`
+
+              console.log('Final logo URL:', logoUrl)
+              logoImg.src = logoUrl
+            })
+          } catch (e) {
+            console.error('Error adding school logo:', e.message)
+          }
         }
-        yPos += lineHeight
-      }
-    }
 
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Basic Information', leftMargin, yPos)
-    yPos += lineHeight + 2
+        // Title
+        doc.setFontSize(20)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(pdfSettings.headerText || 'STUDENT INFORMATION RECORD', pageWidth / 2, 18, { align: 'center' })
 
-    addField('Admission No', selectedStudent.admission_number)
-    addField('Full Name', `${selectedStudent.first_name} ${selectedStudent.last_name || ''}`)
-    addField('Gender', selectedStudent.gender)
-    addField('Date of Birth', selectedStudent.date_of_birth)
-    addField('Blood Group', selectedStudent.blood_group)
-    addField('Religion', selectedStudent.religion)
-    addField('Caste', selectedStudent.caste)
-    addField('Nationality', selectedStudent.nationality)
+        // Subtitle - School Name
+        doc.setFontSize(10)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+        doc.text(schoolData?.name || 'School Management System', pageWidth / 2, 28, { align: 'center' })
 
-    yPos += 5
-
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Academic Information', leftMargin, yPos)
-    yPos += lineHeight + 2
-
-    addField('Class', selectedStudent.className)
-    addField('Section', selectedStudent.sectionName)
-    addField('Roll Number', selectedStudent.roll_number)
-    addField('House', selectedStudent.house)
-    addField('Admission Date', selectedStudent.admission_date)
-    addField('Status', selectedStudent.status)
-
-    if (yPos > 250) {
-      doc.addPage()
-      yPos = 20
-    } else {
-      yPos += 5
-    }
-
-    if (selectedStudent.father_name) {
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Father Information', leftMargin, yPos)
-      yPos += lineHeight + 2
-
-      addField('Father Name', selectedStudent.father_name)
-      addField('Father CNIC', selectedStudent.father_cnic)
-      addField('Father Mobile', selectedStudent.father_phone)
-      addField('Father Email', selectedStudent.father_email)
-      addField('Qualification', selectedStudent.father_qualification)
-      addField('Occupation', selectedStudent.father_occupation)
-      addField('Annual Income', selectedStudent.father_annual_income)
-
-      yPos += 5
-    }
-
-    if (yPos > 250) {
-      doc.addPage()
-      yPos = 20
-    }
-
-    if (selectedStudent.mother_name) {
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Mother Information', leftMargin, yPos)
-      yPos += lineHeight + 2
-
-      addField('Mother Name', selectedStudent.mother_name)
-      addField('Mother CNIC', selectedStudent.mother_cnic)
-      addField('Mother Mobile', selectedStudent.mother_phone)
-      addField('Mother Email', selectedStudent.mother_email)
-      addField('Qualification', selectedStudent.mother_qualification)
-      addField('Occupation', selectedStudent.mother_occupation)
-      addField('Annual Income', selectedStudent.mother_annual_income)
-
-      yPos += 5
-    }
-
-    if (selectedStudent.base_fee || selectedStudent.discount_amount) {
-      if (yPos > 250) {
-        doc.addPage()
-        yPos = 20
+        // Date in header (if enabled)
+        if (pdfSettings.includeDate || pdfSettings.includeGeneratedDate) {
+          doc.setFontSize(8)
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 35, { align: 'right' })
+        }
       }
 
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Fee Information', leftMargin, yPos)
-      yPos += lineHeight + 2
+      let yPos = pdfSettings.includeHeader !== false ? 48 : 15
 
-      addField('Base Fee', selectedStudent.base_fee)
-      addField('Discount', selectedStudent.discount_amount)
-      addField('Final Fee', selectedStudent.final_fee)
-      addField('Discount Note', selectedStudent.discount_note, true)
+      // Student Header Card - COMPACT responsive height
+      const headerCardHeight = orientation === 'landscape' ? 20 : 24
+
+      doc.setFillColor(248, 250, 252)
+      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'F')
+
+      // Add light border
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.5)
+      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'S')
+
+      // Student Photo (if available) - COMPACT
+      const photoSize = orientation === 'landscape' ? 16 : 20 // Smaller photo
+      const photoX = margins.left + 2
+      const photoY = yPos + 2
+
+      if (selectedStudent.photo_url) {
+        try {
+          console.log('Loading student photo from:', selectedStudent.photo_url)
+
+          // Better image loading with canvas
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+
+          const photoBase64 = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Image load timeout')), 10000)
+
+            img.onload = () => {
+              clearTimeout(timeout)
+              try {
+                const canvas = document.createElement('canvas')
+                canvas.width = img.width
+                canvas.height = img.height
+                const ctx = canvas.getContext('2d')
+                ctx.drawImage(img, 0, 0)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+                console.log('Photo converted successfully, size:', dataUrl.length)
+                resolve(dataUrl)
+              } catch (err) {
+                console.error('Canvas error:', err)
+                reject(err)
+              }
+            }
+
+            img.onerror = (err) => {
+              clearTimeout(timeout)
+              console.error('Image load failed:', err)
+              reject(err)
+            }
+
+            // Handle both absolute and relative URLs
+            const photoUrl = selectedStudent.photo_url.startsWith('http')
+              ? selectedStudent.photo_url
+              : `${window.location.origin}${selectedStudent.photo_url.startsWith('/') ? '' : '/'}${selectedStudent.photo_url}`
+
+            console.log('Final photo URL:', photoUrl)
+            img.src = photoUrl
+          })
+
+          if (photoBase64 && photoBase64.length > 100) {
+            doc.addImage(photoBase64, 'JPEG', photoX, photoY, photoSize, photoSize)
+            console.log('Student photo added to PDF successfully')
+
+            // Professional rounded border
+            doc.setDrawColor(203, 213, 225) // Gray-300
+            doc.setLineWidth(0.5)
+            doc.roundedRect(photoX, photoY, photoSize, photoSize, 2, 2, 'S')
+          } else {
+            throw new Error('Invalid photo data')
+          }
+        } catch (e) {
+          console.error('❌ Error loading student photo:', e.message)
+          console.error('Photo URL was:', selectedStudent.photo_url)
+          console.error('Full error:', e)
+          // Fallback to avatar
+          doc.setFillColor(226, 232, 240)
+          doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+          doc.setFontSize(14)
+          doc.setTextColor(...textRgb)
+          doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
+        }
+      } else {
+        console.log('⚠️ No photo URL for student:', selectedStudent.first_name)
+        console.log('Student object:', selectedStudent)
+        // Photo placeholder
+        doc.setFillColor(226, 232, 240)
+        doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+        doc.setFontSize(14)
+        doc.setTextColor(...textRgb)
+        doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
+      }
+
+      // Student name and key info - positioned next to photo - COMPACT
+      const infoX = photoX + photoSize + 4
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') + 2)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+      doc.setTextColor(...primaryRgb)
+      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, yPos + 7)
+
+      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 2)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+      doc.setTextColor(75, 85, 99)
+      doc.text(`Admission No: ${selectedStudent.admission_number}`, infoX, yPos + 12)
+      doc.text(`Class: ${selectedStudent.className || 'N/A'} | Section: ${selectedStudent.sectionName || 'N/A'}`, infoX, yPos + 16)
+
+      // Status badge - positioned in top right of card - COMPACT
+      const status = selectedStudent.status || 'active'
+      const statusColor = status === 'active' ? [34, 197, 94] : [239, 68, 68]
+      doc.setFillColor(...statusColor)
+      doc.roundedRect(pageWidth - margins.right - 25, yPos + 4, 23, 6, 2, 2, 'F')
+      doc.setFontSize(7)
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text(status.toUpperCase(), pageWidth - margins.right - 13.5, yPos + 8, { align: 'center' })
+
+      // Adjust spacing based on orientation - MORE COMPACT
+      yPos += orientation === 'landscape' ? 20 : 25
+
+      // Helper function for COMPACT section headers with professional styling
+      const addSectionHeader = (title) => {
+        // Reserve space for footer
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+
+        // Check if we need a new page for the section header
+        if (yPos + 10 > maxContentY) {
+          doc.addPage()
+          yPos = margins.top || 15
+        }
+
+        // Blue gradient-like header - REDUCED HEIGHT
+        const tableHeaderRgb = hexToRgb(pdfSettings.tableHeaderColor || pdfSettings.secondaryColor || '#3B82F6')
+        doc.setFillColor(...tableHeaderRgb)
+        doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, 6, 1, 1, 'F')
+
+        doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 1)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(title, margins.left + 3, yPos + 4)
+        yPos += 7.5
+      }
+
+      // Helper function for responsive multi-column fields - adapts to orientation
+      const addTwoColumnFields = (fields) => {
+        // Use 3 columns for landscape, 2 for portrait
+        const numColumns = orientation === 'landscape' ? 3 : 2
+        const gapSize = 2
+        const totalGaps = (numColumns - 1) * gapSize
+        const colWidth = (pageWidth - margins.left - margins.right - totalGaps) / numColumns
+
+        let col = 0
+        let rowY = yPos
+
+        // Professional color scheme
+        const fieldBgRgb = [249, 250, 251] // Very light gray
+        const labelColorRgb = [107, 114, 128] // Gray-500
+        const borderRgb = [229, 231, 235] // Gray-200
+
+        // Reserve space for footer (footer area starts at pageHeight - 20)
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+
+        // COMPACT field height
+        const fieldHeight = 7.5
+
+        fields.forEach(([label, value]) => {
+          if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
+            // Check if we need a new page
+            if (rowY + 10 > maxContentY) {
+              doc.addPage()
+              rowY = margins.top || 15
+              col = 0
+            }
+
+            const xPos = margins.left + (col * (colWidth + gapSize))
+
+            // Card background with subtle shadow effect
+            doc.setFillColor(...fieldBgRgb)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'F')
+
+            // Subtle border for definition
+            doc.setDrawColor(...borderRgb)
+            doc.setLineWidth(0.2)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'S')
+
+            // Label - small gray uppercase
+            doc.setFontSize(5.5)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+            doc.setTextColor(...labelColorRgb)
+            doc.text(label.toUpperCase(), xPos + 1.5, rowY + 3)
+
+            // Value - larger and bold with proper text fitting
+            doc.setFontSize(7.5)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+            doc.setTextColor(31, 41, 55) // Gray-800
+
+            // Smart truncation based on column width
+            const maxChars = orientation === 'landscape' ? 28 : 35
+            let valueText = String(value)
+            if (valueText.length > maxChars) {
+              valueText = valueText.substring(0, maxChars - 3) + '...'
+            }
+
+            doc.text(valueText, xPos + 1.5, rowY + 6, { maxWidth: colWidth - 3 })
+
+            col++
+            if (col >= numColumns) {
+              col = 0
+              rowY += fieldHeight + 1.5
+            }
+          }
+        })
+
+        yPos = col === 0 ? rowY : rowY + fieldHeight + 1.5
+      }
+
+      // Basic Information
+      addSectionHeader('BASIC INFORMATION')
+      addTwoColumnFields([
+        ['First Name', selectedStudent.first_name],
+        ['Last Name', selectedStudent.last_name],
+        ['Gender', selectedStudent.gender],
+        ['Date of Birth', selectedStudent.date_of_birth],
+        ['Blood Group', selectedStudent.blood_group],
+        ['Religion', selectedStudent.religion],
+        ['Caste', selectedStudent.caste],
+        ['Nationality', selectedStudent.nationality || 'Pakistan']
+      ])
+
+      yPos += orientation === 'landscape' ? 1.5 : 2
+
+      // Academic Information
+      addSectionHeader('ACADEMIC INFORMATION')
+      addTwoColumnFields([
+        ['Class', selectedStudent.className],
+        ['Section', selectedStudent.sectionName],
+        ['Roll Number', selectedStudent.roll_number],
+        ['House', selectedStudent.house],
+        ['Admission Date', selectedStudent.admission_date],
+        ['Status', selectedStudent.status]
+      ])
+
+      yPos += orientation === 'landscape' ? 1.5 : 2
+
+      // Father Information
+      if (selectedStudent.father_name) {
+        addSectionHeader('FATHER INFORMATION')
+        addTwoColumnFields([
+          ['Father Name', selectedStudent.father_name],
+          ['Father CNIC', selectedStudent.father_cnic],
+          ['Mobile', selectedStudent.father_phone],
+          ['Email', selectedStudent.father_email],
+          ['Qualification', selectedStudent.father_qualification],
+          ['Occupation', selectedStudent.father_occupation],
+          ['Annual Income', selectedStudent.father_annual_income]
+        ])
+        yPos += orientation === 'landscape' ? 1.5 : 2
+      }
+
+      // Mother Information
+      if (selectedStudent.mother_name) {
+        addSectionHeader('MOTHER INFORMATION')
+        addTwoColumnFields([
+          ['Mother Name', selectedStudent.mother_name],
+          ['Mother CNIC', selectedStudent.mother_cnic],
+          ['Mobile', selectedStudent.mother_phone],
+          ['Email', selectedStudent.mother_email],
+          ['Qualification', selectedStudent.mother_qualification],
+          ['Occupation', selectedStudent.mother_occupation],
+          ['Annual Income', selectedStudent.mother_annual_income]
+        ])
+        yPos += orientation === 'landscape' ? 1.5 : 2
+      }
+
+      // Contact Information
+      if (selectedStudent.whatsapp_number || selectedStudent.current_address) {
+        addSectionHeader('CONTACT INFORMATION')
+        addTwoColumnFields([
+          ['WhatsApp Number', selectedStudent.whatsapp_number],
+          ['Guardian Mobile', selectedStudent.guardian_mobile],
+          ['Address', selectedStudent.current_address],
+          ['City', selectedStudent.city],
+          ['State', selectedStudent.state],
+          ['Postal Code', selectedStudent.postal_code]
+        ])
+        yPos += orientation === 'landscape' ? 1.5 : 2
+      }
+
+      // Fee Information
+      if (selectedStudent.base_fee || selectedStudent.discount_amount) {
+        addSectionHeader('FEE INFORMATION')
+        addTwoColumnFields([
+          ['Base Fee', selectedStudent.base_fee ? `PKR ${selectedStudent.base_fee}` : null],
+          ['Discount Amount', selectedStudent.discount_amount ? `PKR ${selectedStudent.discount_amount}` : null],
+          ['Final Fee', selectedStudent.final_fee ? `PKR ${selectedStudent.final_fee}` : null],
+          ['Fee Plan', selectedStudent.fee_plan],
+          ['Discount Note', selectedStudent.discount_note]
+        ])
+      }
+
+      // Footer (using centralized footer function)
+      if (pdfSettings.includeFooter !== false) {
+        addPDFFooter(doc, 1, 1, pdfSettings)
+      }
+
+      // Save the PDF
+      doc.save(`Student_${selectedStudent.admission_number}_${selectedStudent.first_name}.pdf`)
+
+      // Close the modal
+      setShowViewModal(false)
+
+      showToast('PDF generated successfully!', 'success')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      console.error('Error details:', error.message, error.stack)
+      showToast(`Failed to generate PDF: ${error.message || 'Please try again'}`, 'error')
     }
-
-    doc.save(`Student_${selectedStudent.admission_number}_${selectedStudent.first_name}.pdf`)
-
-    setShowViewModal(false)
-
-    showToast('PDF generated successfully!', 'success')
   }
 
   const handleDelete = (student) => {
@@ -557,10 +984,15 @@ export default function ActiveStudentsPage() {
       setShowDeleteModal(false)
       setSelectedStudent(null)
 
+      // ✅ Get logged-in user for security
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+
       const { error: deleteError } = await supabase
         .from('students')
         .delete()
         .eq('id', studentId)
+        .eq('user_id', user.id)         // ✅ Security check
+        .eq('school_id', user.school_id) // ✅ Security check
 
       if (deleteError) throw deleteError
 
@@ -579,10 +1011,15 @@ export default function ActiveStudentsPage() {
     try {
       const newStatus = student.status === 'active' ? 'inactive' : 'active'
 
+      // ✅ Get logged-in user for security
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+
       const { error: updateError } = await supabase
         .from('students')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', student.id)
+        .eq('user_id', user.id)         // ✅ Security check
+        .eq('school_id', user.school_id) // ✅ Security check
 
       if (updateError) throw updateError
 
@@ -1012,148 +1449,333 @@ export default function ActiveStudentsPage() {
       {/* View Student Modal - Slide from Right */}
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[99999] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-3">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-base font-bold">Student Information</h3>
-                  <p className="text-blue-200 text-xs mt-0.5">View student details</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handlePrintStudent}
-                    className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
-                    title="Print Student Information"
-                  >
-                    <Printer size={18} />
-                  </button>
-                  <button
-                    onClick={() => setShowViewModal(false)}
-                    className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-3xl overflow-hidden">
-                  {selectedStudent.photo_url ? (
-                    <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
-                  ) : (
-                    selectedStudent.avatar
-                  )}
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800">
-                    {selectedStudent.first_name} {selectedStudent.last_name || ''}
-                  </h4>
-                  <p className="text-gray-600 text-sm">Admission No: <span className="font-semibold">{selectedStudent.admission_number}</span></p>
-                  <p className="text-xs text-gray-500">Status: <span className={`font-semibold ${selectedStudent.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>{selectedStudent.status || 'N/A'}</span></p>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold">Student Information</h3>
+                    <p className="text-blue-200 text-sm mt-0.5">View complete student details</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handlePrintStudent}
+                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                      title="Print Student Information"
+                    >
+                      <Printer size={20} />
+                    </button>
+                    <button
+                      onClick={() => setShowViewModal(false)}
+                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
                 </div>
               </div>
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-50 custom-scrollbar" style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#cbd5e1 #f1f5f9'
+              }}>
+                <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-200">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden flex-shrink-0">
+                    {selectedStudent.photo_url ? (
+                      <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
+                    ) : (
+                      selectedStudent.avatar
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xl font-bold text-gray-800">
+                      {selectedStudent.first_name} {selectedStudent.last_name || ''}
+                    </h4>
+                    <p className="text-gray-600">Admission No: <span className="font-semibold">{selectedStudent.admission_number}</span></p>
+                    <p className="text-sm text-gray-500">Status: <span className={`font-semibold ${selectedStudent.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>{selectedStudent.status || 'N/A'}</span></p>
+                  </div>
+                </div>
 
-              {/* Basic Information */}
-              <div className="mb-4">
-                <h5 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1">Basic Information</h5>
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedStudent.first_name && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">First Name</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.first_name}</p>
-                    </div>
-                  )}
-                  {selectedStudent.last_name && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Last Name</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.last_name}</p>
-                    </div>
-                  )}
-                  {selectedStudent.gender && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Gender</p>
-                      <p className="font-semibold text-gray-800 text-sm capitalize">{selectedStudent.gender}</p>
-                    </div>
-                  )}
-                  {selectedStudent.date_of_birth && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Date of Birth</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.date_of_birth}</p>
-                    </div>
-                  )}
-                  {selectedStudent.blood_group && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Blood Group</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.blood_group}</p>
-                    </div>
-                  )}
-                  {selectedStudent.religion && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Religion</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.religion}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Academic Information */}
-              <div className="mb-4">
-                <h5 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1">Academic Information</h5>
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedStudent.className && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Class</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.className}</p>
-                    </div>
-                  )}
-                  {selectedStudent.sectionName && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Section</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.sectionName}</p>
-                    </div>
-                  )}
-                  {selectedStudent.roll_number && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Roll Number</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.roll_number}</p>
-                    </div>
-                  )}
-                  {selectedStudent.admission_date && (
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Admission Date</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.admission_date}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Father Information */}
-              {selectedStudent.father_name && (
-                <div className="mb-4">
-                  <h5 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1">Father Information</h5>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-500 mb-0.5">Father Name</p>
-                      <p className="font-semibold text-gray-800 text-sm">{selectedStudent.father_name}</p>
-                    </div>
-                    {selectedStudent.father_phone && (
-                      <div className="bg-white p-2.5 rounded-lg border border-gray-100">
-                        <p className="text-[10px] text-gray-500 mb-0.5">Father Mobile</p>
-                        <p className="font-semibold text-gray-800 text-sm">{selectedStudent.father_phone}</p>
+                {/* Basic Information */}
+                <div className="mb-6">
+                  <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Basic Information</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {selectedStudent.first_name && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">First Name</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.first_name}</p>
+                      </div>
+                    )}
+                    {selectedStudent.last_name && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Last Name</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.last_name}</p>
+                      </div>
+                    )}
+                    {selectedStudent.gender && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Gender</p>
+                        <p className="font-semibold text-gray-800 capitalize">{selectedStudent.gender}</p>
+                      </div>
+                    )}
+                    {selectedStudent.date_of_birth && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Date of Birth</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.date_of_birth}</p>
+                      </div>
+                    )}
+                    {selectedStudent.student_cnic && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Student CNIC/B-Form</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.student_cnic}</p>
+                      </div>
+                    )}
+                    {selectedStudent.blood_group && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Blood Group</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.blood_group}</p>
+                      </div>
+                    )}
+                    {selectedStudent.religion && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Religion</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.religion}</p>
+                      </div>
+                    )}
+                    {selectedStudent.caste_race && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Caste/Race</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.caste_race}</p>
+                      </div>
+                    )}
+                    {selectedStudent.nationality && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Nationality</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.nationality}</p>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
-            </div>
-            <div className="border-t border-gray-200 px-4 py-3 bg-white">
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="w-full px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
-              >
-                Close
-              </button>
+
+                {/* Academic Information */}
+                <div className="mb-6">
+                  <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Academic Information</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {selectedStudent.className && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Class</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.className}</p>
+                      </div>
+                    )}
+                    {selectedStudent.sectionName && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Section</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.sectionName}</p>
+                      </div>
+                    )}
+                    {selectedStudent.roll_number && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Roll Number</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.roll_number}</p>
+                      </div>
+                    )}
+                    {selectedStudent.admission_date && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Admission Date</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.admission_date}</p>
+                      </div>
+                    )}
+                    {selectedStudent.house && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">House</p>
+                        <p className="font-semibold text-gray-800">{selectedStudent.house}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Father Information */}
+                {selectedStudent.father_name && (
+                  <div className="mb-6">
+                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Father Information</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.father_name && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Father Name</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_name}</p>
+                        </div>
+                      )}
+                      {selectedStudent.father_cnic && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Father CNIC</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_cnic}</p>
+                        </div>
+                      )}
+                      {selectedStudent.father_mobile && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Father Mobile</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_mobile}</p>
+                        </div>
+                      )}
+                      {selectedStudent.father_email && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Father Email</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_email}</p>
+                        </div>
+                      )}
+                      {selectedStudent.father_qualification && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Father Qualification</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_qualification}</p>
+                        </div>
+                      )}
+                      {selectedStudent.father_occupation && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Father Occupation</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_occupation}</p>
+                        </div>
+                      )}
+                      {selectedStudent.father_annual_income && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
+                          <p className="text-xs text-gray-500 mb-1">Father Annual Income</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.father_annual_income}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mother Information */}
+                {selectedStudent.mother_name && (
+                  <div className="mb-6">
+                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Mother Information</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.mother_name && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Mother Name</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_name}</p>
+                        </div>
+                      )}
+                      {selectedStudent.mother_cnic && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Mother CNIC</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_cnic}</p>
+                        </div>
+                      )}
+                      {selectedStudent.mother_mobile && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Mother Mobile</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_mobile}</p>
+                        </div>
+                      )}
+                      {selectedStudent.mother_email && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Mother Email</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_email}</p>
+                        </div>
+                      )}
+                      {selectedStudent.mother_qualification && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Mother Qualification</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_qualification}</p>
+                        </div>
+                      )}
+                      {selectedStudent.mother_occupation && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Mother Occupation</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_occupation}</p>
+                        </div>
+                      )}
+                      {selectedStudent.mother_annual_income && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
+                          <p className="text-xs text-gray-500 mb-1">Mother Annual Income</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.mother_annual_income}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Contact Information */}
+                {(selectedStudent.whatsapp_number || selectedStudent.current_address || selectedStudent.city || selectedStudent.state || selectedStudent.postal_code) && (
+                  <div className="mb-6">
+                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Contact Information</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.whatsapp_number && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">WhatsApp Number</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.whatsapp_number}</p>
+                        </div>
+                      )}
+                      {selectedStudent.current_address && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
+                          <p className="text-xs text-gray-500 mb-1">Current Address</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.current_address}</p>
+                        </div>
+                      )}
+                      {selectedStudent.city && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">City</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.city}</p>
+                        </div>
+                      )}
+                      {selectedStudent.state && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">State/Province</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.state}</p>
+                        </div>
+                      )}
+                      {selectedStudent.postal_code && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Postal Code</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.postal_code}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Fee Information */}
+                {(selectedStudent.base_fee || selectedStudent.discount_amount || selectedStudent.final_fee) && (
+                  <div className="mb-6">
+                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Fee Information</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedStudent.base_fee && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Base Fee</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.base_fee}</p>
+                        </div>
+                      )}
+                      {selectedStudent.discount_amount && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Discount</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.discount_amount}</p>
+                        </div>
+                      )}
+                      {selectedStudent.final_fee && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Final Fee</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.final_fee}</p>
+                        </div>
+                      )}
+                      {selectedStudent.discount_note && (
+                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
+                          <p className="text-xs text-gray-500 mb-1">Discount Note</p>
+                          <p className="font-semibold text-gray-800">{selectedStudent.discount_note}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={() => setShowViewModal(false)}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </ModalOverlay>
@@ -1169,7 +1791,7 @@ export default function ActiveStudentsPage() {
               </div>
               <div className="p-4">
                 <p className="text-gray-700 mb-4 text-sm">
-                  Are you sure you want to delete <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
+                  Are you sure you want to delete <span className="font-bold text-red-600">{selectedStudent.first_name} {selectedStudent.last_name || ''}</span>? This action cannot be undone.
                 </p>
                 <div className="flex gap-2">
                   <button

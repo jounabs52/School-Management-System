@@ -210,8 +210,28 @@ export default function PassengersPage() {
       if (error) {
         console.error('❌ Error fetching routes:', error)
       } else {
-        console.log('✅ Successfully fetched routes:', data?.length || 0, data)
-        setRoutes(data || [])
+        // Calculate max fare from stations for each route
+        const routesWithFare = await Promise.all(
+          (data || []).map(async (route) => {
+            const { data: stationsData } = await supabase
+              .from('stations')
+              .select('fare')
+              .eq('route_id', route.id)
+              .eq('status', 'active')
+
+            const maxFare = stationsData && stationsData.length > 0
+              ? Math.max(...stationsData.map(s => s.fare || 0))
+              : 0
+
+            return {
+              ...route,
+              fare: maxFare
+            }
+          })
+        )
+
+        console.log('✅ Successfully fetched routes:', routesWithFare?.length || 0, routesWithFare)
+        setRoutes(routesWithFare || [])
       }
     } catch (error) {
       console.error('❌ Exception fetching routes:', error)
@@ -791,6 +811,7 @@ export default function PassengersPage() {
       const { data, error } = await supabase
         .from('passengers')
         .insert([{
+          user_id: user.id,
           school_id: user.school_id,
           created_by: user.id,
           type: formData.type,
@@ -2063,16 +2084,6 @@ export default function PassengersPage() {
                                   : 'No students found in this class'
                                 }
                               </div>
-                              {!studentSearchTerm && (
-                                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-gray-600">
-                                  <p className="font-semibold text-yellow-800 mb-1">Possible reasons:</p>
-                                  <ul className="list-disc list-inside space-y-1 text-left">
-                                    <li>No students have been assigned to this class yet</li>
-                                    <li>Students may need their class assignment updated</li>
-                                    <li>Check student records to assign them to this class</li>
-                                  </ul>
-                                </div>
-                              )}
                             </div>
                           )}
                         </>
@@ -2198,7 +2209,7 @@ export default function PassengersPage() {
               </div>
 
               {/* Station Selection */}
-              {formData.route && routeStations.length > 0 && (
+              {formData.route && (
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
                     Select Drop Station <span className="text-red-500">*</span>
@@ -2207,14 +2218,22 @@ export default function PassengersPage() {
                     value={formData.station}
                     onChange={(e) => handleStationChange(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    disabled={routeStations.length === 0}
                   >
-                    <option value="">Select your drop station</option>
+                    <option value="">
+                      {routeStations.length === 0 ? 'No stations available for this route' : 'Select your drop station'}
+                    </option>
                     {routeStations.map((station, index) => (
                       <option key={station.id} value={station.id}>
                         {index + 1}. {station.station_name} - PKR {station.fare?.toLocaleString()}
                       </option>
                     ))}
                   </select>
+                  {routeStations.length === 0 && (
+                    <p className="mt-2 text-xs text-yellow-600">
+                      Please add stations to this route first
+                    </p>
+                  )}
                 </div>
               )}
 

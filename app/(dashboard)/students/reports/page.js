@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { FileText, CreditCard, Calendar, User, Hash, Trash2, X, TrendingUp, Award, RefreshCw, Search, Download, CheckCircle } from 'lucide-react'
+import { FileText, CreditCard, Calendar, User, Hash, Trash2, X, TrendingUp, Award, RefreshCw, Search, Download, CheckCircle, Printer } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 import { convertImageToBase64, addDecorativeBorder, PDF_FONTS } from '@/lib/pdfUtils'
@@ -23,8 +23,20 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
+// Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
+
 export default function StudentReportsPage() {
   const [activeTab, setActiveTab] = useState('certificates') // 'certificates' or 'cards'
+  const [certificateType, setCertificateType] = useState('all') // 'all', 'character', 'leaving'
   const [certificates, setCertificates] = useState([])
   const [idCards, setIdCards] = useState([])
   const [classes, setClasses] = useState([])
@@ -82,7 +94,7 @@ export default function StudentReportsPage() {
   useEffect(() => {
     applyFilters()
     setCurrentPage(1) // Reset to page 1 when filters change
-  }, [activeTab, selectedClass, searchName, searchAdmissionNo, certificates, idCards])
+  }, [activeTab, certificateType, selectedClass, searchName, searchAdmissionNo, certificates, idCards])
 
   useEffect(() => {
     calculateStats()
@@ -139,9 +151,12 @@ export default function StudentReportsPage() {
 
   const fetchClasses = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -155,6 +170,7 @@ export default function StudentReportsPage() {
   const fetchCertificates = async () => {
     setLoading(true)
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('student_certificates')
         .select(`
@@ -173,6 +189,8 @@ export default function StudentReportsPage() {
             photo_url
           )
         `)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .order('issue_date', { ascending: false })
 
       if (error) {
@@ -191,6 +209,8 @@ export default function StudentReportsPage() {
           const { data: classesData } = await supabase
             .from('classes')
             .select('id, class_name')
+            .eq('user_id', userId)
+            .eq('school_id', schoolId)
             .in('id', classIds)
 
           classesData?.forEach(cls => {
@@ -231,6 +251,7 @@ export default function StudentReportsPage() {
   const fetchIdCards = async () => {
     setLoading(true)
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('student_id_cards')
         .select(`
@@ -250,6 +271,8 @@ export default function StudentReportsPage() {
             photo_url
           )
         `)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .order('issue_date', { ascending: false })
 
       if (error) {
@@ -269,6 +292,8 @@ export default function StudentReportsPage() {
           const { data: classesData } = await supabase
             .from('classes')
             .select('id, class_name')
+            .eq('user_id', userId)
+            .eq('school_id', schoolId)
             .in('id', classIds)
 
           classesData?.forEach(cls => {
@@ -322,6 +347,11 @@ export default function StudentReportsPage() {
 
     let filtered = [...dataToFilter]
 
+    // Filter by certificate type (only for certificates tab)
+    if (activeTab === 'certificates' && certificateType !== 'all') {
+      filtered = filtered.filter(item => item.certificate_type === certificateType)
+    }
+
     // Filter by class
     if (selectedClass) {
       filtered = filtered.filter(item => item.class_id === selectedClass)
@@ -368,11 +398,18 @@ export default function StudentReportsPage() {
     setSearchAdmissionNo('')
   }
 
-  const handlePrint = async (item) => {
+  const handlePrint = async (item, type = null) => {
     try {
       if (activeTab === 'certificates') {
-        // Import certificate generation logic from certificates page
-        await generateCertificatePDF(item)
+        // Generate based on type: 'character', 'leaving', or 'idcard'
+        if (type === 'idcard') {
+          await generateIDCardPDF(item)
+        } else if (type === 'leaving') {
+          await generateLeavingCertificatePDF(item)
+        } else {
+          // Default to character certificate
+          await generateCertificatePDF(item)
+        }
       } else {
         // Import ID card generation logic from cards page
         await generateIDCardPDF(item)
@@ -424,6 +461,7 @@ export default function StudentReportsPage() {
     }
 
     // Fetch exam marks for the student
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
     let examMarksData = null
     try {
       const { data: marksData, error: marksError } = await supabase
@@ -436,6 +474,8 @@ export default function StudentReportsPage() {
           )
         `)
         .eq('student_id', item.student_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .order('created_at', { ascending: false })
 
       if (!marksError && marksData && marksData.length > 0) {
@@ -476,6 +516,8 @@ export default function StudentReportsPage() {
     const { data: schoolData } = await supabase
       .from('schools')
       .select('*')
+      .eq('user_id', userId)
+      .eq('id', schoolId)
       .limit(1)
       .single()
 
@@ -715,7 +757,227 @@ export default function StudentReportsPage() {
     doc.setTextColor(...textRgb)
     doc.text(certificateSettings.principalTitle || 'Principal Signature', signX + 7, signY + 10, { align: 'center' })
 
-    const fileName = `certificate_${item.admission_number}_${new Date().getTime()}.pdf`
+    const fileName = `character_certificate_${item.admission_number}_${new Date().getTime()}.pdf`
+    doc.save(fileName)
+  }
+
+  // Leaving Certificate generation function
+  const generateLeavingCertificatePDF = async (item) => {
+    // Load certificate settings
+    let certificateSettings = {
+      instituteName: 'Superior College Bhakkar',
+      instituteLocation: 'Bhakkar',
+      showSchoolLogo: true,
+      logoSize: 'medium',
+      borderColor: '#8B4513',
+      headerTextColor: '#8B4513',
+      textColor: '#000000',
+      accentColor: '#D2691E',
+      fieldValueColor: '#00008B',
+      instituteNameSize: 20,
+      instituteTitleSize: 18,
+      fieldLabelSize: 10,
+      showSerialNumber: true,
+      showDate: true,
+      principalTitle: 'Principal Signature',
+      schoolNameInSignature: 'Superior College Bhakkar',
+      showBorder: true,
+      headerSpacing: 10,
+      fieldSpacing: 9,
+      sectionSpacing: 20,
+      pageOrientation: 'portrait'
+    }
+
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('certificateSettings')
+      if (saved) certificateSettings = JSON.parse(saved)
+    }
+
+    const { data: schoolData } = await supabase
+      .from('schools')
+      .select('*')
+      .limit(1)
+      .single()
+
+    let schoolLogo = schoolData?.logo_url
+    if (schoolData?.logo_url && (schoolData.logo_url.startsWith('http://') || schoolData.logo_url.startsWith('https://'))) {
+      schoolLogo = await convertImageToBase64(schoolData.logo_url)
+    }
+
+    const doc = new jsPDF({
+      orientation: certificateSettings.pageOrientation || 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 15
+
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0]
+    }
+
+    const textRgb = hexToRgb(certificateSettings.textColor || '#000000')
+    const headerRgb = hexToRgb(certificateSettings.headerTextColor || '#8B4513')
+    const accentRgb = hexToRgb(certificateSettings.accentColor || '#D2691E')
+
+    if (certificateSettings.showBorder) {
+      addDecorativeBorder(doc, certificateSettings.borderColor || '#8B4513')
+    }
+
+    if (certificateSettings.showSerialNumber) {
+      const certNumber = `LC${new Date().getFullYear()}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
+      doc.setFontSize(9)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...textRgb)
+      doc.text(`Sr. No.: ${certNumber}`, margin + 5, margin + 11)
+    }
+
+    if (certificateSettings.showDate) {
+      const today = new Date()
+      const currentDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Dated:', pageWidth - margin - 48, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(currentDate, pageWidth - margin - 31, margin + 11)
+    }
+
+    const isLandscape = certificateSettings.pageOrientation === 'landscape'
+    const headerSpacing = isLandscape ? Math.max((certificateSettings.headerSpacing || 10) - 3, 5) : (certificateSettings.headerSpacing || 10)
+    const fieldSpacing = isLandscape ? Math.max((certificateSettings.fieldSpacing || 9) - 2, 6) : (certificateSettings.fieldSpacing || 9)
+    const sectionSpacing = isLandscape ? Math.max((certificateSettings.sectionSpacing || 20) - 8, 10) : (certificateSettings.sectionSpacing || 20)
+    let currentHeaderY = margin + (isLandscape ? 10 : 15)
+
+    if (certificateSettings.showSchoolLogo && schoolLogo) {
+      try {
+        const logoSize = 20
+        const logoX = (pageWidth - logoSize) / 2
+        let format = schoolLogo.includes('data:image/jpeg') ? 'JPEG' : 'PNG'
+        doc.addImage(schoolLogo, format, logoX, currentHeaderY, logoSize, logoSize)
+        currentHeaderY += logoSize + headerSpacing
+      } catch (error) {
+        console.error('Error adding logo:', error)
+      }
+    }
+
+    doc.setFontSize(certificateSettings.instituteNameSize || 20)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...headerRgb)
+    let instituteName = certificateSettings.instituteName || schoolData?.name || 'School Name'
+    if (instituteName.includes('%')) instituteName = schoolData?.name || 'Superior College Bhakkar'
+    doc.text(instituteName, pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
+
+    doc.setFontSize(9)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...textRgb)
+    doc.text(certificateSettings.instituteLocation || schoolData?.address || 'School Address', pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
+
+    doc.setFontSize(certificateSettings.instituteTitleSize || 18)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...accentRgb)
+    doc.text('LEAVING CERTIFICATE', pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
+
+    const leftColX = margin + 18
+    const rightColX = pageWidth / 2 + 10
+    const labelWidth = 40
+    let currentY = currentHeaderY
+
+    doc.setFontSize(certificateSettings.fieldLabelSize || 10)
+
+    const studentFullName = `${item.student_first_name || ''}${item.student_last_name ? ' ' + item.student_last_name : ''}`.trim()
+    const formatDate = (dateStr) => {
+      if (!dateStr) return 'N/A'
+      const d = new Date(dateStr)
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+    }
+
+    // Row 1
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Name of Student:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    doc.text(studentFullName, leftColX + labelWidth, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Class:', rightColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    doc.text(item.class_name || 'N/A', rightColX + 15, currentY)
+    currentY += fieldSpacing
+
+    // Row 2
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Father Name:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    doc.text(item.father_name || 'N/A', leftColX + labelWidth, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Admission No:', rightColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    doc.text(item.admission_number || 'N/A', rightColX + 30, currentY)
+    currentY += fieldSpacing
+
+    // Row 3
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Date of Birth:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    doc.text(formatDate(item.date_of_birth), leftColX + labelWidth, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Admission Date:', rightColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    doc.text(formatDate(item.admission_date), rightColX + 35, currentY)
+    currentY += fieldSpacing
+
+    // Row 4
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Character:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    doc.text('Good', leftColX + labelWidth, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Leaving Date:', rightColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor))
+    const today = new Date()
+    const leavingDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`
+    doc.text(leavingDate, rightColX + 30, currentY)
+    currentY += fieldSpacing + sectionSpacing
+
+    // Certificate Text
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...textRgb)
+    const genderRelation = item.gender?.toLowerCase() === 'female' ? 'daughter' : 'son'
+    const certificateText = `This is to certify that ${studentFullName}, ${genderRelation} of ${item.father_name || 'N/A'}, has been a student of ${instituteName}. The student has cleared all dues and is leaving the school with good character and conduct. We wish them success in their future endeavors.`
+    doc.text(certificateText, leftColX, currentY, { maxWidth: pageWidth - (2 * leftColX), align: 'justify', lineHeightFactor: 1.5 })
+
+    // Signature
+    const signX = pageWidth - margin - 45
+    const signY = pageHeight - margin - 30
+    doc.setLineWidth(0.3)
+    doc.setDrawColor(...textRgb)
+    doc.line(signX - 15, signY + 5, signX + 30, signY + 5)
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.text(certificateSettings.principalTitle || 'Principal', signX + 7, signY + 10, { align: 'center' })
+
+    const fileName = `leaving_certificate_${item.admission_number}_${new Date().getTime()}.pdf`
     doc.save(fileName)
   }
 
@@ -778,6 +1040,8 @@ export default function StudentReportsPage() {
     const { data: schoolData } = await supabase
       .from('schools')
       .select('*')
+      .eq('user_id', userId)
+      .eq('id', schoolId)
       .limit(1)
       .single()
 
@@ -1196,20 +1460,23 @@ export default function StudentReportsPage() {
     if (!itemToDelete) return
 
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const tableName = activeTab === 'certificates' ? 'student_certificates' : 'student_id_cards'
 
       const { error } = await supabase
         .from(tableName)
         .delete()
         .eq('id', itemToDelete.id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (error) throw error
 
-      // Refresh data
+      // Remove from state without reloading entire page
       if (activeTab === 'certificates') {
-        await fetchCertificates()
+        setCertificates(prev => prev.filter(cert => cert.id !== itemToDelete.id))
       } else {
-        await fetchIdCards()
+        setIdCards(prev => prev.filter(card => card.id !== itemToDelete.id))
       }
 
       showToast(`${activeTab === 'certificates' ? 'Certificate' : 'ID card'} deleted successfully!`, 'success')
@@ -1307,25 +1574,55 @@ export default function StudentReportsPage() {
       <div className="bg-white rounded-xl shadow-lg">
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <div className="flex gap-2 p-4">
+          <div className="flex flex-wrap gap-2 p-4">
+            {/* Character Certificate Button */}
             <button
-              onClick={() => setActiveTab('certificates')}
+              onClick={() => {
+                setActiveTab('certificates')
+                setCertificateType('character')
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
-                activeTab === 'certificates'
+                activeTab === 'certificates' && certificateType === 'character'
                   ? 'bg-[#D12323] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               <FileText size={18} />
-              <span>Certificates</span>
+              <span>Character Certificate</span>
               <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
-                activeTab === 'certificates' ? 'bg-white/20' : 'bg-gray-300'
+                activeTab === 'certificates' && certificateType === 'character' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
-                {certificates.length}
+                {certificates.filter(cert => cert.certificate_type === 'character').length}
               </span>
             </button>
+
+            {/* Leaving Certificate Button */}
             <button
-              onClick={() => setActiveTab('cards')}
+              onClick={() => {
+                setActiveTab('certificates')
+                setCertificateType('leaving')
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+                activeTab === 'certificates' && certificateType === 'leaving'
+                  ? 'bg-[#D12323] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <FileText size={18} />
+              <span>Leaving Certificate</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+                activeTab === 'certificates' && certificateType === 'leaving' ? 'bg-white/20' : 'bg-gray-300'
+              }`}>
+                {certificates.filter(cert => cert.certificate_type === 'leaving').length}
+              </span>
+            </button>
+
+            {/* ID Cards Button */}
+            <button
+              onClick={() => {
+                setActiveTab('cards')
+                setCertificateType('all')
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
                 activeTab === 'cards'
                   ? 'bg-[#D12323] text-white'
@@ -1574,10 +1871,10 @@ export default function StudentReportsPage() {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handlePrint(item)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
-                            title="Download"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Print"
                           >
-                            <Download size={16} />
+                            <Printer size={16} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}

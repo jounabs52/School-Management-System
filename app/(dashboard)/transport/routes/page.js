@@ -205,6 +205,7 @@ export default function RoutesPage() {
       const { data: routeData, error: routeError } = await supabase
         .from('routes')
         .insert([{
+          user_id: user.id,
           school_id: user.school_id,
           created_by: user.id,
           route_name: formData.routeName,
@@ -226,6 +227,7 @@ export default function RoutesPage() {
         const newRouteId = routeData[0].id
 
         const stationsToInsert = formData.stationsList.map((station, index) => ({
+          user_id: user.id,
           school_id: user.school_id,
           created_by: user.id,
           route_id: newRouteId,
@@ -361,6 +363,7 @@ export default function RoutesPage() {
           : 0
 
         const stationsToInsert = formData.stationsList.map((station, index) => ({
+          user_id: user.id,
           school_id: user.school_id,
           created_by: user.id,
           route_id: selectedRoute.id,
@@ -496,6 +499,7 @@ export default function RoutesPage() {
       const { data, error } = await supabase
         .from('stations')
         .insert([{
+          user_id: user.id,
           school_id: user.school_id,
           created_by: user.id,
           route_id: selectedRoute.id,
@@ -582,6 +586,7 @@ export default function RoutesPage() {
         : 0
 
       const stationsToInsert = validStations.map((station, index) => ({
+        user_id: user.id,
         school_id: user.school_id,
         created_by: user.id,
         route_id: selectedRoute.id,

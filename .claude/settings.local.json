@@ -8,7 +8,21 @@
       "Bash(npx eslint:*)",
       "Bash(tail:*)",
       "Bash(npx tsc:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(cp:*)",
+      "Bash(timeout 30 npm run dev:*)",
+      "Bash(timeout 60 npm run dev:*)",
+      "Bash(npm run dev)",
+      "Bash(timeout 10 tail:*)",
+      "Bash(exit 0)",
+      "Bash(done)",
+      "Bash(cygpath:*)",
+      "Bash(for file in app/\\\\\\(dashboard\\\\\\)/payroll/reports/salary-paid/page.js app/\\\\\\(dashboard\\\\\\)/payroll/reports/salary-register/page.js app/\\\\\\(dashboard\\\\\\)/hr/active/page.js)",
+      "Bash(do grep -q \"from\\(''schools''\\)\" \"$file\")",
+      "Bash(echo:*)",
+      "Bash(timeout 15 tail:*)",
+      "Bash(grep:*)"
     ]
   }
 }

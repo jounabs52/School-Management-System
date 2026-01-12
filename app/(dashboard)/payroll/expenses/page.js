@@ -7,13 +7,14 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast, { Toaster } from 'react-hot-toast'
 import {
-  addPDFHeader,
-  addPDFFooter,
-  addPDFWatermark,
-  formatCurrency,
-  convertImageToBase64,
-  PDF_COLORS
-} from '@/lib/pdfUtils'
+  getPdfSettings,
+  hexToRgb,
+  getMarginValues,
+  getLogoSize,
+  applyPdfSettings
+} from '@/lib/pdfSettings'
+import { convertImageToBase64 } from '@/lib/pdfUtils'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function ExpensesPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -49,6 +50,11 @@ export default function ExpensesPage() {
     description: '',
     status: 'pending'
   })
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
 
   useEffect(() => {
     const userData = document.cookie
@@ -150,6 +156,7 @@ export default function ExpensesPage() {
       const { data, error } = await supabase
         .from('expense_categories')
         .select('*')
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('category_name')
@@ -182,6 +189,7 @@ export default function ExpensesPage() {
             username
           )
         `)
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('expense_date', { ascending: false })
 
@@ -238,6 +246,7 @@ export default function ExpensesPage() {
       const { error } = await supabase
         .from('expenses')
         .insert({
+          user_id: currentUser.id,
           school_id: currentUser.school_id,
           ...formData,
           paid_by: currentUser.id
@@ -261,6 +270,8 @@ export default function ExpensesPage() {
         .from('expenses')
         .update(formData)
         .eq('id', selectedExpense.id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
 
@@ -281,6 +292,8 @@ export default function ExpensesPage() {
         .from('expenses')
         .delete()
         .eq('id', selectedExpense.id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
 
@@ -303,6 +316,8 @@ export default function ExpensesPage() {
           approved_by: currentUser.id
         })
         .eq('id', expenseId)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
 
@@ -342,7 +357,7 @@ export default function ExpensesPage() {
     setShowEditModal(true)
   }
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (filteredExpenses.length === 0) {
       toast.error('No data to print')
       return
@@ -354,23 +369,57 @@ export default function ExpensesPage() {
     }
 
     try {
+      const pdfSettings = getPdfSettings()
       const pdf = new jsPDF('l', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margins = getMarginValues(pdfSettings)
 
-      // Add professional header
-      const totalAmount = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0)
-      const headerOptions = {
-        subtitle: startDate && endDate
-          ? `${new Date(startDate).toLocaleDateString('en-GB')} to ${new Date(endDate).toLocaleDateString('en-GB')}`
-          : 'All Expenses',
-        info: `Total Expenses: ${filteredExpenses.length} | Amount: ${formatCurrency(totalAmount)}`
+      // Add logo and header if enabled
+      let yPos = margins.top
+      if (pdfSettings.includeLogo && schoolDetails.logo_url) {
+        try {
+          const logoData = await convertImageToBase64(schoolDetails.logo_url)
+          const logoSize = getLogoSize(pdfSettings.logoSize)
+          const logoX = (pageWidth - logoSize.width) / 2
+          pdf.addImage(logoData, 'PNG', logoX, yPos, logoSize.width, logoSize.height)
+          yPos += logoSize.height + 5
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
       }
-      let yPos = addPDFHeader(pdf, schoolDetails, 'EXPENSE REPORT', headerOptions)
 
-      // Add watermark
-      addPDFWatermark(pdf, schoolDetails, 'CONFIDENTIAL')
+      // Add school name and header
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
 
+      if (pdfSettings.includeSchoolName && schoolDetails.name) {
+        pdf.setFontSize(16)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(...textColor)
+        pdf.text(schoolDetails.name, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 7
+      }
+
+      // Title
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('EXPENSE REPORT', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 6
+
+      // Subtitle with date range
+      const totalAmount = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0)
+      const subtitle = startDate && endDate
+        ? `${new Date(startDate).toLocaleDateString('en-GB')} to ${new Date(endDate).toLocaleDateString('en-GB')}`
+        : 'All Expenses'
+
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(subtitle, pageWidth / 2, yPos, { align: 'center' })
       yPos += 5
+
+      pdf.text(`Total Expenses: ${filteredExpenses.length} | Amount: Rs ${totalAmount.toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 8
 
       // Prepare table data
       const tableData = filteredExpenses.map((expense, index) => [
@@ -394,14 +443,15 @@ export default function ExpensesPage() {
         body: [...tableData, totals],
         theme: 'grid',
         headStyles: {
-          fillColor: PDF_COLORS.headerBg,
+          fillColor: headerBgColor,
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold'
         },
         styles: {
           fontSize: 8,
-          cellPadding: 2
+          cellPadding: 2,
+          textColor: textColor
         },
         columnStyles: {
           0: { cellWidth: 10, halign: 'center' },
@@ -421,15 +471,32 @@ export default function ExpensesPage() {
         }
       })
 
-      // Add professional footer
-      addPDFFooter(pdf, 1, 1)
+      // Add footer if enabled
+      if (pdfSettings.includeFooter && pdfSettings.footerText) {
+        const footerY = pageHeight - margins.bottom + 5
+        pdf.setFontSize(8)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(...textColor)
+        pdf.text(pdfSettings.footerText, pageWidth / 2, footerY, { align: 'center' })
+      }
 
-      pdf.save(`Expense-Report-${new Date().toLocaleDateString('en-GB')}.pdf`)
-      toast.success('Expense report downloaded successfully!')
+      // Generate blob and show preview
+      const fileName = `Expense-Report-${new Date().toLocaleDateString('en-GB')}.pdf`
+      const pdfBlob = pdf.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
     } catch (error) {
       console.error('Error generating PDF:', error)
       toast.error('Failed to generate PDF: ' + error.message)
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   const handleExport = () => {
@@ -1041,34 +1108,53 @@ export default function ExpensesPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-3">
-              <h3 className="text-base font-bold text-gray-900 mb-2">Delete Expense</h3>
-              <p className="text-gray-600 mb-2">
-                Are you sure you want to delete this expense? This action cannot be undone.
-              </p>
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowDeleteModal(false)
-                    setSelectedExpense(null)
-                  }}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteExpense}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Delete
-                </button>
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={() => {
+              setShowDeleteModal(false)
+              setSelectedExpense(null)
+            }}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+                <h3 className="text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete this expense? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false)
+                      setSelectedExpense(null)
+                    }}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteExpense}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

@@ -282,11 +282,71 @@ export default function ReportsPage() {
       )
       .subscribe()
 
+    const passengersSubscription = supabase
+      .channel('passengers_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'passengers',
+          filter: `school_id=eq.${currentUser.school_id}`
+        },
+        () => {
+          setIsRealTimeActive(true)
+          setLastUpdated(new Date())
+          fetchTransportDataRealtime()
+          setTimeout(() => setIsRealTimeActive(false), 2000)
+        }
+      )
+      .subscribe()
+
+    const vehiclesSubscription = supabase
+      .channel('vehicles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vehicles',
+          filter: `school_id=eq.${currentUser.school_id}`
+        },
+        () => {
+          setIsRealTimeActive(true)
+          setLastUpdated(new Date())
+          fetchTransportDataRealtime()
+          setTimeout(() => setIsRealTimeActive(false), 2000)
+        }
+      )
+      .subscribe()
+
+    const routesSubscription = supabase
+      .channel('routes_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'routes',
+          filter: `school_id=eq.${currentUser.school_id}`
+        },
+        () => {
+          setIsRealTimeActive(true)
+          setLastUpdated(new Date())
+          fetchTransportDataRealtime()
+          setTimeout(() => setIsRealTimeActive(false), 2000)
+        }
+      )
+      .subscribe()
+
     return () => {
       supabase.removeChannel(salarySubscription)
       supabase.removeChannel(feeSubscription)
       supabase.removeChannel(studentSubscription)
       supabase.removeChannel(teacherSubscription)
+      supabase.removeChannel(passengersSubscription)
+      supabase.removeChannel(vehiclesSubscription)
+      supabase.removeChannel(routesSubscription)
     }
   }, [currentUser])
 
@@ -318,33 +378,40 @@ export default function ReportsPage() {
         supabase
           .from('fee_challans')
           .select('total_amount, status, created_at')
-          .eq('school_id', currentUser.school_id),
+          .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id),
         supabase
           .from('salary_payments')
           .select('net_salary, status, created_at')
-          .eq('school_id', currentUser.school_id),
+          .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id),
         supabase
           .from('students')
           .select('status')
-          .eq('school_id', currentUser.school_id),
+          .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id),
         supabase
           .from('staff')
           .select('status')
-          .eq('school_id', currentUser.school_id),
+          .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id),
         supabase
           .from('passengers')
           .select('payment_status, student_id, staff_id, created_at, final_fare, type')
           .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id)
           .eq('status', 'active'),
         supabase
           .from('vehicles')
           .select('id')
           .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id)
           .eq('status', 'active'),
         supabase
           .from('routes')
           .select('id')
           .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id)
           .eq('status', 'active')
       ])
 
@@ -424,6 +491,7 @@ export default function ReportsPage() {
         .from('salary_payments')
         .select('net_salary, status, created_at')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       if (!error && salaries) {
         setAllPayrollData(salaries)
@@ -441,6 +509,7 @@ export default function ReportsPage() {
         .from('fee_challans')
         .select('total_amount, status, created_at')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       if (!error && feeChallans) {
         setAllYearData(feeChallans)
@@ -458,6 +527,7 @@ export default function ReportsPage() {
         .from('students')
         .select('status')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       if (!error && students) {
         setStudentStats({
@@ -479,6 +549,7 @@ export default function ReportsPage() {
         .from('staff')
         .select('status')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       if (!error && teachers) {
         setTeacherStats({
@@ -492,13 +563,71 @@ export default function ReportsPage() {
     }
   }
 
+  const fetchTransportDataRealtime = async () => {
+    if (!currentUser?.school_id || !supabase) return
+
+    try {
+      const [transportResult, vehiclesResult, routesResult] = await Promise.all([
+        supabase
+          .from('passengers')
+          .select('payment_status, student_id, staff_id, created_at, final_fare, type')
+          .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id)
+          .eq('status', 'active'),
+        supabase
+          .from('vehicles')
+          .select('id')
+          .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id)
+          .eq('status', 'active'),
+        supabase
+          .from('routes')
+          .select('id')
+          .eq('school_id', currentUser.school_id)
+          .eq('user_id', currentUser.id)
+          .eq('status', 'active')
+      ])
+
+      if (!transportResult.error && transportResult.data) {
+        setAllTransportData(transportResult.data)
+
+        const totalPassengers = transportResult.data.length
+        const studentPassengers = transportResult.data.filter(p => p.student_id).length
+        const staffPassengers = transportResult.data.filter(p => p.staff_id).length
+        const paidPassengers = transportResult.data.filter(p => p.payment_status === 'paid').length
+        const pendingPassengers = transportResult.data.filter(p => p.payment_status === 'pending').length
+
+        const paidAmount = transportResult.data
+          .filter(p => p.payment_status === 'paid')
+          .reduce((sum, p) => sum + (parseFloat(p.final_fare) || 0), 0)
+        const pendingAmount = transportResult.data
+          .filter(p => p.payment_status === 'pending')
+          .reduce((sum, p) => sum + (parseFloat(p.final_fare) || 0), 0)
+        const totalAmount = paidAmount + pendingAmount
+
+        setTransportData({
+          total: totalPassengers,
+          students: studentPassengers,
+          staff: staffPassengers,
+          paid: paidPassengers,
+          pending: pendingPassengers,
+          totalAmount,
+          paidAmount,
+          pendingAmount,
+          totalVehicles: vehiclesResult.data?.length || 0,
+          totalRoutes: routesResult.data?.length || 0
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching transport data:', error)
+    }
+  }
+
   const calculateMonthData = () => {
     if (allYearData.length === 0) return
 
-    // Apply date range filter first (for Overview and Earnings sections)
-    let dateFilteredData = activeSection === 'overview' || activeSection === 'earning-report'
-      ? filterByDateRange(allYearData)
-      : allYearData
+    // Apply date range filter first (applies to ALL sections)
+    let dateFilteredData = filterByDateRange(allYearData)
 
     let yearFilteredData = dateFilteredData
     if (selectedYear !== 'all') {
@@ -602,10 +731,8 @@ export default function ReportsPage() {
       return
     }
 
-    // Apply date range filter first (for Overview and Earnings sections)
-    let dateFilteredData = activeSection === 'overview' || activeSection === 'earning-report'
-      ? filterByDateRange(allPayrollData)
-      : allPayrollData
+    // Apply date range filter first (applies to ALL sections)
+    let dateFilteredData = filterByDateRange(allPayrollData)
 
     let yearFilteredData = dateFilteredData
     if (selectedYear !== 'all') {
@@ -709,10 +836,8 @@ export default function ReportsPage() {
       return
     }
 
-    // Apply date range filter first (for Overview and Earnings sections)
-    let dateFilteredData = activeSection === 'overview' || activeSection === 'earning-report'
-      ? filterByDateRange(allTransportData)
-      : allTransportData
+    // Apply date range filter first (applies to ALL sections)
+    let dateFilteredData = filterByDateRange(allTransportData)
 
     let yearFilteredData = dateFilteredData
     if (selectedYear !== 'all') {
@@ -835,6 +960,452 @@ export default function ReportsPage() {
       ...prev,
       [barType]: !prev[barType]
     }))
+  }
+
+  // Section-specific CSV export functions
+  const exportOverviewCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,"
+    csvContent += "Overview Report\n\n"
+    csvContent += `Report Period: ${dateFilter === 'all' ? 'All Time' : dateFilter}\n\n`
+
+    csvContent += "Student Statistics\n"
+    csvContent += "Total,Active,Inactive\n"
+    csvContent += `${studentStats.total},${studentStats.active},${studentStats.inactive}\n\n`
+
+    csvContent += "Teacher Statistics\n"
+    csvContent += "Total,Active,Inactive\n"
+    csvContent += `${teacherStats.total},${teacherStats.active},${teacherStats.inactive}\n\n`
+
+    csvContent += "Fee Summary\n"
+    csvContent += "Status,Count,Amount\n"
+    csvContent += `Total,${feeData.total},${feeData.totalAmount}\n`
+    csvContent += `Paid,${feeData.paid},${feeData.paidAmount}\n`
+    csvContent += `Pending,${feeData.pending},${feeData.pendingAmount}\n`
+    csvContent += `Overdue,${feeData.overdue},${feeData.overdueAmount}\n\n`
+
+    csvContent += "Payroll Summary\n"
+    csvContent += "Status,Count,Amount\n"
+    csvContent += `Total,${payrollData.total},${payrollData.totalAmount}\n`
+    csvContent += `Paid,${payrollData.paid},${payrollData.paidAmount}\n`
+    csvContent += `Pending,${payrollData.pending},${payrollData.pendingAmount}\n\n`
+
+    csvContent += "Transport Summary\n"
+    csvContent += "Category,Count,Amount\n"
+    csvContent += `Total Passengers,${transportData.total},${transportData.totalAmount}\n`
+    csvContent += `Paid,${transportData.paid},${transportData.paidAmount}\n`
+    csvContent += `Pending,${transportData.pending},${transportData.pendingAmount}\n`
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `overview-report-${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportFeeAnalyticsCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,"
+    csvContent += "Fee Analytics Report\n\n"
+    csvContent += `Report Period: ${dateFilter === 'all' ? 'All Time' : dateFilter}\n\n`
+    csvContent += "Status,Count,Amount\n"
+    csvContent += `Total,${feeData.total},${feeData.totalAmount}\n`
+    csvContent += `Paid,${feeData.paid},${feeData.paidAmount}\n`
+    csvContent += `Pending,${feeData.pending},${feeData.pendingAmount}\n`
+    csvContent += `Overdue,${feeData.overdue},${feeData.overdueAmount}\n`
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `fee-analytics-${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportPayrollAnalyticsCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,"
+    csvContent += "Payroll Analytics Report\n\n"
+    csvContent += `Report Period: ${dateFilter === 'all' ? 'All Time' : dateFilter}\n\n`
+    csvContent += "Status,Count,Amount\n"
+    csvContent += `Total,${payrollData.total},${payrollData.totalAmount}\n`
+    csvContent += `Paid,${payrollData.paid},${payrollData.paidAmount}\n`
+    csvContent += `Pending,${payrollData.pending},${payrollData.pendingAmount}\n`
+    csvContent += `Cancelled,${payrollData.cancelled},${payrollData.cancelledAmount}\n`
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `payroll-analytics-${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportTransportAnalyticsCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,"
+    csvContent += "Transport Analytics Report\n\n"
+    csvContent += `Report Period: ${dateFilter === 'all' ? 'All Time' : dateFilter}\n\n`
+    csvContent += "Category,Count,Amount\n"
+    csvContent += `Total Passengers,${transportData.total},${transportData.totalAmount}\n`
+    csvContent += `Students,${transportData.students},-\n`
+    csvContent += `Staff,${transportData.staff},-\n`
+    csvContent += `Paid,${transportData.paid},${transportData.paidAmount}\n`
+    csvContent += `Pending,${transportData.pending},${transportData.pendingAmount}\n\n`
+    csvContent += "Infrastructure\n"
+    csvContent += "Type,Count\n"
+    csvContent += `Vehicles,${transportData.totalVehicles}\n`
+    csvContent += `Routes,${transportData.totalRoutes}\n`
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `transport-analytics-${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportEarningsCSV = () => {
+    const totalEarnings = feeData.paidAmount + transportData.paidAmount
+    const totalExpenses = payrollData.paidAmount
+    const netRevenue = totalEarnings - totalExpenses
+
+    let csvContent = "data:text/csv;charset=utf-8,"
+    csvContent += "Earnings Report\n\n"
+    csvContent += `Report Period: ${dateFilter === 'all' ? 'All Time' : dateFilter}\n\n`
+    csvContent += "Category,Amount\n"
+    csvContent += `Fee Collection,${feeData.paidAmount}\n`
+    csvContent += `Transport Revenue,${transportData.paidAmount}\n`
+    csvContent += `Total Earnings,${totalEarnings}\n`
+    csvContent += `Payroll Expenses,${totalExpenses}\n`
+    csvContent += `Net Revenue,${netRevenue}\n`
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `earnings-report-${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Section-specific PDF export functions
+  const exportOverviewPDF = async () => {
+    try {
+      const jsPDF = (await import('jspdf')).default
+      await import('jspdf-autotable')
+      const pdfSettings = getPdfSettings()
+
+      const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
+
+      let schoolData = { name: '', address: '', phone: '' }
+      if (currentUser?.school_id) {
+        const { data } = await supabase
+          .from('schools')
+          .select('name, address, phone')
+          .eq('id', currentUser.school_id)
+          .single()
+        if (data) schoolData = data
+      }
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      let yPos = 20
+
+      doc.setFontSize(16)
+      doc.setFont(undefined, 'bold')
+      doc.text(schoolData.name || 'School Management System', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 8
+      doc.setFontSize(14)
+      doc.text('Overview Report', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 10
+      doc.setFontSize(10)
+      doc.setFont(undefined, 'normal')
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 15
+
+      // Student Stats
+      doc.autoTable({
+        startY: yPos,
+        head: [['Student Statistics', 'Count']],
+        body: [
+          ['Total Students', studentStats.total],
+          ['Active Students', studentStats.active],
+          ['Inactive Students', studentStats.inactive]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      yPos = doc.lastAutoTable.finalY + 10
+
+      // Teacher Stats
+      doc.autoTable({
+        startY: yPos,
+        head: [['Teacher Statistics', 'Count']],
+        body: [
+          ['Total Teachers', teacherStats.total],
+          ['Active Teachers', teacherStats.active],
+          ['Inactive Teachers', teacherStats.inactive]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      yPos = doc.lastAutoTable.finalY + 10
+
+      // Fee Summary
+      doc.autoTable({
+        startY: yPos,
+        head: [['Fee Summary', 'Count', 'Amount']],
+        body: [
+          ['Total', feeData.total, feeData.totalAmount.toFixed(2)],
+          ['Paid', feeData.paid, feeData.paidAmount.toFixed(2)],
+          ['Pending', feeData.pending, feeData.pendingAmount.toFixed(2)],
+          ['Overdue', feeData.overdue, feeData.overdueAmount.toFixed(2)]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      doc.save(`overview-report-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+    }
+  }
+
+  const exportFeeAnalyticsPDF = async () => {
+    try {
+      const jsPDF = (await import('jspdf')).default
+      await import('jspdf-autotable')
+      const pdfSettings = getPdfSettings()
+
+      const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
+
+      let schoolData = { name: '' }
+      if (currentUser?.school_id) {
+        const { data } = await supabase
+          .from('schools')
+          .select('name')
+          .eq('id', currentUser.school_id)
+          .single()
+        if (data) schoolData = data
+      }
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      let yPos = 20
+
+      doc.setFontSize(16)
+      doc.setFont(undefined, 'bold')
+      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 8
+      doc.setFontSize(14)
+      doc.text('Fee Analytics Report', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 10
+      doc.setFontSize(10)
+      doc.setFont(undefined, 'normal')
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 15
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Status', 'Count', 'Amount']],
+        body: [
+          ['Total', feeData.total, feeData.totalAmount.toFixed(2)],
+          ['Paid', feeData.paid, feeData.paidAmount.toFixed(2)],
+          ['Pending', feeData.pending, feeData.pendingAmount.toFixed(2)],
+          ['Overdue', feeData.overdue, feeData.overdueAmount.toFixed(2)]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      doc.save(`fee-analytics-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+    }
+  }
+
+  const exportPayrollAnalyticsPDF = async () => {
+    try {
+      const jsPDF = (await import('jspdf')).default
+      await import('jspdf-autotable')
+      const pdfSettings = getPdfSettings()
+
+      const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
+
+      let schoolData = { name: '' }
+      if (currentUser?.school_id) {
+        const { data } = await supabase
+          .from('schools')
+          .select('name')
+          .eq('id', currentUser.school_id)
+          .single()
+        if (data) schoolData = data
+      }
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      let yPos = 20
+
+      doc.setFontSize(16)
+      doc.setFont(undefined, 'bold')
+      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 8
+      doc.setFontSize(14)
+      doc.text('Payroll Analytics Report', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 10
+      doc.setFontSize(10)
+      doc.setFont(undefined, 'normal')
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 15
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Status', 'Count', 'Amount']],
+        body: [
+          ['Total', payrollData.total, payrollData.totalAmount.toFixed(2)],
+          ['Paid', payrollData.paid, payrollData.paidAmount.toFixed(2)],
+          ['Pending', payrollData.pending, payrollData.pendingAmount.toFixed(2)],
+          ['Cancelled', payrollData.cancelled, payrollData.cancelledAmount.toFixed(2)]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      doc.save(`payroll-analytics-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+    }
+  }
+
+  const exportTransportAnalyticsPDF = async () => {
+    try {
+      const jsPDF = (await import('jspdf')).default
+      await import('jspdf-autotable')
+      const pdfSettings = getPdfSettings()
+
+      const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
+
+      let schoolData = { name: '' }
+      if (currentUser?.school_id) {
+        const { data } = await supabase
+          .from('schools')
+          .select('name')
+          .eq('id', currentUser.school_id)
+          .single()
+        if (data) schoolData = data
+      }
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      let yPos = 20
+
+      doc.setFontSize(16)
+      doc.setFont(undefined, 'bold')
+      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 8
+      doc.setFontSize(14)
+      doc.text('Transport Analytics Report', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 10
+      doc.setFontSize(10)
+      doc.setFont(undefined, 'normal')
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 15
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Category', 'Count', 'Amount']],
+        body: [
+          ['Total Passengers', transportData.total, transportData.totalAmount.toFixed(2)],
+          ['Students', transportData.students, '-'],
+          ['Staff', transportData.staff, '-'],
+          ['Paid', transportData.paid, transportData.paidAmount.toFixed(2)],
+          ['Pending', transportData.pending, transportData.pendingAmount.toFixed(2)]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      yPos = doc.lastAutoTable.finalY + 10
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Infrastructure', 'Count']],
+        body: [
+          ['Vehicles', transportData.totalVehicles],
+          ['Routes', transportData.totalRoutes]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      doc.save(`transport-analytics-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+    }
+  }
+
+  const exportEarningsPDF = async () => {
+    try {
+      const jsPDF = (await import('jspdf')).default
+      await import('jspdf-autotable')
+      const pdfSettings = getPdfSettings()
+
+      const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
+
+      let schoolData = { name: '' }
+      if (currentUser?.school_id) {
+        const { data } = await supabase
+          .from('schools')
+          .select('name')
+          .eq('id', currentUser.school_id)
+          .single()
+        if (data) schoolData = data
+      }
+
+      const totalEarnings = feeData.paidAmount + transportData.paidAmount
+      const totalExpenses = payrollData.paidAmount
+      const netRevenue = totalEarnings - totalExpenses
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      let yPos = 20
+
+      doc.setFontSize(16)
+      doc.setFont(undefined, 'bold')
+      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 8
+      doc.setFontSize(14)
+      doc.text('Earnings Report', pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 10
+      doc.setFontSize(10)
+      doc.setFont(undefined, 'normal')
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+
+      yPos += 15
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Category', 'Amount']],
+        body: [
+          ['Fee Collection', feeData.paidAmount.toFixed(2)],
+          ['Transport Revenue', transportData.paidAmount.toFixed(2)],
+          ['Total Earnings', totalEarnings.toFixed(2)],
+          ['Payroll Expenses', totalExpenses.toFixed(2)],
+          ['Net Revenue', netRevenue.toFixed(2)]
+        ],
+        ...getAutoTableStyles(pdfSettings)
+      })
+
+      doc.save(`earnings-report-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+    }
   }
 
   const exportToCSV = () => {
@@ -1337,6 +1908,29 @@ export default function ReportsPage() {
               )}
             </div>
 
+            {/* Download Buttons */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-800">Export Overview Report</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportOverviewPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={exportOverviewCSV}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Financial Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-blue-500">
@@ -1577,6 +2171,29 @@ export default function ReportsPage() {
               </div>
             </div>
 
+            {/* Download Buttons */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-800">Export Fee Analytics Report</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportFeeAnalyticsPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={exportFeeAnalyticsCSV}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md">
@@ -1752,6 +2369,29 @@ export default function ReportsPage() {
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Download Buttons */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-800">Export Payroll Analytics Report</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportPayrollAnalyticsPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={exportPayrollAnalyticsCSV}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
                 </div>
               </div>
             </div>
@@ -1953,6 +2593,29 @@ export default function ReportsPage() {
               )}
             </div>
 
+            {/* Download Buttons */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-800">Export Earnings Report</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportEarningsPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={exportEarningsCSV}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border-2 border-green-200">
@@ -2086,6 +2749,29 @@ export default function ReportsPage() {
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Download Buttons */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-800">Export Transport Analytics Report</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportTransportAnalyticsPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={exportTransportAnalyticsCSV}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
                 </div>
               </div>
             </div>

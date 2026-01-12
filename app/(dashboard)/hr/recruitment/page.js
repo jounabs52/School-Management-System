@@ -303,6 +303,7 @@ export default function RecruitmentPage() {
             subject_name: subjectName
           })
           .eq('id', editingSubject.id)
+          .eq('school_id', currentUser.school_id)
 
         if (error) throw error
         showToast('Subject updated successfully!', 'success')
@@ -382,6 +383,7 @@ export default function RecruitmentPage() {
             description: jobForm.description
           })
           .eq('id', editingJob.id)
+          .eq('school_id', currentUser.school_id)
 
         if (error) throw error
         showToast('Job updated successfully!', 'success')
@@ -459,6 +461,7 @@ export default function RecruitmentPage() {
             photo_url: applicationForm.photo_url || null
           })
           .eq('id', editingApplication.id)
+          .eq('school_id', currentUser.school_id)
 
         if (error) throw error
         showToast('Application updated successfully!', 'success')
@@ -543,6 +546,7 @@ export default function RecruitmentPage() {
             notes: interviewForm.notes || null
           })
           .eq('id', editingInterview.id)
+          .eq('school_id', currentUser.school_id)
 
         if (error) throw error
         showToast('Interview updated successfully!', 'success')
@@ -608,6 +612,7 @@ export default function RecruitmentPage() {
             .from('job_interviews')
             .delete()
             .eq('id', id)
+            .eq('school_id', currentUser.school_id)
 
           if (error) throw error
           showToast('Interview deleted successfully', 'success')
@@ -664,6 +669,7 @@ export default function RecruitmentPage() {
             .from('job_interviews')
             .update({ status: 'completed' })
             .eq('id', interviewId)
+            .eq('school_id', currentUser.school_id)
 
           if (updateInterviewError) throw updateInterviewError
 
@@ -672,6 +678,7 @@ export default function RecruitmentPage() {
             .from('job_applications')
             .update({ status: 'hired' })
             .eq('id', application.id)
+            .eq('school_id', currentUser.school_id)
 
           if (updateAppError) throw updateAppError
 
@@ -697,6 +704,7 @@ export default function RecruitmentPage() {
             .from('subjects')
             .delete()
             .eq('id', id)
+            .eq('school_id', currentUser.school_id)
 
           if (error) throw error
           showToast('Subject deleted successfully', 'success')
@@ -720,6 +728,7 @@ export default function RecruitmentPage() {
             .from('jobs')
             .delete()
             .eq('id', id)
+            .eq('school_id', currentUser.school_id)
 
           if (error) throw error
           showToast('Job deleted successfully', 'success')
@@ -743,6 +752,7 @@ export default function RecruitmentPage() {
             .from('job_applications')
             .delete()
             .eq('id', id)
+            .eq('school_id', currentUser.school_id)
 
           if (error) throw error
           showToast('Application deleted successfully', 'success')
@@ -769,6 +779,7 @@ export default function RecruitmentPage() {
         .from('job_applications')
         .update({ status: newStatus })
         .eq('id', id)
+        .eq('school_id', currentUser.school_id)
 
       if (updateError) throw updateError
 

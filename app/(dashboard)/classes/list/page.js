@@ -73,6 +73,17 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
+// Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
+
 export default function ClassListPage() {
   // Debug: Check Supabase initialization
   useEffect(() => {
@@ -171,8 +182,8 @@ export default function ClassListPage() {
   // Fetch sections for a class
   const fetchClassSections = async (classId) => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         console.error('No user found')
         return
       }
@@ -180,6 +191,8 @@ export default function ClassListPage() {
       const { data, error } = await supabase
         .from('sections')
         .select('id, section_name')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('class_id', classId)
         .eq('status', 'active')
         .order('section_name', { ascending: true })
@@ -200,8 +213,8 @@ export default function ClassListPage() {
   const fetchStudents = async (classId) => {
     try {
       setLoadingStudents(true)
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         console.error('No user found')
         setLoadingStudents(false)
         return
@@ -211,7 +224,8 @@ export default function ClassListPage() {
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('*')
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('current_class_id', classId)
         .eq('status', 'active')
         .order('roll_number', { ascending: true })
@@ -234,6 +248,8 @@ export default function ClassListPage() {
         const { data: sectionsResult, error: sectionsError } = await supabase
           .from('sections')
           .select('id, section_name')
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
           .in('id', sectionIds)
 
         if (!sectionsError) {
@@ -284,24 +300,18 @@ export default function ClassListPage() {
         return
       }
 
-      // Fetch school_id from schools table
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
         return
       }
 
-      const schoolId = school.id
       console.log('✅ Fetching staff for school_id:', schoolId)
 
       const { data, error } = await supabase
         .from('staff')
         .select('*')
+        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .eq('status', 'active')
         .eq('department', 'TEACHING')
@@ -327,26 +337,20 @@ export default function ClassListPage() {
         return
       }
 
-      // Fetch school_id from schools table (same as students pages)
-      const { data: school, error: schoolError } = await supabase
-        .from('schools')
-        .select('id')
-        .limit(1)
-        .single()
-
-      if (schoolError || !school) {
-        console.error('❌ Error fetching school:', schoolError)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        console.error('❌ No user found')
         setLoading(false)
         return
       }
 
-      const schoolId = school.id
       console.log('✅ Fetched school_id:', schoolId)
 
       // Get classes with student count and total discount
       const { data: classes, error } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
@@ -375,6 +379,7 @@ export default function ClassListPage() {
             const { count: totalStudents } = await supabase
               .from('students')
               .select('*', { count: 'exact', head: true })
+              .eq('user_id', userId)
               .eq('school_id', schoolId)
               .eq('current_class_id', cls.id)
               .eq('status', 'active')
@@ -383,6 +388,7 @@ export default function ClassListPage() {
             const { data: discountData } = await supabase
               .from('students')
               .select('discount_amount')
+              .eq('user_id', userId)
               .eq('school_id', schoolId)
               .eq('current_class_id', cls.id)
               .eq('status', 'active')
@@ -464,16 +470,17 @@ export default function ClassListPage() {
 
   const handleSave = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
 
       // Prepare the class data
       const classData = {
-        school_id: user.school_id,
-        created_by: user.id,
+        user_id: userId,
+        school_id: schoolId,
+        created_by: userId,
         class_name: formData.className,
         incharge: formData.incharge,
         exam_marking_system: formData.markingSystem,
@@ -524,7 +531,8 @@ export default function ClassListPage() {
           const { count: totalStudents } = await supabase
             .from('students')
             .select('*', { count: 'exact', head: true })
-            .eq('school_id', user.school_id)
+            .eq('user_id', userId)
+            .eq('school_id', schoolId)
             .eq('current_class_id', newClass.id)
             .eq('status', 'active')
 
@@ -549,7 +557,8 @@ export default function ClassListPage() {
         const { count: totalStudents } = await supabase
           .from('students')
           .select('*', { count: 'exact', head: true })
-          .eq('school_id', user.school_id)
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
           .eq('current_class_id', newClass.id)
           .eq('status', 'active')
 
@@ -576,8 +585,8 @@ export default function ClassListPage() {
 
   const handleUpdate = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -603,7 +612,8 @@ export default function ClassListPage() {
         .from('classes')
         .update(updateData)
         .eq('id', selectedClass.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .select()
 
       if (error) {
@@ -651,8 +661,8 @@ export default function ClassListPage() {
 
   const confirmDelete = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -661,7 +671,8 @@ export default function ClassListPage() {
         .from('classes')
         .update({ status: 'inactive' })
         .eq('id', classToDelete.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (error) {
         console.error('Error deleting class:', error)
@@ -720,8 +731,8 @@ export default function ClassListPage() {
 
   const handleStudentUpdate = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -744,7 +755,8 @@ export default function ClassListPage() {
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedStudent.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (error) {
         console.error('Error updating student:', error)
@@ -771,8 +783,8 @@ export default function ClassListPage() {
 
   const confirmStudentDelete = async () => {
     try {
-      const user = getUserFromCookie()
-      if (!user) {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
         showToast('Unauthorized', 'error')
         return
       }
@@ -785,7 +797,8 @@ export default function ClassListPage() {
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedStudent.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
 
       if (error) {
         console.error('Error deleting student:', error)

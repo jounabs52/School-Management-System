@@ -21,10 +21,25 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/logout', { method: 'POST' })
+      // Clear localStorage
+      localStorage.removeItem('user')
+
+      // Clear cookies
+      document.cookie = 'auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+
+      // Try to call logout API if it exists
+      try {
+        await fetch('/api/logout', { method: 'POST' })
+      } catch (apiError) {
+        console.log('Logout API not available, proceeding with client-side logout')
+      }
+
+      // Redirect to login
       window.location.href = '/login'
     } catch (error) {
       console.error('Logout failed:', error)
+      // Force redirect anyway
+      window.location.href = '/login'
     }
   }
 

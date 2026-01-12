@@ -113,6 +113,7 @@ export default function StudentAttendancePage() {
       const { data, error } = await supabase
         .from('classes')
         .select('*')
+        .eq('user_id', currentUser.id)          // ✅ Filter by user
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('order_number')
@@ -132,6 +133,7 @@ export default function StudentAttendancePage() {
       const { data, error } = await supabase
         .from('sections')
         .select('*')
+        .eq('user_id', currentUser.id)          // ✅ Filter by user
         .eq('school_id', currentUser.school_id)
         .eq('class_id', classId)
         .eq('status', 'active')
@@ -162,6 +164,7 @@ export default function StudentAttendancePage() {
       let query = supabase
         .from('students')
         .select('*')
+        .eq('user_id', currentUser.id)          // ✅ Filter by user
         .eq('school_id', currentUser.school_id)
         .eq('current_class_id', selectedClass)
         .eq('status', 'active')

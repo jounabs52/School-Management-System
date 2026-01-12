@@ -28,6 +28,17 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
+// ✅ Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
+
 export default function StudentCertificatesPage() {
   const [classes, setClasses] = useState([])
   const [sections, setSections] = useState([])
@@ -35,7 +46,7 @@ export default function StudentCertificatesPage() {
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSection, setSelectedSection] = useState('')
   const [certificateFor, setCertificateFor] = useState('individual') // 'individual' or 'section'
-  const [certificateType, setCertificateType] = useState('character') // 'character', 'leaving', 'attendance'
+  const [certificateType, setCertificateType] = useState('character') // 'character', 'leaving'
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -113,7 +124,15 @@ export default function StudentCertificatesPage() {
 
         // Border & Design
         showBorder: true,
-        borderStyle: 'decorative'
+        borderStyle: 'decorative',
+
+        // Spacing & Layout
+        headerSpacing: 10,  // Space between logo, school name, address, title
+        fieldSpacing: 9,    // Space between student detail rows
+        sectionSpacing: 20,  // Space before certificate text paragraph
+
+        // Page Orientation
+        pageOrientation: 'portrait'  // 'portrait' or 'landscape'
       }
     }
     return {
@@ -159,7 +178,11 @@ export default function StudentCertificatesPage() {
       schoolNameInSignature: 'Superior College Bhakkar',
       footerText: '',
       showBorder: true,
-      borderStyle: 'decorative'
+      borderStyle: 'decorative',
+      headerSpacing: 10,
+      fieldSpacing: 9,
+      sectionSpacing: 20,
+      pageOrientation: 'portrait'
     }
   })
 
@@ -194,9 +217,12 @@ export default function StudentCertificatesPage() {
 
   const fetchClasses = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -210,8 +236,11 @@ export default function StudentCertificatesPage() {
 
   const fetchSections = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('sections')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .select('id, section_name')
         .eq('class_id', selectedClass)
         .eq('status', 'active')
@@ -228,9 +257,12 @@ export default function StudentCertificatesPage() {
   const fetchStudents = async () => {
     setLoading(true)
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       let query = supabase
         .from('students')
         .select('*')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('current_class_id', selectedClass)
         .eq('status', 'active')
         .order('first_name', { ascending: true })
@@ -254,10 +286,12 @@ export default function StudentCertificatesPage() {
 
   const fetchSchoolData = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('schools')
         .select('*')
-        .limit(1)
+        .eq('user_id', userId)
+        .eq('id', schoolId)
         .single()
 
       if (error) throw error
@@ -279,9 +313,12 @@ export default function StudentCertificatesPage() {
 
   const fetchCurrentSession = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('sessions')
         .select('*')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('is_current', true)
         .limit(1)
         .single()
@@ -326,16 +363,21 @@ export default function StudentCertificatesPage() {
     setError(null)
 
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+
       // Fetch school_id
       const { data: schools, error: schoolError } = await supabase
         .from('schools')
         .select('id')
+        .eq('user_id', userId)
+        .eq('id', schoolId)
         .limit(1)
         .single()
 
       if (schoolError) throw new Error('Unable to fetch school information')
 
       const certificateRecord = {
+        user_id: userId,
         student_id: selectedStudent.id,
         school_id: schools.id,
         certificate_type: 'character',
@@ -382,9 +424,13 @@ export default function StudentCertificatesPage() {
     // Check if certificate already exists BEFORE saving to database (unless validation is skipped)
     if (!skipValidation) {
       try {
+        const { id: userId, school_id: schoolId } = getLoggedInUser()
+
         const { data: schools, error: schoolError } = await supabase
           .from('schools')
           .select('id')
+          .eq('user_id', userId)
+          .eq('id', schoolId)
           .limit(1)
           .single()
 
@@ -392,8 +438,9 @@ export default function StudentCertificatesPage() {
           const { data: existingCert, error: checkError } = await supabase
             .from('student_certificates')
             .select('id')
+            .eq('user_id', userId)
+            .eq('school_id', schoolId)
             .eq('student_id', studentData.id)
-            .eq('school_id', schools.id)
             .eq('certificate_type', certificateTypeToUse)
             .limit(1)
 
@@ -423,9 +470,13 @@ export default function StudentCertificatesPage() {
     let schoolDataToUse = schoolData
     if (!schoolDataToUse) {
       try {
+        const { id: userId, school_id: schoolId } = getLoggedInUser()
+
         const { data, error } = await supabase
           .from('schools')
           .select('*')
+          .eq('user_id', userId)
+          .eq('id', schoolId)
           .limit(1)
           .single()
 
@@ -447,6 +498,8 @@ export default function StudentCertificatesPage() {
     // Fetch exam marks for the student
     let examMarksData = null
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+
       const { data: marksData, error: marksError } = await supabase
         .from('exam_marks')
         .select(`
@@ -456,6 +509,8 @@ export default function StudentCertificatesPage() {
             subject_name
           )
         `)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('student_id', studentData.id)
         .order('created_at', { ascending: false })
 
@@ -492,42 +547,21 @@ export default function StudentCertificatesPage() {
       console.error('Error fetching exam marks:', err)
     }
 
-    // Fetch attendance data for attendance certificate
-    let attendanceData = null
-    if (certificateTypeToUse === 'attendance') {
-      try {
-        const { data: attData, error: attError } = await supabase
-          .from('attendance')
-          .select('status, date')
-          .eq('student_id', studentData.id)
-
-        if (!attError && attData && attData.length > 0) {
-          const totalDays = attData.length
-          const presentDays = attData.filter(a => a.status === 'present').length
-          const percentage = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(2) : 0
-
-          attendanceData = {
-            totalDays,
-            presentDays,
-            absentDays: totalDays - presentDays,
-            percentage
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching attendance:', err)
-      }
-    }
-
     // Save to database first
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+
       const { data: schools, error: schoolError} = await supabase
         .from('schools')
         .select('id')
+        .eq('user_id', userId)
+        .eq('id', schoolId)
         .limit(1)
         .single()
 
       if (!schoolError && schools) {
         const certificateRecord = {
+          user_id: userId,
           student_id: studentData.id,
           school_id: schools.id,
           certificate_type: certificateTypeToUse,
@@ -552,17 +586,41 @@ export default function StudentCertificatesPage() {
       doc = await generateCharacterCertificate(jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData)
     } else if (certificateTypeToUse === 'leaving') {
       doc = await generateLeavingCertificate(jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData)
-    } else if (certificateTypeToUse === 'attendance') {
-      doc = await generateAttendanceCertificate(jsPDF, studentData, schoolDataToUse, pdfSettings, attendanceData)
     }
 
     // Save PDF
     const fileName = `${certificateTypeToUse}-certificate-${studentData.first_name || 'Student'}-${studentData.admission_number || 'NA'}-${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
 
+    // If it's a leaving certificate, update student status to inactive
+    if (certificateTypeToUse === 'leaving') {
+      try {
+        const { id: userId, school_id: schoolId } = getLoggedInUser()
+
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({ status: 'inactive' })
+          .eq('id', studentData.id)
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
+
+        if (updateError) {
+          console.error('Error updating student status:', updateError)
+        } else {
+          console.log('Student status updated to inactive after leaving certificate generation')
+        }
+      } catch (error) {
+        console.error('Error in student status update:', error)
+      }
+    }
+
     // Show success toast
     const studentName = [studentData.first_name, studentData.last_name].filter(Boolean).join(' ')
-    toast.success(`${certificateTypeToUse.charAt(0).toUpperCase() + certificateTypeToUse.slice(1)} certificate generated successfully for ${studentName}!`, {
+    const successMessage = certificateTypeToUse === 'leaving'
+      ? `Leaving certificate generated successfully for ${studentName}! Student moved to inactive.`
+      : `${certificateTypeToUse.charAt(0).toUpperCase() + certificateTypeToUse.slice(1)} certificate generated successfully for ${studentName}!`
+
+    toast.success(successMessage, {
       duration: 4000,
       position: 'top-right',
       style: {
@@ -580,14 +638,14 @@ export default function StudentCertificatesPage() {
   // Character Certificate Generator
   const generateCharacterCertificate = async (jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData) => {
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: certificateSettings.pageOrientation || 'portrait',
       unit: 'mm',
       format: 'a4'
     })
 
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 12
+    const margin = 15
 
     const borderRgb = hexToRgb(certificateSettings.borderColor || pdfSettings.primaryColor)
     const headerRgb = hexToRgb(certificateSettings.headerTextColor || pdfSettings.primaryColor)
@@ -613,7 +671,12 @@ export default function StudentCertificatesPage() {
 
     // Date at top right
     if (certificateSettings.showDate) {
-      const currentDate = new Date().toLocaleDateString('en-GB')
+      const today = new Date()
+      const day = String(today.getDate()).padStart(2, '0')
+      const month = String(today.getMonth() + 1).padStart(2, '0')
+      const year = today.getFullYear()
+      const currentDate = `${day}/${month}/${year}`
+
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.setTextColor(...textRgb)
       doc.text('Dated:', pageWidth - margin - 48, margin + 11)
@@ -621,48 +684,63 @@ export default function StudentCertificatesPage() {
       doc.text(currentDate, pageWidth - margin - 31, margin + 11)
     }
 
+    // Get spacing settings - adjust for landscape mode
+    const isLandscape = certificateSettings.pageOrientation === 'landscape'
+    const headerSpacing = isLandscape ? Math.max((certificateSettings.headerSpacing || 10) - 3, 5) : (certificateSettings.headerSpacing || 10)
+    const fieldSpacing = isLandscape ? Math.max((certificateSettings.fieldSpacing || 9) - 2, 6) : (certificateSettings.fieldSpacing || 9)
+    const sectionSpacing = isLandscape ? Math.max((certificateSettings.sectionSpacing || 20) - 8, 10) : (certificateSettings.sectionSpacing || 20)
+
     // School logo at top center
+    let currentHeaderY = margin + (isLandscape ? 10 : 15)
     if (certificateSettings.showSchoolLogo && schoolDataToUse?.logo) {
       try {
         const logoSize = getLogoSize(certificateSettings.logoSize || 'medium')
         const logoX = (pageWidth - logoSize) / 2
-        const logoY = margin + 8
 
         let format = 'PNG'
         if (schoolDataToUse.logo.includes('data:image/jpeg') || schoolDataToUse.logo.includes('data:image/jpg')) {
           format = 'JPEG'
         }
 
-        doc.addImage(schoolDataToUse.logo, format, logoX, logoY, logoSize, logoSize)
+        doc.addImage(schoolDataToUse.logo, format, logoX, currentHeaderY, logoSize, logoSize)
+        currentHeaderY += logoSize + headerSpacing  // Move down by logo size + spacing
       } catch (error) {
         console.error('Error adding logo:', error)
       }
     }
 
-    // School Name
+    // School Name - positioned below logo with proper spacing
     doc.setFontSize(certificateSettings.instituteNameSize || 20)
     doc.setFont(PDF_FONTS.primary, 'bold')
     doc.setTextColor(...headerRgb)
-    const instituteName = certificateSettings.instituteName || schoolDataToUse?.name || 'School Name'
-    doc.text(instituteName, pageWidth / 2, margin + 35, { align: 'center' })
+    // Use school data if settings name contains unwanted characters
+    let instituteName = certificateSettings.instituteName || schoolDataToUse?.name || 'School Name'
+    if (instituteName.includes('%') || instituteName.includes('6606')) {
+      instituteName = schoolDataToUse?.name || 'Superior College Bhakkar'
+    }
+    doc.text(instituteName, pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
 
     // School Address
     doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
     doc.setTextColor(...textRgb)
-    doc.text(certificateSettings.instituteLocation || schoolDataToUse?.address || 'School Address', pageWidth / 2, margin + 41, { align: 'center' })
+    doc.text(certificateSettings.instituteLocation || schoolDataToUse?.address || 'School Address', pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
 
     // Certificate Title
     doc.setFontSize(certificateSettings.instituteTitleSize || 18)
     doc.setFont(PDF_FONTS.primary, 'bold')
     doc.setTextColor(...accentRgb)
-    doc.text(certificateSettings.certificateTitle || 'CHARACTER CERTIFICATE', pageWidth / 2, margin + 51, { align: 'center' })
+    doc.text(certificateSettings.certificateTitle || 'CHARACTER CERTIFICATE', pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
 
-    // Student Details
-    const detailsY = margin + 62
+    // Student Details - positioned below title with proper spacing
+    const detailsY = currentHeaderY
     const leftColX = margin + 18
-    const midColX = pageWidth / 2 + 10
-    const lineHeight = 7
+    const rightColX = pageWidth / 2 + 10  // Right column for aligned fields
+    const lineHeight = fieldSpacing  // Use spacing from settings
+    const labelWidth = 40  // Consistent label width for better alignment
     let currentY = detailsY
 
     doc.setFontSize(certificateSettings.fieldLabelSize || 10)
@@ -672,90 +750,90 @@ export default function StudentCertificatesPage() {
     const currentYear = new Date().getFullYear()
     const grade = studentData.grade || 'N/A'
 
-    // Row 1: Name and Roll No
+    // Row 1: Name and Class (aligned on same row)
     if (certificateSettings.showName) {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.setTextColor(...textRgb)
       doc.text(certificateSettings.nameLabel || 'Name of Student:', leftColX, currentY)
       doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      doc.text(studentFullName, leftColX + 38, currentY)
+      doc.text(studentFullName, leftColX + labelWidth, currentY)
     }
 
-    if (certificateSettings.showRollNo) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.rollNoLabel || 'Roll No.:', midColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      doc.text(studentData.roll_number || 'N/A', midColX + 18, currentY)
-    }
-
-    currentY += lineHeight
-
-    // Row 2: Class and Session
     if (certificateSettings.showExamination) {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.examinationLabel || 'Class:', leftColX, currentY)
+      doc.text(certificateSettings.examinationLabel || 'Class:', rightColX, currentY)
       doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      doc.text(className, leftColX + 43, currentY)
-    }
-
-    if (certificateSettings.showSession) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.sessionLabel || 'Session:', midColX, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      const sessionText = currentSession?.name || `${currentYear - 1}-${currentYear}`
-      doc.text(sessionText, midColX + 18, currentY)
+      doc.text(className, rightColX + 15, currentY)
     }
 
     currentY += lineHeight
 
-    // Row 3: Marks
+    // Row 2: Roll No and Session (aligned on same row)
+    if (certificateSettings.showRollNo) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.rollNoLabel || 'Roll No.:', leftColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(studentData.roll_number || 'N/A', leftColX + labelWidth, currentY)
+    }
+
+    if (certificateSettings.showSession) {
+      const sessionText = currentSession?.name || `${currentYear - 1}-${currentYear}`
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.sessionLabel || 'Session:', rightColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(sessionText, rightColX + 20, currentY)
+    }
+
+    currentY += lineHeight
+
+    // Row 3: Marks Obtained and Total Marks (aligned on same row)
     if (certificateSettings.showMarks && studentData.marks_obtained) {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.setTextColor(...textRgb)
       doc.text(certificateSettings.marksObtainedLabel || 'Marks Obtained:', leftColX, currentY)
       doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      doc.text(studentData.marks_obtained?.toString() || 'N/A', leftColX + 38, currentY)
+      doc.text(studentData.marks_obtained?.toString() || 'N/A', leftColX + labelWidth, currentY)
     }
 
     if (certificateSettings.showTotalMarks && studentData.total_marks) {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.totalMarksLabel || 'Total Marks:', midColX, currentY)
+      doc.text(certificateSettings.totalMarksLabel || 'Total Marks:', rightColX, currentY)
       doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      doc.text(studentData.total_marks?.toString() || 'N/A', midColX + 28, currentY)
-    }
-
-    if (certificateSettings.showYear) {
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...textRgb)
-      doc.text(certificateSettings.yearLabel || 'Year:', midColX + 58, currentY)
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      doc.text(currentYear.toString(), midColX + 73, currentY)
+      doc.text(studentData.total_marks?.toString() || 'N/A', rightColX + 30, currentY)
     }
 
     currentY += lineHeight
 
-    // Row 4: Grade
+    // Row 4: Grade and Year (aligned on same row)
     if (certificateSettings.showGrade && grade) {
       doc.setFont(PDF_FONTS.secondary, 'bold')
       doc.setTextColor(...textRgb)
       doc.text(certificateSettings.gradeLabel || 'Grade:', leftColX, currentY)
       doc.setFont(PDF_FONTS.secondary, 'normal')
       doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
-      doc.text(grade, leftColX + 16, currentY)
+      doc.text(grade, leftColX + labelWidth, currentY)
     }
 
-    currentY += lineHeight + 8
+    if (certificateSettings.showYear) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.yearLabel || 'Year:', rightColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(currentYear.toString(), rightColX + 15, currentY)
+    }
+
+    currentY += lineHeight + sectionSpacing  // Extra space before certificate text (controlled by settings)
 
     // Certificate Text
     doc.setFontSize(certificateSettings.certificateTextSize || 10)
@@ -763,9 +841,15 @@ export default function StudentCertificatesPage() {
     doc.setTextColor(...textRgb)
 
     const fatherName = studentData.father_name || 'N/A'
-    const collegeName = certificateSettings.instituteName || schoolDataToUse?.name || 'This Institution'
+    let collegeName = certificateSettings.instituteName || schoolDataToUse?.name || 'This Institution'
+    if (collegeName.includes('%') || collegeName.includes('6606')) {
+      collegeName = schoolDataToUse?.name || 'Superior College Bhakkar'
+    }
     const marksObtained = studentData.marks_obtained || 'N/A'
     const totalMarks = studentData.total_marks || 'N/A'
+
+    // Determine son/daughter based on gender
+    const genderRelation = studentData.gender?.toLowerCase() === 'female' ? 'daughter' : 'son'
 
     let certificateText = certificateSettings.certificateText ||
       'This is to certify that {studentName}, son/daughter of {fatherName}, has been a student of {collegeName}. During their time here, the student has demonstrated good character, discipline, and respectful behavior towards teachers and peers. We wish them success in their future endeavors.'
@@ -782,6 +866,7 @@ export default function StudentCertificatesPage() {
       .replace(/{rollNumber}/g, studentData.roll_number || 'N/A')
       .replace(/{session}/g, sessionText)
       .replace(/{year}/g, currentYear.toString())
+      .replace(/son\/daughter/g, genderRelation)
 
     doc.text(certificateText, leftColX, currentY, {
       maxWidth: pageWidth - (2 * leftColX),
@@ -830,22 +915,59 @@ export default function StudentCertificatesPage() {
   // Leaving Certificate Generator
   const generateLeavingCertificate = async (jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData) => {
     const doc = new jsPDF({
-      orientation: 'portrait',
+      orientation: certificateSettings.pageOrientation || 'portrait',
       unit: 'mm',
       format: 'a4'
     })
 
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
-    const margins = getMarginValues(pdfSettings.margin || 'normal')
+    const margin = 15
 
-    // Header with school logo
-    let yPos = margins.top
+    const borderRgb = hexToRgb(certificateSettings.borderColor || pdfSettings.primaryColor)
+    const headerRgb = hexToRgb(certificateSettings.headerTextColor || pdfSettings.primaryColor)
+    const textRgb = hexToRgb(certificateSettings.textColor || pdfSettings.textColor)
+    const accentRgb = hexToRgb(certificateSettings.accentColor || pdfSettings.secondaryColor)
 
-    // School Logo
-    if (pdfSettings.includeLogo && schoolDataToUse?.logo) {
+    // Add decorative border
+    if (certificateSettings.showBorder) {
+      addDecorativeBorder(doc, pageWidth, pageHeight, certificateSettings.borderColor || pdfSettings.primaryColor)
+    }
+
+    // Serial Number and Date in top corners
+    if (certificateSettings.showSerialNumber) {
+      const certNumber = `LC02${new Date().getFullYear()}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
+      doc.setFontSize(certificateSettings.serialNumberSize || 9)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...textRgb)
+      doc.text(`Sr. No.: ${certNumber}`, margin + 5, margin + 11)
+    }
+
+    if (certificateSettings.showDate) {
+      const today = new Date()
+      const day = String(today.getDate()).padStart(2, '0')
+      const month = String(today.getMonth() + 1).padStart(2, '0')
+      const year = today.getFullYear()
+      const currentDate = `${day}/${month}/${year}`
+
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Dated:', pageWidth - margin - 48, margin + 11)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.text(currentDate, pageWidth - margin - 31, margin + 11)
+    }
+
+    // Get spacing settings - adjust for landscape mode
+    const isLandscape = certificateSettings.pageOrientation === 'landscape'
+    const headerSpacing = isLandscape ? Math.max((certificateSettings.headerSpacing || 10) - 3, 5) : (certificateSettings.headerSpacing || 10)
+    const fieldSpacing = isLandscape ? Math.max((certificateSettings.fieldSpacing || 9) - 2, 6) : (certificateSettings.fieldSpacing || 9)
+    const sectionSpacing = isLandscape ? Math.max((certificateSettings.sectionSpacing || 20) - 8, 10) : (certificateSettings.sectionSpacing || 20)
+
+    // School logo at top center
+    let currentHeaderY = margin + (isLandscape ? 10 : 15)
+    if (certificateSettings.showSchoolLogo && schoolDataToUse?.logo) {
       try {
-        const logoSize = getLogoSize(pdfSettings.logoSize || 'medium')
+        const logoSize = getLogoSize(certificateSettings.logoSize || 'medium')
         const logoX = (pageWidth - logoSize) / 2
 
         let format = 'PNG'
@@ -853,141 +975,216 @@ export default function StudentCertificatesPage() {
           format = 'JPEG'
         }
 
-        doc.addImage(schoolDataToUse.logo, format, logoX, yPos - 25, logoSize, logoSize)
+        doc.addImage(schoolDataToUse.logo, format, logoX, currentHeaderY, logoSize, logoSize)
+        currentHeaderY += logoSize + headerSpacing  // Move down by logo size + spacing
       } catch (error) {
         console.error('Error adding logo:', error)
       }
     }
 
-    // School Name
-    doc.setFontSize(18)
+    // School Name - positioned below logo with proper spacing
+    doc.setFontSize(certificateSettings.instituteNameSize || 20)
     doc.setFont(PDF_FONTS.primary, 'bold')
-    doc.setTextColor(...hexToRgb(pdfSettings.primaryColor))
-    doc.text(schoolDataToUse?.name || 'School Name', pageWidth / 2, yPos, { align: 'center' })
-
-    yPos += 8
+    doc.setTextColor(...headerRgb)
+    // Use school data if settings name contains unwanted characters
+    let instituteName = certificateSettings.instituteName || schoolDataToUse?.name || 'School Name'
+    if (instituteName.includes('%') || instituteName.includes('6606')) {
+      instituteName = schoolDataToUse?.name || 'Superior College Bhakkar'
+    }
+    doc.text(instituteName, pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
 
     // School Address
-    doc.setFontSize(10)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
-    doc.text(schoolDataToUse?.address || 'School Address', pageWidth / 2, yPos, { align: 'center' })
-    if (schoolDataToUse?.phone) {
-      yPos += 5
-      doc.text(`Phone: ${schoolDataToUse.phone}`, pageWidth / 2, yPos, { align: 'center' })
-    }
-
-    yPos += 12
-
-    // Title
-    doc.setFontSize(16)
-    doc.setFont(PDF_FONTS.primary, 'bold')
-    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
-    doc.text('SCHOOL LEAVING CERTIFICATE', pageWidth / 2, yPos, { align: 'center' })
-
-    yPos += 10
-
-    // Certificate Number and Date
-    const certNumber = `LC/${new Date().getFullYear()}/${Math.floor(Math.random() * 10000)}`
-    const issueDate = new Date().toLocaleDateString('en-GB')
-
     doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
-    doc.text(`Certificate No: ${certNumber}`, margins.left, yPos)
-    doc.text(`Date: ${issueDate}`, pageWidth - margins.right, yPos, { align: 'right' })
+    doc.setTextColor(...textRgb)
+    doc.text(certificateSettings.instituteLocation || schoolDataToUse?.address || 'School Address', pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
 
-    yPos += 12
+    // Certificate Title - "LEAVING CERTIFICATE"
+    doc.setFontSize(certificateSettings.instituteTitleSize || 18)
+    doc.setFont(PDF_FONTS.primary, 'bold')
+    doc.setTextColor(...accentRgb)
+    doc.text('LEAVING CERTIFICATE', pageWidth / 2, currentHeaderY, { align: 'center' })
+    currentHeaderY += headerSpacing
 
-    // Student Information Table
-    const tableData = [
-      ['Name of Student', `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim()],
-      ['Father Name', studentData.father_name || 'N/A'],
-      ['Date of Birth', studentData.date_of_birth ? new Date(studentData.date_of_birth).toLocaleDateString('en-GB') : 'N/A'],
-      ['Class', getClassName(studentData.current_class_id) || 'N/A'],
-      ['Admission Number', studentData.admission_number || 'N/A'],
-      ['Admission Date', studentData.admission_date ? new Date(studentData.admission_date).toLocaleDateString('en-GB') : 'N/A'],
-      ['Leaving Date', new Date().toLocaleDateString('en-GB')],
-      ['Reason for Leaving', certificateData.leavingReason || 'Personal Reasons'],
-    ]
+    // Student Details - positioned below title with proper spacing
+    const detailsY = currentHeaderY
+    const leftColX = margin + 18
+    const rightColX = pageWidth / 2 + 10  // Right column for aligned fields
+    const lineHeight = fieldSpacing  // Use spacing from settings
+    const labelWidth = 40  // Consistent label width for better alignment
+    let currentY = detailsY
 
-    doc.setFontSize(10)
-    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setFontSize(certificateSettings.fieldLabelSize || 10)
 
-    tableData.forEach((row, index) => {
-      const rowY = yPos + (index * 8)
+    const studentFullName = `${studentData.first_name || ''}${studentData.last_name ? ' ' + studentData.last_name : ''}`.trim()
+    const className = getClassName(studentData.current_class_id) || 'N/A'
+    const currentYear = new Date().getFullYear()
 
-      // Label
+    // Format date helper
+    const formatDate = (dateStr) => {
+      if (!dateStr) return 'N/A'
+      const d = new Date(dateStr)
+      const day = String(d.getDate()).padStart(2, '0')
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const year = d.getFullYear()
+      return `${day}/${month}/${year}`
+    }
+
+    // Row 1: Name and Class (aligned on same row)
+    if (certificateSettings.showName) {
       doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...hexToRgb(pdfSettings.textColor))
-      doc.text(row[0] + ':', margins.left, rowY)
-
-      // Value
+      doc.setTextColor(...textRgb)
+      doc.text('Name of Student:', leftColX, currentY)
       doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
-      doc.text(row[1], margins.left + 55, rowY)
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(studentFullName, leftColX + labelWidth, currentY)
+    }
 
-      // Underline
-      doc.setDrawColor(200, 200, 200)
-      doc.setLineWidth(0.1)
-      doc.line(margins.left + 55, rowY + 1, pageWidth - margins.right, rowY + 1)
-    })
+    if (certificateSettings.showExamination) {
+      doc.setFont(PDF_FONTS.secondary, 'bold')
+      doc.setTextColor(...textRgb)
+      doc.text('Class:', rightColX, currentY)
+      doc.setFont(PDF_FONTS.secondary, 'normal')
+      doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+      doc.text(className, rightColX + 15, currentY)
+    }
 
-    yPos += (tableData.length * 8) + 12
+    currentY += lineHeight
 
-    // Character and Conduct
-    doc.setFontSize(10)
+    // Row 2: Father Name and Admission Number (aligned on same row)
     doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
-    doc.text('Character:', margins.left, yPos)
+    doc.setTextColor(...textRgb)
+    doc.text('Father Name:', leftColX, currentY)
     doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
-    doc.text('Good', margins.left + 55, yPos)
-
-    yPos += 8
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    doc.text(studentData.father_name || 'N/A', leftColX + labelWidth, currentY)
 
     doc.setFont(PDF_FONTS.secondary, 'bold')
-    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
-    doc.text('Conduct:', margins.left, yPos)
+    doc.setTextColor(...textRgb)
+    doc.text('Admission No:', rightColX, currentY)
     doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...hexToRgb(pdfSettings.secondaryColor))
-    doc.text(certificateData.conduct || 'V.Good', margins.left + 55, yPos)
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    doc.text(studentData.admission_number || 'N/A', rightColX + 30, currentY)
 
-    yPos += 15
+    currentY += lineHeight
 
-    // Remarks
-    doc.setFontSize(10)
+    // Row 3: Date of Birth and Admission Date (aligned on same row)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Date of Birth:', leftColX, currentY)
     doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
-    const remarksText = `This is to certify that the above particulars are correct as per the school records. The student has cleared all dues and is leaving the school with good character and conduct.`
-    doc.text(remarksText, margins.left, yPos, {
-      maxWidth: pageWidth - margins.left - margins.right,
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    doc.text(formatDate(studentData.date_of_birth), leftColX + labelWidth, currentY)
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Admission Date:', rightColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    doc.text(formatDate(studentData.admission_date), rightColX + 35, currentY)
+
+    currentY += lineHeight
+
+    // Row 4: Character and Leaving Date (aligned on same row)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Character:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    doc.text('Good', leftColX + labelWidth, currentY)
+
+    const today = new Date()
+    const day = String(today.getDate()).padStart(2, '0')
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const year = today.getFullYear()
+    const leavingDate = `${day}/${month}/${year}`
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Leaving Date:', rightColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    doc.text(leavingDate, rightColX + 30, currentY)
+
+    currentY += lineHeight
+
+    // Row 5: Conduct and Reason for Leaving (aligned on same row)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Conduct:', leftColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    doc.text(certificateData.conduct || 'V.Good', leftColX + labelWidth, currentY)
+
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text('Reason:', rightColX, currentY)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    const reason = certificateData.leavingReason || 'Change of residence'
+    doc.text(reason, rightColX + 18, currentY, { maxWidth: pageWidth - rightColX - 30 })
+
+    currentY += lineHeight + sectionSpacing  // Extra space before certificate text (controlled by settings)
+
+    // Certificate Text
+    doc.setFontSize(certificateSettings.certificateTextSize || 10)
+    doc.setFont(PDF_FONTS.secondary, 'normal')
+    doc.setTextColor(...textRgb)
+
+    const fatherName = studentData.father_name || 'N/A'
+    let collegeName = certificateSettings.instituteName || schoolDataToUse?.name || 'This Institution'
+    if (collegeName.includes('%') || collegeName.includes('6606')) {
+      collegeName = schoolDataToUse?.name || 'Superior College Bhakkar'
+    }
+
+    // Determine son/daughter based on gender
+    const genderRelation = studentData.gender?.toLowerCase() === 'female' ? 'daughter' : 'son'
+
+    // Leaving certificate specific text
+    let certificateText = `This is to certify that ${studentFullName}, ${genderRelation} of ${fatherName}, has been a student of ${collegeName}. The student has cleared all dues and is leaving the school with good character and conduct. We wish them success in their future endeavors.`
+
+    doc.text(certificateText, leftColX, currentY, {
+      maxWidth: pageWidth - (2 * leftColX),
       align: 'justify',
       lineHeightFactor: 1.5
     })
 
-    // Signature Section
-    const signY = pageHeight - 60
+    // Principal Signature Section
+    const signX = pageWidth - margin - 45
+    const signY = pageHeight - margin - 30
 
-    // Class Teacher Signature
+    if (certificateSettings.principalSignature) {
+      try {
+        doc.addImage(certificateSettings.principalSignature, 'PNG', signX - 10, signY - 10, 30, 12)
+      } catch (error) {
+        console.error('Error adding signature:', error)
+      }
+    }
+
+    doc.setLineWidth(0.3)
+    doc.setDrawColor(...textRgb)
+    doc.line(signX - 15, signY + 5, signX + 30, signY + 5)
+
+    doc.setFontSize(10)
+    doc.setFont(PDF_FONTS.secondary, 'bold')
+    doc.setTextColor(...textRgb)
+    doc.text(certificateSettings.principalTitle || 'Principal Signature', signX + 7, signY + 10, { align: 'center' })
+
     doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
-    doc.setTextColor(...hexToRgb(pdfSettings.textColor))
-    doc.setDrawColor(...hexToRgb(pdfSettings.textColor))
-    doc.line(margins.left, signY, margins.left + 50, signY)
-    doc.text('Class Teacher', margins.left + 25, signY + 5, { align: 'center' })
+    doc.setTextColor(...hexToRgb(certificateSettings.fieldValueColor || '#00008B'))
+    const schoolLines = (certificateSettings.schoolNameInSignature || instituteName).split('\n')
+    schoolLines.forEach((line, index) => {
+      doc.text(line, signX + 7, signY + 15 + (index * 4), { align: 'center' })
+    })
 
-    // Principal Signature
-    doc.line(pageWidth - margins.right - 50, signY, pageWidth - margins.right, signY)
-    doc.text('Principal', pageWidth - margins.right - 25, signY + 5, { align: 'center' })
-    doc.text(schoolDataToUse?.name || 'School Name', pageWidth - margins.right - 25, signY + 10, { align: 'center' })
-
-    // School Seal Area
-    doc.setFontSize(8)
-    doc.text('(School Seal)', pageWidth / 2, signY + 20, { align: 'center' })
-    doc.setDrawColor(...hexToRgb(pdfSettings.primaryColor))
-    doc.setLineWidth(0.5)
-    doc.circle(pageWidth / 2, signY + 30, 15, 'S')
+    if (certificateSettings.footerText) {
+      doc.setFontSize(8)
+      doc.setTextColor(...textRgb)
+      doc.text(certificateSettings.footerText, pageWidth / 2, pageHeight - margin - 5, { align: 'center' })
+    }
 
     return doc
   }
@@ -1252,7 +1449,6 @@ export default function StudentCertificatesPage() {
             >
               <option value="character">Character Certificate</option>
               <option value="leaving">Leaving Certificate</option>
-              <option value="attendance">Attendance Certificate</option>
             </select>
           </div>
 
@@ -1381,15 +1577,7 @@ export default function StudentCertificatesPage() {
 
                 {/* Generate All Button for Full Section */}
                 {certificateFor === 'section' && (
-                  <div className="mt-6 flex justify-center gap-3">
-                    <button
-                      onClick={() => {
-                        setCertificateFor('individual')
-                      }}
-                      className="px-8 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
-                    >
-                      Cancel
-                    </button>
+                  <div className="mt-6 flex justify-center">
                     <button
                       onClick={async () => {
                         setError(null)
@@ -1399,10 +1587,14 @@ export default function StudentCertificatesPage() {
                           let generatedCount = 0
                           let skippedCount = 0
 
+                          const { id: userId, school_id: schoolId } = getLoggedInUser()
+
                           // Fetch school_id first
                           const { data: schools, error: schoolError } = await supabase
                             .from('schools')
                             .select('id')
+                            .eq('user_id', userId)
+                            .eq('id', schoolId)
                             .limit(1)
                             .single()
 
@@ -1414,8 +1606,9 @@ export default function StudentCertificatesPage() {
                             const { data: existingCert, error: checkError } = await supabase
                               .from('student_certificates')
                               .select('id')
+                              .eq('user_id', userId)
+                              .eq('school_id', schoolId)
                               .eq('student_id', student.id)
-                              .eq('school_id', schools.id)
                               .eq('certificate_type', certificateType)
                               .limit(1)
 
@@ -1770,6 +1963,71 @@ export default function StudentCertificatesPage() {
                         className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Spacing & Layout Settings */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold mb-3 text-gray-700">SPACING & LAYOUT</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Page Orientation
+                      <span className="block text-gray-500 font-normal text-xs mt-1">Select portrait or landscape</span>
+                    </label>
+                    <select
+                      value={certificateSettings.pageOrientation}
+                      onChange={(e) => handleCertificateSettingChange('pageOrientation', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="portrait">Portrait (Vertical)</option>
+                      <option value="landscape">Landscape (Horizontal)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Header Spacing (mm)
+                      <span className="block text-gray-500 font-normal text-xs mt-1">Space between logo, school name, address, title</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="20"
+                      value={certificateSettings.headerSpacing}
+                      onChange={(e) => handleCertificateSettingChange('headerSpacing', Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Field Spacing (mm)
+                      <span className="block text-gray-500 font-normal text-xs mt-1">Space between student detail rows</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="15"
+                      value={certificateSettings.fieldSpacing}
+                      onChange={(e) => handleCertificateSettingChange('fieldSpacing', Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Section Spacing (mm)
+                      <span className="block text-gray-500 font-normal text-xs mt-1">Space before certificate text</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="10"
+                      max="30"
+                      value={certificateSettings.sectionSpacing}
+                      onChange={(e) => handleCertificateSettingChange('sectionSpacing', Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
                   </div>
                 </div>
               </div>

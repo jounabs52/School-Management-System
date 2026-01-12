@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FileText, ChevronDown, CheckCircle, XCircle, AlertCircle, X, Plus } from 'lucide-react'
+import { FileText, ChevronDown, CheckCircle, XCircle, AlertCircle, X, Plus, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { jsPDF } from 'jspdf'
 import {
@@ -14,6 +14,8 @@ import {
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
+import { getPdfSettings } from '@/lib/pdfSettings'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function HRCertificatesPage() {
   const [certificateType, setCertificateType] = useState('experience')
@@ -29,6 +31,11 @@ export default function HRCertificatesPage() {
   const [saving, setSaving] = useState(false)
   const [toasts, setToasts] = useState([])
   const [showAddNewType, setShowAddNewType] = useState(false)
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfFileName, setPdfFileName] = useState('')
   const [newCertificateType, setNewCertificateType] = useState('')
   const [certificateTypes, setCertificateTypes] = useState([
     { value: 'experience', label: 'Experience Certificate', dbSafe: true },
@@ -36,6 +43,42 @@ export default function HRCertificatesPage() {
     { value: 'appreciation', label: 'Appreciation Certificate', dbSafe: true }
   ])
 
+  // Certificate design settings (saved per school in localStorage)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+
+  // Defaults for certificate settings so we can reset easily
+  const DEFAULT_CERTIFICATE_SETTINGS = {
+    instituteName: '',
+    headerSubtitle: '',
+    showLogo: true,
+    logoSize: 'medium', // small | medium | large
+    borderColor: '#8B4513',
+    headerTextColor: '#8B4513',
+    textColor: '#000000',
+    accentColor: '#D2691E',
+    principalSignature: null, // base64 data URL
+    principalName: '',
+    principalDesignation: '',
+    showBorder: true,
+    borderStyle: 'decorative', // decorative | simple | gold
+    showIssueDate: true,
+    showSerialNumber: false
+  }
+
+  const [certificateSettings, setCertificateSettings] = useState(() => ({ ...DEFAULT_CERTIFICATE_SETTINGS }))
+  // Inline confirmation for destructive reset
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  // Disable background scroll and add blur when modal open
+  useEffect(() => {
+    const locked = showSettingsModal || showResetConfirm
+    if (locked) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [showSettingsModal, showResetConfirm])
   // Toast notification function
   const showToast = (message, type = 'info') => {
     const id = Date.now()
@@ -109,6 +152,27 @@ export default function HRCertificatesPage() {
     }
   }
 
+  // Load certificate settings from localStorage when schoolData is available
+  useEffect(() => {
+    if (!currentUser?.school_id) return
+    const key = `certificate_settings_${currentUser.school_id}`
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        setCertificateSettings(prev => ({ ...prev, ...JSON.parse(raw) }))
+      } else {
+        // populate some defaults from school data
+        setCertificateSettings(prev => ({
+          ...prev,
+          instituteName: schoolData?.name || prev.instituteName,
+          principalName: schoolData?.principal_name || prev.principalName
+        }))
+      }
+    } catch (e) {
+      console.error('Error loading certificate settings:', e)
+    }
+  }, [currentUser, schoolData])
+
   // Fetch all staff from database
   const fetchAllStaff = async () => {
     try {
@@ -155,15 +219,64 @@ export default function HRCertificatesPage() {
     }
   }
 
+  // Save certificate settings to localStorage
+  const handleSaveSettings = () => {
+    if (!currentUser?.school_id) return showToast('Unable to save settings: no school context', 'error')
+    try {
+      const key = `certificate_settings_${currentUser.school_id}`
+      localStorage.setItem(key, JSON.stringify(certificateSettings))
+      setShowSettingsModal(false)
+      showToast('Certificate settings saved successfully', 'success')
+    } catch (e) {
+      console.error('Error saving settings', e)
+      showToast('Error saving settings', 'error')
+    }
+  }
+
+  // Handle signature image upload (store base64 data URL)
+  const handleSignatureUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setCertificateSettings(prev => ({ ...prev, principalSignature: reader.result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Prepare reset flow: open inline confirmation (do not use window.confirm)
+  const handleResetSettings = () => {
+    setShowResetConfirm(true)
+  }
+
+  // Perform the actual reset when user confirms in the inline modal
+  const performResetSettings = () => {
+    setCertificateSettings({ ...DEFAULT_CERTIFICATE_SETTINGS })
+    try {
+      if (currentUser?.school_id) {
+        const key = `certificate_settings_${currentUser.school_id}`
+        localStorage.removeItem(key)
+      }
+    } catch (e) {
+      console.error('Error removing certificate settings from storage', e)
+    }
+    setShowResetConfirm(false)
+    showToast('Certificate settings reset to defaults', 'success')
+  }
+
   // Generate PDF Certificate
   const generatePDFCertificate = async () => {
     if (!staffData || !schoolData) return
 
     try {
+      // Get global PDF settings and merge with certificate settings
+      const globalPdfSettings = getPdfSettings()
+      console.log('📄 Using global PDF settings for Certificate:', globalPdfSettings)
+
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: globalPdfSettings.orientation || 'landscape',
         unit: 'mm',
-        format: 'a4'
+        format: globalPdfSettings.pageSize?.toLowerCase() || 'a4'
       })
 
       const pageWidth = doc.internal.pageSize.getWidth()
@@ -177,16 +290,42 @@ export default function HRCertificatesPage() {
         logoBase64 = await convertImageToBase64(schoolData.logo)
       }
 
-      // Add decorative border using utility function
-      addDecorativeBorder(doc, 'brown')
+      // Merge certificate settings with global PDF settings (certificate settings take priority)
+      const settings = {
+        ...globalPdfSettings,
+        ...(certificateSettings || {})
+      }
+      const hexToRgbArray = (hex) => {
+        if (!hex) return [0,0,0]
+        const sanitized = hex.replace('#','')
+        const bigint = parseInt(sanitized, 16)
+        const r = (bigint >> 16) & 255
+        const g = (bigint >> 8) & 255
+        const b = bigint & 255
+        return [r,g,b]
+      }
+
+      // Override some PDF colors temporarily based on settings
+      try {
+        if (settings.borderColor) PDF_COLORS.secondary = hexToRgbArray(settings.borderColor)
+        if (settings.textColor) PDF_COLORS.textDark = hexToRgbArray(settings.textColor)
+        if (settings.accentColor) PDF_COLORS.accent = hexToRgbArray(settings.accentColor)
+      } catch (e) {
+        console.error('Error applying color settings', e)
+      }
+
+      // Add decorative border if enabled
+      if (settings.showBorder !== false) {
+        addDecorativeBorder(doc, settings.borderStyle === 'gold' ? 'gold' : 'brown')
+      }
 
       // Add watermark
       addPDFWatermark(doc, schoolData, 'OFFICIAL')
 
-      // School Logo at the top center
-      if (logoBase64) {
+      // School Logo at the top center (respect showLogo setting)
+      if (logoBase64 && settings.showLogo !== false) {
         try {
-          const logoSize = 20
+          const logoSize = settings.logoSize === 'large' ? 28 : settings.logoSize === 'small' ? 14 : 20
           const logoX = (pageWidth - logoSize) / 2
           const logoY = 18
 
@@ -201,6 +340,7 @@ export default function HRCertificatesPage() {
         }
       }
 
+
       // Certificate Type Label
       const certificateTypeLabel = certificateTypes.find(ct => ct.value === certificateType)?.label || certificateType
 
@@ -208,18 +348,25 @@ export default function HRCertificatesPage() {
       const titleY = logoBase64 ? 42 : 35
       doc.setFont(PDF_FONTS.primary, 'bold')
       doc.setFontSize(28)
-      doc.setTextColor(...PDF_COLORS.secondary)
+      // Use header text color from settings if present
+      doc.setTextColor(...(settings.headerTextColor ? hexToRgbArray(settings.headerTextColor) : PDF_COLORS.secondary))
       doc.text('CERTIFICATE', pageWidth / 2, titleY, { align: 'center' })
 
       // School Name
       const schoolNameY = logoBase64 ? 55 : 48
       doc.setFontSize(18)
       doc.setTextColor(...PDF_COLORS.textDark)
-      doc.text(schoolData.name || 'SCHOOL NAME', pageWidth / 2, schoolNameY, { align: 'center' })
+      doc.text(settings.instituteName || schoolData.name || 'SCHOOL NAME', pageWidth / 2, schoolNameY, { align: 'center' })
 
-      // Tagline (if available)
+      // Header Subtitle / Tagline (if available)
       let currentY = schoolNameY + 6
-      if (schoolData.tagline) {
+      if (settings.headerSubtitle) {
+        doc.setFont(PDF_FONTS.primary, 'italic')
+        doc.setFontSize(10)
+        doc.setTextColor(...PDF_COLORS.textLight)
+        doc.text(settings.headerSubtitle, pageWidth / 2, currentY, { align: 'center' })
+        currentY += 6
+      } else if (schoolData.tagline) {
         doc.setFont(PDF_FONTS.primary, 'italic')
         doc.setFontSize(10)
         doc.setTextColor(...PDF_COLORS.textLight)
@@ -340,23 +487,25 @@ export default function HRCertificatesPage() {
       doc.text(staffData.employee_number || 'N/A', col1X + 35, staffInfoY)
       doc.text(joiningDate, col2X + 30, staffInfoY)
 
-      // Row 4
-      staffInfoY += 8
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setTextColor(...PDF_COLORS.textLight)
-      doc.text('Issue Date:', col1X, staffInfoY)
+      // Row 4 - Issue Date (optional based on settings)
+      if (settings.showIssueDate !== false) {
+        staffInfoY += 8
+        doc.setFont(PDF_FONTS.secondary, 'normal')
+        doc.setTextColor(...PDF_COLORS.textLight)
+        doc.text('Issue Date:', col1X, staffInfoY)
 
-      doc.setFont(PDF_FONTS.secondary, 'bold')
-      doc.setTextColor(...PDF_COLORS.textDark)
-      doc.text(currentDate, col1X + 25, staffInfoY)
+        doc.setFont(PDF_FONTS.secondary, 'bold')
+        doc.setTextColor(...PDF_COLORS.textDark)
+        doc.text(currentDate, col1X + 25, staffInfoY)
+      }
 
       // Signature Section using utility function
       const sigY = boxY + boxHeight + 20
       const signatures = [
         {
           label: 'Authorized By',
-          name: schoolData.principal_name || '',
-          title: 'Principal / Head of Institution'
+          name: settings.principalName || schoolData.principal_name || '',
+          title: settings.principalDesignation || 'Principal / Head of Institution'
         },
         {
           label: 'Issued By',
@@ -366,12 +515,28 @@ export default function HRCertificatesPage() {
       ]
       addSignatureSection(doc, signatures, sigY)
 
-      // Certificate Number (bottom left)
-      const certNumber = `CERT-${Date.now()}-${staffData.employee_number}`
-      doc.setFont(PDF_FONTS.secondary, 'normal')
-      doc.setFontSize(7)
-      doc.setTextColor(...PDF_COLORS.textLight)
-      doc.text(certNumber, leftMargin, pageHeight - 20)
+      // Add principal signature image if provided in settings
+      if (settings.principalSignature) {
+        try {
+          const sigImg = settings.principalSignature
+          const sigFormat = sigImg.includes('data:image/jpeg') || sigImg.includes('data:image/jpg') ? 'JPEG' : 'PNG'
+          const signatureWidth = (pageWidth - 40) / signatures.length
+          const xPos = 20 + (0 * signatureWidth)
+          // Place above the signature line
+          doc.addImage(sigImg, sigFormat, xPos + 5, sigY - 18, 40, 20)
+        } catch (e) {
+          console.error('Error adding principal signature image', e)
+        }
+      }
+
+      // Certificate Number (bottom left) - optional
+      if (settings.showSerialNumber) {
+        const certNumber = `CERT-${Date.now()}-${staffData.employee_number}`
+        doc.setFont(PDF_FONTS.secondary, 'normal')
+        doc.setFontSize(7)
+        doc.setTextColor(...PDF_COLORS.textLight)
+        doc.text(certNumber, leftMargin, pageHeight - 20)
+      }
 
       // School Stamp placeholder (right side)
       doc.setDrawColor(...PDF_COLORS.border)
@@ -383,16 +548,30 @@ export default function HRCertificatesPage() {
       doc.text('SCHOOL', stampX + 20, stampY + 13, { align: 'center' })
       doc.text('STAMP', stampX + 20, stampY + 18, { align: 'center' })
 
-      // Professional Footer using utility
-      addPDFFooter(doc, 1, 1)
+      // Professional Footer using utility (with global PDF settings)
+      addPDFFooter(doc, 1, 1, globalPdfSettings)
 
-      // Save PDF
+      // Generate PDF blob for preview
+      const pdfBlob = doc.output('blob')
+      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
+
+      // Set state for preview modal
       const fileName = `${certificateTypeLabel.replace(/\s+/g, '_')}_${staffData.first_name}_${staffData.last_name}_${Date.now()}.pdf`
-      doc.save(fileName)
+      setPdfUrl(pdfBlobUrl)
+      setPdfFileName(fileName)
+      setShowPdfPreview(true)
+
+      showToast('Certificate generated successfully. Preview opened.', 'success')
     } catch (error) {
       console.error('Error generating certificate:', error)
       showToast('Error generating certificate PDF', 'error')
     }
+  }
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreview(false)
+    setPdfUrl(null)
+    setPdfFileName('')
   }
 
   // Save certificate to database and generate PDF
@@ -454,13 +633,27 @@ export default function HRCertificatesPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Compact Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="bg-red-100 p-2 rounded-lg">
-            <FileText className="w-6 h-6 text-red-600" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#1E3A8A] p-2 rounded-lg">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Staff Certificates</h1>
+              <p className="text-sm text-gray-500">Generate and manage staff certificates</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Staff Certificates</h1>
-            <p className="text-sm text-gray-500">Generate and manage staff certificates</p>
+
+          {/* Settings button (top-right) */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm"
+              aria-label="Certificate Settings"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="text-sm font-medium">Settings</span>
+            </button>
           </div>
         </div>
       </div>
@@ -728,6 +921,177 @@ export default function HRCertificatesPage() {
         </div>
       </div>
 
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSettingsModal(false)}></div>
+          <div className="relative w-[92%] sm:w-3/4 lg:w-2/3 xl:w-1/2 bg-white rounded-lg shadow-lg overflow-hidden z-50">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold">Certificate Settings</h3>
+              <button onClick={() => setShowSettingsModal(false)} className="text-gray-500 hover:text-gray-700">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4">
+              {/* Header & Branding */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2">HEADER & BRANDING</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Institute Name</label>
+                    <input type="text" value={certificateSettings.instituteName} onChange={(e) => setCertificateSettings(prev => ({...prev, instituteName: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Header Subtitle</label>
+                    <input type="text" value={certificateSettings.headerSubtitle} onChange={(e) => setCertificateSettings(prev => ({...prev, headerSubtitle: e.target.value }))} placeholder="e.g., CERTIFICATE OF ACHIEVEMENT" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" id="showLogo" checked={certificateSettings.showLogo} onChange={(e) => setCertificateSettings(prev => ({...prev, showLogo: e.target.checked }))} />
+                    <label className="text-sm text-gray-600" htmlFor="showLogo">Show School Logo</label>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Logo Size</label>
+                    <select value={certificateSettings.logoSize} onChange={(e) => setCertificateSettings(prev => ({...prev, logoSize: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                      <option value="large">Large</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Settings */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2">COLOR SETTINGS</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Border Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={certificateSettings.borderColor} onChange={(e) => setCertificateSettings(prev => ({...prev, borderColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                      <input value={certificateSettings.borderColor} onChange={(e) => setCertificateSettings(prev => ({...prev, borderColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Header Text Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={certificateSettings.headerTextColor} onChange={(e) => setCertificateSettings(prev => ({...prev, headerTextColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                      <input value={certificateSettings.headerTextColor} onChange={(e) => setCertificateSettings(prev => ({...prev, headerTextColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Text Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={certificateSettings.textColor} onChange={(e) => setCertificateSettings(prev => ({...prev, textColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                      <input value={certificateSettings.textColor} onChange={(e) => setCertificateSettings(prev => ({...prev, textColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Accent Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={certificateSettings.accentColor} onChange={(e) => setCertificateSettings(prev => ({...prev, accentColor: e.target.value }))} className="w-10 h-8 p-0 border rounded" />
+                      <input value={certificateSettings.accentColor} onChange={(e) => setCertificateSettings(prev => ({...prev, accentColor: e.target.value }))} className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signature Settings */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2">SIGNATURE SETTINGS</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Principal Signature Image</label>
+                    <input type="file" accept="image/*" onChange={handleSignatureUpload} className="w-full text-sm" />
+                    {certificateSettings.principalSignature && (
+                      <img src={certificateSettings.principalSignature} alt="signature" className="mt-2 h-12 object-contain" />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Principal Name</label>
+                    <input type="text" value={certificateSettings.principalName} onChange={(e) => setCertificateSettings(prev => ({...prev, principalName: e.target.value }))} placeholder="e.g., Dr. John Smith" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Principal Designation</label>
+                    <input type="text" value={certificateSettings.principalDesignation} onChange={(e) => setCertificateSettings(prev => ({...prev, principalDesignation: e.target.value }))} placeholder="e.g., Principal" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Border & Footer */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2">BORDER & DESIGN</h4>
+                <div className="grid grid-cols-2 gap-3 items-center">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" id="showBorder" checked={certificateSettings.showBorder} onChange={(e) => setCertificateSettings(prev => ({...prev, showBorder: e.target.checked }))} />
+                    <label htmlFor="showBorder" className="text-sm text-gray-600">Show Border</label>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Border Style</label>
+                    <select value={certificateSettings.borderStyle} onChange={(e) => setCertificateSettings(prev => ({...prev, borderStyle: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                      <option value="decorative">Decorative</option>
+                      <option value="simple">Simple</option>
+                      <option value="gold">Gold</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 border-t pt-4">
+                  <h4 className="text-sm font-semibold mb-2">FOOTER SETTINGS</h4>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" id="showIssueDate" checked={certificateSettings.showIssueDate} onChange={(e) => setCertificateSettings(prev => ({...prev, showIssueDate: e.target.checked }))} />
+                      <label htmlFor="showIssueDate" className="text-sm text-gray-600">Show Issue Date</label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" id="showSerialNumber" checked={certificateSettings.showSerialNumber} onChange={(e) => setCertificateSettings(prev => ({...prev, showSerialNumber: e.target.checked }))} />
+                      <label htmlFor="showSerialNumber" className="text-sm text-gray-600">Show Serial Number</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50">
+              <button onClick={() => setShowSettingsModal(false)} className="px-4 py-2 rounded border border-gray-300 text-sm">Cancel</button>
+              <button onClick={() => setShowResetConfirm(true)} className="px-4 py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm">Reset</button> 
+              <button onClick={handleSaveSettings} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">Save Settings</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Modal (red) */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)}></div>
+          <div className="relative z-50 w-[92%] max-w-sm bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-4 flex items-start gap-3">
+              <div className="text-red-600 p-1 rounded bg-red-50">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-red-700">Reset Certificate Settings</h4>
+                <p className="text-sm text-gray-600 mt-1">This will remove the uploaded signature and restore defaults. Are you sure you want to continue?</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3 bg-red-50">
+              <button onClick={() => setShowResetConfirm(false)} className="px-3 py-2 rounded border border-gray-300 text-sm">Cancel</button>
+              <button onClick={performResetSettings} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm">Reset</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-[9999] space-y-2">
         {toasts.map(toast => (
@@ -753,6 +1117,14 @@ export default function HRCertificatesPage() {
           </div>
         ))}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        pdfUrl={pdfUrl}
+        fileName={pdfFileName}
+        isOpen={showPdfPreview}
+        onClose={handleClosePdfPreview}
+      />
     </div>
   )
 }

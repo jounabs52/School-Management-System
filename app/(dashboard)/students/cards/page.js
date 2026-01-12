@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { CreditCard, Settings, X, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
+import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import toast from 'react-hot-toast'
@@ -19,6 +20,17 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: false
   }
 })
+
+// ✅ Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
 
 export default function StudentIDCardsPage() {
   const [selectedClass, setSelectedClass] = useState('')
@@ -209,9 +221,12 @@ export default function StudentIDCardsPage() {
 
   const fetchClasses = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('classes')
         .select('id, class_name')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('class_name', { ascending: true })
 
@@ -224,9 +239,12 @@ export default function StudentIDCardsPage() {
 
   const fetchSections = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       let query = supabase
         .from('sections')
         .select('id, section_name, class_id')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('section_name', { ascending: true })
 
@@ -248,9 +266,12 @@ export default function StudentIDCardsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true)
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       let query = supabase
         .from('students')
         .select('*')
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
         .eq('status', 'active')
         .order('first_name', { ascending: true })
 
@@ -278,10 +299,11 @@ export default function StudentIDCardsPage() {
 
   const fetchSchoolData = async () => {
     try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('schools')
         .select('*')
-        .limit(1)
+        .eq('id', schoolId)
         .single()
 
       if (error) throw error
@@ -2322,7 +2344,7 @@ export default function StudentIDCardsPage() {
                         </div>
                       </div>
                       {printFor === 'individual' && (
-                        <div className="space-y-2">
+                        <div>
                           <button
                             onClick={() => handlePrint(student)}
                             disabled={printingStudentId === student.id}
@@ -2333,14 +2355,6 @@ export default function StudentIDCardsPage() {
                           >
                             <CreditCard className="w-4 h-4" />
                             {printingStudentId === student.id ? 'Printing...' : 'Print Card'}
-                          </button>
-                          <button
-                            onClick={() => handleGenerateCardPDF(student)}
-                            disabled={printingStudentId === student.id}
-                            className="w-full bg-[#DC2626] hover:bg-red-700 text-white py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                          >
-                            <Download className="w-4 h-4" />
-                            {printingStudentId === student.id ? 'Generating...' : 'Generate Card PDF'}
                           </button>
                         </div>
                       )}
@@ -2437,14 +2451,6 @@ export default function StudentIDCardsPage() {
                     >
                       <CreditCard className="w-5 h-5" />
                       {saving ? 'Generating Cards...' : `Print All ${filteredStudents.length} Cards`}
-                    </button>
-                    <button
-                      onClick={handleGenerateBulkCardsPDF}
-                      disabled={saving}
-                      className="bg-[#DC2626] hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      <Download className="w-5 h-5" />
-                      {saving ? 'Generating PDFs...' : `Generate All ${filteredStudents.length} Cards PDF`}
                     </button>
                   </div>
                 )}

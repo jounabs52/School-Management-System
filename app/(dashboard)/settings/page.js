@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Settings, CheckCircle, XCircle, AlertCircle, X, Building2, Upload } from 'lucide-react'
+import { Settings, CheckCircle, XCircle, AlertCircle, X, Building2, Upload, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
+import StaffManagement from '@/components/StaffManagement'
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -11,7 +12,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [toasts, setToasts] = useState([])
   const [uploading, setUploading] = useState(false)
-  const [activeTab, setActiveTab] = useState('basic') // 'basic' or 'pdf'
+  const [activeTab, setActiveTab] = useState('basic') // 'basic', 'pdf', or 'access'
   const [schoolData, setSchoolData] = useState({
     name: '',
     code: '',
@@ -24,51 +25,37 @@ export default function SettingsPage() {
     website: '',
     status: 'active'
   })
-  const [pdfSettings, setPdfSettings] = useState(() => {
-    // Try to load from localStorage first
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('pdfSettings')
-      if (saved) {
-        try {
-          return JSON.parse(saved)
-        } catch (e) {
-          console.error('Error parsing saved PDF settings:', e)
-        }
-      }
-    }
-
+  const [pdfSettings, setPdfSettings] = useState({
     // Default settings matching timetable page
-    return {
-      pageSize: 'A4',
-      orientation: 'landscape', // Timetable uses landscape
-      margin: 'narrow', // Timetable uses { top: 40, left: 8, right: 8, bottom: 25 }
-      fontSize: '8', // Timetable uses fontSize: 8
-      fontFamily: 'Helvetica', // jsPDF default
-      primaryColor: '#dc2626',
-      secondaryColor: '#1f2937',
-      textColor: '#000000',
-      backgroundColor: '#ffffff',
-      headerBackgroundColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
-      tableHeaderColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
-      alternateRowColor: '#F8FAFC', // RGB(248, 250, 252) from timetable
-      includeHeader: true,
-      includeFooter: true,
-      includeLogo: true,
-      logoPosition: 'left',
-      logoSize: 'medium',
-      logoStyle: 'circle', // Timetable uses circle
-      headerText: '',
-      footerText: '',
-      includePageNumbers: true,
-      includeDate: true,
-      includeGeneratedDate: true,
-      borderStyle: 'thin', // lineWidth: 0.3 from timetable
-      tableStyle: 'grid', // theme: 'grid' from timetable
-      cellPadding: 'normal', // cellPadding: 2.5 from timetable
-      lineWidth: 'thin', // lineWidth: 0.3 from timetable
-      includeSectionText: true, // Show section text in header
-      sectionTextSize: '14' // Font size for section text
-    }
+    pageSize: 'A4',
+    orientation: 'landscape', // Timetable uses landscape
+    margin: 'narrow', // Timetable uses { top: 40, left: 8, right: 8, bottom: 25 }
+    fontSize: '8', // Timetable uses fontSize: 8
+    fontFamily: 'Helvetica', // jsPDF default
+    primaryColor: '#dc2626',
+    secondaryColor: '#1f2937',
+    textColor: '#000000',
+    backgroundColor: '#ffffff',
+    headerBackgroundColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
+    tableHeaderColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
+    alternateRowColor: '#F8FAFC', // RGB(248, 250, 252) from timetable
+    includeHeader: true,
+    includeFooter: true,
+    includeLogo: true,
+    logoPosition: 'left',
+    logoSize: 'medium',
+    logoStyle: 'circle', // Timetable uses circle
+    headerText: '',
+    footerText: '',
+    includePageNumbers: true,
+    includeDate: true,
+    includeGeneratedDate: true,
+    borderStyle: 'thin', // lineWidth: 0.3 from timetable
+    tableStyle: 'grid', // theme: 'grid' from timetable
+    cellPadding: 'normal', // cellPadding: 2.5 from timetable
+    lineWidth: 'thin', // lineWidth: 0.3 from timetable
+    includeSectionText: true, // Show section text in header
+    sectionTextSize: '14' // Font size for section text
   })
 
   // Toast notification function
@@ -103,6 +90,24 @@ export default function SettingsPage() {
       }
     }
   }, [])
+
+  // Load PDF settings for current user from localStorage
+  useEffect(() => {
+    if (currentUser?.id) {
+      // Load user-specific PDF settings
+      const userPdfSettingsKey = `pdfSettings_${currentUser.id}`
+      const saved = localStorage.getItem(userPdfSettingsKey)
+      if (saved) {
+        try {
+          const loadedSettings = JSON.parse(saved)
+          setPdfSettings(loadedSettings)
+          console.log('✅ Loaded PDF settings for user:', currentUser.id)
+        } catch (e) {
+          console.error('Error parsing saved PDF settings:', e)
+        }
+      }
+    }
+  }, [currentUser?.id])
 
   // Fetch school data when user is loaded
   useEffect(() => {
@@ -314,12 +319,14 @@ export default function SettingsPage() {
     try {
       setSaving(true)
 
-      // Save to localStorage
+      // Save to localStorage with user-specific key
+      const userPdfSettingsKey = `pdfSettings_${currentUser.id}`
+      localStorage.setItem(userPdfSettingsKey, JSON.stringify(pdfSettings))
+
+      // Also save to the global key for backward compatibility and getPdfSettings() function
       localStorage.setItem('pdfSettings', JSON.stringify(pdfSettings))
 
-      // Optional: Save to Supabase in the future
-      // You can add database save logic here if needed
-
+      console.log('✅ Saved PDF settings for user:', currentUser.id)
       showToast('PDF settings saved successfully!', 'success')
     } catch (error) {
       console.error('Error saving PDF settings:', error)
@@ -389,6 +396,18 @@ export default function SettingsPage() {
         >
           <Settings size={16} />
           PDF Settings
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('access')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-xs transition-all ${
+            activeTab === 'access'
+              ? 'bg-red-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <Users size={16} />
+          Manage Access
         </button>
       </div>
 
@@ -1176,6 +1195,13 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+      )}
+
+      {/* Manage Access Tab */}
+      {activeTab === 'access' && (
+        <div className="bg-white rounded-lg shadow border border-gray-200">
+          <StaffManagement currentUser={currentUser} showToast={showToast} />
+        </div>
       )}
 
       {/* Toast Notifications */}

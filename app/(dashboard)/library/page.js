@@ -378,6 +378,7 @@ export default function LibraryPage() {
           .from('books')
           .update(bookData)
           .eq('id', currentBook.id)
+          .eq('school_id', currentUser.school_id)
 
         if (error) throw error
         showToast('Book updated successfully', 'success')
@@ -438,6 +439,7 @@ export default function LibraryPage() {
         .from('books')
         .update({ available_copies: book.available_copies - 1 })
         .eq('id', issueForm.book_id)
+        .eq('school_id', currentUser.school_id)
 
       if (updateError) throw updateError
 
@@ -469,6 +471,7 @@ export default function LibraryPage() {
           remarks: returnForm.remarks
         })
         .eq('id', selectedIssue.id)
+        .eq('school_id', currentUser.school_id)
 
       if (updateError) throw updateError
 
@@ -479,6 +482,7 @@ export default function LibraryPage() {
           .from('books')
           .update({ available_copies: book.available_copies + 1 })
           .eq('id', selectedIssue.book_id)
+          .eq('school_id', currentUser.school_id)
 
         if (bookError) throw bookError
       }
@@ -510,6 +514,7 @@ export default function LibraryPage() {
         .from('books')
         .delete()
         .eq('id', bookToDelete.id)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
       showToast('Book deleted successfully', 'success')
@@ -585,6 +590,7 @@ export default function LibraryPage() {
         .from('book_issues')
         .update({ fine_paid: true })
         .eq('id', issueId)
+        .eq('school_id', currentUser.school_id)
 
       if (error) throw error
 
