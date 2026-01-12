@@ -54,6 +54,10 @@ export default function SettingsPage() {
       includeHeader: true,
       includeFooter: true,
       includeLogo: true,
+      includeSchoolName: true,
+      includeTagline: false,
+      includeContactInfo: false,
+      schoolNameFontSize: 18,
       logoPosition: 'left',
       logoSize: 'medium',
       logoStyle: 'circle', // Timetable uses circle
@@ -921,6 +925,64 @@ export default function SettingsPage() {
           {/* Header & Footer Settings */}
           <h3 className="text-xs font-semibold mb-2 text-gray-700 pt-2 border-t border-gray-200">HEADER & FOOTER</h3>
           <div className="space-y-3 mb-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeSchoolName"
+                checked={pdfSettings.includeSchoolName}
+                onChange={(e) => handlePdfSettingChange('includeSchoolName', e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="includeSchoolName" className="text-xs font-medium text-gray-700">
+                Include School Name in PDF
+              </label>
+            </div>
+            {pdfSettings.includeSchoolName && (
+              <div className="ml-6">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  School Name Font Size
+                </label>
+                <select
+                  value={pdfSettings.schoolNameFontSize || 16}
+                  onChange={(e) => handlePdfSettingChange('schoolNameFontSize', parseInt(e.target.value))}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
+                  <option value="12">12pt</option>
+                  <option value="14">14pt</option>
+                  <option value="16">16pt</option>
+                  <option value="18">18pt</option>
+                  <option value="20">20pt</option>
+                  <option value="22">22pt</option>
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeTagline"
+                checked={pdfSettings.includeTagline}
+                onChange={(e) => handlePdfSettingChange('includeTagline', e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="includeTagline" className="text-xs font-medium text-gray-700">
+                Include School Tagline in PDF
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeContactInfo"
+                checked={pdfSettings.includeContactInfo}
+                onChange={(e) => handlePdfSettingChange('includeContactInfo', e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="includeContactInfo" className="text-xs font-medium text-gray-700">
+                Include Contact Information (Address, Phone, Email)
+              </label>
+            </div>
+
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

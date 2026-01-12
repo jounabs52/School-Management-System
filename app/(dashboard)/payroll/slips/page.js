@@ -287,11 +287,14 @@ export default function SalarySlipsPage() {
       // Get PDF settings
       const pdfSettings = getPdfSettings()
 
-      // Create PDF - LANDSCAPE orientation like transport slip
+      // Create PDF with settings from Settings page
+      // Note: Salary slips work best in landscape for 4-copy layout
+      const orientation = 'landscape' // Fixed for salary slip layout
+      const pageSize = pdfSettings.pageSize || 'a4'
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: orientation,
         unit: 'mm',
-        format: 'a4'
+        format: pageSize
       })
 
       // Apply PDF settings (font, etc.)
@@ -300,6 +303,7 @@ export default function SalarySlipsPage() {
       // Get colors from settings
       const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
       const textColor = hexToRgb(pdfSettings.textColor)
+      const margins = getMarginValues(pdfSettings.margin)
 
       // Get employee details
       const staffName = `${payment.staff?.first_name || ''} ${payment.staff?.last_name || ''}`.trim() || 'N/A'
@@ -320,7 +324,9 @@ export default function SalarySlipsPage() {
       const paymentDateStr = formatDate(paymentDate)
 
       // School info
-      const schoolName = schoolDetails?.school_name?.toUpperCase() || 'SCHOOL MANAGEMENT SYSTEM'
+      const schoolName = (pdfSettings.includeSchoolName && (schoolDetails?.school_name || schoolDetails?.name))
+        ? (schoolDetails?.school_name || schoolDetails?.name).toUpperCase()
+        : 'SCHOOL MANAGEMENT SYSTEM'
       const bankName = schoolDetails?.bank_name || 'Bank Name Not Set'
 
       // Amounts

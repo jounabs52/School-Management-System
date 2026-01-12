@@ -15,6 +15,7 @@ export default function StaffPayrollPage() {
   const [salaryStructure, setSalaryStructure] = useState(null)
   const [paymentHistory, setPaymentHistory] = useState([])
   const [activeTab, setActiveTab] = useState('pay-salary')
+  const [staffPaymentStatus, setStaffPaymentStatus] = useState({})
 
   // Payment form state
   const [paymentMonth, setPaymentMonth] = useState(new Date().getMonth() + 1)
@@ -29,6 +30,7 @@ export default function StaffPayrollPage() {
   // Modals
   const [showPaymentHistoryModal, setShowPaymentHistoryModal] = useState(false)
   const [showSalaryStructureModal, setShowSalaryStructureModal] = useState(false)
+  const [showNoSalaryStructureModal, setShowNoSalaryStructureModal] = useState(false)
   const [showConfirmPaymentModal, setShowConfirmPaymentModal] = useState(false)
   const [showDeletePaymentModal, setShowDeletePaymentModal] = useState(false)
   const [paymentToDelete, setPaymentToDelete] = useState(null)
@@ -57,7 +59,7 @@ export default function StaffPayrollPage() {
 
   // Apply blur effect to sidebar when modals are open
   useEffect(() => {
-    const anyModalOpen = showPaymentHistoryModal || showSalaryStructureModal || showConfirmPaymentModal || showDeletePaymentModal
+    const anyModalOpen = showPaymentHistoryModal || showSalaryStructureModal || showNoSalaryStructureModal || showConfirmPaymentModal || showDeletePaymentModal
 
     if (anyModalOpen) {
       document.body.style.overflow = 'hidden'
@@ -83,7 +85,7 @@ export default function StaffPayrollPage() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showPaymentHistoryModal, showSalaryStructureModal, showConfirmPaymentModal, showDeletePaymentModal])
+  }, [showPaymentHistoryModal, showSalaryStructureModal, showNoSalaryStructureModal, showConfirmPaymentModal, showDeletePaymentModal])
 
   const loadStaffList = async () => {
     if (!currentUser?.school_id) return
@@ -110,6 +112,28 @@ export default function StaffPayrollPage() {
       if (error) throw error
 
       setStaffList(data || [])
+
+      // Check payment status for current month for all staff members
+      if (data && data.length > 0) {
+        const currentMonth = new Date().getMonth() + 1
+        const currentYear = new Date().getFullYear()
+
+        const { data: payments } = await supabase
+          .from('salary_payments')
+          .select('staff_id, status')
+          .eq('school_id', currentUser.school_id)
+          .eq('payment_month', currentMonth)
+          .eq('payment_year', currentYear)
+          .eq('status', 'paid')
+
+        const paymentStatusMap = {}
+        if (payments) {
+          payments.forEach(p => {
+            paymentStatusMap[p.staff_id] = true
+          })
+        }
+        setStaffPaymentStatus(paymentStatusMap)
+      }
     } catch (error) {
       console.error('Error loading staff:', error)
       toast.error('Failed to load staff list')
@@ -255,6 +279,9 @@ export default function StaffPayrollPage() {
       // Reload payment history
       await loadPaymentHistory(selectedStaff.id)
 
+      // Reload staff list to update button states
+      loadStaffList()
+
       // Reset transaction ID and remarks
       setTransactionId('')
       setRemarks('')
@@ -291,12 +318,27 @@ export default function StaffPayrollPage() {
       setShowDeletePaymentModal(false)
       setPaymentToDelete(null)
       await loadPaymentHistory(selectedStaff.id)
+
+      // Reload staff list to update button states
+      loadStaffList()
     } catch (error) {
       console.error('Error deleting payment:', error)
       toast.error('Failed to delete payment record')
     } finally {
       setDeleting(false)
     }
+  }
+
+  const handleViewSalaryStructure = () => {
+    if (salaryStructure) {
+      setShowSalaryStructureModal(true)
+    } else {
+      setShowNoSalaryStructureModal(true)
+    }
+  }
+
+  const handleNavigateToCreateStructure = () => {
+    window.location.href = `/payroll/salary-structure`
   }
 
   const clearScreen = () => {
@@ -404,22 +446,30 @@ export default function StaffPayrollPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {staffList.map((staff, index) => (
-                    <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.first_name} {staff.last_name}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.father_name || ''}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-center text-gray-800 text-sm">{staff.employee_number || 'N/A'}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.designation || 'N/A'}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-center">
-                        <button
-                          onClick={() => loadStaffDetails(staff)}
-                          className="bg-blue-900 hover:bg-blue-800 text-white px-4 py-1 rounded text-sm font-medium transition-colors"
-                        >
-                          Load
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {staffList.map((staff, index) => {
+                    const isPaid = staffPaymentStatus[staff.id]
+                    return (
+                      <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.first_name} {staff.last_name}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.father_name || ''}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-center text-gray-800 text-sm">{staff.employee_number || 'N/A'}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-gray-800 text-sm">{staff.designation || 'N/A'}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-center">
+                          <button
+                            onClick={() => loadStaffDetails(staff)}
+                            disabled={isPaid}
+                            className={`${
+                              isPaid
+                                ? 'bg-slate-700 cursor-not-allowed'
+                                : 'bg-red-600 hover:bg-red-700'
+                            } text-white px-4 py-1 rounded text-sm font-medium transition-colors disabled:opacity-90`}
+                          >
+                            {isPaid ? 'Paid Salary' : 'Pay Salary'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -507,7 +557,7 @@ export default function StaffPayrollPage() {
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2 mb-2">
             <button
-              onClick={() => setShowSalaryStructureModal(true)}
+              onClick={handleViewSalaryStructure}
               className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
             >
               <span>💰</span> View Salary Structure
@@ -729,6 +779,52 @@ export default function StaffPayrollPage() {
         </div>
       )}
 
+      {/* No Salary Structure Modal */}
+      {showNoSalaryStructureModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={() => setShowNoSalaryStructureModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="bg-gradient-to-r from-orange-600 to-orange-700 text-white px-4 py-3 rounded-t-xl">
+                <h3 className="text-lg font-bold">No Salary Structure Found</h3>
+              </div>
+              <div className="p-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="flex-shrink-0">
+                    <AlertCircle className="w-12 h-12 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-gray-700 mb-2">
+                      <span className="font-bold">{selectedStaff?.first_name} {selectedStaff?.last_name}</span> does not have a salary structure created yet.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Please create a salary structure for this employee before processing payments or viewing salary details.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowNoSalaryStructureModal(false)}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleNavigateToCreateStructure}
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold hover:bg-blue-700 rounded-lg transition"
+                  >
+                    Create Salary Structure
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Payment History Modal */}
       {showPaymentHistoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -757,7 +853,6 @@ export default function StaffPayrollPage() {
                         <th className="border border-gray-300 px-3 py-2 text-left">Payment Date</th>
                         <th className="border border-gray-300 px-3 py-2 text-left">Method</th>
                         <th className="border border-gray-300 px-3 py-2 text-center">Status</th>
-                        <th className="border border-gray-300 px-3 py-2 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -783,15 +878,6 @@ export default function StaffPayrollPage() {
                               {payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : payment.status === 'partial' ? 'Partial' : payment.status}
                             </span>
                           </td>
-                          <td className="border border-gray-300 px-3 py-2 text-center">
-                            <button
-                              onClick={() => confirmDeletePayment(payment.id)}
-                              className="text-red-500 hover:text-red-700"
-                              title="Delete payment"
-                            >
-                              🗑️
-                            </button>
-                          </td>
                         </tr>
                       ))}
                       <tr className="bg-blue-100 font-bold">
@@ -799,7 +885,7 @@ export default function StaffPayrollPage() {
                         <td className="border border-gray-300 px-3 py-2 text-right text-green-700 text-lg">
                           {getTotalPaid().toLocaleString()} PKR
                         </td>
-                        <td colSpan="4" className="border border-gray-300"></td>
+                        <td colSpan="3" className="border border-gray-300"></td>
                       </tr>
                     </tbody>
                   </table>

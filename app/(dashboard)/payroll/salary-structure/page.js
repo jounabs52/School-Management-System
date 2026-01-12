@@ -14,9 +14,11 @@ export default function SalaryStructurePage() {
   const [selectedStaff, setSelectedStaff] = useState(null)
   const [existingStructure, setExistingStructure] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [staffSalaryStructures, setStaffSalaryStructures] = useState({})
 
   // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showUpdateConfirmModal, setShowUpdateConfirmModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   // Salary structure form state
@@ -54,7 +56,7 @@ export default function SalaryStructurePage() {
 
   // Apply blur effect to sidebar when modals are open
   useEffect(() => {
-    const anyModalOpen = showDeleteModal
+    const anyModalOpen = showDeleteModal || showUpdateConfirmModal
 
     if (anyModalOpen) {
       document.body.style.overflow = 'hidden'
@@ -80,7 +82,7 @@ export default function SalaryStructurePage() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showDeleteModal])
+  }, [showDeleteModal, showUpdateConfirmModal])
 
   const loadStaffList = async () => {
     if (!currentUser?.school_id) return
@@ -107,11 +109,46 @@ export default function SalaryStructurePage() {
       if (error) throw error
 
       setStaffList(data || [])
+
+      // Load salary structures for all staff members
+      if (data && data.length > 0) {
+        const { data: structures } = await supabase
+          .from('salary_structures')
+          .select('staff_id')
+          .eq('school_id', currentUser.school_id)
+          .eq('status', 'active')
+
+        const structuresMap = {}
+        if (structures) {
+          structures.forEach(s => {
+            structuresMap[s.staff_id] = true
+          })
+        }
+        setStaffSalaryStructures(structuresMap)
+      }
     } catch (error) {
       console.error('Error loading staff:', error)
       toast.error('Failed to load staff list')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleStaffButtonClick = (staff) => {
+    if (staffSalaryStructures[staff.id]) {
+      // Staff has existing structure, show confirmation modal
+      setSelectedStaff(staff)
+      setShowUpdateConfirmModal(true)
+    } else {
+      // No existing structure, load normally
+      loadStaffSalaryStructure(staff)
+    }
+  }
+
+  const handleConfirmUpdate = () => {
+    setShowUpdateConfirmModal(false)
+    if (selectedStaff) {
+      loadStaffSalaryStructure(selectedStaff)
     }
   }
 
@@ -339,6 +376,9 @@ export default function SalaryStructurePage() {
 
       // Reload the structure
       await loadStaffSalaryStructure(selectedStaff)
+
+      // Reload staff list to update button states
+      loadStaffList()
     } catch (error) {
       console.error('Error saving salary structure:', error)
       toast.error('Failed to save salary structure')
@@ -464,22 +504,29 @@ export default function SalaryStructurePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {staffList.map((staff, index) => (
-                    <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.first_name} {staff.last_name}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.employee_number || 'N/A'}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.designation || 'N/A'}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.department || 'N/A'}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-center">
-                        <button
-                          onClick={() => loadStaffSalaryStructure(staff)}
-                          className="bg-blue-900 hover:bg-blue-800 text-white px-6 py-1 rounded font-medium transition-colors"
-                        >
-                          Manage Salary
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {staffList.map((staff, index) => {
+                    const hasStructure = staffSalaryStructures[staff.id]
+                    return (
+                      <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.first_name} {staff.last_name}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.employee_number || 'N/A'}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.designation || 'N/A'}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.department || 'N/A'}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-sm text-center">
+                          <button
+                            onClick={() => handleStaffButtonClick(staff)}
+                            className={`${
+                              hasStructure
+                                ? 'bg-blue-900 hover:bg-blue-800'
+                                : 'bg-red-600 hover:bg-red-700'
+                            } text-white px-6 py-1 rounded font-medium transition-colors`}
+                          >
+                            {hasStructure ? 'Created' : 'Create Salary'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -771,6 +818,55 @@ export default function SalaryStructurePage() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Update Confirmation Modal */}
+      {showUpdateConfirmModal && selectedStaff && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={() => setShowUpdateConfirmModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-t-xl">
+                <h3 className="text-lg font-bold">Salary Structure Already Exists</h3>
+              </div>
+              <div className="p-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="flex-shrink-0">
+                    <AlertCircle className="w-12 h-12 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-gray-700 mb-2">
+                      <span className="font-bold">{selectedStaff.first_name} {selectedStaff.last_name}</span> already has a salary structure created.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Do you want to update the existing salary structure?
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowUpdateConfirmModal(false)
+                      setSelectedStaff(null)
+                    }}
+                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmUpdate}
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold hover:bg-blue-700 rounded-lg transition"
+                  >
+                    Yes, Update
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Delete Confirmation Modal */}

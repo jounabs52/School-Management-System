@@ -10,8 +10,12 @@ import toast, { Toaster } from 'react-hot-toast'
 import {
   getPdfSettings,
   hexToRgb,
-  convertImageToBase64
+  getMarginValues,
+  getLogoSize,
+  applyPdfSettings,
+  getAutoTableStyles
 } from '@/lib/pdfSettings'
+import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function SalaryPaidReport() {
@@ -175,33 +179,103 @@ export default function SalaryPaidReport() {
       // Get PDF settings
       const pdfSettings = getPdfSettings()
 
-      const pdf = new jsPDF('p', 'mm', 'a4')
+      // Create PDF with settings from Settings page
+      const orientation = pdfSettings.orientation === 'portrait' ? 'p' : 'l'
+      const pageSize = pdfSettings.pageSize || 'a4'
+      const pdf = new jsPDF(orientation, 'mm', pageSize)
       const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margins = getMarginValues(pdfSettings.margin)
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(pdf, pdfSettings)
 
       // Get colors from settings
       const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
       const textColor = hexToRgb(pdfSettings.textColor)
 
-      let yPos = 15
+      // Header Section with blue background box
+      const headerHeight = 45
+      let yPos = 10
 
-      // Header
-      pdf.setFontSize(16)
+      // Draw blue background rectangle
+      pdf.setFillColor(...headerBgColor)
+      pdf.rect(0, 0, pageWidth, headerHeight, 'F')
+
+      // Add "Generated" date in top right corner
+      if (pdfSettings.includeGeneratedDate) {
+        const generatedDate = new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+        pdf.setFontSize(8)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(255, 255, 255)
+        pdf.text(`Generated: ${generatedDate}`, pageWidth - 10, 8, { align: 'right' })
+      }
+
+      // Add logo in white box on the left if enabled
+      if (pdfSettings.includeLogo && schoolDetails.logo) {
+        try {
+          const logoSize = getLogoSize(pdfSettings.logoSize)
+          const logoBoxSize = logoSize.width + 8
+          const logoBoxX = 15
+          const logoBoxY = (headerHeight - logoBoxSize) / 2 + 5
+
+          // Draw white box for logo
+          pdf.setFillColor(255, 255, 255)
+          pdf.roundedRect(logoBoxX, logoBoxY, logoBoxSize, logoBoxSize, 3, 3, 'F')
+
+          // Add logo centered in white box
+          const logoX = logoBoxX + 4
+          const logoY = logoBoxY + 4
+          pdf.addImage(schoolDetails.logo, 'PNG', logoX, logoY, logoSize.width, logoSize.height)
+        } catch (error) {
+          console.error('Error adding logo:', error)
+        }
+      }
+
+      // Center section with school name and title
+      yPos = 18
+
+      // School name
+      if (pdfSettings.includeSchoolName && (schoolDetails.school_name || schoolDetails.name)) {
+        const schoolName = schoolDetails.school_name || schoolDetails.name
+        pdf.setFontSize(pdfSettings.schoolNameFontSize || 18)
+        pdf.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+        pdf.setTextColor(255, 255, 255)
+        pdf.text(schoolName, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 8
+      }
+
+      // Title
+      pdf.setFontSize(14)
       pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(...textColor)
+      pdf.setTextColor(255, 255, 255)
       pdf.text('SALARY PAYMENT REPORT', pageWidth / 2, yPos, { align: 'center' })
-      yPos += 7
+      yPos += 6
 
+      // Subtitle with month/year and filter
       let subtitle = `${getMonthName(selectedMonth)} ${selectedYear}`
       if (statusFilter !== 'all') {
         subtitle += ` - ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`
       }
-
       pdf.setFontSize(10)
       pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(255, 255, 255)
       pdf.text(subtitle, pageWidth / 2, yPos, { align: 'center' })
-      yPos += 5
+
+      // Reset y position to start content after header
+      yPos = headerHeight + 8
+
+      // Summary information below header
+      pdf.setTextColor(...textColor)
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'normal')
       pdf.text(`Total Payments: ${filteredPayments.length}`, pageWidth / 2, yPos, { align: 'center' })
-      yPos += 10
+      yPos += 8
 
       // Prepare table data
       const tableData = filteredPayments.map((payment, index) => [
@@ -224,22 +298,14 @@ export default function SalaryPaidReport() {
         '---'
       ]
 
+      // Get autoTable styles from centralized settings
+      const autoTableStyles = getAutoTableStyles(pdfSettings)
+
       autoTable(pdf, {
         startY: yPos,
         head: [['#', 'Staff Name', 'Emp#', 'Narration', 'Amount Paid', 'Date']],
         body: [...tableData, totals],
-        theme: 'grid',
-        headStyles: {
-          fillColor: headerBgColor,
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold',
-          halign: 'center'
-        },
-        styles: {
-          fontSize: 9,
-          cellPadding: 3
-        },
+        ...autoTableStyles,
         columnStyles: {
           0: { cellWidth: 15, halign: 'center' },
           1: { cellWidth: 45 },
@@ -249,11 +315,11 @@ export default function SalaryPaidReport() {
           5: { cellWidth: 25, halign: 'center' }
         },
         didParseCell: function(data) {
-          // Highlight totals row
+          // Highlight totals row with header color
           if (data.row.index === tableData.length && data.section === 'body') {
-            data.cell.styles.fillColor = [254, 202, 202]
+            data.cell.styles.fillColor = headerBgColor
+            data.cell.styles.textColor = [255, 255, 255]
             data.cell.styles.fontStyle = 'bold'
-            data.cell.styles.textColor = [153, 27, 27]
           }
         }
       })

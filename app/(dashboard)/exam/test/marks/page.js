@@ -11,8 +11,9 @@ import {
   getMarginValues,
   getLogoSize,
   applyPdfSettings,
-  convertImageToBase64
+  getAutoTableStyles
 } from '@/lib/pdfSettings'
+import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 export default function TestMarksPage() {
@@ -484,10 +485,21 @@ export default function TestMarksPage() {
       console.log('Generating PDF for:', { test, subject, marksCount: viewMarks.length })
 
       const pdfSettings = getPdfSettings()
-      const doc = new jsPDF()
+
+      // Create PDF with settings from Settings page
+      const orientation = pdfSettings.orientation === 'portrait' ? 'p' : 'l'
+      const pageSize = pdfSettings.pageSize || 'a4'
+      const doc = new jsPDF(orientation, 'mm', pageSize)
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
-      const margins = getMarginValues(pdfSettings)
+      const margins = getMarginValues(pdfSettings.margin)
+
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(doc, pdfSettings)
+
+      // Get colors from settings
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
 
       // Test Details
       const testDate = new Date(test.test_date).toLocaleDateString('en-GB', {
@@ -496,45 +508,82 @@ export default function TestMarksPage() {
         year: 'numeric'
       })
 
-      // Add logo and header if enabled
-      let yPos = margins.top
-      if (pdfSettings.includeLogo && schoolData?.logo_url) {
+      // Header Section with blue background box
+      const headerHeight = 45
+      let yPos = 10
+
+      // Draw blue background rectangle
+      doc.setFillColor(...headerBgColor)
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
+
+      // Add "Generated" date in top right corner
+      if (pdfSettings.includeGeneratedDate) {
+        const generatedDate = new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(255, 255, 255)
+        doc.text(`Generated: ${generatedDate}`, pageWidth - 10, 8, { align: 'right' })
+      }
+
+      // Add logo in white box on the left if enabled
+      if (pdfSettings.includeLogo && schoolData?.logo) {
         try {
-          const logoData = await convertImageToBase64(schoolData.logo_url)
           const logoSize = getLogoSize(pdfSettings.logoSize)
-          const logoX = (pageWidth - logoSize.width) / 2
-          doc.addImage(logoData, 'PNG', logoX, yPos, logoSize.width, logoSize.height)
-          yPos += logoSize.height + 5
+          const logoBoxSize = logoSize.width + 8
+          const logoBoxX = 15
+          const logoBoxY = (headerHeight - logoBoxSize) / 2 + 5
+
+          // Draw white box for logo
+          doc.setFillColor(255, 255, 255)
+          doc.roundedRect(logoBoxX, logoBoxY, logoBoxSize, logoBoxSize, 3, 3, 'F')
+
+          // Add logo centered in white box
+          const logoX = logoBoxX + 4
+          const logoY = logoBoxY + 4
+          doc.addImage(schoolData.logo, 'PNG', logoX, logoY, logoSize.width, logoSize.height)
         } catch (error) {
           console.error('Error adding logo:', error)
         }
       }
 
-      // Add school name and header
-      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
-      const textColor = hexToRgb(pdfSettings.textColor)
+      // Center section with school name and title
+      yPos = 18
 
+      // School name
       if (pdfSettings.includeSchoolName && schoolData?.name) {
-        doc.setFontSize(16)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(...textColor)
+        doc.setFontSize(pdfSettings.schoolNameFontSize || 18)
+        doc.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
         doc.text(schoolData.name, pageWidth / 2, yPos, { align: 'center' })
-        yPos += 7
+        yPos += 8
       }
 
       // Title
       doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
-      doc.text('TEST MARKS', pageWidth / 2, yPos, { align: 'center' })
+      doc.setTextColor(255, 255, 255)
+      doc.text('TEST MARKS REPORT', pageWidth / 2, yPos, { align: 'center' })
       yPos += 6
 
-      // Subtitle
+      // Subtitle with test details
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text('Test Marks Report', pageWidth / 2, yPos, { align: 'center' })
-      yPos += 5
+      doc.setTextColor(255, 255, 255)
+      doc.text(`${test.test_name || 'N/A'} - ${test.classes?.class_name || 'N/A'} - ${subject.subject_name || 'N/A'}`, pageWidth / 2, yPos, { align: 'center' })
 
-      doc.text(`Test: ${test.test_name || 'N/A'} | Class: ${test.classes?.class_name || 'N/A'} | Subject: ${subject.subject_name || 'N/A'} | Date: ${testDate}`, pageWidth / 2, yPos, { align: 'center' })
+      // Reset y position to start content after header
+      yPos = headerHeight + 8
+
+      // Summary information below header
+      doc.setTextColor(...textColor)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Test Date: ${testDate} | Total Students: ${viewMarks.length}`, pageWidth / 2, yPos, { align: 'center' })
       yPos += 8
 
       // Prepare table data with null checks, percentage, and status
@@ -565,26 +614,15 @@ export default function TestMarksPage() {
 
       console.log('Table data prepared:', tableData.length, 'rows')
 
+      // Get autoTable styles from centralized settings
+      const autoTableStyles = getAutoTableStyles(pdfSettings)
+
       // Generate table
       autoTable(doc, {
         startY: yPos,
         head: [['Sr.', 'Roll No', 'Adm. No', 'Student Name', 'Father Name', 'Total', 'Obtained', 'Percentage', 'Status']],
         body: tableData,
-        theme: 'grid',
-        headStyles: {
-          fillColor: headerBgColor,
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: 'bold',
-          halign: 'center',
-          valign: 'middle'
-        },
-        bodyStyles: {
-          fontSize: 8,
-          cellPadding: 2,
-          valign: 'middle',
-          textColor: textColor
-        },
+        ...autoTableStyles,
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
           1: { halign: 'center', cellWidth: 15 },
@@ -595,9 +633,6 @@ export default function TestMarksPage() {
           6: { halign: 'center', cellWidth: 18 },
           7: { halign: 'center', cellWidth: 20 },
           8: { halign: 'center', cellWidth: 17 }
-        },
-        alternateRowStyles: {
-          fillColor: [248, 248, 248]
         },
         didParseCell: function(data) {
           // Color code status column
