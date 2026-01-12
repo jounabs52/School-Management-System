@@ -56,7 +56,9 @@ export default function SettingsPage() {
     lineWidth: 'thin', // lineWidth: 0.3 from timetable
     includeSectionText: true, // Show section text in header
     sectionTextSize: '14' ,// Font size for section text
-
+  })
+  // Load default PDF settings on mount
+  useEffect(() => { 
     return {
       pageSize: 'A4',
       orientation: 'landscape', // Timetable uses landscape
