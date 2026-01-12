@@ -55,7 +55,43 @@ export default function SettingsPage() {
     cellPadding: 'normal', // cellPadding: 2.5 from timetable
     lineWidth: 'thin', // lineWidth: 0.3 from timetable
     includeSectionText: true, // Show section text in header
-    sectionTextSize: '14' // Font size for section text
+    sectionTextSize: '14' ,// Font size for section text
+
+    return {
+      pageSize: 'A4',
+      orientation: 'landscape', // Timetable uses landscape
+      margin: 'narrow', // Timetable uses { top: 40, left: 8, right: 8, bottom: 25 }
+      fontSize: '8', // Timetable uses fontSize: 8
+      fontFamily: 'Helvetica', // jsPDF default
+      primaryColor: '#dc2626',
+      secondaryColor: '#1f2937',
+      textColor: '#000000',
+      backgroundColor: '#ffffff',
+      headerBackgroundColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
+      tableHeaderColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
+      alternateRowColor: '#F8FAFC', // RGB(248, 250, 252) from timetable
+      includeHeader: true,
+      includeFooter: true,
+      includeLogo: true,
+      includeSchoolName: true,
+      includeTagline: false,
+      includeContactInfo: false,
+      schoolNameFontSize: 18,
+      logoPosition: 'left',
+      logoSize: 'medium',
+      logoStyle: 'circle', // Timetable uses circle
+      headerText: '',
+      footerText: '',
+      includePageNumbers: true,
+      includeDate: true,
+      includeGeneratedDate: true,
+      borderStyle: 'thin', // lineWidth: 0.3 from timetable
+      tableStyle: 'grid', // theme: 'grid' from timetable
+      cellPadding: 'normal', // cellPadding: 2.5 from timetable
+      lineWidth: 'thin', // lineWidth: 0.3 from timetable
+      includeSectionText: true, // Show section text in header
+      sectionTextSize: '14' // Font size for section text
+    }
   })
 
   // Toast notification function
@@ -940,6 +976,64 @@ export default function SettingsPage() {
           {/* Header & Footer Settings */}
           <h3 className="text-xs font-semibold mb-2 text-gray-700 pt-2 border-t border-gray-200">HEADER & FOOTER</h3>
           <div className="space-y-3 mb-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeSchoolName"
+                checked={pdfSettings.includeSchoolName}
+                onChange={(e) => handlePdfSettingChange('includeSchoolName', e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="includeSchoolName" className="text-xs font-medium text-gray-700">
+                Include School Name in PDF
+              </label>
+            </div>
+            {pdfSettings.includeSchoolName && (
+              <div className="ml-6">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  School Name Font Size
+                </label>
+                <select
+                  value={pdfSettings.schoolNameFontSize || 16}
+                  onChange={(e) => handlePdfSettingChange('schoolNameFontSize', parseInt(e.target.value))}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
+                  <option value="12">12pt</option>
+                  <option value="14">14pt</option>
+                  <option value="16">16pt</option>
+                  <option value="18">18pt</option>
+                  <option value="20">20pt</option>
+                  <option value="22">22pt</option>
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeTagline"
+                checked={pdfSettings.includeTagline}
+                onChange={(e) => handlePdfSettingChange('includeTagline', e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="includeTagline" className="text-xs font-medium text-gray-700">
+                Include School Tagline in PDF
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeContactInfo"
+                checked={pdfSettings.includeContactInfo}
+                onChange={(e) => handlePdfSettingChange('includeContactInfo', e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="includeContactInfo" className="text-xs font-medium text-gray-700">
+                Include Contact Information (Address, Phone, Email)
+              </label>
+            </div>
+
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

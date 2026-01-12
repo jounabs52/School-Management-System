@@ -11,7 +11,10 @@ import {
   hexToRgb,
   getMarginValues,
   getLogoSize,
-  applyPdfSettings
+  applyPdfSettings,
+  getAutoTableStyles,
+  getCellPadding,
+  getLineWidth
 } from '@/lib/pdfSettings'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
@@ -126,9 +129,7 @@ export default function ExpensesPage() {
       // Convert logo URL to base64 if it exists
       let logoBase64 = data.logo_url
       if (data.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
-        console.log('🔄 Converting logo URL to base64...')
         logoBase64 = await convertImageToBase64(data.logo_url)
-        console.log('✅ Logo converted to base64:', logoBase64 ? 'Success' : 'Failed')
       }
 
       // Map to expected format
@@ -140,14 +141,15 @@ export default function ExpensesPage() {
         email: data.email,
         website: data.website,
         logo: logoBase64,
-        tagline: data.tagline,
         principal_name: data.principal_name,
-        established_date: data.established_date
+        established_date: data.established_date,
+        code: data.code
       }
 
       setSchoolDetails(schoolData)
     } catch (error) {
       console.error('Error fetching school details:', error)
+      toast.error('Failed to load school details')
     }
   }
 
@@ -370,40 +372,83 @@ export default function ExpensesPage() {
 
     try {
       const pdfSettings = getPdfSettings()
-      const pdf = new jsPDF('l', 'mm', 'a4')
+
+      // Create PDF with settings from Settings page
+      const orientation = pdfSettings.orientation === 'portrait' ? 'p' : 'l'
+      const pageSize = pdfSettings.pageSize || 'a4'
+      const pdf = new jsPDF(orientation, 'mm', pageSize)
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
-      const margins = getMarginValues(pdfSettings)
+      const margins = getMarginValues(pdfSettings.margin)
 
-      // Add logo and header if enabled
-      let yPos = margins.top
-      if (pdfSettings.includeLogo && schoolDetails.logo_url) {
+      // Apply PDF settings (font, etc.)
+      applyPdfSettings(pdf, pdfSettings)
+
+      // Get colors from settings
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
+      const textColor = hexToRgb(pdfSettings.textColor)
+      const alternateRowColor = hexToRgb(pdfSettings.alternateRowColor)
+
+      // Header Section with blue background box
+      const headerHeight = 45
+      let yPos = 10
+
+      // Draw blue background rectangle
+      pdf.setFillColor(...headerBgColor)
+      pdf.rect(0, 0, pageWidth, headerHeight, 'F')
+
+      // Add "Generated" date in top right corner
+      if (pdfSettings.includeGeneratedDate) {
+        const generatedDate = new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+        pdf.setFontSize(8)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(255, 255, 255)
+        pdf.text(`Generated: ${generatedDate}`, pageWidth - 10, 8, { align: 'right' })
+      }
+
+      // Add logo in white box on the left if enabled
+      if (pdfSettings.includeLogo && schoolDetails.logo) {
         try {
-          const logoData = await convertImageToBase64(schoolDetails.logo_url)
           const logoSize = getLogoSize(pdfSettings.logoSize)
-          const logoX = (pageWidth - logoSize.width) / 2
-          pdf.addImage(logoData, 'PNG', logoX, yPos, logoSize.width, logoSize.height)
-          yPos += logoSize.height + 5
+          const logoBoxSize = logoSize.width + 8
+          const logoBoxX = 15
+          const logoBoxY = (headerHeight - logoBoxSize) / 2 + 5
+
+          // Draw white box for logo
+          pdf.setFillColor(255, 255, 255)
+          pdf.roundedRect(logoBoxX, logoBoxY, logoBoxSize, logoBoxSize, 3, 3, 'F')
+
+          // Add logo centered in white box
+          const logoX = logoBoxX + 4
+          const logoY = logoBoxY + 4
+          pdf.addImage(schoolDetails.logo, 'PNG', logoX, logoY, logoSize.width, logoSize.height)
         } catch (error) {
           console.error('Error adding logo:', error)
         }
       }
 
-      // Add school name and header
-      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor || pdfSettings.tableHeaderColor)
-      const textColor = hexToRgb(pdfSettings.textColor)
+      // Center section with school name and title
+      yPos = 18
 
-      if (pdfSettings.includeSchoolName && schoolDetails.name) {
-        pdf.setFontSize(16)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(...textColor)
-        pdf.text(schoolDetails.name, pageWidth / 2, yPos, { align: 'center' })
-        yPos += 7
+      // School name
+      if (pdfSettings.includeSchoolName && (schoolDetails.school_name || schoolDetails.name)) {
+        const schoolName = schoolDetails.school_name || schoolDetails.name
+        pdf.setFontSize(pdfSettings.schoolNameFontSize || 18)
+        pdf.setFont(pdfSettings.fontFamily?.toLowerCase() || 'helvetica', 'bold')
+        pdf.setTextColor(255, 255, 255)
+        pdf.text(schoolName, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 8
       }
 
       // Title
       pdf.setFontSize(14)
       pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(255, 255, 255)
       pdf.text('EXPENSE REPORT', pageWidth / 2, yPos, { align: 'center' })
       yPos += 6
 
@@ -415,10 +460,17 @@ export default function ExpensesPage() {
 
       pdf.setFontSize(10)
       pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(255, 255, 255)
       pdf.text(subtitle, pageWidth / 2, yPos, { align: 'center' })
-      yPos += 5
 
-      pdf.text(`Total Expenses: ${filteredExpenses.length} | Amount: Rs ${totalAmount.toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+      // Reset y position to start content after header
+      yPos = headerHeight + 8
+
+      // Summary information below header
+      pdf.setTextColor(...textColor)
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`Total Expenses: ${filteredExpenses.length} | Total Amount: Rs ${totalAmount.toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
       yPos += 8
 
       // Prepare table data
@@ -437,22 +489,14 @@ export default function ExpensesPage() {
       const total = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0)
       const totals = ['', '', '', '', 'TOTAL', total.toLocaleString(), '', '']
 
+      // Get autoTable styles from centralized settings
+      const autoTableStyles = getAutoTableStyles(pdfSettings)
+
       autoTable(pdf, {
         startY: yPos,
         head: [['#', 'Date', 'Category', 'Vendor', 'Invoice#', 'Amount (Rs)', 'Payment', 'Status']],
         body: [...tableData, totals],
-        theme: 'grid',
-        headStyles: {
-          fillColor: headerBgColor,
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: 'bold'
-        },
-        styles: {
-          fontSize: 8,
-          cellPadding: 2,
-          textColor: textColor
-        },
+        ...autoTableStyles,
         columnStyles: {
           0: { cellWidth: 10, halign: 'center' },
           1: { cellWidth: 25, halign: 'center' },
@@ -465,7 +509,9 @@ export default function ExpensesPage() {
         },
         didParseCell: function(data) {
           if (data.row.index === tableData.length && data.section === 'body') {
-            data.cell.styles.fillColor = [220, 220, 220]
+            // Total row styling
+            data.cell.styles.fillColor = headerBgColor
+            data.cell.styles.textColor = [255, 255, 255]
             data.cell.styles.fontStyle = 'bold'
           }
         }
