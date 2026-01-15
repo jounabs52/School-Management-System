@@ -150,6 +150,72 @@ export default function SectionsPage() {
     fetchSections()
   }, [])
 
+  // Real-time subscription for sections
+  useEffect(() => {
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    if (!userId || !schoolId || !supabase) return
+
+    console.log('🔴 Setting up real-time subscription for sections')
+
+    const channel = supabase
+      .channel('sections-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sections',
+          filter: `school_id=eq.${schoolId}`
+        },
+        (payload) => {
+          console.log('🔴 Real-time event received:', payload.eventType, payload)
+
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            fetchSections()
+          } else if (payload.eventType === 'DELETE') {
+            setSections(prev => prev.filter(s => s.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('🔴 Unsubscribing from sections real-time')
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time subscription for students (to update section counts)
+  useEffect(() => {
+    const { id: userId, school_id: schoolId} = getLoggedInUser()
+    if (!userId || !schoolId || !supabase) return
+
+    console.log('🔴 Setting up real-time subscription for students in sections')
+
+    const channel = supabase
+      .channel('students-sections-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'students',
+          filter: `school_id=eq.${schoolId}`
+        },
+        (payload) => {
+          console.log('🔴 Student real-time event received:', payload.eventType)
+          // Refetch sections to update student counts
+          fetchSections()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('🔴 Unsubscribing from students real-time')
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   // Prevent body scroll when modals are open
   useEffect(() => {
     if (showSidebar || showEditSidebar || showDeleteModal) {
@@ -252,7 +318,7 @@ export default function SectionsPage() {
 
       console.log('✅ Fetching sections for school_id:', schoolId)
 
-      // Get sections with class name and teacher name
+      // Get sections with class name and standard_fee from classes table
       const { data: sections, error } = await supabase
         .from('sections')
         .select(`
@@ -263,12 +329,11 @@ export default function SectionsPage() {
           room_number,
           capacity,
           status,
-          classes(class_name)
+          classes(class_name, standard_fee)
         `)
         .eq('user_id', userId)
         .eq('school_id', schoolId)
         .in('status', ['active', 'inactive'])
-        .order('section_name', { ascending: true })
 
       if (error) {
         console.error('Error fetching sections:', error)
@@ -309,6 +374,7 @@ export default function SectionsPage() {
               section_name: section.section_name,
               class_id: section.class_id,
               class_name: section.classes?.class_name,
+              standard_fee: section.classes?.standard_fee || 0,
               class_teacher_id: section.class_teacher_id,
               teacher_name: teacherName,
               room_number: section.room_number,
@@ -341,19 +407,39 @@ export default function SectionsPage() {
       const matchesSection = !selectedSectionFilter || section.section_name === selectedSectionFilter
       return matchesSearch && matchesClass && matchesSection
     })
-    .sort((a, b) => a.section_name.localeCompare(b.section_name))
+    .sort((a, b) => {
+      // Sort by standard_fee (low to high), then by section_name
+      const feeA = parseFloat(a.standard_fee) || 0
+      const feeB = parseFloat(b.standard_fee) || 0
+      if (feeA !== feeB) {
+        return feeA - feeB
+      }
+      return a.section_name.localeCompare(b.section_name)
+    })
 
   const exportToCSV = () => {
-    if (filteredSections.length === 0) {
+    if (sections.length === 0) {
       showToast('No data to export', 'error')
       return
     }
 
-    const csvData = filteredSections.map((section, index) => ({
+    // Export ALL sections (not just filtered) sorted by fee
+    const sortedSections = [...sections].sort((a, b) => {
+      const feeA = parseFloat(a.standard_fee) || 0
+      const feeB = parseFloat(b.standard_fee) || 0
+      if (feeA !== feeB) {
+        return feeA - feeB
+      }
+      return a.section_name.localeCompare(b.section_name)
+    })
+
+    const csvData = sortedSections.map((section, index) => ({
       'Sr.': index + 1,
+      'Class Name': section.class_name || 'N/A',
       'Section Name': section.section_name || 'N/A',
-      'Class': section.class_name || 'N/A',
-      'Incharge': section.incharge_name || 'N/A'
+      'Incharge Name': section.teacher_name || 'N/A',
+      'Room Number': section.room_number || 'N/A',
+      'Capacity': section.capacity || 'N/A'
     }))
 
     const headers = Object.keys(csvData[0])
@@ -373,7 +459,7 @@ export default function SectionsPage() {
     a.download = `sections-${date}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
-    showToast('CSV exported successfully!', 'success')
+    showToast('Excel exported successfully!', 'success')
   }
 
   // Pagination logic

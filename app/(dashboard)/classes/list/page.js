@@ -293,6 +293,74 @@ export default function ClassListPage() {
     fetchClasses()
   }, [])
 
+  // Real-time subscription for classes
+  useEffect(() => {
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    if (!userId || !schoolId || !supabase) return
+
+    console.log('🔴 Setting up real-time subscription for classes')
+
+    const channel = supabase
+      .channel('classes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'classes',
+          filter: `school_id=eq.${schoolId}`
+        },
+        (payload) => {
+          console.log('🔴 Real-time event received:', payload.eventType, payload)
+
+          if (payload.eventType === 'INSERT') {
+            fetchClasses()
+          } else if (payload.eventType === 'UPDATE') {
+            fetchClasses()
+          } else if (payload.eventType === 'DELETE') {
+            setClasses(prev => prev.filter(c => c.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('🔴 Unsubscribing from classes real-time')
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time subscription for students (to update counts)
+  useEffect(() => {
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    if (!userId || !schoolId || !supabase) return
+
+    console.log('🔴 Setting up real-time subscription for students')
+
+    const channel = supabase
+      .channel('students-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'students',
+          filter: `school_id=eq.${schoolId}`
+        },
+        (payload) => {
+          console.log('🔴 Student real-time event received:', payload.eventType)
+          // Refetch classes to update student counts and discounts
+          fetchClasses()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('🔴 Unsubscribing from students real-time')
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   const fetchStaff = async () => {
     try {
       if (!supabase) {
@@ -353,6 +421,7 @@ export default function ClassListPage() {
         .eq('user_id', userId)
         .eq('school_id', schoolId)
         .eq('status', 'active')
+        .order('standard_fee', { ascending: true, nullsFirst: true })
         .order('class_name', { ascending: true })
 
       if (error) {
@@ -372,40 +441,40 @@ export default function ClassListPage() {
 
       console.log('✅ Fetched classes:', classes)
       console.log('Number of classes:', classes?.length || 0)
-        // For each class, get student count and total discount
-        const classesWithStats = await Promise.all(
-          (classes || []).map(async (cls) => {
-            // Get total students
-            const { count: totalStudents } = await supabase
-              .from('students')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', userId)
-              .eq('school_id', schoolId)
-              .eq('current_class_id', cls.id)
-              .eq('status', 'active')
 
-            // Get total discount
-            const { data: discountData } = await supabase
-              .from('students')
-              .select('discount_amount')
-              .eq('user_id', userId)
-              .eq('school_id', schoolId)
-              .eq('current_class_id', cls.id)
-              .eq('status', 'active')
+        // Fetch all students in one query for all classes
+        const classIds = classes.map(cls => cls.id)
+        const { data: allStudents } = await supabase
+          .from('students')
+          .select('current_class_id, discount_amount')
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
+          .in('current_class_id', classIds)
+          .eq('status', 'active')
 
-            const totalDiscount = (discountData || []).reduce(
-              (sum, student) => sum + (parseFloat(student.discount_amount) || 0),
-              0
-            )
+        // Calculate stats for each class
+        const classStats = {}
+        classIds.forEach(id => {
+          classStats[id] = { count: 0, discount: 0 }
+        })
 
-            return {
-              ...cls,
-              total_students: totalStudents || 0,
-              total_discount: totalDiscount,
-              fee_plan: cls.fee_plan || 'monthly' // Default if column doesn't exist
+        if (allStudents) {
+          allStudents.forEach(student => {
+            const classId = student.current_class_id
+            if (classStats[classId]) {
+              classStats[classId].count++
+              classStats[classId].discount += parseFloat(student.discount_amount) || 0
             }
           })
-        )
+        }
+
+        // Map stats to classes
+        const classesWithStats = classes.map(cls => ({
+          ...cls,
+          total_students: classStats[cls.id]?.count || 0,
+          total_discount: classStats[cls.id]?.discount || 0,
+          fee_plan: cls.fee_plan || 'monthly'
+        }))
 
         console.log('✅ Classes with stats:', classesWithStats)
         setClasses(classesWithStats)
@@ -422,19 +491,35 @@ export default function ClassListPage() {
     const matchesSearch = cls.class_name?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesClassFilter = !classFilter || cls.class_name === classFilter
     return matchesSearch && matchesClassFilter
+  }).sort((a, b) => {
+    // Sort by standard_fee (low to high)
+    const feeA = parseFloat(a.standard_fee) || 0
+    const feeB = parseFloat(b.standard_fee) || 0
+    return feeA - feeB
   })
 
   const exportToCSV = () => {
-    if (filteredClasses.length === 0) {
+    if (classes.length === 0) {
       showToast('No data to export', 'error')
       return
     }
 
-    const csvData = filteredClasses.map((cls, index) => ({
+    // Export ALL classes (not just filtered ones) sorted by fee
+    const sortedClasses = [...classes].sort((a, b) => {
+      const feeA = parseFloat(a.standard_fee) || 0
+      const feeB = parseFloat(b.standard_fee) || 0
+      return feeA - feeB
+    })
+
+    const csvData = sortedClasses.map((cls, index) => ({
       'Sr.': index + 1,
       'Class Name': cls.class_name || 'N/A',
-      'Standard Fee': cls.standard_fee || 'N/A',
-      'Status': cls.status || 'active'
+      'Standard Fee': cls.standard_fee || 0,
+      'Fee Plan': cls.fee_plan || 'Monthly',
+      'Students': cls.total_students || 0,
+      'Total Fee': cls.total_fee || 0,
+      'Discount': cls.total_discount || 0,
+      'Budget': cls.budget || 0
     }))
 
     const headers = Object.keys(csvData[0])
@@ -454,7 +539,7 @@ export default function ClassListPage() {
     a.download = `classes-list-${date}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
-    showToast('CSV exported successfully!', 'success')
+    showToast('Excel exported successfully!', 'success')
   }
 
   // Pagination logic
@@ -503,6 +588,13 @@ export default function ClassListPage() {
 
       if (error) {
         console.error('Error creating class:', error)
+
+        // Check for duplicate class name error
+        if (error.message.includes('duplicate key') || error.message.includes('unique constraint') || error.code === '23505') {
+          showToast(`Class "${formData.className}" already exists!`, 'error')
+          return
+        }
+
         // If the error is about standard_fee column, try without it
         if (error.message.includes('standard_fee')) {
           delete classData.standard_fee
@@ -512,6 +604,11 @@ export default function ClassListPage() {
             .select()
 
           if (retryError) {
+            // Check for duplicate in retry attempt
+            if (retryError.message.includes('duplicate key') || retryError.message.includes('unique constraint') || retryError.code === '23505') {
+              showToast(`Class "${formData.className}" already exists!`, 'error')
+              return
+            }
             showToast('Failed to create class: ' + retryError.message, 'error')
             return
           }
@@ -667,9 +764,10 @@ export default function ClassListPage() {
         return
       }
 
+      // Permanently delete from database (not soft delete)
       const { error } = await supabase
         .from('classes')
-        .update({ status: 'inactive' })
+        .delete()
         .eq('id', classToDelete.id)
         .eq('user_id', userId)
         .eq('school_id', schoolId)
@@ -682,7 +780,7 @@ export default function ClassListPage() {
         const deletedClassName = classToDelete.class_name
         const deletedId = classToDelete.id
         setClassToDelete(null)
-        showToast(`Class "${deletedClassName}" deleted successfully!`, 'success')
+        showToast(`Class "${deletedClassName}" permanently deleted!`, 'success')
 
         // Update classes state without reloading
         setClasses(prev => prev.filter(cls => cls.id !== deletedId))

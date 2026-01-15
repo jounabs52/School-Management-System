@@ -5,7 +5,7 @@ import { Clock, CalendarDays, Plus, Edit2, Trash2, X, Search, Users, Printer, Ch
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { getPdfSettings, hexToRgb, getMarginValues, getCellPadding, getLineWidth, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
-import PDFPreviewModal from '@/components/PDFPreviewModal'
+import { convertImageToBase64 } from '@/lib/pdfUtils'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -60,11 +60,6 @@ export default function TimetablePage() {
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState('')
   const [showTeacherMode, setShowTeacherMode] = useState(false)
   const [deleteMode, setDeleteMode] = useState(false)
-
-  // PDF Preview state
-  const [showPdfPreview, setShowPdfPreview] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState(null)
-  const [pdfFileName, setPdfFileName] = useState('')
   const [allClassesTimetables, setAllClassesTimetables] = useState([])
   const [showAutoGenerateModal, setShowAutoGenerateModal] = useState(false)
   const [autoGenerateForm, setAutoGenerateForm] = useState({
@@ -576,9 +571,9 @@ export default function TimetablePage() {
       }
 
       const sessionId = currentSession?.id || null
-      const allTimetables = []
 
-      for (const cls of classes) {
+      // Fetch all timetables in parallel for better performance
+      const timetablePromises = classes.map(async (cls) => {
         const query = supabase
           .from('timetable')
           .select(`
@@ -600,14 +595,21 @@ export default function TimetablePage() {
 
         if (error) {
           console.error('Error fetching timetable for class:', cls.class_name, error)
-        } else {
-          allTimetables.push({
-            class_id: cls.id,
-            class_name: cls.class_name,
-            timetable: data || []
-          })
+          return null
         }
-      }
+
+        return {
+          class_id: cls.id,
+          class_name: cls.class_name,
+          timetable: data || []
+        }
+      })
+
+      // Wait for all queries to complete
+      const results = await Promise.all(timetablePromises)
+
+      // Filter out null results (errors)
+      const allTimetables = results.filter(result => result !== null)
 
       setLoading(false)
       return allTimetables
@@ -631,6 +633,7 @@ export default function TimetablePage() {
       }
 
       const periodData = {
+        user_id: user.id,
         school_id: user.school_id,
         class_id: periodForm.class_id || null,
         day_of_week: periodForm.day_of_week || null,
@@ -659,6 +662,12 @@ export default function TimetablePage() {
           return
         }
         console.log('Period updated successfully:', data)
+
+        // Update local state immediately
+        if (data && data.length > 0) {
+          setPeriods(prev => prev.map(p => p.id === editingPeriod.id ? data[0] : p))
+        }
+
         showToast('Period updated successfully!', 'success')
       } else {
         const { data, error } = await supabase
@@ -675,10 +684,16 @@ export default function TimetablePage() {
           return
         }
         console.log('Period created successfully:', data)
+
+        // Add new period to local state immediately
+        if (data && data.length > 0) {
+          setPeriods(prev => [...prev, data[0]])
+        }
+
         showToast('Period created successfully!', 'success')
       }
 
-      await fetchPeriods()
+      await fetchPeriods(false)
       setShowPeriodModal(false)
       setPeriodForm({
         class_id: '',
@@ -763,6 +778,7 @@ export default function TimetablePage() {
             const endTime = addMinutes(currentTime, periodDuration)
 
             periodsToCreate.push({
+              user_id: user.id,
               school_id: user.school_id,
               class_id: classId,
               day_of_week: dayOfWeek,
@@ -1030,6 +1046,7 @@ export default function TimetablePage() {
         const subjectData = classSubjectsData[i % classSubjectsData.length] // Cycle through subjects if more periods than subjects
 
         timetableEntries.push({
+          user_id: user.id,
           school_id: user.school_id,
           class_id: autoGenerateForm.class_id,
           section_id: null,
@@ -1140,6 +1157,7 @@ export default function TimetablePage() {
       }
 
       const timetableData = {
+        user_id: user.id,
         school_id: user.school_id,
         class_id: selectedClass,
         section_id: selectedSection || null,
@@ -1271,9 +1289,9 @@ export default function TimetablePage() {
         return
       }
 
-      // Get PDF settings
-      const pdfSettings = getPdfSettings()
-      console.log('PDF Settings loaded:', pdfSettings)
+      // Get PDF settings for this school
+      const pdfSettings = getPdfSettings(user.school_id)
+      console.log('PDF Settings loaded for school:', user.school_id, pdfSettings)
 
       // Dynamically import jsPDF and autoTable
       const jsPDF = (await import('jspdf')).default
@@ -1304,7 +1322,6 @@ export default function TimetablePage() {
 
         // Fixed header height to match working code layout
         const headerHeight = 35 // Fixed at 35mm like the working code
-        const logoSize = pdfSettings.includeLogo ? getLogoSize(pdfSettings.logoSize) : 25
 
         // Add decorative header background
         if (pdfSettings.includeHeader) {
@@ -1314,72 +1331,111 @@ export default function TimetablePage() {
         }
 
         // Add school logo if available
+        console.log('🔍 Logo check:', {
+          includeLogo: pdfSettings.includeLogo,
+          logoUrl: schoolData.logo_url,
+          schoolData: schoolData
+        })
         if (pdfSettings.includeLogo && schoolData.logo_url) {
+          console.log('✅ Logo conditions met, attempting to load logo')
           try {
-            const img = new Image()
-            img.crossOrigin = 'anonymous'
-            img.src = schoolData.logo_url
-            await new Promise((resolve) => {
-              img.onload = () => {
+            const logoImg = new Image()
+            logoImg.crossOrigin = 'anonymous'
+
+            const logoBase64 = await new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                console.warn('Logo load timeout, trying fetch method')
+                reject(new Error('Logo load timeout'))
+              }, 8000)
+
+              logoImg.onload = () => {
+                clearTimeout(timeout)
                 try {
-                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
-                  const logoX = pdfSettings.logoPosition === 'left' ? 10 :
-                               pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
-                               (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
-                  const logoY = (headerHeight - currentLogoSize) / 2 // Center vertically in header
+                  const canvas = document.createElement('canvas')
+                  canvas.width = logoImg.width
+                  canvas.height = logoImg.height
+                  const ctx = canvas.getContext('2d')
 
-                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
-                    // Create a canvas to clip the image
-                    const canvas = document.createElement('canvas')
-                    const ctx = canvas.getContext('2d')
-                    const size = 200 // Higher resolution for better quality
-                    canvas.width = size
-                    canvas.height = size
-
-                    // Draw clipped image on canvas
+                  // Apply logo style from settings
+                  if (pdfSettings.logoStyle === 'circle') {
                     ctx.beginPath()
-                    if (pdfSettings.logoStyle === 'circle') {
-                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-                    } else {
-                      // Rounded corners
-                      const radius = size * 0.15
-                      ctx.moveTo(radius, 0)
-                      ctx.lineTo(size - radius, 0)
-                      ctx.quadraticCurveTo(size, 0, size, radius)
-                      ctx.lineTo(size, size - radius)
-                      ctx.quadraticCurveTo(size, size, size - radius, size)
-                      ctx.lineTo(radius, size)
-                      ctx.quadraticCurveTo(0, size, 0, size - radius)
-                      ctx.lineTo(0, radius)
-                      ctx.quadraticCurveTo(0, 0, radius, 0)
-                    }
+                    ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2, 0, Math.PI * 2)
                     ctx.closePath()
                     ctx.clip()
-
-                    // Draw image
-                    ctx.drawImage(img, 0, 0, size, size)
-
-                    // Convert canvas to data URL and add to PDF
-                    const clippedImage = canvas.toDataURL('image/png')
-                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
-                  } else {
-                    // Square logo
-                    doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                  } else if (pdfSettings.logoStyle === 'rounded') {
+                    const radius = Math.min(canvas.width, canvas.height) * 0.1
+                    ctx.beginPath()
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(canvas.width - radius, 0)
+                    ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius)
+                    ctx.lineTo(canvas.width, canvas.height - radius)
+                    ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height)
+                    ctx.lineTo(radius, canvas.height)
+                    ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                    ctx.closePath()
+                    ctx.clip()
                   }
 
-                  resolve()
-                } catch (e) {
-                  console.warn('Could not add logo to PDF:', e)
-                  resolve()
+                  ctx.drawImage(logoImg, 0, 0)
+                  resolve(canvas.toDataURL('image/png'))
+                } catch (err) {
+                  console.error('Canvas error:', err)
+                  reject(err)
                 }
               }
-              img.onerror = () => {
-                console.warn('Could not load logo image')
-                resolve()
+
+              logoImg.onerror = (err) => {
+                clearTimeout(timeout)
+                console.error('Logo load error:', err)
+                reject(new Error('Failed to load logo'))
               }
+
+              logoImg.src = schoolData.logo_url
             })
+
+            if (logoBase64) {
+              // Add logo to PDF
+              const logoSizeObj = getLogoSize(pdfSettings.logoSize)
+              const currentLogoSize = logoSizeObj.width // Use width property
+              const logoX = pdfSettings.logoPosition === 'left' ? 10 :
+                           pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
+                           (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
+              const logoY = (headerHeight - currentLogoSize) / 2
+
+              const format = logoBase64.includes('data:image/png') ? 'PNG' : 'JPEG'
+              doc.addImage(logoBase64, format, logoX, logoY, currentLogoSize, currentLogoSize)
+
+              // Add border based on logo style from PDF settings
+              const borderRgb = pdfSettings.logoBorderColor ? hexToRgb(pdfSettings.logoBorderColor) : [255, 255, 255]
+              if (pdfSettings.logoStyle === 'circle') {
+                doc.setDrawColor(...borderRgb)
+                doc.setLineWidth(0.5)
+                doc.circle(logoX + currentLogoSize/2, logoY + currentLogoSize/2, currentLogoSize/2, 'S')
+              } else if (pdfSettings.logoStyle === 'rounded') {
+                doc.setDrawColor(...borderRgb)
+                doc.setLineWidth(0.5)
+                doc.roundedRect(logoX, logoY, currentLogoSize, currentLogoSize, 3, 3, 'S')
+              }
+            }
           } catch (error) {
-            console.warn('Error adding logo:', error)
+            console.warn('Error adding logo, trying fallback method:', error)
+            try {
+              // Fallback: try using convertImageToBase64
+              const logoBase64 = await convertImageToBase64(schoolData.logo_url)
+              if (logoBase64) {
+                const logoSizeObj = getLogoSize(pdfSettings.logoSize)
+                const currentLogoSize = logoSizeObj.width // Use width property
+                const logoX = pdfSettings.logoPosition === 'left' ? 10 :
+                             pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
+                             (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
+                const logoY = (headerHeight - currentLogoSize) / 2
+                doc.addImage(logoBase64, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+              }
+            } catch (fallbackError) {
+              console.error('Fallback logo loading also failed:', fallbackError)
+            }
           }
         }
 
@@ -1633,17 +1689,12 @@ export default function TimetablePage() {
         }
       }
 
-      // Generate PDF blob for preview
-      const pdfBlob = doc.output('blob')
-      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
-
-      // Set state for preview modal
+      // Download PDF directly without preview
       const filename = `All_Timetables_${new Date().toISOString().split('T')[0]}.pdf`
-      setPdfUrl(pdfBlobUrl)
-      setPdfFileName(filename)
-      setShowPdfPreview(true)
+      doc.save(filename)
 
-      console.log('All Classes PDF generated for preview:', filename)
+      console.log('All Classes PDF downloaded:', filename)
+      showToast('PDF downloaded successfully!', 'success')
     } catch (error) {
       console.error('Error generating All Classes PDF:', error)
       console.error('Error details:', error.message, error.stack)
@@ -1661,9 +1712,9 @@ export default function TimetablePage() {
         return
       }
 
-      // Get PDF settings
-      const pdfSettings = getPdfSettings()
-      console.log('PDF Settings loaded:', pdfSettings)
+      // Get PDF settings for this school
+      const pdfSettings = getPdfSettings(user.school_id)
+      console.log('PDF Settings loaded for school:', user.school_id, pdfSettings)
 
       // Dynamically import jsPDF and autoTable
       const jsPDF = (await import('jspdf')).default
@@ -1690,12 +1741,17 @@ export default function TimetablePage() {
       console.log('📊 School Data:', schoolData)
       console.log('📷 Logo URL:', schoolData.logo_url)
       console.log('🏫 School Name:', schoolData.name)
+      console.log('🔍 PDF Settings:', {
+        includeLogo: pdfSettings.includeLogo,
+        logoPosition: pdfSettings.logoPosition,
+        logoSize: pdfSettings.logoSize,
+        logoStyle: pdfSettings.logoStyle
+      })
 
       // Fixed header height to match working code layout
       const headerHeight = 35 // Fixed at 35mm like the working code
-      const logoSize = pdfSettings.includeLogo ? getLogoSize(pdfSettings.logoSize) : 25
 
-      console.log(`📐 Header dimensions: logoSize=${logoSize}mm, headerHeight=${headerHeight}mm (FIXED), pageWidth=${doc.internal.pageSize.getWidth()}mm`)
+      console.log(`📐 Header dimensions: headerHeight=${headerHeight}mm (FIXED), pageWidth=${doc.internal.pageSize.getWidth()}mm`)
 
       // Add decorative header background
       if (pdfSettings.includeHeader) {
@@ -1709,70 +1765,110 @@ export default function TimetablePage() {
       if (pdfSettings.includeLogo && schoolData.logo_url) {
         console.log('🖼️ Attempting to add logo to PDF...')
         try {
-          const img = new Image()
-          img.crossOrigin = 'anonymous'
-          img.src = schoolData.logo_url
-          await new Promise((resolve, reject) => {
-            img.onload = () => {
+          const logoImg = new Image()
+          logoImg.crossOrigin = 'anonymous'
+
+          const logoBase64 = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              console.warn('Logo load timeout, trying fetch method')
+              reject(new Error('Logo load timeout'))
+            }, 8000)
+
+            logoImg.onload = () => {
+              clearTimeout(timeout)
               try {
-                const currentLogoSize = getLogoSize(pdfSettings.logoSize)
-                const logoX = pdfSettings.logoPosition === 'left' ? 10 :
-                             pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
-                             (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
-                const logoY = (headerHeight - currentLogoSize) / 2 // Center vertically in header
+                const canvas = document.createElement('canvas')
+                canvas.width = logoImg.width
+                canvas.height = logoImg.height
+                const ctx = canvas.getContext('2d')
 
-                if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
-                  // Create a canvas to clip the image
-                  const canvas = document.createElement('canvas')
-                  const ctx = canvas.getContext('2d')
-                  const size = 200 // Higher resolution for better quality
-                  canvas.width = size
-                  canvas.height = size
-
-                  // Draw clipped image on canvas
+                // Apply logo style from settings
+                if (pdfSettings.logoStyle === 'circle') {
                   ctx.beginPath()
-                  if (pdfSettings.logoStyle === 'circle') {
-                    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-                  } else {
-                    // Rounded corners
-                    const radius = size * 0.15
-                    ctx.moveTo(radius, 0)
-                    ctx.lineTo(size - radius, 0)
-                    ctx.quadraticCurveTo(size, 0, size, radius)
-                    ctx.lineTo(size, size - radius)
-                    ctx.quadraticCurveTo(size, size, size - radius, size)
-                    ctx.lineTo(radius, size)
-                    ctx.quadraticCurveTo(0, size, 0, size - radius)
-                    ctx.lineTo(0, radius)
-                    ctx.quadraticCurveTo(0, 0, radius, 0)
-                  }
+                  ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2, 0, Math.PI * 2)
                   ctx.closePath()
                   ctx.clip()
-
-                  // Draw image
-                  ctx.drawImage(img, 0, 0, size, size)
-
-                  // Convert canvas to data URL and add to PDF
-                  const clippedImage = canvas.toDataURL('image/png')
-                  doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
-                } else {
-                  // Square logo
-                  doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+                } else if (pdfSettings.logoStyle === 'rounded') {
+                  const radius = Math.min(canvas.width, canvas.height) * 0.1
+                  ctx.beginPath()
+                  ctx.moveTo(radius, 0)
+                  ctx.lineTo(canvas.width - radius, 0)
+                  ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius)
+                  ctx.lineTo(canvas.width, canvas.height - radius)
+                  ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height)
+                  ctx.lineTo(radius, canvas.height)
+                  ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius)
+                  ctx.lineTo(0, radius)
+                  ctx.quadraticCurveTo(0, 0, radius, 0)
+                  ctx.closePath()
+                  ctx.clip()
                 }
 
-                resolve()
-              } catch (e) {
-                console.warn('Could not add logo to PDF:', e)
-                resolve()
+                ctx.drawImage(logoImg, 0, 0)
+                resolve(canvas.toDataURL('image/png'))
+              } catch (err) {
+                console.error('Canvas error:', err)
+                reject(err)
               }
             }
-            img.onerror = () => {
-              console.warn('Could not load logo image')
-              resolve()
+
+            logoImg.onerror = (err) => {
+              clearTimeout(timeout)
+              console.error('Logo load error:', err)
+              reject(new Error('Failed to load logo'))
             }
+
+            logoImg.src = schoolData.logo_url
           })
+
+          console.log('📷 Logo converted to base64:', logoBase64 ? 'Success' : 'Failed')
+
+          if (logoBase64) {
+            // Add logo to PDF
+            const logoSizeObj = getLogoSize(pdfSettings.logoSize)
+            const currentLogoSize = logoSizeObj.width // Use width property
+            const logoX = pdfSettings.logoPosition === 'left' ? 10 :
+                         pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
+                         (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
+            const logoY = (headerHeight - currentLogoSize) / 2
+
+            console.log('📐 Logo dimensions:', { currentLogoSize, logoX, logoY })
+
+            const format = logoBase64.includes('data:image/png') ? 'PNG' : 'JPEG'
+            doc.addImage(logoBase64, format, logoX, logoY, currentLogoSize, currentLogoSize)
+
+            // Add border based on logo style from PDF settings
+            const borderRgb = pdfSettings.logoBorderColor ? hexToRgb(pdfSettings.logoBorderColor) : [255, 255, 255]
+            if (pdfSettings.logoStyle === 'circle') {
+              doc.setDrawColor(...borderRgb)
+              doc.setLineWidth(0.5)
+              doc.circle(logoX + currentLogoSize/2, logoY + currentLogoSize/2, currentLogoSize/2, 'S')
+            } else if (pdfSettings.logoStyle === 'rounded') {
+              doc.setDrawColor(...borderRgb)
+              doc.setLineWidth(0.5)
+              doc.roundedRect(logoX, logoY, currentLogoSize, currentLogoSize, 3, 3, 'S')
+            }
+
+            console.log('✅ Logo added to PDF')
+          }
         } catch (error) {
-          console.warn('Error adding logo:', error)
+          console.warn('Error adding logo, trying fallback method:', error)
+          try {
+            // Fallback: try using convertImageToBase64
+            const logoBase64 = await convertImageToBase64(schoolData.logo_url)
+            if (logoBase64) {
+              const logoSizeObj = getLogoSize(pdfSettings.logoSize)
+              const currentLogoSize = logoSizeObj.width // Use width property
+              const logoX = pdfSettings.logoPosition === 'left' ? 10 :
+                           pdfSettings.logoPosition === 'right' ? doc.internal.pageSize.getWidth() - currentLogoSize - 10 :
+                           (doc.internal.pageSize.getWidth() - currentLogoSize) / 2
+              const logoY = (headerHeight - currentLogoSize) / 2
+              doc.addImage(logoBase64, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+              console.log('✅ Logo added to PDF using fallback method')
+            }
+          } catch (fallbackError) {
+            console.error('Fallback logo loading also failed:', fallbackError)
+          }
         }
       }
 
@@ -2034,17 +2130,12 @@ export default function TimetablePage() {
 
       console.log('Footer added')
 
-      // Generate PDF blob for preview
-      const pdfBlob = doc.output('blob')
-      const pdfBlobUrl = URL.createObjectURL(pdfBlob)
-
-      // Set state for preview modal
+      // Download PDF directly without preview
       const filename = `Timetable_${selectedClassName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
-      setPdfUrl(pdfBlobUrl)
-      setPdfFileName(filename)
-      setShowPdfPreview(true)
+      doc.save(filename)
 
-      console.log('PDF generated for preview:', filename)
+      console.log('PDF downloaded:', filename)
+      showToast('PDF downloaded successfully!', 'success')
     } catch (error) {
       console.error('Error generating PDF:', error)
       console.error('Error details:', error.message, error.stack)
@@ -2052,11 +2143,6 @@ export default function TimetablePage() {
     }
   }
 
-  const handleClosePdfPreview = () => {
-    setShowPdfPreview(false)
-    setPdfUrl(null)
-    setPdfFileName('')
-  }
 
   const filteredPeriods = periods.filter(period => {
     const matchesSearch = period.period_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -3557,14 +3643,6 @@ export default function TimetablePage() {
           </div>
         </>
       )}
-
-      {/* PDF Preview Modal */}
-      <PDFPreviewModal
-        pdfUrl={pdfUrl}
-        fileName={pdfFileName}
-        isOpen={showPdfPreview}
-        onClose={handleClosePdfPreview}
-      />
     </div>
   )
 }

@@ -110,6 +110,8 @@ export default function SubjectsPage() {
     classId: '',
     subjects: [{ subjectName: '', subjectCode: '' }]
   })
+  const [copyFromClassId, setCopyFromClassId] = useState('')
+  const [copying, setCopying] = useState(false)
   const [editFormData, setEditFormData] = useState({
     classId: '',
     subjects: []
@@ -152,6 +154,72 @@ export default function SubjectsPage() {
   useEffect(() => {
     fetchClasses()
     fetchSubjects()
+  }, [])
+
+  // Real-time subscription for class_subjects
+  useEffect(() => {
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    if (!userId || !schoolId || !supabase) return
+
+    console.log('🔴 Setting up real-time subscription for class_subjects')
+
+    const channel = supabase
+      .channel('class-subjects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'class_subjects',
+          filter: `school_id=eq.${schoolId}`
+        },
+        (payload) => {
+          console.log('🔴 Real-time event received:', payload.eventType, payload)
+
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            fetchSubjects()
+          } else if (payload.eventType === 'DELETE') {
+            setSubjects(prev => prev.filter(s => s.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('🔴 Unsubscribing from class_subjects real-time')
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time subscription for subjects table
+  useEffect(() => {
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    if (!userId || !schoolId || !supabase) return
+
+    console.log('🔴 Setting up real-time subscription for subjects')
+
+    const channel = supabase
+      .channel('subjects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'subjects',
+          filter: `school_id=eq.${schoolId}`
+        },
+        (payload) => {
+          console.log('🔴 Subject update event received:', payload)
+          // Refetch all subjects to get updated names/codes
+          fetchSubjects()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      console.log('🔴 Unsubscribing from subjects real-time')
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const fetchClasses = async () => {
@@ -239,7 +307,7 @@ export default function SubjectsPage() {
           is_compulsory,
           class_id,
           subject_id,
-          classes:class_id (id, class_name),
+          classes:class_id (id, class_name, standard_fee),
           subjects:subject_id (id, subject_name, subject_code)
         `)
         .eq('user_id', userId)
@@ -257,6 +325,7 @@ export default function SubjectsPage() {
           sr: index + 1,
           classId: item.classes?.id || '',
           className: item.classes?.class_name || '',
+          standardFee: parseFloat(item.classes?.standard_fee) || 0,
           subjectId: item.subjects?.id || '',
           subjectName: item.subjects?.subject_name || '',
           subjectCode: item.subjects?.subject_code || '',
@@ -283,23 +352,37 @@ export default function SubjectsPage() {
   })
 
   const exportToCSV = () => {
-    if (filteredSubjects.length === 0) {
+    if (groupedSubjectsArray.length === 0) {
       showToast('No data to export', 'error')
       return
     }
 
-    const csvData = filteredSubjects.map((subject, index) => ({
-      'Sr.': index + 1,
-      'Class': subject.className || 'N/A',
-      'Subject Name': subject.subjectName || 'N/A',
-      'Subject Code': subject.subjectCode || 'N/A'
-    }))
+    // Sort by standard_fee (low to high) for export
+    const sortedGroups = [...groupedSubjectsArray].sort((a, b) => {
+      const feeA = parseFloat(a.standardFee) || 0
+      const feeB = parseFloat(b.standardFee) || 0
+      return feeA - feeB
+    })
+
+    const csvData = sortedGroups.map((classGroup, index) => {
+      // Format subjects as comma-separated list
+      const subjectsList = classGroup.subjects
+        .map(sub => sub.subjectName)
+        .join(', ')
+
+      return {
+        'Sr.': index + 1,
+        'Class Name': classGroup.className || 'N/A',
+        'Subjects': subjectsList || 'N/A'
+      }
+    })
 
     const headers = Object.keys(csvData[0])
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => headers.map(header => {
         const value = row[header]
+        // Wrap in quotes if contains comma
         return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
       }).join(','))
     ].join('\n')
@@ -322,6 +405,7 @@ export default function SubjectsPage() {
       acc[classKey] = {
         classId: subject.classId,
         className: subject.className,
+        standardFee: subject.standardFee || 0,
         subjects: []
       }
     }
@@ -334,7 +418,12 @@ export default function SubjectsPage() {
     return acc
   }, {})
 
-  const groupedSubjectsArray = Object.values(groupedSubjects)
+  // Sort by standard_fee (low to high)
+  const groupedSubjectsArray = Object.values(groupedSubjects).sort((a, b) => {
+    const feeA = parseFloat(a.standardFee) || 0
+    const feeB = parseFloat(b.standardFee) || 0
+    return feeA - feeB
+  })
 
   // Pagination logic
   const totalPages = Math.ceil(groupedSubjectsArray.length / rowsPerPage)
@@ -383,13 +472,16 @@ export default function SubjectsPage() {
 
       const subjectsToProcess = [...validSubjects]
       const classId = formData.classId
-      const className = classes.find(c => c.id === classId)?.name || ''
+      const selectedClass = classes.find(c => c.id === classId)
+      const className = selectedClass?.name || ''
+      const standardFee = selectedClass?.standardFee || 0
 
       console.log('📊 Processing data:', {
         schoolId,
         userId,
         classId,
         className,
+        standardFee,
         subjectsCount: subjectsToProcess.length
       })
 
@@ -560,6 +652,7 @@ export default function SubjectsPage() {
           id: newRelation.id,
           classId: classId,
           className: className,
+          standardFee: standardFee,
           subjectId: subjectId,
           subjectName: subject.subjectName,
           subjectCode: subject.subjectCode || ''
@@ -584,6 +677,7 @@ export default function SubjectsPage() {
           sr: prev.length + idx + 1,
           classId: item.classId,
           className: item.className,
+          standardFee: item.standardFee || 0,
           subjectId: item.subjectId,
           subjectName: item.subjectName,
           subjectCode: item.subjectCode,
@@ -634,6 +728,80 @@ export default function SubjectsPage() {
     const newSubjects = [...formData.subjects]
     newSubjects[index][field] = value
     setFormData({ ...formData, subjects: newSubjects })
+  }
+
+  const handleCopyFromClass = async () => {
+    if (!copyFromClassId) {
+      showToast('Please select a class to copy from', 'error')
+      return
+    }
+
+    if (!formData.classId) {
+      showToast('Please select a target class first', 'error')
+      return
+    }
+
+    if (copyFromClassId === formData.classId) {
+      showToast('Cannot copy from the same class', 'error')
+      return
+    }
+
+    setCopying(true)
+    try {
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
+      if (!userId || !schoolId) {
+        showToast('Unauthorized', 'error')
+        return
+      }
+
+      // Fetch subjects from the selected class using class_subjects table
+      const { data: subjectsData, error } = await supabase
+        .from('class_subjects')
+        .select(`
+          subjects:subject_id (subject_name, subject_code)
+        `)
+        .eq('class_id', copyFromClassId)
+        .eq('user_id', userId)
+        .eq('school_id', schoolId)
+
+      if (error) {
+        console.error('Error fetching subjects:', error)
+        showToast('Error fetching subjects from selected class', 'error')
+        return
+      }
+
+      if (!subjectsData || subjectsData.length === 0) {
+        showToast('No subjects found in the selected class', 'error')
+        return
+      }
+
+      // Map the fetched subjects to form data format
+      const copiedSubjects = subjectsData
+        .filter(item => item.subjects) // Filter out null subjects
+        .map(item => ({
+          subjectName: item.subjects.subject_name,
+          subjectCode: item.subjects.subject_code || ''
+        }))
+
+      if (copiedSubjects.length === 0) {
+        showToast('No subjects found in the selected class', 'error')
+        return
+      }
+
+      setFormData({
+        ...formData,
+        subjects: copiedSubjects
+      })
+
+      const className = classes.find(c => c.id === copyFromClassId)?.name || 'selected class'
+      showToast(`Successfully copied ${copiedSubjects.length} subjects from ${className}`, 'success')
+      setCopyFromClassId('')
+    } catch (error) {
+      console.error('Error copying subjects:', error)
+      showToast('Error copying subjects', 'error')
+    } finally {
+      setCopying(false)
+    }
   }
 
   const addEditSubjectField = () => {
@@ -693,13 +861,16 @@ export default function SubjectsPage() {
         .filter(s => !editFormData.subjects.find(es => es.id === s.id))
       const subjectsToProcess = [...validSubjects]
       const classId = editFormData.classId
-      const className = selectedSubject.className
+      const selectedClass = classes.find(c => c.id === classId)
+      const className = selectedClass?.name || selectedSubject.className
+      const standardFee = selectedClass?.standardFee || selectedSubject.standardFee || 0
 
       console.log('📊 Processing data:', {
         schoolId,
         userId,
         classId,
         className,
+        standardFee,
         subjectsToDelete: subjectsToDelete.length,
         subjectsToProcess: subjectsToProcess.length
       })
@@ -854,6 +1025,7 @@ export default function SubjectsPage() {
               id: data.id,
               classId: classId,
               className: classes.find(c => c.id === classId)?.name || className,
+              standardFee: standardFee,
               subjectId: subjectId,
               subjectName: subject.subjectName,
               subjectCode: subject.subjectCode
@@ -900,6 +1072,7 @@ export default function SubjectsPage() {
               sr: updated.length + idx + 1,
               classId: item.classId,
               className: item.className,
+              standardFee: item.standardFee || 0,
               subjectId: item.subjectId,
               subjectName: item.subjectName,
               subjectCode: item.subjectCode,
@@ -1211,35 +1384,92 @@ export default function SubjectsPage() {
 
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
               <div className="space-y-6">
+                {/* Class Selection and Copy from Class - Side by Side */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
-                    Class <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.classId}
-                      onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 appearance-none"
-                      disabled={loadingClasses}
-                    >
-                      <option value="">Select Class</option>
-                      {classes.map((cls) => (
-                        <option key={cls.id} value={cls.id}>
-                          {cls.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                  <div className="flex gap-4 items-start">
+                    {/* Class Selection - Smaller Width */}
+                    <div className="flex-shrink-0 w-64">
+                      <label className="block text-gray-800 font-semibold mb-2 text-sm uppercase tracking-wide">
+                        Class <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={formData.classId}
+                          onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 appearance-none text-sm"
+                          disabled={loadingClasses}
+                        >
+                          <option value="">Select Class</option>
+                          {classes.map((cls) => (
+                            <option key={cls.id} value={cls.id}>
+                              {cls.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                      </div>
+                      {loadingClasses && (
+                        <p className="text-xs text-gray-500 mt-2">Loading...</p>
+                      )}
+                      {!loadingClasses && classes.length === 0 && (
+                        <p className="text-xs text-red-500 mt-2">⚠️ No classes found!</p>
+                      )}
+                      {!loadingClasses && classes.length > 0 && (
+                        <p className="text-xs text-green-600 mt-2">✓ {classes.length} classes</p>
+                      )}
+                    </div>
+
+                    {/* Copy from Class - Optional, shown when class is selected */}
+                    {formData.classId && (
+                      <div className="flex-1">
+                        <label className="block text-gray-800 font-semibold mb-2 text-sm uppercase tracking-wide flex items-center gap-2">
+                          <BookOpen size={16} className="text-blue-600" />
+                          Copy from Class <span className="text-xs text-gray-500 font-normal">(Optional)</span>
+                        </label>
+                        <div className="flex gap-3">
+                          <div className="relative flex-1">
+                            <select
+                              value={copyFromClassId}
+                              onChange={(e) => setCopyFromClassId(e.target.value)}
+                              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all hover:border-gray-400 appearance-none text-sm"
+                              disabled={loadingClasses}
+                            >
+                              <option value="">-- Select to copy subjects</option>
+                              {classes.filter(cls => cls.id !== formData.classId).map((cls) => (
+                                <option key={cls.id} value={cls.id}>
+                                  {cls.name}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleCopyFromClass}
+                            disabled={!copyFromClassId || copying}
+                            className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-2"
+                          >
+                            {copying ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Copying...
+                              </>
+                            ) : (
+                              <>
+                                <Plus size={16} />
+                                Copy
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        {copyFromClassId && (
+                          <p className="text-xs text-blue-600 mt-2">
+                            ✨ Click "Copy" to load subjects from {classes.find(c => c.id === copyFromClassId)?.name}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {loadingClasses && (
-                    <p className="text-xs text-gray-500 mt-2">Loading classes...</p>
-                  )}
-                  {!loadingClasses && classes.length === 0 && (
-                    <p className="text-xs text-red-500 mt-2">⚠️ No classes found! Please add classes first in Classes section.</p>
-                  )}
-                  {!loadingClasses && classes.length > 0 && (
-                    <p className="text-xs text-green-600 mt-2">✓ {classes.length} classes loaded</p>
-                  )}
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">

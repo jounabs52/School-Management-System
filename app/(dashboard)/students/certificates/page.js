@@ -290,7 +290,6 @@ export default function StudentCertificatesPage() {
       const { data, error } = await supabase
         .from('schools')
         .select('*')
-        .eq('user_id', userId)
         .eq('id', schoolId)
         .single()
 
@@ -369,7 +368,6 @@ export default function StudentCertificatesPage() {
       const { data: schools, error: schoolError } = await supabase
         .from('schools')
         .select('id')
-        .eq('user_id', userId)
         .eq('id', schoolId)
         .limit(1)
         .single()
@@ -377,7 +375,6 @@ export default function StudentCertificatesPage() {
       if (schoolError) throw new Error('Unable to fetch school information')
 
       const certificateRecord = {
-        user_id: userId,
         student_id: selectedStudent.id,
         school_id: schools.id,
         certificate_type: 'character',
@@ -483,7 +480,62 @@ export default function StudentCertificatesPage() {
         if (!error && data) {
           let logoBase64 = data?.logo_url
           if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
-            logoBase64 = await convertImageToBase64(data.logo_url)
+            // Load and clip logo based on settings
+            try {
+              const logoImg = new Image()
+              logoImg.crossOrigin = 'anonymous'
+
+              logoBase64 = await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 8000)
+
+                logoImg.onload = () => {
+                  clearTimeout(timeout)
+                  try {
+                    const canvas = document.createElement('canvas')
+                    canvas.width = logoImg.width
+                    canvas.height = logoImg.height
+                    const ctx = canvas.getContext('2d')
+
+                    // Apply logo style from settings
+                    if (pdfSettings.logoStyle === 'circle') {
+                      ctx.beginPath()
+                      ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2, 0, Math.PI * 2)
+                      ctx.closePath()
+                      ctx.clip()
+                    } else if (pdfSettings.logoStyle === 'rounded') {
+                      const radius = Math.min(canvas.width, canvas.height) * 0.1
+                      ctx.beginPath()
+                      ctx.moveTo(radius, 0)
+                      ctx.lineTo(canvas.width - radius, 0)
+                      ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius)
+                      ctx.lineTo(canvas.width, canvas.height - radius)
+                      ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height)
+                      ctx.lineTo(radius, canvas.height)
+                      ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius)
+                      ctx.lineTo(0, radius)
+                      ctx.quadraticCurveTo(0, 0, radius, 0)
+                      ctx.closePath()
+                      ctx.clip()
+                    }
+
+                    ctx.drawImage(logoImg, 0, 0)
+                    resolve(canvas.toDataURL('image/png'))
+                  } catch (err) {
+                    reject(err)
+                  }
+                }
+
+                logoImg.onerror = () => {
+                  clearTimeout(timeout)
+                  reject(new Error('Failed to load logo'))
+                }
+
+                logoImg.src = data.logo_url
+              })
+            } catch (err) {
+              console.error('Logo clipping error:', err)
+              logoBase64 = await convertImageToBase64(data.logo_url)
+            }
           }
           schoolDataToUse = { ...data, logo: logoBase64 }
         }
@@ -554,14 +606,12 @@ export default function StudentCertificatesPage() {
       const { data: schools, error: schoolError} = await supabase
         .from('schools')
         .select('id')
-        .eq('user_id', userId)
         .eq('id', schoolId)
         .limit(1)
         .single()
 
       if (!schoolError && schools) {
         const certificateRecord = {
-          user_id: userId,
           student_id: studentData.id,
           school_id: schools.id,
           certificate_type: certificateTypeToUse,
@@ -690,7 +740,7 @@ export default function StudentCertificatesPage() {
     const fieldSpacing = isLandscape ? Math.max((certificateSettings.fieldSpacing || 9) - 2, 6) : (certificateSettings.fieldSpacing || 9)
     const sectionSpacing = isLandscape ? Math.max((certificateSettings.sectionSpacing || 20) - 8, 10) : (certificateSettings.sectionSpacing || 20)
 
-    // School logo at top center
+    // School logo at top center with circular/rounded style from settings
     let currentHeaderY = margin + (isLandscape ? 10 : 15)
     if (certificateSettings.showSchoolLogo && schoolDataToUse?.logo) {
       try {
@@ -702,7 +752,20 @@ export default function StudentCertificatesPage() {
           format = 'JPEG'
         }
 
+        // Add logo
         doc.addImage(schoolDataToUse.logo, format, logoX, currentHeaderY, logoSize, logoSize)
+
+        // Add border based on logo style from PDF settings
+        if (pdfSettings.logoStyle === 'circle') {
+          doc.setDrawColor(...borderRgb)
+          doc.setLineWidth(0.5)
+          doc.circle(logoX + logoSize/2, currentHeaderY + logoSize/2, logoSize/2, 'S')
+        } else if (pdfSettings.logoStyle === 'rounded') {
+          doc.setDrawColor(...borderRgb)
+          doc.setLineWidth(0.5)
+          doc.roundedRect(logoX, currentHeaderY, logoSize, logoSize, 3, 3, 'S')
+        }
+
         currentHeaderY += logoSize + headerSpacing  // Move down by logo size + spacing
       } catch (error) {
         console.error('Error adding logo:', error)
@@ -963,7 +1026,7 @@ export default function StudentCertificatesPage() {
     const fieldSpacing = isLandscape ? Math.max((certificateSettings.fieldSpacing || 9) - 2, 6) : (certificateSettings.fieldSpacing || 9)
     const sectionSpacing = isLandscape ? Math.max((certificateSettings.sectionSpacing || 20) - 8, 10) : (certificateSettings.sectionSpacing || 20)
 
-    // School logo at top center
+    // School logo at top center with circular/rounded style from settings
     let currentHeaderY = margin + (isLandscape ? 10 : 15)
     if (certificateSettings.showSchoolLogo && schoolDataToUse?.logo) {
       try {
@@ -975,7 +1038,20 @@ export default function StudentCertificatesPage() {
           format = 'JPEG'
         }
 
+        // Add logo
         doc.addImage(schoolDataToUse.logo, format, logoX, currentHeaderY, logoSize, logoSize)
+
+        // Add border based on logo style from PDF settings
+        if (pdfSettings.logoStyle === 'circle') {
+          doc.setDrawColor(...borderRgb)
+          doc.setLineWidth(0.5)
+          doc.circle(logoX + logoSize/2, currentHeaderY + logoSize/2, logoSize/2, 'S')
+        } else if (pdfSettings.logoStyle === 'rounded') {
+          doc.setDrawColor(...borderRgb)
+          doc.setLineWidth(0.5)
+          doc.roundedRect(logoX, currentHeaderY, logoSize, logoSize, 3, 3, 'S')
+        }
+
         currentHeaderY += logoSize + headerSpacing  // Move down by logo size + spacing
       } catch (error) {
         console.error('Error adding logo:', error)

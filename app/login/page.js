@@ -148,23 +148,13 @@ export default function LoginPage() {
                   placeholder="••••••••••••"
                 />
                 <button
+                  type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-indigo-600 transition"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-            </div>
-
-            {/* Remember & Forgot */}
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" />
-                <span className="ml-2 text-gray-700">Remember me</span>
-              </label>
-              <a href="#" className="text-indigo-600 hover:text-indigo-800 font-medium transition">
-                Forgot password?
-              </a>
             </div>
 
             {/* Submit Button */}

@@ -160,9 +160,9 @@ export default function StudentIDCardsPage() {
       qrCodeData: '',
       qrCodeSize: 'medium',
       termsAndConditions: [
-        'This card is property of Supiler College Bhakkar, Pakistan.',
+        'This card is property of [Enter college/School Name], Pakistan.',
         'If found, should be returned/posted to following address:',
-        'Incharge, Supiler College Bhakkar, Pakistan.'
+        'Incharge, [Enter college/School Name], Pakistan.'
       ]
     }
   })
@@ -386,9 +386,11 @@ export default function StudentIDCardsPage() {
       }
 
       // Fetch school_id
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data: schools, error: schoolError } = await supabase
         .from('schools')
         .select('id')
+        .eq('id', schoolId)
         .limit(1)
         .single()
 
@@ -535,9 +537,11 @@ export default function StudentIDCardsPage() {
       ])
 
       // Fetch school data
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data: schoolData, error: schoolError } = await supabase
         .from('schools')
         .select('name, address, phone, email, logo_url')
+        .eq('id', schoolId)
         .limit(1)
         .single()
 
@@ -917,9 +921,11 @@ export default function StudentIDCardsPage() {
   const isCardValid = async (studentId) => {
     try {
       // Fetch school_id
+      const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data: schools, error: schoolError } = await supabase
         .from('schools')
         .select('id')
+        .eq('id', schoolId)
         .limit(1)
         .single()
 
@@ -1587,7 +1593,7 @@ export default function StudentIDCardsPage() {
                       type="text"
                       value={cardSettings.instituteName}
                       onChange={(e) => handleCardSettingChange('instituteName', e.target.value)}
-                      placeholder="e.g., SUPILER COLLEGE BHAKKAR"
+                      placeholder="e.g., [Enter college/School Name]"
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>

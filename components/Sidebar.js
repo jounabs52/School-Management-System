@@ -21,11 +21,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   const handleLogout = async () => {
     try {
-      // Clear localStorage
-      localStorage.removeItem('user')
+      // Clear all localStorage
+      localStorage.clear()
 
       // Clear cookies
       document.cookie = 'auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      document.cookie = 'user-data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
 
       // Try to call logout API if it exists
       try {

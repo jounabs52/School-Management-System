@@ -10,12 +10,29 @@ export default function Header({ user, setSidebarOpen }) {
   const router = useRouter()
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
 
-  const handleLogout = () => {
-    localStorage.removeItem('user')
-    // Also clear cookies
-    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    document.cookie = 'user-data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    router.push('/login')
+  const handleLogout = async () => {
+    try {
+      // Clear all localStorage
+      localStorage.clear()
+
+      // Clear cookies
+      document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      document.cookie = 'user-data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
+      // Try to call logout API
+      try {
+        await fetch('/api/logout', { method: 'POST' })
+      } catch (apiError) {
+        console.log('Logout API not available, proceeding with client-side logout')
+      }
+
+      // Use window.location.href for hard redirect (ensures clean state)
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Logout failed:', error)
+      // Force redirect anyway
+      window.location.href = '/login'
+    }
   }
 
   // Beautiful date like your screenshot

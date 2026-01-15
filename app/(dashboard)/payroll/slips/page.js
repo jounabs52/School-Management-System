@@ -14,6 +14,20 @@ import {
   applyPdfSettings
 } from '@/lib/pdfSettings'
 
+
+import {
+  addPDFHeader,
+  addPDFWatermark,
+  addPDFFooter,
+  addSignatureSection,
+  formatCurrency,
+  formatDate,
+  convertImageToBase64,
+  PDF_COLORS,
+  PDF_FONTS
+} from '@/lib/pdfUtils'
+
+
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 

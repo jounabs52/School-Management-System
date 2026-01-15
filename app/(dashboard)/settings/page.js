@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Settings, CheckCircle, XCircle, AlertCircle, X, Building2, Upload, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getUserFromCookie } from '@/lib/clientAuth'
 import Image from 'next/image'
 import StaffManagement from '@/components/StaffManagement'
 
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   const [toasts, setToasts] = useState([])
   const [uploading, setUploading] = useState(false)
   const [activeTab, setActiveTab] = useState('basic') // 'basic', 'pdf', or 'access'
+  const [imageError, setImageError] = useState(false)
   const [schoolData, setSchoolData] = useState({
     name: '',
     code: '',
@@ -57,44 +59,6 @@ export default function SettingsPage() {
     includeSectionText: true, // Show section text in header
     sectionTextSize: '14' ,// Font size for section text
   })
-  // Load default PDF settings on mount
-  useEffect(() => { 
-    return {
-      pageSize: 'A4',
-      orientation: 'landscape', // Timetable uses landscape
-      margin: 'narrow', // Timetable uses { top: 40, left: 8, right: 8, bottom: 25 }
-      fontSize: '8', // Timetable uses fontSize: 8
-      fontFamily: 'Helvetica', // jsPDF default
-      primaryColor: '#dc2626',
-      secondaryColor: '#1f2937',
-      textColor: '#000000',
-      backgroundColor: '#ffffff',
-      headerBackgroundColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
-      tableHeaderColor: '#1E3A8A', // RGB(30, 58, 138) from timetable
-      alternateRowColor: '#F8FAFC', // RGB(248, 250, 252) from timetable
-      includeHeader: true,
-      includeFooter: true,
-      includeLogo: true,
-      includeSchoolName: true,
-      includeTagline: false,
-      includeContactInfo: false,
-      schoolNameFontSize: 18,
-      logoPosition: 'left',
-      logoSize: 'medium',
-      logoStyle: 'circle', // Timetable uses circle
-      headerText: '',
-      footerText: '',
-      includePageNumbers: true,
-      includeDate: true,
-      includeGeneratedDate: true,
-      borderStyle: 'thin', // lineWidth: 0.3 from timetable
-      tableStyle: 'grid', // theme: 'grid' from timetable
-      cellPadding: 'normal', // cellPadding: 2.5 from timetable
-      lineWidth: 'thin', // lineWidth: 0.3 from timetable
-      includeSectionText: true, // Show section text in header
-      sectionTextSize: '14' // Font size for section text
-    }
-  })
 
   // Toast notification function
   const showToast = (message, type = 'info') => {
@@ -111,41 +75,50 @@ export default function SettingsPage() {
 
   // Get current user from cookie
   useEffect(() => {
-    const getCookie = (name) => {
-      const value = `; ${document.cookie}`
-      const parts = value.split(`; ${name}=`)
-      if (parts.length === 2) return parts.pop().split(';').shift()
-      return null
-    }
-
-    const userData = getCookie('user-data')
-    if (userData) {
-      try {
-        const user = JSON.parse(decodeURIComponent(userData))
+    try {
+      const user = getUserFromCookie()
+      if (user) {
         setCurrentUser(user)
-      } catch (e) {
-        console.error('Error parsing user data:', e)
+        console.log('✅ User loaded:', user.id, 'School:', user.school_id)
+      } else {
+        console.error('❌ No user found in cookie')
+        showToast('Please log in again', 'error')
       }
+    } catch (e) {
+      console.error('Error loading user data:', e)
+      showToast('Error loading user data', 'error')
     }
   }, [])
 
-  // Load PDF settings for current user from localStorage
+  // Load PDF settings for current school from localStorage
   useEffect(() => {
-    if (currentUser?.id) {
-      // Load user-specific PDF settings
-      const userPdfSettingsKey = `pdfSettings_${currentUser.id}`
-      const saved = localStorage.getItem(userPdfSettingsKey)
+    if (currentUser?.school_id) {
+      // Load school-specific PDF settings
+      const schoolPdfSettingsKey = `pdfSettings_${currentUser.school_id}`
+      const saved = localStorage.getItem(schoolPdfSettingsKey)
       if (saved) {
         try {
           const loadedSettings = JSON.parse(saved)
           setPdfSettings(loadedSettings)
-          console.log('✅ Loaded PDF settings for user:', currentUser.id)
+          console.log('✅ Loaded PDF settings for school:', currentUser.school_id)
         } catch (e) {
           console.error('Error parsing saved PDF settings:', e)
         }
+      } else {
+        // Check for global settings for backward compatibility
+        const globalSaved = localStorage.getItem('pdfSettings')
+        if (globalSaved) {
+          try {
+            const loadedSettings = JSON.parse(globalSaved)
+            setPdfSettings(loadedSettings)
+            console.log('✅ Loaded global PDF settings (will save as school-specific on next save)')
+          } catch (e) {
+            console.error('Error parsing global PDF settings:', e)
+          }
+        }
       }
     }
-  }, [currentUser?.id])
+  }, [currentUser?.school_id])
 
   // Fetch school data when user is loaded
   useEffect(() => {
@@ -186,6 +159,7 @@ export default function SettingsPage() {
           website: data.website || '',
           status: data.status || 'active'
         })
+        setImageError(false) // Reset image error when new data is loaded
       }
     } catch (error) {
       console.error('Error fetching school data:', error)
@@ -276,6 +250,7 @@ export default function SettingsPage() {
 
       // Update local state
       setSchoolData(prev => ({ ...prev, logo_url: publicUrl }))
+      setImageError(false) // Reset image error state
       showToast('Logo uploaded successfully!', 'success')
 
     } catch (error) {
@@ -357,15 +332,15 @@ export default function SettingsPage() {
     try {
       setSaving(true)
 
-      // Save to localStorage with user-specific key
-      const userPdfSettingsKey = `pdfSettings_${currentUser.id}`
-      localStorage.setItem(userPdfSettingsKey, JSON.stringify(pdfSettings))
+      // Save to localStorage with school-specific key
+      const schoolPdfSettingsKey = `pdfSettings_${currentUser.school_id}`
+      localStorage.setItem(schoolPdfSettingsKey, JSON.stringify(pdfSettings))
 
-      // Also save to the global key for backward compatibility and getPdfSettings() function
+      // Also save to the global key for backward compatibility
       localStorage.setItem('pdfSettings', JSON.stringify(pdfSettings))
 
-      console.log('✅ Saved PDF settings for user:', currentUser.id)
-      showToast('PDF settings saved successfully!', 'success')
+      console.log('✅ Saved PDF settings for school:', currentUser.school_id)
+      showToast('PDF settings saved successfully! All users in this school will use these settings.', 'success')
     } catch (error) {
       console.error('Error saving PDF settings:', error)
       showToast('Error saving PDF settings: ' + error.message, 'error')
@@ -471,7 +446,7 @@ export default function SettingsPage() {
             <h3 className="text-xs font-semibold mb-2 text-gray-700">SCHOOL LOGO</h3>
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
-                {schoolData.logo_url ? (
+                {schoolData.logo_url && !imageError ? (
                   <div className="relative w-24 h-24 border-2 border-gray-300 rounded overflow-hidden bg-white">
                     <Image
                       src={schoolData.logo_url}
@@ -479,6 +454,10 @@ export default function SettingsPage() {
                       fill
                       className="object-contain p-1"
                       unoptimized
+                      onError={() => {
+                        console.error('Failed to load logo image')
+                        setImageError(true)
+                      }}
                     />
                   </div>
                 ) : (

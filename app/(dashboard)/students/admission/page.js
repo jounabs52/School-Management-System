@@ -5,8 +5,7 @@ import { createPortal } from 'react-dom'
 import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Loader2, AlertCircle, ToggleLeft, ToggleRight, Printer, CheckCircle } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
-import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, applyPdfSettings, getAutoTableStyles } from '@/lib/pdfSettings'
-import { addPDFFooter } from '@/lib/pdfUtils'
+import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getLineWidth, applyPdfSettings, getAutoTableStyles, addPDFFooter } from '@/lib/pdfSettings'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -19,6 +18,17 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: false
   }
 })
+
+// ✅ Helper to get logged-in user
+const getLoggedInUser = () => {
+  if (typeof window === 'undefined') return { id: null, school_id: null }
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return { id: user?.id, school_id: user?.school_id }
+  } catch {
+    return { id: null, school_id: null }
+  }
+}
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose, disabled = false }) => {
@@ -734,6 +744,31 @@ export default function AdmissionRegisterPage() {
     setSuccess(null)
 
     try {
+      // ✅ Validate mandatory fields
+      if (!formData.class) {
+        showToast('Class is mandatory', 'error')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.section) {
+        showToast('Section is mandatory', 'error')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.rollNumber || !formData.rollNumber.trim()) {
+        showToast('Roll Number is mandatory', 'error')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.feePlan) {
+        showToast('Fee Plan (Mode) is mandatory', 'error')
+        setSaving(false)
+        return
+      }
+
       // ✅ Get logged-in user
       const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
       const userId = user?.id
@@ -1250,16 +1285,27 @@ export default function AdmissionRegisterPage() {
     if (!selectedStudent) return
 
     try {
-      // Load PDF settings from centralized settings
-      const pdfSettings = getPdfSettings()
+      const loggedInUser = getLoggedInUser()
 
-      console.log('PDF Settings loaded:', pdfSettings)
+      // Check if user is logged in
+      if (!loggedInUser || !loggedInUser.id || !loggedInUser.school_id) {
+        console.error('User not logged in or missing data:', loggedInUser)
+        showToast('User session not found. Please refresh the page.', 'error')
+        return
+      }
+
+      const { id: userId, school_id: schoolId } = loggedInUser
+      // Load PDF settings from centralized settings with user ID
+      const pdfSettings = getPdfSettings(userId)
+
+      console.log('PDF Settings loaded for user:', userId)
+      console.log('User school_id:', schoolId)
 
       // Fetch school data for logo and name
       const { data: schoolData, error: schoolError } = await supabase
         .from('schools')
         .select('*')
-        .limit(1)
+        .eq('id', schoolId)
         .single()
 
       if (schoolError) {
@@ -1321,145 +1367,163 @@ export default function AdmissionRegisterPage() {
       console.log('  Table Header:', pdfSettings.tableHeaderColor)
       console.log('  Alt Row:', pdfSettings.alternateRowColor)
 
-      // Header (if enabled)
-      if (pdfSettings.includeHeader !== false) {
-        doc.setFillColor(...primaryRgb)
-        doc.rect(0, 0, pageWidth, 40, 'F')
+      // ============ MODERN HEADER WITH LOGO ============
+      let yPos = 0
+      const headerHeight = 35
 
-        // School Logo (if available) - WITH SETTINGS
-        if (pdfSettings.includeLogo && schoolData?.logo_url) {
-          try {
-            console.log('Loading school logo from:', schoolData.logo_url)
+      // Full width header background - SETTINGS COLOR
+      const headerBgRgb = hexToRgb(pdfSettings.headerBackgroundColor || '#1E3A8A')
+      doc.setFillColor(...headerBgRgb)
+      doc.rect(0, yPos, pageWidth, headerHeight, 'F')
 
-            const logoImg = new Image()
-            logoImg.crossOrigin = 'anonymous'
+      // Add subtle accent line at bottom of header - SETTINGS PRIMARY COLOR
+      doc.setDrawColor(...primaryRgb)
+      doc.setLineWidth(0.8)
+      doc.line(0, headerHeight, pageWidth, headerHeight)
 
-            await new Promise((resolve, reject) => {
-              const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 10000)
+      // Logo on the left side
+      if (pdfSettings.includeLogo && schoolData?.logo_url) {
+        try {
+          const logoImg = new Image()
+          logoImg.crossOrigin = 'anonymous'
 
-              logoImg.onload = () => {
-                clearTimeout(timeout)
-                try {
-                  const currentLogoSize = getLogoSize(pdfSettings.logoSize)
-                  const headerHeight = 40
-                  const logoY = (headerHeight - currentLogoSize) / 2
-                  let logoX = 10 // Default to left with 10mm margin
+          const logoBase64 = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 8000)
 
-                  // Position logo based on settings
-                  if (pdfSettings.logoPosition === 'center') {
-                    logoX = 10 // Keep on left even if center selected (to avoid text overlap)
-                  } else if (pdfSettings.logoPosition === 'right') {
-                    logoX = pageWidth - currentLogoSize - 10 // Right side with 10mm margin
-                  }
+            logoImg.onload = () => {
+              clearTimeout(timeout)
+              try {
+                const canvas = document.createElement('canvas')
+                const logoSize = 28
+                canvas.width = logoImg.width
+                canvas.height = logoImg.height
+                const ctx = canvas.getContext('2d')
 
-                  // Add logo with style
-                  if (pdfSettings.logoStyle === 'circle' || pdfSettings.logoStyle === 'rounded') {
-                    // Create a canvas to clip the image
-                    const canvas = document.createElement('canvas')
-                    const ctx = canvas.getContext('2d')
-                    const size = 200 // Higher resolution for better quality
-                    canvas.width = size
-                    canvas.height = size
-
-                    // Draw clipped image on canvas
-                    ctx.beginPath()
-                    if (pdfSettings.logoStyle === 'circle') {
-                      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-                    } else {
-                      // Rounded corners
-                      const radius = size * 0.15
-                      ctx.moveTo(radius, 0)
-                      ctx.lineTo(size - radius, 0)
-                      ctx.quadraticCurveTo(size, 0, size, radius)
-                      ctx.lineTo(size, size - radius)
-                      ctx.quadraticCurveTo(size, size, size - radius, size)
-                      ctx.lineTo(radius, size)
-                      ctx.quadraticCurveTo(0, size, 0, size - radius)
-                      ctx.lineTo(0, radius)
-                      ctx.quadraticCurveTo(0, 0, radius, 0)
-                    }
-                    ctx.closePath()
-                    ctx.clip()
-
-                    // Draw image
-                    ctx.drawImage(logoImg, 0, 0, size, size)
-
-                    // Convert canvas to data URL and add to PDF
-                    const clippedImage = canvas.toDataURL('image/png')
-                    doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
-                  } else {
-                    // Square logo
-                    doc.addImage(logoImg, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
-                  }
-
-                  console.log('School logo added to PDF successfully')
-                  resolve()
-                } catch (err) {
-                  console.error('Logo canvas error:', err)
-                  resolve()
+                // Apply logo style from settings
+                if (pdfSettings.logoStyle === 'circle') {
+                  ctx.beginPath()
+                  ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2, 0, Math.PI * 2)
+                  ctx.closePath()
+                  ctx.clip()
+                } else if (pdfSettings.logoStyle === 'rounded') {
+                  const radius = Math.min(canvas.width, canvas.height) * 0.1
+                  ctx.beginPath()
+                  ctx.moveTo(radius, 0)
+                  ctx.lineTo(canvas.width - radius, 0)
+                  ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius)
+                  ctx.lineTo(canvas.width, canvas.height - radius)
+                  ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height)
+                  ctx.lineTo(radius, canvas.height)
+                  ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius)
+                  ctx.lineTo(0, radius)
+                  ctx.quadraticCurveTo(0, 0, radius, 0)
+                  ctx.closePath()
+                  ctx.clip()
                 }
+
+                ctx.drawImage(logoImg, 0, 0)
+                resolve(canvas.toDataURL('image/png'))
+              } catch (err) {
+                reject(err)
               }
+            }
 
-              logoImg.onerror = (err) => {
-                clearTimeout(timeout)
-                console.error('Logo load failed:', err)
-                resolve()
-              }
+            logoImg.onerror = () => {
+              clearTimeout(timeout)
+              reject(new Error('Failed to load logo'))
+            }
 
-              // Handle both absolute and relative URLs
-              const logoUrl = schoolData.logo_url.startsWith('http')
-                ? schoolData.logo_url
-                : `${window.location.origin}${schoolData.logo_url.startsWith('/') ? '' : '/'}${schoolData.logo_url}`
+            logoImg.src = schoolData.logo_url
+          })
 
-              console.log('Final logo URL:', logoUrl)
-              logoImg.src = logoUrl
-            })
-          } catch (e) {
-            console.error('Error adding school logo:', e.message)
+          if (logoBase64) {
+            const logoSize = 28
+            const logoX = margins.left + 5
+            const logoY = yPos + 3.5
+
+            // Add the logo image (already clipped in canvas)
+            doc.addImage(logoBase64, 'PNG', logoX, logoY, logoSize, logoSize)
+
+            // Add white border around logo for modern look
+            doc.setDrawColor(255, 255, 255)
+            doc.setLineWidth(1.2)
+            if (pdfSettings.logoStyle === 'circle') {
+              doc.circle(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 'S')
+            } else {
+              doc.roundedRect(logoX, logoY, logoSize, logoSize, 3, 3, 'S')
+            }
           }
-        }
-
-        // Title
-        doc.setFontSize(20)
-        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
-        doc.setTextColor(255, 255, 255)
-        doc.text(pdfSettings.headerText || 'STUDENT INFORMATION RECORD', pageWidth / 2, 18, { align: 'center' })
-
-        // Subtitle - School Name
-        doc.setFontSize(10)
-        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
-        doc.text(schoolData?.name || 'School Management System', pageWidth / 2, 28, { align: 'center' })
-
-        // Date in header (if enabled)
-        if (pdfSettings.includeDate || pdfSettings.includeGeneratedDate) {
-          doc.setFontSize(8)
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 35, { align: 'right' })
+        } catch (err) {
+          console.error('Logo loading error:', err)
         }
       }
 
-      let yPos = pdfSettings.includeHeader !== false ? 48 : 15
+      // School name and title - centered layout
+      const textStartX = pageWidth / 2
 
-      // Student Header Card - COMPACT responsive height
-      const headerCardHeight = orientation === 'landscape' ? 20 : 24
+      // School name - white, centered, medium size, SETTINGS FONT
+      if (pdfSettings.includeSchoolName && schoolData?.name) {
+        doc.setFontSize(11)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+        doc.setTextColor(255, 255, 255)
+        doc.text(schoolData.name.toUpperCase(), textStartX, yPos + 12, { align: 'center' })
+      }
 
-      doc.setFillColor(248, 250, 252)
-      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'F')
+      // Title text - white, centered, SETTINGS FONT
+      doc.setFontSize(parseInt(pdfSettings.sectionTextSize || 14))
+      doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text('STUDENT INFORMATION RECORD', textStartX, yPos + 20, { align: 'center' })
 
-      // Add light border
-      doc.setDrawColor(226, 232, 240)
-      doc.setLineWidth(0.5)
-      doc.roundedRect(margins.left, yPos, pageWidth - margins.left - margins.right, headerCardHeight, 2, 2, 'S')
+      // Tagline if enabled - white, centered, smaller, SETTINGS FONT
+      if (pdfSettings.includeTagline && schoolData?.tagline) {
+        doc.setFontSize(7)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+        doc.setTextColor(240, 240, 240)
+        doc.text(schoolData.tagline, textStartX, yPos + 26, { align: 'center' })
+      }
 
-      // Student Photo (if available) - COMPACT
-      const photoSize = orientation === 'landscape' ? 16 : 20 // Smaller photo
-      const photoX = margins.left + 2
-      const photoY = yPos + 2
+      // Generated date - top right, white, small, SETTINGS FONT
+      if (pdfSettings.includeGeneratedDate) {
+        doc.setFontSize(7)
+        doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
+        doc.setTextColor(240, 240, 240)
+        const dateStr = `Generated: ${new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}`
+        doc.text(dateStr, pageWidth - margins.right - 5, yPos + 10, { align: 'right' })
+      }
+
+      yPos = headerHeight + 4
+
+      // ============ MODERN STUDENT CARD SECTION ============
+      const cardHeight = 26
+      const cardY = yPos
+
+      // Card background with shadow effect - SETTINGS ALTERNATE ROW COLOR
+      const cardBgRgb = hexToRgb(pdfSettings.alternateRowColor || '#F3F4F6')
+      doc.setFillColor(...cardBgRgb)
+      doc.roundedRect(margins.left, cardY, pageWidth - margins.left - margins.right, cardHeight, 3, 3, 'F')
+
+      // Card border with rounded corners - SETTINGS TABLE HEADER COLOR & LINE WIDTH
+      const borderRgb = hexToRgb(pdfSettings.tableHeaderColor || '#1E3A8A')
+      doc.setDrawColor(...borderRgb)
+      const borderWidth = getLineWidth(pdfSettings.lineWidth || 'thin')
+      doc.setLineWidth(borderWidth)
+      doc.roundedRect(margins.left, cardY, pageWidth - margins.left - margins.right, cardHeight, 3, 3, 'S')
+
+      // Decorative accent bar on left - SETTINGS PRIMARY COLOR
+      doc.setFillColor(...primaryRgb)
+      doc.roundedRect(margins.left, cardY, 2, cardHeight, 1.5, 1.5, 'F')
+
+      // Student Photo with modern circular style
+      const photoSize = 22
+      const photoX = margins.left + 5
+      const photoY = cardY + 2
 
       if (selectedStudent.photo_url) {
         try {
           console.log('Loading student photo from:', selectedStudent.photo_url)
 
-          // Better image loading with canvas
+          // Better image loading with canvas - clip to circle
           const img = new Image()
           img.crossOrigin = 'anonymous'
 
@@ -1470,11 +1534,23 @@ export default function AdmissionRegisterPage() {
               clearTimeout(timeout)
               try {
                 const canvas = document.createElement('canvas')
-                canvas.width = img.width
-                canvas.height = img.height
+                const size = Math.min(img.width, img.height)
+                canvas.width = size
+                canvas.height = size
                 const ctx = canvas.getContext('2d')
-                ctx.drawImage(img, 0, 0)
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+
+                // Create circular clipping path
+                ctx.beginPath()
+                ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                ctx.closePath()
+                ctx.clip()
+
+                // Draw image centered
+                const offsetX = (img.width - size) / 2
+                const offsetY = (img.height - size) / 2
+                ctx.drawImage(img, -offsetX, -offsetY, img.width, img.height)
+
+                const dataUrl = canvas.toDataURL('image/png', 0.9)
                 console.log('Photo converted successfully, size:', dataUrl.length)
                 resolve(dataUrl)
               } catch (err) {
@@ -1499,13 +1575,14 @@ export default function AdmissionRegisterPage() {
           })
 
           if (photoBase64 && photoBase64.length > 100) {
-            doc.addImage(photoBase64, 'JPEG', photoX, photoY, photoSize, photoSize)
+            // Add circular photo
+            doc.addImage(photoBase64, 'PNG', photoX, photoY, photoSize, photoSize)
             console.log('Student photo added to PDF successfully')
 
-            // Professional rounded border
-            doc.setDrawColor(203, 213, 225) // Gray-300
-            doc.setLineWidth(0.5)
-            doc.roundedRect(photoX, photoY, photoSize, photoSize, 2, 2, 'S')
+            // Modern circular photo border with primary color
+            doc.setDrawColor(...primaryRgb)
+            doc.setLineWidth(1)
+            doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
           } else {
             throw new Error('Invalid photo data')
           }
@@ -1513,9 +1590,12 @@ export default function AdmissionRegisterPage() {
           console.error('❌ Error loading student photo:', e.message)
           console.error('Photo URL was:', selectedStudent.photo_url)
           console.error('Full error:', e)
-          // Fallback to avatar
+          // Fallback to modern circular avatar placeholder
           doc.setFillColor(226, 232, 240)
-          doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+          doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'F')
+          doc.setDrawColor(...primaryRgb)
+          doc.setLineWidth(1)
+          doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
           doc.setFontSize(14)
           doc.setTextColor(...textRgb)
           doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
@@ -1523,40 +1603,56 @@ export default function AdmissionRegisterPage() {
       } else {
         console.log('⚠️ No photo URL for student:', selectedStudent.first_name)
         console.log('Student object:', selectedStudent)
-        // Photo placeholder
+        // Modern circular photo placeholder
         doc.setFillColor(226, 232, 240)
-        doc.rect(photoX, photoY, photoSize, photoSize, 'F')
+        doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'F')
+        doc.setDrawColor(...primaryRgb)
+        doc.setLineWidth(1)
+        doc.circle(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 'S')
         doc.setFontSize(14)
         doc.setTextColor(...textRgb)
         doc.text(selectedStudent.avatar || '👤', photoX + photoSize/2, photoY + photoSize/2 + 3, { align: 'center' })
       }
 
-      // Student name and key info - positioned next to photo - COMPACT
-      const infoX = photoX + photoSize + 4
+      // Student info next to photo with modern layout
+      const infoX = photoX + photoSize + 6
 
-      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') + 2)
+      // Student Name - SETTINGS PRIMARY COLOR & FONT (larger, more prominent)
+      doc.setFontSize(13)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
       doc.setTextColor(...primaryRgb)
-      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, yPos + 7)
+      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, cardY + 9)
 
-      doc.setFontSize(parseInt(pdfSettings.fontSize || '10') - 2)
+      // Admission Number - SETTINGS TEXT COLOR & FONT with icon-like label
+      doc.setFontSize(7.5)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
-      doc.setTextColor(75, 85, 99)
-      doc.text(`Admission No: ${selectedStudent.admission_number}`, infoX, yPos + 12)
-      doc.text(`Class: ${selectedStudent.className || 'N/A'} | Section: ${selectedStudent.sectionName || 'N/A'}`, infoX, yPos + 16)
+      doc.setTextColor(120, 120, 120)
+      doc.text('ID:', infoX, cardY + 15)
+      doc.setTextColor(...textRgb)
+      doc.text(selectedStudent.admission_number, infoX + 6, cardY + 15)
 
-      // Status badge - positioned in top right of card - COMPACT
+      // Class info with modern styling - SETTINGS TEXT COLOR & FONT
+      doc.setTextColor(120, 120, 120)
+      doc.text('Class:', infoX, cardY + 20)
+      doc.setTextColor(...textRgb)
+      doc.text(`${selectedStudent.className || 'N/A'}`, infoX + 11, cardY + 20)
+
+      doc.setTextColor(120, 120, 120)
+      doc.text('Section:', infoX + 30, cardY + 20)
+      doc.setTextColor(...textRgb)
+      doc.text(`${selectedStudent.sectionName || 'N/A'}`, infoX + 43, cardY + 20)
+
+      // Modern status badge - top right with better styling
       const status = selectedStudent.status || 'active'
-      const statusColor = status === 'active' ? [34, 197, 94] : [239, 68, 68]
-      doc.setFillColor(...statusColor)
-      doc.roundedRect(pageWidth - margins.right - 25, yPos + 4, 23, 6, 2, 2, 'F')
-      doc.setFontSize(7)
+      const statusBgColor = status === 'active' ? [34, 197, 94] : status === 'inactive' ? [239, 68, 68] : [156, 163, 175]
+      doc.setFillColor(...statusBgColor)
+      doc.roundedRect(pageWidth - margins.right - 28, cardY + 5, 26, 7, 3, 3, 'F')
+      doc.setFontSize(7.5)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
       doc.setTextColor(255, 255, 255)
-      doc.text(status.toUpperCase(), pageWidth - margins.right - 13.5, yPos + 8, { align: 'center' })
+      doc.text(status.toUpperCase(), pageWidth - margins.right - 15, cardY + 9.5, { align: 'center' })
 
-      // Adjust spacing based on orientation - MORE COMPACT
-      yPos += orientation === 'landscape' ? 20 : 25
+      yPos = cardY + cardHeight + 3
 
       // Helper function for COMPACT section headers with professional styling
       const addSectionHeader = (title) => {
@@ -1741,9 +1837,7 @@ export default function AdmissionRegisterPage() {
       }
 
       // Footer (using centralized footer function)
-      if (pdfSettings.includeFooter !== false) {
-        addPDFFooter(doc, 1, 1, pdfSettings)
-      }
+      addPDFFooter(doc, pdfSettings)
 
       // Save the PDF
       doc.save(`Student_${selectedStudent.admission_number}_${selectedStudent.first_name}.pdf`)
@@ -2631,12 +2725,15 @@ export default function AdmissionRegisterPage() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Class</label>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      Class <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={formData.class}
                       onChange={(e) => handleClassChange(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       disabled={loadingClasses}
+                      required
                     >
                       <option value="">
                         {loadingClasses ? 'Loading classes...' : 'Select Class'}
@@ -2649,12 +2746,15 @@ export default function AdmissionRegisterPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Section</label>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      Section <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={formData.section}
                       onChange={(e) => handleSectionChange(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       disabled={loadingSections || !formData.class}
+                      required
                     >
                       <option value="">
                         {loadingSections ? 'Loading sections...' : formData.class ? 'Select Section' : 'Select Class First'}
@@ -2682,13 +2782,16 @@ export default function AdmissionRegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Roll Number</label>
+                    <label className="block text-gray-700 text-sm mb-2">
+                      Roll Number <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       placeholder="Enter Roll Number"
                       value={formData.rollNumber}
                       onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      required
                     />
                   </div>
                   <div>
@@ -2720,12 +2823,13 @@ export default function AdmissionRegisterPage() {
                   </div>
                   <div>
                     <label className="block text-gray-700 text-sm mb-2">
-                      Fee Plan <span className="text-blue-600">(From Class)</span>
+                      Fee Plan (Mode) <span className="text-red-500">*</span> <span className="text-blue-600">(From Class)</span>
                     </label>
                     <input
                       type="text"
                       value={formData.feePlan ? formData.feePlan.charAt(0).toUpperCase() + formData.feePlan.slice(1) : 'Monthly'}
                       readOnly
+                      required
                       className="w-full px-4 py-3 border border-blue-200 bg-blue-50 rounded-lg font-semibold text-blue-800 capitalize outline-none"
                     />
                   </div>
