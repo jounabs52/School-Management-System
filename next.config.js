@@ -1,7 +1,17 @@
+
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   images: {
-    domains: ['qinxxeliezwmplejpezu.supabase.co'],
+    domains: ['localhost', 'euwmoawbdkmtuhccpexz.supabase.co', 'qinxxeliezwmplejpezu.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'euwmoawbdkmtuhccpexz.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
   webpack: (config, { isServer }) => {
     // Fix for jsPDF in Next.js
