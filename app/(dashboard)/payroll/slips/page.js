@@ -14,6 +14,7 @@ import {
   applyPdfSettings
 } from '@/lib/pdfSettings'
 
+
 import {
   addPDFHeader,
   addPDFWatermark,
@@ -26,6 +27,8 @@ import {
   PDF_FONTS
 } from '@/lib/pdfUtils'
 
+
+import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 
@@ -201,7 +204,6 @@ export default function SalarySlipsPage() {
             photo_url
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('payment_year', { ascending: false })
         .order('payment_month', { ascending: false })

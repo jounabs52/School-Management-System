@@ -1854,7 +1854,7 @@ export default function ActiveStaffPage() {
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-blue-600 text-white px-6 py-4 rounded-t-lg">
+              <div className="bg-red-600 text-white px-6 py-4 rounded-t-lg">
                 <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
               <div className="p-6">

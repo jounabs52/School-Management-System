@@ -270,6 +270,7 @@ export default function StudentAttendancePage() {
         const { error } = await supabase
           .from('student_attendance')
           .insert({
+            user_id: currentUser.id,
             school_id: currentUser.school_id,
             student_id: student.id,
             class_id: student.current_class_id,
@@ -599,9 +600,9 @@ export default function StudentAttendancePage() {
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="text-lg font-semibold text-gray-900">{confirmDialog.title}</h3>
-                <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+              <div className="flex items-center justify-between p-4 bg-red-600 text-white rounded-t-lg">
+                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+                <button onClick={handleCancel} className="text-white hover:text-gray-200">
                   <X className="w-5 h-5" />
                 </button>
               </div>

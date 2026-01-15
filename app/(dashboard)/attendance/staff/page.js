@@ -155,13 +155,15 @@ export default function StaffAttendancePage() {
     setSaving(true)
     try {
       // Check if attendance record exists
-      const { data: existing } = await supabase
+      const { data: existing, error: fetchError } = await supabase
         .from('staff_attendance')
         .select('id')
         .eq('school_id', currentUser.school_id)
         .eq('staff_id', staffId)
         .eq('attendance_date', selectedDate)
-        .single()
+        .maybeSingle()
+
+      if (fetchError) throw fetchError
 
       if (existing) {
         // Update existing record
@@ -198,7 +200,7 @@ export default function StaffAttendancePage() {
 
     } catch (error) {
       console.error('Error marking attendance:', error)
-      showToast('Failed to mark attendance', 'error')
+      showToast(`Failed to mark attendance: ${error.message}`, 'error')
     } finally {
       setSaving(false)
     }
@@ -441,9 +443,9 @@ export default function StaffAttendancePage() {
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="text-lg font-semibold text-gray-900">{confirmDialog.title}</h3>
-                <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+              <div className="flex items-center justify-between p-4 bg-red-600 text-white rounded-t-lg">
+                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+                <button onClick={handleCancel} className="text-white hover:text-gray-200">
                   <X className="w-5 h-5" />
                 </button>
               </div>

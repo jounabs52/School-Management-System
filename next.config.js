@@ -1,8 +1,7 @@
-// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   images: {
+
     remotePatterns: [
       {
         protocol: 'https',
@@ -11,6 +10,8 @@ const nextConfig = {
       },
     ],
     unoptimized: true, // Disable image optimization for Supabase storage
+
+    domains: ['qinxxeliezwmplejpezu.supabase.co'],
   },
   webpack: (config, { isServer }) => {
     // Fix for jsPDF in Next.js
@@ -46,6 +47,6 @@ const nextConfig = {
 
     return config;
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

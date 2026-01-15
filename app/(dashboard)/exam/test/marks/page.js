@@ -69,7 +69,7 @@ export default function TestMarksPage() {
       const { data, error } = await supabase
         .from('schools')
         .select('*')
-        .eq('school_id', currentUser.school_id)
+        .eq('id', currentUser.school_id)
         .single()
 
       if (error) throw error

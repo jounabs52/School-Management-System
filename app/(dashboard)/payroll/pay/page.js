@@ -222,7 +222,6 @@ export default function StaffPayrollPage() {
       const { data: paymentData, error: paymentError } = await supabase
         .from('salary_payments')
         .insert({
-          user_id: currentUser.id,
           school_id: currentUser.school_id,
           staff_id: selectedStaff.id,
           payment_month: paymentMonth,
@@ -253,7 +252,6 @@ export default function StaffPayrollPage() {
 
       // Automatically create salary slip record
       const slipData = {
-        user_id: currentUser.id,
         school_id: currentUser.school_id,
         staff_id: selectedStaff.id,
         payment_id: paymentData.id,
