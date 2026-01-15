@@ -91,6 +91,7 @@ export default function StudentReportsPage() {
     }
   }, [])
 
+
   useEffect(() => {
     applyFilters()
     setCurrentPage(1) // Reset to page 1 when filters change
@@ -101,15 +102,23 @@ export default function StudentReportsPage() {
   }, [certificates, idCards])
 
   const setupRealtimeSubscriptions = () => {
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    if (!userId || !schoolId) return
+
     // Subscribe to certificates changes
     certificatesChannel.current = supabase
       .channel('certificates-changes')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'student_certificates' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'student_certificates',
+          filter: `school_id=eq.${schoolId}`
+        },
         (payload) => {
-          console.log('Certificate change detected:', payload)
+          console.log('🔴 Certificate change detected:', payload)
           fetchCertificates()
-          showToast('Data updated in real-time!', 'success')
+          showToast('Certificates updated!', 'success')
         }
       )
       .subscribe()
@@ -118,11 +127,16 @@ export default function StudentReportsPage() {
     idCardsChannel.current = supabase
       .channel('id-cards-changes')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'student_id_cards' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'student_id_cards',
+          filter: `school_id=eq.${schoolId}`
+        },
         (payload) => {
-          console.log('ID card change detected:', payload)
+          console.log('🔴 ID card change detected:', payload)
           fetchIdCards()
-          showToast('Data updated in real-time!', 'success')
+          showToast('ID Cards updated!', 'success')
         }
       )
       .subscribe()
@@ -171,7 +185,9 @@ export default function StudentReportsPage() {
     setLoading(true)
     try {
       const { id: userId, school_id: schoolId } = getLoggedInUser()
-      const { data, error } = await supabase
+      console.log('📄 Fetching certificates with userId:', userId, 'schoolId:', schoolId)
+
+      const { data, error} = await supabase
         .from('student_certificates')
         .select(`
           id,
@@ -189,16 +205,16 @@ export default function StudentReportsPage() {
             photo_url
           )
         `)
-        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .order('issue_date', { ascending: false })
 
       if (error) {
-        console.error('Supabase error:', error)
+        console.error('❌ Supabase error fetching certificates:', error)
         throw error
       }
 
-      console.log('Fetched certificates:', data)
+      console.log('✅ Fetched certificates:', data?.length || 0, 'records')
+      console.log('📄 Certificate data:', data)
 
       // Fetch class names separately
       let classMap = {}
@@ -252,6 +268,8 @@ export default function StudentReportsPage() {
     setLoading(true)
     try {
       const { id: userId, school_id: schoolId } = getLoggedInUser()
+      console.log('🆔 Fetching ID cards with userId:', userId, 'schoolId:', schoolId)
+
       const { data, error } = await supabase
         .from('student_id_cards')
         .select(`
@@ -271,17 +289,16 @@ export default function StudentReportsPage() {
             photo_url
           )
         `)
-        .eq('user_id', userId)
         .eq('school_id', schoolId)
         .order('issue_date', { ascending: false })
 
       if (error) {
-        console.error('Supabase error:', error)
+        console.error('❌ Supabase error fetching ID cards:', error)
         throw error
       }
 
-      console.log('Fetched ID cards:', data)
-      console.log('Total ID cards found:', data?.length || 0)
+      console.log('✅ Fetched ID cards:', data?.length || 0, 'records')
+      console.log('🆔 ID card data:', data)
 
       // Fetch class names separately
       let classMap = {}
@@ -516,7 +533,6 @@ export default function StudentReportsPage() {
     const { data: schoolData } = await supabase
       .from('schools')
       .select('*')
-      .eq('user_id', userId)
       .eq('id', schoolId)
       .limit(1)
       .single()
@@ -793,9 +809,11 @@ export default function StudentReportsPage() {
       if (saved) certificateSettings = JSON.parse(saved)
     }
 
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
     const { data: schoolData } = await supabase
       .from('schools')
       .select('*')
+      .eq('id', schoolId)
       .limit(1)
       .single()
 
@@ -1037,10 +1055,10 @@ export default function StudentReportsPage() {
     }
 
     // Fetch school data
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
     const { data: schoolData } = await supabase
       .from('schools')
       .select('*')
-      .eq('user_id', userId)
       .eq('id', schoolId)
       .limit(1)
       .single()
@@ -1467,7 +1485,6 @@ export default function StudentReportsPage() {
         .from(tableName)
         .delete()
         .eq('id', itemToDelete.id)
-        .eq('user_id', userId)
         .eq('school_id', schoolId)
 
       if (error) throw error

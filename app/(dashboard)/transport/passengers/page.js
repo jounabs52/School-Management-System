@@ -1347,7 +1347,8 @@ export default function PassengersPage() {
               await new Promise((resolve) => {
                 img.onload = () => {
                   try {
-                    const currentLogoSize = getLogoSize(pdfSettings.logoSize)
+                    const logoSizeObj = getLogoSize(pdfSettings.logoSize)
+                    const currentLogoSize = logoSizeObj.width // Use width property
                     // Center logo vertically in header
                     const logoY = (headerHeight - currentLogoSize) / 2
                     let logoX = 10 // Default to left with 10mm margin
@@ -1395,6 +1396,18 @@ export default function PassengersPage() {
                       // Convert canvas to data URL and add to PDF
                       const clippedImage = canvas.toDataURL('image/png')
                       doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+
+                      // Add border based on logo style from PDF settings
+                      const borderRgb = pdfSettings.logoBorderColor ? hexToRgb(pdfSettings.logoBorderColor) : [255, 255, 255]
+                      if (pdfSettings.logoStyle === 'circle') {
+                        doc.setDrawColor(...borderRgb)
+                        doc.setLineWidth(0.5)
+                        doc.circle(logoX + currentLogoSize/2, logoY + currentLogoSize/2, currentLogoSize/2, 'S')
+                      } else if (pdfSettings.logoStyle === 'rounded') {
+                        doc.setDrawColor(...borderRgb)
+                        doc.setLineWidth(0.5)
+                        doc.roundedRect(logoX, logoY, currentLogoSize, currentLogoSize, 3, 3, 'S')
+                      }
                     } else {
                       // Square logo
                       doc.addImage(img, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)

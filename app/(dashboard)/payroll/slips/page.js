@@ -26,7 +26,6 @@ import {
   PDF_FONTS
 } from '@/lib/pdfUtils'
 
-import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 

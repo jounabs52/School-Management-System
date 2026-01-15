@@ -3,7 +3,6 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost', 'euwmoawbdkmtuhccpexz.supabase.co'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -11,6 +10,7 @@ const nextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
     ],
+    unoptimized: true, // Disable image optimization for Supabase storage
   },
   webpack: (config, { isServer }) => {
     // Fix for jsPDF in Next.js

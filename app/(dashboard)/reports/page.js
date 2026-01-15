@@ -80,8 +80,8 @@ export default function ReportsPage() {
     totalRoutes: 0
   })
 
-  const [selectedMonth, setSelectedMonth] = useState('12')
-  const [selectedYear, setSelectedYear] = useState('2025')
+  const [selectedMonth, setSelectedMonth] = useState(() => (new Date().getMonth() + 1).toString())
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear().toString())
   const [monthlyFeeData, setMonthlyFeeData] = useState([])
   const [monthlyPayrollData, setMonthlyPayrollData] = useState([])
   const [monthlyTransportData, setMonthlyTransportData] = useState([])
@@ -118,7 +118,10 @@ export default function ReportsPage() {
     { value: '12', label: 'December' }
   ]
 
-  const years = ['2025', '2024', '2023', '2022', '2021', '2020']
+  const years = (() => {
+    const currentYear = new Date().getFullYear()
+    return Array.from({ length: 6 }, (_, i) => (currentYear - i).toString())
+  })()
 
   // Helper function to get date range based on filter
   const getDateRange = () => {
@@ -1090,45 +1093,143 @@ export default function ReportsPage() {
     document.body.removeChild(link)
   }
 
+  // Helper function to add logo and header to PDF
+  const addPDFHeaderWithLogo = async (doc, schoolData, title, pdfSettings) => {
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const headerHeight = 35
+    let yPos = 10
+
+    // Header background
+    if (pdfSettings.includeHeader) {
+      const headerBgColor = hexToRgb(pdfSettings.headerBackgroundColor)
+      doc.setFillColor(headerBgColor[0], headerBgColor[1], headerBgColor[2])
+      doc.rect(0, 0, pageWidth, headerHeight, 'F')
+    }
+
+    // Add logo
+    if (pdfSettings.includeLogo && schoolData.logo_url) {
+      try {
+        const logoSizeObj = getLogoSize(pdfSettings.logoSize)
+        const currentLogoSize = logoSizeObj.width
+        const logoX = 10
+        const logoY = (headerHeight - currentLogoSize) / 2
+
+        // Load and convert image to base64
+        const response = await fetch(schoolData.logo_url)
+        const blob = await response.blob()
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result)
+          reader.readAsDataURL(blob)
+        })
+
+        // Create canvas for clipping
+        const canvas = document.createElement('canvas')
+        canvas.width = currentLogoSize * 10
+        canvas.height = currentLogoSize * 10
+        const ctx = canvas.getContext('2d')
+
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        await new Promise((resolve, reject) => {
+          img.onload = resolve
+          img.onerror = reject
+          img.src = base64
+        })
+
+        // Clip based on logo style
+        if (pdfSettings.logoStyle === 'circle') {
+          ctx.beginPath()
+          ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, 0, Math.PI * 2)
+          ctx.closePath()
+          ctx.clip()
+        } else if (pdfSettings.logoStyle === 'rounded') {
+          const radius = 20
+          ctx.beginPath()
+          ctx.moveTo(radius, 0)
+          ctx.lineTo(canvas.width - radius, 0)
+          ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius)
+          ctx.lineTo(canvas.width, canvas.height - radius)
+          ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height)
+          ctx.lineTo(radius, canvas.height)
+          ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius)
+          ctx.lineTo(0, radius)
+          ctx.quadraticCurveTo(0, 0, radius, 0)
+          ctx.closePath()
+          ctx.clip()
+        }
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        const clippedImage = canvas.toDataURL('image/png')
+
+        doc.addImage(clippedImage, 'PNG', logoX, logoY, currentLogoSize, currentLogoSize)
+
+        // Add border
+        const borderRgb = pdfSettings.logoBorderColor ? hexToRgb(pdfSettings.logoBorderColor) : [255, 255, 255]
+        if (pdfSettings.logoStyle === 'circle') {
+          doc.setDrawColor(...borderRgb)
+          doc.setLineWidth(0.5)
+          doc.circle(logoX + currentLogoSize/2, logoY + currentLogoSize/2, currentLogoSize/2, 'S')
+        } else if (pdfSettings.logoStyle === 'rounded') {
+          doc.setDrawColor(...borderRgb)
+          doc.setLineWidth(0.5)
+          doc.roundedRect(logoX, logoY, currentLogoSize, currentLogoSize, 3, 3, 'S')
+        } else {
+          doc.setDrawColor(...borderRgb)
+          doc.setLineWidth(0.5)
+          doc.rect(logoX, logoY, currentLogoSize, currentLogoSize, 'S')
+        }
+      } catch (error) {
+        console.error('Error adding logo:', error)
+      }
+    }
+
+    // School name and title (white text on header background)
+    yPos = 15
+    doc.setFontSize(16)
+    doc.setFont(undefined, 'bold')
+    doc.setTextColor(255, 255, 255)
+    doc.text(schoolData.name || 'School Management System', pageWidth / 2, yPos, { align: 'center' })
+
+    yPos += 8
+    doc.setFontSize(14)
+    doc.text(title, pageWidth / 2, yPos, { align: 'center' })
+
+    yPos += 7
+    doc.setFontSize(9)
+    doc.setFont(undefined, 'normal')
+    doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+
+    // Reset text color for content
+    doc.setTextColor(0, 0, 0)
+
+    return headerHeight + 10 // Return yPos for content start
+  }
+
   // Section-specific PDF export functions
   const exportOverviewPDF = async () => {
     try {
-      const jsPDF = (await import('jspdf')).default
-      await import('jspdf-autotable')
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
       const pdfSettings = getPdfSettings()
 
       const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
 
-      let schoolData = { name: '', address: '', phone: '' }
+      let schoolData = { name: '', address: '', phone: '', logo_url: '' }
       if (currentUser?.school_id) {
         const { data } = await supabase
           .from('schools')
-          .select('name, address, phone')
+          .select('name, address, phone, logo_url')
           .eq('id', currentUser.school_id)
           .single()
         if (data) schoolData = data
       }
 
-      const pageWidth = doc.internal.pageSize.getWidth()
-      let yPos = 20
-
-      doc.setFontSize(16)
-      doc.setFont(undefined, 'bold')
-      doc.text(schoolData.name || 'School Management System', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 8
-      doc.setFontSize(14)
-      doc.text('Overview Report', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'normal')
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 15
+      // Add header with logo
+      let yPos = await addPDFHeaderWithLogo(doc, schoolData, 'Overview Report', pdfSettings)
 
       // Student Stats
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Student Statistics', 'Count']],
         body: [
@@ -1142,7 +1243,7 @@ export default function ReportsPage() {
       yPos = doc.lastAutoTable.finalY + 10
 
       // Teacher Stats
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Teacher Statistics', 'Count']],
         body: [
@@ -1156,7 +1257,7 @@ export default function ReportsPage() {
       yPos = doc.lastAutoTable.finalY + 10
 
       // Fee Summary
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Fee Summary', 'Count', 'Amount']],
         body: [
@@ -1176,41 +1277,26 @@ export default function ReportsPage() {
 
   const exportFeeAnalyticsPDF = async () => {
     try {
-      const jsPDF = (await import('jspdf')).default
-      await import('jspdf-autotable')
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
       const pdfSettings = getPdfSettings()
 
       const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
 
-      let schoolData = { name: '' }
+      let schoolData = { name: '', logo_url: '' }
       if (currentUser?.school_id) {
         const { data } = await supabase
           .from('schools')
-          .select('name')
+          .select('name, logo_url')
           .eq('id', currentUser.school_id)
           .single()
         if (data) schoolData = data
       }
 
-      const pageWidth = doc.internal.pageSize.getWidth()
-      let yPos = 20
+      // Add header with logo
+      let yPos = await addPDFHeaderWithLogo(doc, schoolData, 'Fee Analytics Report', pdfSettings)
 
-      doc.setFontSize(16)
-      doc.setFont(undefined, 'bold')
-      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 8
-      doc.setFontSize(14)
-      doc.text('Fee Analytics Report', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'normal')
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 15
-
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Status', 'Count', 'Amount']],
         body: [
@@ -1230,41 +1316,26 @@ export default function ReportsPage() {
 
   const exportPayrollAnalyticsPDF = async () => {
     try {
-      const jsPDF = (await import('jspdf')).default
-      await import('jspdf-autotable')
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
       const pdfSettings = getPdfSettings()
 
       const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
 
-      let schoolData = { name: '' }
+      let schoolData = { name: '', logo_url: '' }
       if (currentUser?.school_id) {
         const { data } = await supabase
           .from('schools')
-          .select('name')
+          .select('name, logo_url')
           .eq('id', currentUser.school_id)
           .single()
         if (data) schoolData = data
       }
 
-      const pageWidth = doc.internal.pageSize.getWidth()
-      let yPos = 20
+      // Add header with logo
+      let yPos = await addPDFHeaderWithLogo(doc, schoolData, 'Payroll Analytics Report', pdfSettings)
 
-      doc.setFontSize(16)
-      doc.setFont(undefined, 'bold')
-      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 8
-      doc.setFontSize(14)
-      doc.text('Payroll Analytics Report', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'normal')
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 15
-
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Status', 'Count', 'Amount']],
         body: [
@@ -1284,41 +1355,26 @@ export default function ReportsPage() {
 
   const exportTransportAnalyticsPDF = async () => {
     try {
-      const jsPDF = (await import('jspdf')).default
-      await import('jspdf-autotable')
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
       const pdfSettings = getPdfSettings()
 
       const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
 
-      let schoolData = { name: '' }
+      let schoolData = { name: '', logo_url: '' }
       if (currentUser?.school_id) {
         const { data } = await supabase
           .from('schools')
-          .select('name')
+          .select('name, logo_url')
           .eq('id', currentUser.school_id)
           .single()
         if (data) schoolData = data
       }
 
-      const pageWidth = doc.internal.pageSize.getWidth()
-      let yPos = 20
+      // Add header with logo
+      let yPos = await addPDFHeaderWithLogo(doc, schoolData, 'Transport Analytics Report', pdfSettings)
 
-      doc.setFontSize(16)
-      doc.setFont(undefined, 'bold')
-      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 8
-      doc.setFontSize(14)
-      doc.text('Transport Analytics Report', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'normal')
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 15
-
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Category', 'Count', 'Amount']],
         body: [
@@ -1333,7 +1389,7 @@ export default function ReportsPage() {
 
       yPos = doc.lastAutoTable.finalY + 10
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Infrastructure', 'Count']],
         body: [
@@ -1351,17 +1407,17 @@ export default function ReportsPage() {
 
   const exportEarningsPDF = async () => {
     try {
-      const jsPDF = (await import('jspdf')).default
-      await import('jspdf-autotable')
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
       const pdfSettings = getPdfSettings()
 
       const doc = new jsPDF('p', 'mm', pdfSettings.pageSize.toLowerCase())
 
-      let schoolData = { name: '' }
+      let schoolData = { name: '', logo_url: '' }
       if (currentUser?.school_id) {
         const { data } = await supabase
           .from('schools')
-          .select('name')
+          .select('name, logo_url')
           .eq('id', currentUser.school_id)
           .single()
         if (data) schoolData = data
@@ -1371,25 +1427,10 @@ export default function ReportsPage() {
       const totalExpenses = payrollData.paidAmount
       const netRevenue = totalEarnings - totalExpenses
 
-      const pageWidth = doc.internal.pageSize.getWidth()
-      let yPos = 20
+      // Add header with logo
+      let yPos = await addPDFHeaderWithLogo(doc, schoolData, 'Earnings Report', pdfSettings)
 
-      doc.setFontSize(16)
-      doc.setFont(undefined, 'bold')
-      doc.text(schoolData.name || 'School', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 8
-      doc.setFontSize(14)
-      doc.text('Earnings Report', pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont(undefined, 'normal')
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
-
-      yPos += 15
-
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Category', 'Amount']],
         body: [
@@ -1446,7 +1487,7 @@ export default function ReportsPage() {
       console.log('PDF Settings loaded:', pdfSettings)
 
       // Dynamically import jsPDF and autoTable
-      const jsPDF = (await import('jspdf')).default
+      const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
 
       const doc = new jsPDF(
@@ -1759,11 +1800,40 @@ export default function ReportsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleExportPDF}
+                  onClick={async () => {
+                    try {
+                      if (activeSection === 'overview') await exportOverviewPDF()
+                      else if (activeSection === 'fee-analytics') await exportFeeAnalyticsPDF()
+                      else if (activeSection === 'payroll-analytics') await exportPayrollAnalyticsPDF()
+                      else if (activeSection === 'transport-analytics') await exportTransportAnalyticsPDF()
+                      else if (activeSection === 'earning-report') await exportEarningsPDF()
+                    } catch (error) {
+                      console.error('Error exporting PDF:', error)
+                      alert('Failed to generate PDF. Please try again.')
+                    }
+                  }}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm bg-[#DC2626] text-white hover:bg-red-700"
                 >
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline text-xs">Download PDF</span>
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      if (activeSection === 'overview') exportOverviewCSV()
+                      else if (activeSection === 'fee-analytics') exportFeeAnalyticsCSV()
+                      else if (activeSection === 'payroll-analytics') exportPayrollAnalyticsCSV()
+                      else if (activeSection === 'transport-analytics') exportTransportAnalyticsCSV()
+                      else if (activeSection === 'earning-report') exportEarningsCSV()
+                    } catch (error) {
+                      console.error('Error exporting CSV:', error)
+                      alert('Failed to generate CSV. Please try again.')
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm bg-[#DC2626] text-white hover:bg-red-700"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs">Download CSV</span>
                 </button>
                 <button
                   onClick={handleManualRefresh}
@@ -1908,29 +1978,6 @@ export default function ReportsPage() {
               )}
             </div>
 
-            {/* Download Buttons */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-800">Export Overview Report</h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={exportOverviewPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={exportOverviewCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    CSV
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Financial Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-blue-500">
@@ -1939,17 +1986,23 @@ export default function ReportsPage() {
                   <p className="text-xs text-gray-600 font-medium">Total Revenue</p>
                 </div>
                 <p className="text-xl font-bold text-gray-900">
-                  PKR {feeData.totalAmount.toLocaleString()}
+                  PKR {(feeData.totalAmount + transportData.totalAmount).toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Fees: {feeData.totalAmount.toLocaleString()} + Transport: {transportData.totalAmount.toLocaleString()}
                 </p>
               </div>
 
               <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-red-500">
                 <div className="flex items-center gap-2 mb-2">
                   <CreditCard className="w-5 h-5 text-red-600" />
-                  <p className="text-xs text-gray-600 font-medium">Total Expenses</p>
+                  <p className="text-xs text-gray-600 font-medium">Total Expenses (Paid)</p>
                 </div>
                 <p className="text-xl font-bold text-gray-900">
-                  PKR {payrollData.totalAmount.toLocaleString()}
+                  PKR {payrollData.paidAmount.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Pending: {payrollData.pendingAmount.toLocaleString()}
                 </p>
               </div>
 
@@ -1959,7 +2012,10 @@ export default function ReportsPage() {
                   <p className="text-xs text-gray-600 font-medium">Net Profit</p>
                 </div>
                 <p className="text-xl font-bold text-gray-900">
-                  PKR {(feeData.paidAmount - payrollData.paidAmount).toLocaleString()}
+                  PKR {((feeData.paidAmount + transportData.paidAmount) - payrollData.paidAmount).toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Revenue: {(feeData.paidAmount + transportData.paidAmount).toLocaleString()} - Expenses: {payrollData.paidAmount.toLocaleString()}
                 </p>
               </div>
 
@@ -1969,8 +2025,8 @@ export default function ReportsPage() {
                   <p className="text-xs text-gray-600 font-medium">Profit Margin</p>
                 </div>
                 <p className="text-xl font-bold text-gray-900">
-                  {feeData.paidAmount > 0
-                    ? (((feeData.paidAmount - payrollData.paidAmount) / feeData.paidAmount) * 100).toFixed(1)
+                  {(feeData.paidAmount + transportData.paidAmount) > 0
+                    ? ((((feeData.paidAmount + transportData.paidAmount) - payrollData.paidAmount) / (feeData.paidAmount + transportData.paidAmount)) * 100).toFixed(1)
                     : 0}%
                 </p>
               </div>
@@ -2171,29 +2227,6 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Download Buttons */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-800">Export Fee Analytics Report</h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={exportFeeAnalyticsPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={exportFeeAnalyticsCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    CSV
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md">
@@ -2369,29 +2402,6 @@ export default function ReportsPage() {
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Download Buttons */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-800">Export Payroll Analytics Report</h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={exportPayrollAnalyticsPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={exportPayrollAnalyticsCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    CSV
-                  </button>
                 </div>
               </div>
             </div>
@@ -2593,29 +2603,6 @@ export default function ReportsPage() {
               )}
             </div>
 
-            {/* Download Buttons */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-800">Export Earnings Report</h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={exportEarningsPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={exportEarningsCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    CSV
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border-2 border-green-200">
@@ -2749,29 +2736,6 @@ export default function ReportsPage() {
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Download Buttons */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-800">Export Transport Analytics Report</h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={exportTransportAnalyticsPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={exportTransportAnalyticsCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                    CSV
-                  </button>
                 </div>
               </div>
             </div>
