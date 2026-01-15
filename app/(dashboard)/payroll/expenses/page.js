@@ -29,6 +29,9 @@ export default function ExpensesPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [schoolDetails, setSchoolDetails] = useState(null)
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('expenses')
+
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -36,13 +39,19 @@ export default function ExpensesPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  // Modals
+  // Expense Modals
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedExpense, setSelectedExpense] = useState(null)
 
-  // Form data
+  // Category Modals
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false)
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false)
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState(null)
+
+  // Expense Form data
   const [formData, setFormData] = useState({
     expense_category_id: '',
     expense_date: new Date().toISOString().split('T')[0],
@@ -52,6 +61,13 @@ export default function ExpensesPage() {
     vendor_name: '',
     description: '',
     status: 'pending'
+  })
+
+  // Category Form data
+  const [categoryFormData, setCategoryFormData] = useState({
+    category_name: '',
+    description: '',
+    status: 'active'
   })
 
   // PDF Preview state
@@ -88,7 +104,8 @@ export default function ExpensesPage() {
 
   // Apply blur effect to sidebar when modals are open
   useEffect(() => {
-    const anyModalOpen = showAddModal || showEditModal || showDeleteModal
+    const anyModalOpen = showAddModal || showEditModal || showDeleteModal ||
+                        showAddCategoryModal || showEditCategoryModal || showDeleteCategoryModal
 
     if (anyModalOpen) {
       document.body.style.overflow = 'hidden'
@@ -114,7 +131,7 @@ export default function ExpensesPage() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showAddModal, showEditModal, showDeleteModal])
+  }, [showAddModal, showEditModal, showDeleteModal, showAddCategoryModal, showEditCategoryModal, showDeleteCategoryModal])
 
   const fetchSchoolDetails = async () => {
     try {
@@ -158,7 +175,6 @@ export default function ExpensesPage() {
       const { data, error } = await supabase
         .from('expense_categories')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('category_name')
@@ -191,7 +207,6 @@ export default function ExpensesPage() {
             username
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('expense_date', { ascending: false })
 
@@ -248,13 +263,15 @@ export default function ExpensesPage() {
       const { error } = await supabase
         .from('expenses')
         .insert({
-          user_id: currentUser.id,
           school_id: currentUser.school_id,
           ...formData,
           paid_by: currentUser.id
         })
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error:', error)
+        throw error
+      }
 
       toast.success('Expense added successfully!')
       setShowAddModal(false)
@@ -262,7 +279,7 @@ export default function ExpensesPage() {
       await loadExpenses()
     } catch (error) {
       console.error('Error adding expense:', error)
-      toast.error('Failed to add expense')
+      toast.error(`Failed to add expense: ${error.message}`)
     }
   }
 
@@ -272,7 +289,6 @@ export default function ExpensesPage() {
         .from('expenses')
         .update(formData)
         .eq('id', selectedExpense.id)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
 
       if (error) throw error
@@ -294,7 +310,6 @@ export default function ExpensesPage() {
         .from('expenses')
         .delete()
         .eq('id', selectedExpense.id)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
 
       if (error) throw error
@@ -318,7 +333,6 @@ export default function ExpensesPage() {
           approved_by: currentUser.id
         })
         .eq('id', expenseId)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
 
       if (error) throw error
@@ -331,6 +345,113 @@ export default function ExpensesPage() {
     }
   }
 
+  // Category Management Functions
+  const handleAddCategory = async () => {
+    if (!categoryFormData.category_name) {
+      toast.error('Category name is required')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('expense_categories')
+        .insert({
+          ...categoryFormData,
+          school_id: currentUser.school_id,
+          user_id: currentUser.id
+        })
+
+      if (error) {
+        console.error('Database error:', error)
+        throw error
+      }
+
+      toast.success('Category added successfully!')
+      setShowAddCategoryModal(false)
+      resetCategoryForm()
+      await loadCategories()
+    } catch (error) {
+      console.error('Error adding category:', error)
+      toast.error(`Failed to add category: ${error.message}`)
+    }
+  }
+
+  const handleEditCategory = async () => {
+    if (!categoryFormData.category_name) {
+      toast.error('Category name is required')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('expense_categories')
+        .update(categoryFormData)
+        .eq('id', selectedCategory.id)
+        .eq('school_id', currentUser.school_id)
+
+      if (error) throw error
+
+      toast.success('Category updated successfully!')
+      setShowEditCategoryModal(false)
+      setSelectedCategory(null)
+      resetCategoryForm()
+      await loadCategories()
+    } catch (error) {
+      console.error('Error updating category:', error)
+      toast.error('Failed to update category')
+    }
+  }
+
+  const handleDeleteCategory = async () => {
+    try {
+      // Check if category is being used by any expenses
+      const { data: expensesUsingCategory, error: checkError } = await supabase
+        .from('expenses')
+        .select('id')
+        .eq('expense_category_id', selectedCategory.id)
+        .eq('school_id', currentUser.school_id)
+        .limit(1)
+
+      if (checkError) throw checkError
+
+      if (expensesUsingCategory && expensesUsingCategory.length > 0) {
+        toast.error('Cannot delete category. It is being used by expenses.')
+        return
+      }
+
+      const { error } = await supabase
+        .from('expense_categories')
+        .delete()
+        .eq('id', selectedCategory.id)
+        .eq('school_id', currentUser.school_id)
+
+      if (error) throw error
+
+      toast.success('Category deleted successfully!')
+      setShowDeleteCategoryModal(false)
+      setSelectedCategory(null)
+      await loadCategories()
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      toast.error('Failed to delete category')
+    }
+  }
+
+  const openEditCategoryModal = (category) => {
+    setSelectedCategory(category)
+    setCategoryFormData({
+      category_name: category.category_name,
+      description: category.description || '',
+      status: category.status
+    })
+    setShowEditCategoryModal(true)
+  }
+
+  const openDeleteCategoryModal = (category) => {
+    setSelectedCategory(category)
+    setShowDeleteCategoryModal(true)
+  }
+
   const resetForm = () => {
     setFormData({
       expense_category_id: '',
@@ -341,6 +462,14 @@ export default function ExpensesPage() {
       vendor_name: '',
       description: '',
       status: 'pending'
+    })
+  }
+
+  const resetCategoryForm = () => {
+    setCategoryFormData({
+      category_name: '',
+      description: '',
+      status: 'active'
     })
   }
 
@@ -649,6 +778,35 @@ export default function ExpensesPage() {
         }}
       />
 
+      {/* Tabs */}
+      <div className="mb-2 bg-white rounded-lg shadow-sm">
+        <div className="flex gap-2 p-2">
+          <button
+            onClick={() => setActiveTab('expenses')}
+            className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all ${
+              activeTab === 'expenses'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Expenses
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all ${
+              activeTab === 'categories'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Categories
+          </button>
+        </div>
+      </div>
+
+      {/* Expenses Tab Content */}
+      {activeTab === 'expenses' && (
+        <>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow-lg">
@@ -899,106 +1057,190 @@ export default function ExpensesPage() {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* Categories Tab Content */}
+      {activeTab === 'categories' && (
+        <div className="space-y-4">
+          {/* Category Actions */}
+          <div className="bg-white rounded-lg shadow-sm p-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800">Expense Categories</h2>
+              <button
+                onClick={() => setShowAddCategoryModal(true)}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shadow-md"
+              >
+                <Plus size={16} />
+                Add Category
+              </button>
+            </div>
+          </div>
+
+          {/* Categories Table */}
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            {loading ? (
+              <div className="text-center py-12 text-gray-500">Loading categories...</div>
+            ) : categories.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="border border-blue-800 px-4 py-3 text-left font-semibold">#</th>
+                      <th className="border border-blue-800 px-4 py-3 text-left font-semibold">Category Name</th>
+                      <th className="border border-blue-800 px-4 py-3 text-left font-semibold">Description</th>
+                      <th className="border border-blue-800 px-4 py-3 text-center font-semibold">Status</th>
+                      <th className="border border-blue-800 px-4 py-3 text-center font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map((category, index) => (
+                      <tr key={category.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                        <td className="border border-gray-200 px-4 py-3">{index + 1}</td>
+                        <td className="border border-gray-200 px-4 py-3 font-medium">{category.category_name}</td>
+                        <td className="border border-gray-200 px-4 py-3">{category.description || '-'}</td>
+                        <td className="border border-gray-200 px-4 py-3 text-center">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                            category.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {category.status}
+                          </span>
+                        </td>
+                        <td className="border border-gray-200 px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => openEditCategoryModal(category)}
+                              className="text-blue-600 hover:text-blue-800 p-1"
+                              title="Edit category"
+                            >
+                              <Edit size={18} />
+                            </button>
+                            <button
+                              onClick={() => openDeleteCategoryModal(category)}
+                              className="text-red-600 hover:text-red-800 p-1"
+                              title="Delete category"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <p>No categories found</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Add Expense Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
               <h2 className="text-base font-bold text-gray-800">Add New Expense</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                <select
-                  value={formData.expense_category_id}
-                  onChange={(e) => setFormData({ ...formData, expense_category_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.category_name}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                  <select
+                    value={formData.expense_category_id}
+                    onChange={(e) => setFormData({ ...formData, expense_category_id: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.category_name}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
-                <input
-                  type="date"
-                  value={formData.expense_date}
-                  onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+                  <input
+                    type="date"
+                    value={formData.expense_date}
+                    onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
-                <input
-                  type="number"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
+                  <input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
-                <select
-                  value={formData.payment_method}
-                  onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="online">Online</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
+                  <select
+                    value={formData.payment_method}
+                    onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="online">Online</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Number</label>
-                <input
-                  type="text"
-                  value={formData.invoice_number}
-                  onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="INV-001"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Number</label>
+                  <input
+                    type="text"
+                    value={formData.invoice_number}
+                    onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="INV-001"
+                  />
+                </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Vendor Name</label>
-                <input
-                  type="text"
-                  value={formData.vendor_name}
-                  onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Enter vendor name"
-                />
-              </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vendor Name</label>
+                  <input
+                    type="text"
+                    value={formData.vendor_name}
+                    onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Enter vendor name"
+                  />
+                </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  rows="3"
-                  placeholder="Enter expense details..."
-                />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    rows="3"
+                    placeholder="Enter expense details..."
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowAddModal(false)
@@ -1010,7 +1252,7 @@ export default function ExpensesPage() {
               </button>
               <button
                 onClick={handleAddExpense}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
               >
                 Add Expense
               </button>
@@ -1022,115 +1264,117 @@ export default function ExpensesPage() {
       {/* Edit Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
               <h2 className="text-base font-bold text-gray-800">Edit Expense</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                <select
-                  value={formData.expense_category_id}
-                  onChange={(e) => setFormData({ ...formData, expense_category_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.category_name}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                  <select
+                    value={formData.expense_category_id}
+                    onChange={(e) => setFormData({ ...formData, expense_category_id: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.category_name}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
-                <input
-                  type="date"
-                  value={formData.expense_date}
-                  onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+                  <input
+                    type="date"
+                    value={formData.expense_date}
+                    onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
-                <input
-                  type="number"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
+                  <input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
-                <select
-                  value={formData.payment_method}
-                  onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="online">Online</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
+                  <select
+                    value={formData.payment_method}
+                    onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="online">Online</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="paid">Paid</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Number</label>
-                <input
-                  type="text"
-                  value={formData.invoice_number}
-                  onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="INV-001"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Number</label>
+                  <input
+                    type="text"
+                    value={formData.invoice_number}
+                    onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="INV-001"
+                  />
+                </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Vendor Name</label>
-                <input
-                  type="text"
-                  value={formData.vendor_name}
-                  onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Enter vendor name"
-                />
-              </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vendor Name</label>
+                  <input
+                    type="text"
+                    value={formData.vendor_name}
+                    onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Enter vendor name"
+                  />
+                </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  rows="3"
-                  placeholder="Enter expense details..."
-                />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    rows="3"
+                    placeholder="Enter expense details..."
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowEditModal(false)
@@ -1143,7 +1387,7 @@ export default function ExpensesPage() {
               </button>
               <button
                 onClick={handleEditExpense}
-                className="px-6 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-lg font-medium transition-colors"
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
               >
                 Update Expense
               </button>
@@ -1192,6 +1436,168 @@ export default function ExpensesPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Add Category Modal */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-base font-bold text-gray-800">Add New Category</h2>
+              <button onClick={() => { setShowAddCategoryModal(false); resetCategoryForm(); }} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category Name *</label>
+                <input
+                  type="text"
+                  value={categoryFormData.category_name}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, category_name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="e.g. Utilities, Salaries, etc."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={categoryFormData.description}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Enter category description..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={categoryFormData.status}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, status: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+              <button
+                onClick={() => { setShowAddCategoryModal(false); resetCategoryForm(); }}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddCategory}
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
+              >
+                Add Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {showEditCategoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-base font-bold text-gray-800">Edit Category</h2>
+              <button onClick={() => { setShowEditCategoryModal(false); setSelectedCategory(null); resetCategoryForm(); }} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category Name *</label>
+                <input
+                  type="text"
+                  value={categoryFormData.category_name}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, category_name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="e.g. Utilities, Salaries, etc."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={categoryFormData.description}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Enter category description..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={categoryFormData.status}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, status: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+              <button
+                onClick={() => { setShowEditCategoryModal(false); setSelectedCategory(null); resetCategoryForm(); }}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditCategory}
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
+              >
+                Update Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Category Modal */}
+      {showDeleteCategoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+              <h3 className="text-lg font-bold">Confirm Delete</h3>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-6">
+                Are you sure you want to delete the category "<strong>{selectedCategory?.category_name}</strong>"? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => { setShowDeleteCategoryModal(false); setSelectedCategory(null); }}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteCategory}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* PDF Preview Modal */}

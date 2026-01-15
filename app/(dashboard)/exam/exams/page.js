@@ -198,7 +198,6 @@ export default function ExamsPage() {
             section_name
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('created_at', { ascending: false })
 
@@ -240,7 +239,6 @@ export default function ExamsPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('is_current', true)
         .single()
@@ -262,7 +260,6 @@ export default function ExamsPage() {
       const { data, error } = await supabase
         .from('datesheets')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('created_at', { ascending: false })
 
@@ -318,7 +315,6 @@ export default function ExamsPage() {
         .from('classes')
         .select('*')
         .in('id', classIds)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('class_name')
@@ -336,7 +332,6 @@ export default function ExamsPage() {
       const { data, error } = await supabase
         .from('classes')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('class_name')
@@ -353,7 +348,6 @@ export default function ExamsPage() {
       const { data, error } = await supabase
         .from('sections')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('class_id', selectedClass)
         .eq('status', 'active')
@@ -371,7 +365,6 @@ export default function ExamsPage() {
       const { data, error } = await supabase
         .from('sections')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('section_name')
@@ -395,7 +388,6 @@ export default function ExamsPage() {
             subject_code
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('class_id', selectedClass)
 
@@ -411,7 +403,6 @@ export default function ExamsPage() {
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('subject_name')
@@ -441,8 +432,7 @@ export default function ExamsPage() {
           .from('classes')
           .select('*')
           .eq('id', examData.class_id)
-          .eq('user_id', currentUser.id)
-        .eq('school_id', currentUser.school_id)
+          .eq('school_id', currentUser.school_id)
           .eq('status', 'active')
 
         if (error) throw error
@@ -464,7 +454,6 @@ export default function ExamsPage() {
       const { data, error } = await supabase
         .from('sections')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('class_id', filterClass)
         .eq('status', 'active')
@@ -490,7 +479,6 @@ export default function ExamsPage() {
             subject_code
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('class_id', filterClass)
 
@@ -561,7 +549,6 @@ export default function ExamsPage() {
       if (editMode && currentExamId) {
         // Update existing exam
         const newExamData = {
-          user_id: currentUser.id,
           school_id: currentUser.school_id,
           session_id: currentSession.id,
           exam_name: examName,
@@ -580,7 +567,6 @@ export default function ExamsPage() {
           .from('exams')
           .update(newExamData)
           .eq('id', currentExamId)
-          .eq('user_id', currentUser.id)
           .eq('school_id', currentUser.school_id)
 
         if (error) throw error
@@ -590,14 +576,12 @@ export default function ExamsPage() {
           .from('exam_schedules')
           .delete()
           .eq('exam_id', currentExamId)
-          .eq('user_id', currentUser.id)
           .eq('school_id', currentUser.school_id)
 
         examId = currentExamId
       } else {
         // Always create new exam in exams table (whether from datesheet or not)
         const newExamData = {
-          user_id: currentUser.id,
           school_id: currentUser.school_id,
           session_id: currentSession.id,
           exam_name: examName,
@@ -624,7 +608,6 @@ export default function ExamsPage() {
 
       // Always insert into exam_schedules with subject-specific marks
       const schedules = selectedSubjects.map(subjectId => ({
-        user_id: currentUser.id,
         school_id: currentUser.school_id,
         exam_id: examId,
         class_id: selectedClass,
@@ -714,7 +697,6 @@ export default function ExamsPage() {
             .from('exam_schedules')
             .delete()
             .eq('exam_id', examId)
-            .eq('user_id', currentUser.id)
             .eq('school_id', currentUser.school_id)
 
           // Delete marks
@@ -722,7 +704,6 @@ export default function ExamsPage() {
             .from('exam_marks')
             .delete()
             .eq('exam_id', examId)
-            .eq('user_id', currentUser.id)
             .eq('school_id', currentUser.school_id)
 
           // Delete exam
@@ -730,7 +711,6 @@ export default function ExamsPage() {
             .from('exams')
             .delete()
             .eq('id', examId)
-            .eq('user_id', currentUser.id)
             .eq('school_id', currentUser.school_id)
 
           if (error) throw error
@@ -755,7 +735,6 @@ export default function ExamsPage() {
         .from('exams')
         .update({ status: newStatus })
         .eq('id', examId)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
 
       if (error) throw error

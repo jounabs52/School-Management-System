@@ -601,6 +601,7 @@ export default function HRCertificatesPage() {
         const { error } = await supabase
           .from('staff_certificates')
           .insert({
+            user_id: currentUser.id,
             staff_id: staffData.id,
             school_id: currentUser.school_id,
             certificate_type: certificateType, // Only 'experience', 'relieving', 'appreciation'

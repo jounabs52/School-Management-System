@@ -62,7 +62,10 @@ export default function StaffIDCardsPage() {
     qrData: '',
     qrSize: 'medium',
     terms: [
-      'This card is property of the institution.'
+      'This card is property of the institution.',
+      'If found, please return to the address below.',
+      'This card is non-transferable.',
+      'Card holder must carry this card at all times on premises.'
     ]
   }
 
@@ -200,7 +203,21 @@ export default function StaffIDCardsPage() {
         .single()
 
       if (error) throw error
-      setSchoolData(data)
+
+      // Convert logo URL to base64 if it exists
+      let logoBase64 = data?.logo_url
+      if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
+        try {
+          logoBase64 = await convertImageToBase64(data.logo_url)
+        } catch (err) {
+          console.error('Error converting logo to base64:', err)
+        }
+      }
+
+      setSchoolData({
+        ...data,
+        logo: logoBase64 // Store as 'logo' for consistency
+      })
     } catch (error) {
       console.error('Error fetching school data:', error)
       showToast('Error loading school data', 'error')
@@ -412,37 +429,64 @@ export default function StaffIDCardsPage() {
       try {
         const sizeMap = { small: 6, medium: 9, large: 12 }
         const logoSize = sizeMap[s.logoSize] || 9
-        // Logo positioning - match back side positioning
-        let logoX = 6 - logoSize/2  // Center at x=6 (same as back side)
-        if (s.logoPosition === 'center') logoX = (cardWidth - logoSize) / 2
-        else if (s.logoPosition === 'right') logoX = cardWidth - logoSize - 6
+        const logoRadius = logoSize / 2
+
+        // Logo positioning based on logoPosition setting
+        let logoCenterX = 6  // Default left position
+        if (s.logoPosition === 'center') {
+          logoCenterX = cardWidth / 2
+        } else if (s.logoPosition === 'right') {
+          logoCenterX = cardWidth - 6
+        }
+
+        const logoX = logoCenterX - logoRadius
+        const logoY = 6 - logoRadius
 
         doc.setFillColor(255,255,255)
 
         if (s.showLogo && logoBase64) {
-          // draw white background (circle or rect)
-          if (s.logoShape === 'circle') {
-            doc.circle(6, 6, logoSize / 2, 'F')
-          } else {
-            doc.rect(logoX, 6 - logoSize/2, logoSize, logoSize, 'F')
-          }
-
           // Attempt to add image only when we have a data URL
           if (typeof logoBase64 === 'string' && logoBase64.startsWith('data:')) {
             let format = 'PNG'
             if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) format = 'JPEG'
+
             try {
-              doc.addImage(logoBase64, format, logoX, 6 - logoSize/2, logoSize, logoSize)
+              // If circle shape is selected, create circular version of logo
+              if (s.logoShape === 'circle') {
+                // Draw white circle background
+                doc.circle(logoCenterX, 6, logoRadius, 'F')
+                // Create circular version of the logo
+                const circularLogo = await createCircularImage(logoBase64, logoSize * 10) // Higher resolution
+                doc.addImage(circularLogo, 'PNG', logoX, logoY, logoSize, logoSize)
+              } else {
+                // Draw white rectangle background
+                doc.rect(logoX, logoY, logoSize, logoSize, 'F')
+                // Add rectangular logo
+                doc.addImage(logoBase64, format, logoX, logoY, logoSize, logoSize)
+              }
             } catch (e) {
-              console.warn('addImage failed for data URL logo; keeping placeholder background', e)
+              console.warn('addImage failed for logo; keeping placeholder background', e)
+              // Draw placeholder
+              if (s.logoShape === 'circle') {
+                doc.circle(logoCenterX, 6, logoRadius, 'F')
+              } else {
+                doc.rect(logoX, logoY, logoSize, logoSize, 'F')
+              }
+            }
+          } else {
+            // No valid data URL, just show white background
+            if (s.logoShape === 'circle') {
+              doc.circle(logoCenterX, 6, logoRadius, 'F')
+            } else {
+              doc.rect(logoX, logoY, logoSize, logoSize, 'F')
             }
           }
         } else if (s.showLogo) {
           // Show placeholder according to selected size/shape/position
           if (s.logoShape === 'circle') {
-            doc.circle(6, 6, logoSize / 2, 'F')
+            doc.circle(logoCenterX, 6, logoRadius, 'F')
           } else {
-            doc.rect(logoX, 6 - logoSize/2, logoSize, logoSize, 'F')
+            doc.rect(logoX, logoY, logoSize, logoSize, 'F')
           }
         } else {
           // If logo is disabled, draw a small neutral placeholder on left
@@ -580,7 +624,7 @@ export default function StaffIDCardsPage() {
 
       // Expiry badge at bottom left (optional)
       if (ff.expiry) {
-        doc.setFillColor(...accentRgb)
+        doc.setFillColor(220, 38, 38) // Red color
         doc.roundedRect(5, cardHeight - 10, 25, 6, 1, 1, 'F')
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(7)
@@ -590,7 +634,7 @@ export default function StaffIDCardsPage() {
       }
 
       // Expiry badge at bottom left
-      doc.setFillColor(...accentRgb)
+      doc.setFillColor(220, 38, 38) // Red color
       doc.roundedRect(5, cardHeight - 10, 25, 6, 1, 1, 'F')
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(7)
@@ -625,17 +669,31 @@ export default function StaffIDCardsPage() {
         doc.setFillColor(255, 255, 255)
 
         if (logoBase64 && typeof logoBase64 === 'string' && logoBase64.startsWith('data:')) {
-          // draw white background
-          if (s.logoShape === 'circle') doc.circle(6, 6, backLogoSize/2, 'F')
-          else doc.rect(backLogoX, backLogoY, backLogoSize, backLogoSize, 'F')
-
-          // add image
           let format = 'PNG'
           if (logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg')) format = 'JPEG'
+
           try {
-            doc.addImage(logoBase64, format, backLogoX, backLogoY, backLogoSize, backLogoSize)
+            // If circle shape is selected, create circular version of logo
+            if (s.logoShape === 'circle') {
+              // Draw white circle background
+              doc.circle(6, 6, backLogoSize/2, 'F')
+              // Create circular version of the logo
+              const circularBackLogo = await createCircularImage(logoBase64, backLogoSize * 10)
+              doc.addImage(circularBackLogo, 'PNG', backLogoX, backLogoY, backLogoSize, backLogoSize)
+            } else {
+              // Draw white rectangle background
+              doc.rect(backLogoX, backLogoY, backLogoSize, backLogoSize, 'F')
+              // Add rectangular logo
+              doc.addImage(logoBase64, format, backLogoX, backLogoY, backLogoSize, backLogoSize)
+            }
           } catch (e) {
-            console.warn('addImage failed for back logo; placeholder kept', e)
+            console.warn('addImage failed for back logo; keeping placeholder background', e)
+            // Draw placeholder
+            if (s.logoShape === 'circle') {
+              doc.circle(6, 6, backLogoSize/2, 'F')
+            } else {
+              doc.rect(backLogoX, backLogoY, backLogoSize, backLogoSize, 'F')
+            }
           }
         } else {
           // fallback placeholder
@@ -652,22 +710,17 @@ export default function StaffIDCardsPage() {
       doc.setFont('helvetica', 'bold')
       doc.text(schoolNameDisplay, cardWidth / 2, 8.5, { align: 'center' })
 
-      // TERMS & CONDITIONS title
+      // TERMS & CONDITIONS heading
       doc.setTextColor(0, 0, 0)
       doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('TERMS & CONDITIONS', cardWidth / 2, 18, { align: 'center' })
 
-      // Back header (optional)
-      if (s.backHeaderText) {
-        doc.setFontSize(9)
-        doc.setFont(s.headerFont || 'helvetica', 'bold')
-        doc.text(s.backHeaderText, cardWidth/2, 18, { align: 'center' })
-      }
-
-      // Terms & Conditions
+      // Terms & Conditions list from settings
       doc.setFontSize(7)
       doc.setFont(s.valueFont || 'helvetica', 'normal')
-      const startY = 20
-      let ty = Number(startY) || 20
+      const startY = 24
+      let ty = Number(startY) || 24
       // Ensure terms is an array of strings to avoid runtime errors
       const termsList = Array.isArray(s.terms) ? s.terms : (s.terms ? [String(s.terms)] : [])
       termsList.forEach((t) => {
@@ -679,16 +732,6 @@ export default function StaffIDCardsPage() {
         ty += 4
       })
 
-      // Show logo on back if enabled
-      if (s.showLogoOnBack && logoBase64) {
-        try {
-          const format = logoBase64.includes('data:image/jpeg') ? 'JPEG' : 'PNG'
-          doc.addImage(logoBase64, format, cardWidth - 18, 14, 12, 12)
-        } catch (e) {
-          console.error('Could not add back logo', e, e.stack)
-        }
-      }
-
       // QR Code (single source) - prefer custom setting `s.qrData`, otherwise build default staff QR
       if (s.showQRCode) {
         const defaultQR = `Staff ID: ${staffData.employee_number}\nName: ${staffName}\nSchool: ${schoolNameDisplay}`
@@ -696,7 +739,8 @@ export default function StaffIDCardsPage() {
         try {
           const qSize = s.qrSize === 'large' ? 22 : s.qrSize === 'small' ? 10 : 15
           const qrX = cardWidth - qSize - 8
-          const qrY = Math.max(12, (typeof ty === 'number' ? ty - 8 : 12))
+          // Fixed position for QR code on right side, regardless of terms length
+          const qrY = 22
 
           const qrImg = await generateQRCode(qrText)
           if (qrImg) {
@@ -707,40 +751,6 @@ export default function StaffIDCardsPage() {
           showToast('Error adding QR code to ID card: ' + (e.message || String(e)), 'error')
         }
       }
-      doc.setFont('helvetica', 'bold')
-      doc.text('TERMS & CONDITIONS', cardWidth / 2, 18, { align: 'center' })
-
-      // Terms bullets
-      const termsX = 8
-      let termsY = 24
-      doc.setFontSize(6)
-      doc.setFont('helvetica', 'normal')
-
-      const terms = [
-        'This card is property of the institution.',
-        'If found, should be returned posted to following',
-        'address:',
-        `Incharge: Institution Address,  ${schoolData.address || 'SCHOOL ADDRESS'}`,
-        `Ph: ${schoolData.phone || '092341-407986'} Email: ${schoolData.email || 'info@institution.edu.pk'}`
-      ]
-
-      terms.forEach((term, index) => {
-        if (index === 0 || index === 1) {
-          doc.text('•', termsX, termsY)
-          doc.text(term, termsX + 3, termsY)
-          termsY += 4
-        } else if (index === 2) {
-          doc.text('•', termsX, termsY)
-          doc.text(term, termsX + 3, termsY)
-          termsY += 4
-        } else {
-          doc.setFontSize(5.5)
-          doc.text(term, termsX + 3, termsY)
-          termsY += 3.5
-        }
-      })
-
-
 
       // Generate PDF blob for preview
       const pdfBlob = doc.output('blob')

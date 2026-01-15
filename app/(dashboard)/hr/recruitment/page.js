@@ -21,6 +21,18 @@ export default function RecruitmentPage() {
   const [showCustomDepartment, setShowCustomDepartment] = useState(false)
   const [customDepartmentName, setCustomDepartmentName] = useState('')
 
+  // Predefined department options (same as staff page)
+  const departmentOptions = [
+    'ACADEMIC',
+    'ACCOUNTS',
+    'ADMIN',
+    'POLITICAL',
+    'SPORTS',
+    'SUPPORTING STAFF',
+    'TEACHING',
+    'Other'
+  ]
+
   // Jobs State
   const [jobs, setJobs] = useState([])
   const [showJobModal, setShowJobModal] = useState(false)
@@ -202,6 +214,7 @@ export default function RecruitmentPage() {
       const { data, error } = await supabase
         .from('departments')
         .select('*')
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('department_name', { ascending: true })
 
@@ -220,7 +233,7 @@ export default function RecruitmentPage() {
         .from('jobs')
         .select(`
           *,
-          department:departments(department_name),
+          department:departments(id, department_name),
           job_applications(count)
         `)
         .eq('school_id', currentUser.school_id)
@@ -231,7 +244,8 @@ export default function RecruitmentPage() {
       // Map the aggregated count to applicant_count
       const jobsWithCounts = data.map(job => ({
         ...job,
-        applicant_count: job.job_applications?.[0]?.count || 0
+        applicant_count: job.job_applications?.[0]?.count || 0,
+        department_name: job.department?.department_name
       }))
 
       setJobs(jobsWithCounts)
@@ -346,29 +360,46 @@ export default function RecruitmentPage() {
     }
 
     // Check if custom department is needed
-    if (jobForm.departmentId === 'other' && !customDepartmentName.trim()) {
+    if (jobForm.departmentId === 'Other' && !customDepartmentName.trim()) {
       showToast('Please enter custom department name', 'warning')
       return
     }
 
     try {
-      let finalDepartmentId = jobForm.departmentId
+      let departmentName = jobForm.departmentId
 
-      // If "Other" is selected, create a new department first
-      if (jobForm.departmentId === 'other') {
-        const { data: newDept, error: deptError } = await supabase
+      // If "Other" is selected, use custom department name
+      if (jobForm.departmentId === 'Other') {
+        departmentName = customDepartmentName
+      }
+
+      // Find or create department
+      let departmentId
+      const { data: existingDept, error: findError } = await supabase
+        .from('departments')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
+        .eq('department_name', departmentName)
+        .single()
+
+      if (existingDept) {
+        departmentId = existingDept.id
+      } else {
+        // Create new department
+        const { data: newDept, error: createError } = await supabase
           .from('departments')
           .insert({
+            user_id: currentUser.id,
             school_id: currentUser.school_id,
-            department_name: customDepartmentName,
+            department_name: departmentName,
             created_by: currentUser.id
           })
-          .select()
+          .select('id')
           .single()
 
-        if (deptError) throw deptError
-
-        finalDepartmentId = newDept.id
+        if (createError) throw createError
+        departmentId = newDept.id
       }
 
       if (editingJob) {
@@ -376,7 +407,7 @@ export default function RecruitmentPage() {
         const { error } = await supabase
           .from('jobs')
           .update({
-            department_id: finalDepartmentId,
+            department_id: departmentId,
             title: jobForm.title,
             salary: jobForm.salary || null,
             deadline: jobForm.deadline || null,
@@ -392,8 +423,9 @@ export default function RecruitmentPage() {
         const { error } = await supabase
           .from('jobs')
           .insert({
+            user_id: currentUser.id,
             school_id: currentUser.school_id,
-            department_id: finalDepartmentId,
+            department_id: departmentId,
             title: jobForm.title,
             salary: jobForm.salary || null,
             deadline: jobForm.deadline || null,
@@ -417,7 +449,6 @@ export default function RecruitmentPage() {
       setEditingJob(null)
       setShowJobModal(false)
       fetchJobs()
-      fetchDepartments() // Refresh departments list
     } catch (error) {
       console.error('Error saving job:', error)
       showToast('Error saving job: ' + error.message, 'error')
@@ -428,7 +459,7 @@ export default function RecruitmentPage() {
   const handleEditJob = (job) => {
     setEditingJob(job)
     setJobForm({
-      departmentId: job.department_id || '',
+      departmentId: job.department_name || job.department?.department_name || '',
       title: job.title,
       salary: job.salary || '',
       deadline: job.deadline || '',
@@ -881,16 +912,6 @@ export default function RecruitmentPage() {
         </div>
       )}
 
-      {/* Page Header - Compact */}
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-purple-600 rounded-lg">
-            <Briefcase className="w-5 h-5 text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-800">Recruitment</h1>
-        </div>
-      </div>
-
       {/* Tabs - Compact */}
       <div className="flex gap-1 mb-1">
         {['jobs', 'applications', 'interviews'].map(tab => (
@@ -1269,18 +1290,17 @@ export default function RecruitmentPage() {
                     value={jobForm.departmentId}
                     onChange={(e) => {
                       setJobForm({...jobForm, departmentId: e.target.value})
-                      setShowCustomDepartment(e.target.value === 'other')
-                      if (e.target.value !== 'other') {
+                      setShowCustomDepartment(e.target.value === 'Other')
+                      if (e.target.value !== 'Other') {
                         setCustomDepartmentName('')
                       }
                     }}
                     className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
                     <option value="">Select an option</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+                    {departmentOptions.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
                     ))}
-                    <option value="other">Other (Create New)</option>
                   </select>
                 </div>
                 {showCustomDepartment && (
@@ -1692,7 +1712,7 @@ export default function RecruitmentPage() {
             key={toast.id}
             className={`flex items-center gap-3 min-w-[320px] max-w-md px-3 py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               toast.type === 'success' ? 'bg-blue-500' :
-              toast.type === 'error' ? 'bg-blue-600' :
+              toast.type === 'error' ? 'bg-red-600' :
               toast.type === 'warning' ? 'bg-blue-500' :
               'bg-blue-500'
             }`}

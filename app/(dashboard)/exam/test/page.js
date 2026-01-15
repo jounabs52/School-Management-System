@@ -130,7 +130,6 @@ export default function TestsPage() {
             )
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('test_date', { ascending: false })
 
@@ -147,7 +146,6 @@ export default function TestsPage() {
       const { data, error } = await supabase
         .from('classes')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('class_name')
@@ -164,7 +162,6 @@ export default function TestsPage() {
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('subject_name')
@@ -193,7 +190,6 @@ export default function TestsPage() {
       const { data, error } = await supabase
         .from('sections')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('class_id', selectedClass)
         .eq('status', 'active')
@@ -218,7 +214,6 @@ export default function TestsPage() {
             subject_code
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('class_id', selectedClass)
 
@@ -277,17 +272,15 @@ export default function TestsPage() {
             details: details || null
           })
           .eq('id', editingTest.id)
-          .eq('user_id', currentUser.id)
           .eq('school_id', currentUser.school_id)
 
         if (testError) throw testError
 
-        await supabase.from('test_subjects').delete().eq('test_id', editingTest.id).eq('user_id', currentUser.id).eq('school_id', currentUser.school_id)
+        await supabase.from('test_subjects').delete().eq('test_id', editingTest.id).eq('school_id', currentUser.school_id)
 
         const testSubjects = selectedSubjects.map(subjectId => ({
           test_id: editingTest.id,
           subject_id: subjectId,
-          user_id: currentUser.id,
           school_id: currentUser.school_id,
           total_marks: parseFloat(subjectMarks[subjectId])
         }))
@@ -306,7 +299,6 @@ export default function TestsPage() {
         const { data: newTest, error: testError } = await supabase
           .from('tests')
           .insert({
-            user_id: currentUser.id,
             school_id: currentUser.school_id,
             created_by: currentUser.id,
             test_name: testName,
@@ -326,7 +318,6 @@ export default function TestsPage() {
         const testSubjects = selectedSubjects.map(subjectId => ({
           test_id: newTest.id,
           subject_id: subjectId,
-          user_id: currentUser.id,
           school_id: currentUser.school_id,
           total_marks: parseFloat(subjectMarks[subjectId])
         }))

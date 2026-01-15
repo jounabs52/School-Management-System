@@ -121,7 +121,6 @@ export default function SalaryPaidReport() {
             username
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('payment_year', { ascending: false })
         .order('payment_month', { ascending: false })

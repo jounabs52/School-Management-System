@@ -411,8 +411,6 @@ export default function AttendanceReportsPage() {
 
   return (
     <div className="p-1">
-      <h1 className="text-2xl font-bold mb-6">Attendance Reports</h1>
-
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-[9999] space-y-2">
         {toasts.map((toast) => (
@@ -468,29 +466,27 @@ export default function AttendanceReportsPage() {
       {/* Tabs */}
       {!activeReport && (
         <>
-          <div className="bg-white rounded-lg shadow-sm mb-6">
-            <div className="flex gap-2 p-2">
-              <button
-                onClick={() => setActiveTab('student')}
-                className={`px-6 py-3 font-medium rounded ${
-                  activeTab === 'student'
-                    ? 'bg-red-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Student Reports
-              </button>
-              <button
-                onClick={() => setActiveTab('staff')}
-                className={`px-6 py-3 font-medium rounded ${
-                  activeTab === 'staff'
-                    ? 'bg-red-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Staff Reports
-              </button>
-            </div>
+          <div className="flex gap-1 mb-2">
+            <button
+              onClick={() => setActiveTab('student')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                activeTab === 'student'
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Student Reports
+            </button>
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                activeTab === 'staff'
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Staff Reports
+            </button>
           </div>
 
           {/* Reports Table */}

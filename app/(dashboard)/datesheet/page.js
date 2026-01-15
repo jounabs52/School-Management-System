@@ -534,7 +534,9 @@ export default function DatesheetPage() {
           slip_number: slip.slip_number,
           datesheet_id: slip.datesheet_id,
           student_id: slip.student_id,
-          slip_type: slip.slip_type || 'roll_no_slip' // Include slip_type
+          class_id: slip.class_id || slip.students?.current_class_id, // Include class_id from slip or student
+          slip_type: slip.slip_type || 'roll_no_slip',
+          students: slip.students // Include full student data for PDF generation
         }
       })
 
@@ -789,6 +791,7 @@ export default function DatesheetPage() {
     try {
       // Create datesheet
       const datesheetData = {
+        user_id: currentUser.id,
         school_id: currentUser.school_id,
         session: session.name, // String, not UUID
         title: datesheetTitle,
@@ -820,6 +823,7 @@ export default function DatesheetPage() {
 
       // Create schedule records from added subjects
       const scheduleRecords = addedSubjects.map(subject => ({
+        user_id: currentUser.id,
         datesheet_id: datesheet.id,
         school_id: currentUser.school_id,
         class_id: selectedClassForDatesheet,
@@ -1021,6 +1025,7 @@ export default function DatesheetPage() {
         start_time: subject.start_time,
         end_time: subject.end_time,
         room_number: examCenter,
+        user_id: currentUser.id,  // Fixed: changed from created_by to user_id
         created_by: currentUser.id
       }))
 
@@ -1603,22 +1608,59 @@ export default function DatesheetPage() {
         return
       }
 
+      console.log('📋 Fetching schedules for datesheet:', slip.datesheet_id)
+      console.log('📋 Slip class_id:', slip.class_id)
+      console.log('📋 Student class_id:', studentData.current_class_id)
+      console.log('📋 Datesheet class_ids:', datesheet.class_ids)
+
       // Get exam schedules for this student's class
-      const { data: examSchedules, error } = await supabase
+      // Priority: use slip's class_id > student's current_class_id (NO fallback to avoid wrong subjects)
+      let examSchedules = []
+      let classIdToUse = slip.class_id || studentData.current_class_id
+
+      // Validate that we have a class_id
+      if (!classIdToUse) {
+        console.error('❌ No class_id found in slip or student data')
+        showToast('Cannot determine class for this slip', 'error')
+        return
+      }
+
+      // Log validation info (convert to strings for proper UUID comparison)
+      if (datesheet.class_ids && Array.isArray(datesheet.class_ids)) {
+        const classIdStr = String(classIdToUse)
+        const datesheetClassIds = datesheet.class_ids.map(id => String(id))
+
+        if (!datesheetClassIds.includes(classIdStr)) {
+          console.warn('⚠️ Class ID not in datesheet classes, but using it anyway for correct subject filtering')
+          console.warn('   Using class_id:', classIdStr)
+          console.warn('   Datesheet has:', datesheetClassIds)
+        }
+      }
+
+      const { data: schedules, error } = await supabase
         .from('datesheet_schedules')
         .select(`
           *,
           subjects (subject_name)
         `)
         .eq('datesheet_id', slip.datesheet_id)
-        .eq('class_id', studentData.current_class_id)
+        .eq('class_id', classIdToUse)
         .not('subject_id', 'is', null)
         .order('exam_date')
 
       if (error) {
-        console.error('Error fetching schedules:', error)
+        console.error('❌ Error fetching schedules:', error)
         showToast('Error fetching exam schedule', 'error')
         return
+      }
+
+      examSchedules = schedules || []
+      console.log('✅ Fetched exam schedules:', examSchedules)
+      console.log(`📋 Found ${examSchedules.length} schedules`)
+
+      if (examSchedules.length === 0) {
+        console.warn('⚠️ No schedules found for class:', classIdToUse)
+        showToast('No exam schedules found for this class', 'warning')
       }
 
       const doc = new jsPDF()
@@ -1945,6 +1987,7 @@ export default function DatesheetPage() {
           school_id: currentUser.school_id,
           datesheet_id: reportConfig.selectedDatesheet,
           student_id: student.id,
+          class_id: student.current_class_id, // Store the class_id for later use
           slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
           slip_type: reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip',
           gender: student.gender,
@@ -2573,6 +2616,7 @@ export default function DatesheetPage() {
             <tr className="bg-blue-900 text-white">
               <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
               <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Datesheet Title</th>
+              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Classes</th>
               <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Start Date</th>
               <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Exam Center</th>
               <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
@@ -2584,6 +2628,20 @@ export default function DatesheetPage() {
                 <tr key={datesheet.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
                   <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
                   <td className="px-3 py-2.5 font-medium border border-gray-200">{datesheet.title}</td>
+                  <td className="px-3 py-2.5 border border-gray-200">
+                    {datesheet.class_ids && datesheet.class_ids.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {datesheet.class_ids.map(classId => {
+                          const classInfo = classes.find(c => c.id === classId)
+                          return classInfo ? (
+                            <span key={classId} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
+                              {classInfo.class_name}
+                            </span>
+                          ) : null
+                        })}
+                      </div>
+                    ) : '-'}
+                  </td>
                   <td className="px-3 py-2.5 border border-gray-200">{datesheet.start_date || '-'}</td>
                   <td className="px-3 py-2.5 border border-gray-200">{datesheet.exam_center || '-'}</td>
                   <td className="px-3 py-2.5 border border-gray-200">
@@ -2620,7 +2678,7 @@ export default function DatesheetPage() {
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="px-3 py-4 text-center text-gray-500 text-sm">
+                <td colSpan="6" className="px-3 py-4 text-center text-gray-500 text-sm">
                   {loading ? 'Loading...' : 'No datesheets found'}
                 </td>
               </tr>
@@ -2922,28 +2980,28 @@ export default function DatesheetPage() {
 
           {/* Schedule Table */}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Sr.</th>
-                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Class Name</th>
+                  <th className="border border-blue-800 px-2 py-2 font-semibold text-xs">Sr.</th>
+                  <th className="border border-blue-800 px-2 py-2 font-semibold text-xs">Class Name</th>
                   {scheduleDates.map(date => (
-                    <th key={date} className="border border-blue-800 px-3 py-2.5 font-semibold min-w-[150px]">
+                    <th key={date} className="border border-blue-800 px-1.5 py-2 font-semibold text-xs min-w-[110px]">
                       {new Date(date).toLocaleDateString('en-US', {
-                        day: '2-digit',
+                        day: 'numeric',
                         month: 'short',
                         year: 'numeric'
                       })}
                     </th>
                   ))}
-                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Actions</th>
+                  <th className="border border-blue-800 px-2 py-2 font-semibold text-xs">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {selectedClasses?.map((classId, index) => (
                   <tr key={classId} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                    <td className="border border-gray-200 px-3 py-2.5 text-center">{index + 1}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 font-medium">
+                    <td className="border border-gray-200 px-2 py-1.5 text-center text-xs">{index + 1}</td>
+                    <td className="border border-gray-200 px-2 py-1.5 font-medium text-xs">
                       {getClassName(classId)}
                     </td>
                     {scheduleDates.map(date => {
@@ -2952,7 +3010,7 @@ export default function DatesheetPage() {
                       return (
                         <td
                           key={date}
-                          className={`border border-gray-200 px-2 py-2.5 min-h-[100px] transition-all ${
+                          className={`border border-gray-200 px-1 py-1.5 min-h-[70px] transition-all ${
                             isDropTarget ? 'bg-blue-100 border-blue-500' : ''
                           }`}
                           onDragOver={(e) => {
@@ -2972,37 +3030,37 @@ export default function DatesheetPage() {
                               draggable
                               onDragStart={(e) => handleDragStart(e, schedule)}
                               onDragEnd={handleDragEnd}
-                              className={`flex flex-col gap-1 bg-blue-50 border border-blue-300 rounded-lg p-2 cursor-move hover:shadow-md transition ${
+                              className={`flex flex-col gap-0.5 bg-blue-50 border border-blue-300 rounded p-1.5 cursor-move hover:shadow-md transition ${
                                 draggedSchedule?.id === schedule.id ? 'opacity-50' : ''
                               }`}
                             >
-                              <div className="font-semibold text-blue-800 text-sm">
+                              <div className="font-semibold text-blue-800 text-xs leading-tight">
                                 {getSubjectName(schedule.subject_id)}
                               </div>
-                              <div className="flex items-center gap-1 text-xs text-gray-600">
-                                <Clock className="w-3 h-3" />
+                              <div className="flex items-center gap-0.5 text-[10px] text-gray-600">
+                                <Clock className="w-2.5 h-2.5" />
                                 <span>{schedule.start_time} - {schedule.end_time}</span>
                               </div>
                               {schedule.room_number && (
-                                <div className="text-xs text-gray-600">
+                                <div className="text-[10px] text-gray-600">
                                   Room: {schedule.room_number}
                                 </div>
                               )}
-                              <div className="flex gap-1 mt-1">
+                              <div className="flex gap-0.5 mt-0.5">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleEditSchedule(schedule)
                                   }}
-                                  className="text-blue-600 hover:text-blue-800 p-1"
+                                  className="text-blue-600 hover:text-blue-800 p-0.5"
                                   title="Edit schedule"
                                 >
-                                  <Pencil className="w-3 h-3" />
+                                  <Pencil className="w-2.5 h-2.5" />
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className={`min-h-[80px] flex items-center justify-center text-xs text-gray-400 rounded border-2 border-dashed ${
+                            <div className={`min-h-[60px] flex items-center justify-center text-[10px] text-gray-400 rounded border-2 border-dashed ${
                               isDropTarget ? 'border-blue-500' : 'border-gray-300'
                             }`}>
                               {isDropTarget ? 'Drop here' : (
@@ -3020,14 +3078,14 @@ export default function DatesheetPage() {
                         </td>
                       )
                     })}
-                    <td className="border border-gray-200 px-3 py-2.5 text-center">
-                      <div className="flex gap-2 justify-center">
+                    <td className="border border-gray-200 px-2 py-1.5 text-center">
+                      <div className="flex gap-1 justify-center">
                         <button
                           onClick={() => handleDownloadClassDatesheet(classId)}
-                          className="text-blue-600 hover:text-blue-800 p-1"
+                          className="text-blue-600 hover:text-blue-800 p-0.5"
                           title="Download Datesheet"
                         >
-                          <Download className="w-5 h-5" />
+                          <Download className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -3602,7 +3660,15 @@ export default function DatesheetPage() {
                     </label>
                     <select
                       value={reportConfig.selectedDatesheet}
-                      onChange={(e) => setReportConfig({ ...reportConfig, selectedDatesheet: e.target.value })}
+                      onChange={(e) => {
+                        // Reset class selection when datesheet changes
+                        setReportConfig({
+                          ...reportConfig,
+                          selectedDatesheet: e.target.value,
+                          selectedClass: 'all' // Reset to "All Classes"
+                        })
+                        setFilteredStudents(students) // Reset student filter
+                      }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
                       <option value="">Select a datesheet</option>
@@ -3629,11 +3695,26 @@ export default function DatesheetPage() {
                         }
                       }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      disabled={!reportConfig.selectedDatesheet}
                     >
                       <option value="all">All Classes</option>
-                      {classes.map(cls => (
-                        <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                      ))}
+                      {(() => {
+                        // Filter classes based on selected datesheet
+                        if (reportConfig.selectedDatesheet) {
+                          const selectedDatesheet = datesheets.find(d => d.id === reportConfig.selectedDatesheet)
+                          if (selectedDatesheet && selectedDatesheet.class_ids && Array.isArray(selectedDatesheet.class_ids)) {
+                            return classes
+                              .filter(cls => selectedDatesheet.class_ids.includes(cls.id))
+                              .map(cls => (
+                                <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                              ))
+                          }
+                        }
+                        // If no datesheet selected, show all classes
+                        return classes.map(cls => (
+                          <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                        ))
+                      })()}
                     </select>
                   </div>
 
