@@ -1,6 +1,4 @@
-<<<<<<< HEAD
-============================================================================
-=======
+
 -- ============================================================================
 -- COMPLETE SCHOOL MANAGEMENT SYSTEM DATABASE SCHEMA
 -- Version: 1.0 | All 57 Tables | Properly Dependency-Ordered
@@ -14,7 +12,7 @@
 -- ============================================================================
 
 -- ============================================================================
->>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
+
 -- STEP 1: CREATE HELPER FUNCTIONS
 -- ============================================================================
 
@@ -2013,7 +2011,7 @@ create table public.student_id_cards (
   status character varying(20) null default 'active'::character varying,
   barcode character varying(100) null,
   issued_by uuid null,
-<<<<<<< HEAD
+
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   constraint student_id_cards_pkey primary key (id),
@@ -2117,7 +2115,6 @@ create table public.staff_id_cards (
   constraint staff_id_cards_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
   constraint staff_id_cards_staff_id_fkey foreign KEY (staff_id) references staff (id) on delete CASCADE,
   constraint staff_id_cards_status_check check (
-=======
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   constraint student_id_cards_pkey primary key (id),
@@ -2142,7 +2139,7 @@ create table public.staff_id_cards (
   )
 ) TABLESPACE pg_default;
 
-<<<<<<< HEAD
+
 
 create table public.datesheet_schedules (
   id uuid not null default extensions.uuid_generate_v4 (),
@@ -2323,7 +2320,7 @@ CREATE TABLE public.book_issues (
         FOREIGN KEY (issued_by)
         REFERENCES public.users (id)
         ON DELETE SET NULL,
-=======
+
 -- Add user_id column to book_issues table
 -- This column is required for tracking which user manages each book issue entry
 
@@ -2361,7 +2358,6 @@ CREATE INDEX IF NOT EXISTS idx_book_issues_user_id ON public.book_issues USING b
 COMMENT ON COLUMN public.book_issues.user_id IS 'User who manages this book issue entry';
 
 
->>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
 
     -- Checks
     CONSTRAINT book_issues_borrower_type_check
