@@ -14,6 +14,7 @@ import {
   getLogoSize,
   applyPdfSettings
 } from '@/lib/pdfSettings'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -42,7 +43,8 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-export default function FeeCreatePage() {
+// Main Content Component
+function FeeCreateContent() {
   const [students, setStudents] = useState([])
   const [classes, setClasses] = useState([])
   const [sections, setSections] = useState([])
@@ -2948,5 +2950,35 @@ export default function FeeCreatePage() {
         </>
       )}
     </div>
+  )
+}
+
+// Main Page Component with Permission Guard
+export default function FeeCreatePage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="fee_create_view"
+      pageName="Create Fee"
+    >
+      <FeeCreateContent />
+    </PermissionGuard>
   )
 }

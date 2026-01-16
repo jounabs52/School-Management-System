@@ -27,12 +27,12 @@ import {
   PDF_FONTS
 } from '@/lib/pdfUtils'
 
-
-import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 
-export default function SalarySlipsPage() {
+function SalarySlipsPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [salaryPayments, setSalaryPayments] = useState([])
   const [filteredPayments, setFilteredPayments] = useState([])
@@ -1025,5 +1025,34 @@ export default function SalarySlipsPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function SalarySlipsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    setCurrentUser(user)
+    setLoading(false)
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      permissionKey="payroll_slips_view"
+      currentUser={currentUser}
+      pageName="Salary Slips"
+    >
+      <SalarySlipsPageContent />
+    </PermissionGuard>
   )
 }

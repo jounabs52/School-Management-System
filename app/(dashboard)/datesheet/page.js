@@ -16,8 +16,10 @@ import {
   PDF_FONTS
 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function DatesheetPage() {
+function DatesheetContent() {
   const router = useRouter()
   const [datesheets, setDatesheets] = useState([])
   const [classes, setClasses] = useState([])
@@ -3999,5 +4001,34 @@ export default function DatesheetPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function DatesheetPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="timetable_datesheet_view"
+      pageName="Date Sheet"
+    >
+      <DatesheetContent />
+    </PermissionGuard>
   )
 }

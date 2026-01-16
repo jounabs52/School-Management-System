@@ -11,8 +11,10 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { getPdfSettings, hexToRgb, getAutoTableStyles } from '@/lib/pdfSettings'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function ContactsPage() {
+function ContactsContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [contacts, setContacts] = useState([])
   const [filteredContacts, setFilteredContacts] = useState([])
@@ -1167,5 +1169,34 @@ export default function ContactsPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function ContactsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="frontdesk_directory_view"
+      pageName="Contacts"
+    >
+      <ContactsContent />
+    </PermissionGuard>
   )
 }

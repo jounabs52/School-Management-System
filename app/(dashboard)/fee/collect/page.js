@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Search, CheckCircle, X, Printer, Eye, Calendar, CreditCard, Building2, GraduationCap, Phone, Mail, MapPin, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import PermissionGuard from '@/components/PermissionGuard'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
@@ -689,7 +690,7 @@ const PrintChallan = ({ challan, school, onClose }) => {
   )
 }
 
-export default function FeeCollectPage() {
+function FeeCollectContent() {
   const [challans, setChallans] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -1661,5 +1662,35 @@ export default function FeeCollectPage() {
         </>
       )}
     </div>
+  )
+}
+
+// Main Page Component with Permission Guard
+export default function FeeCollectPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="fee_collect_view"
+      pageName="Fee Collection"
+    >
+      <FeeCollectContent />
+    </PermissionGuard>
   )
 }

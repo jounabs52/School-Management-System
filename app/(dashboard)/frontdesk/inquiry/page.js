@@ -6,8 +6,10 @@ import {
   X, Plus, Search, FileText, Edit, Trash2, Calendar, Phone, Mail, User,
   CheckCircle, XCircle, AlertCircle, ChevronDown, Download, FileSpreadsheet, Upload, UserCheck
 } from 'lucide-react'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function AdmissionInquiryPage() {
+function AdmissionInquiryContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [inquiries, setInquiries] = useState([])
   const [filteredInquiries, setFilteredInquiries] = useState([])
@@ -1160,5 +1162,34 @@ export default function AdmissionInquiryPage() {
         ))}
       </div>
     </div>
+  )
+}
+
+export default function AdmissionInquiryPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="frontdesk_inquiry_view"
+      pageName="Inquiry"
+    >
+      <AdmissionInquiryContent />
+    </PermissionGuard>
   )
 }

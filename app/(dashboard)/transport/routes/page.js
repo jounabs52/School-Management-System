@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Edit2, X, Trash2, MapPin, DollarSign, CheckCircle, AlertCircle, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import PermissionGuard from '@/components/PermissionGuard'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -44,7 +45,7 @@ function Toast({ message, type, onClose }) {
   )
 }
 
-export default function RoutesPage() {
+function RoutesContent() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -1639,5 +1640,34 @@ export default function RoutesPage() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function RoutesPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="transport_routes_view"
+      pageName="Transport Routes"
+    >
+      <RoutesContent />
+    </PermissionGuard>
   )
 }

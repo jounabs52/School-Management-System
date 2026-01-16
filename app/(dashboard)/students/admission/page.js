@@ -6,6 +6,8 @@ import { FileText, UserPlus, Upload, Search, Eye, Edit2, Trash2, X, Plus, Chevro
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getLineWidth, applyPdfSettings, getAutoTableStyles, addPDFFooter } from '@/lib/pdfSettings'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -97,7 +99,7 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-export default function AdmissionRegisterPage() {
+function AdmissionRegisterContent() {
   const [activeTab, setActiveTab] = useState('register')
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
@@ -211,7 +213,7 @@ export default function AdmissionRegisterPage() {
     nationality: 'Pakistan',
     permanentAddress: '',
     medicalProblem: '',
-    feePlan: 'monthly',
+    feePlan: '',
     startingMonth: new Date().getMonth() + 1, // Current month (1-12)
     discountType: 'fixed' // 'fixed' or 'percentage'
   })
@@ -1145,7 +1147,7 @@ export default function AdmissionRegisterPage() {
       }
 
       // Validate fee_plan from database
-      const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual']
+      const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual', 'one-time']
       const dbFeePlan = fullStudent.fee_plan
       const validatedDbFeePlan = validFeePlans.includes(dbFeePlan) ? dbFeePlan : 'monthly'
 
@@ -2827,7 +2829,8 @@ export default function AdmissionRegisterPage() {
                     </label>
                     <input
                       type="text"
-                      value={formData.feePlan ? formData.feePlan.charAt(0).toUpperCase() + formData.feePlan.slice(1) : 'Monthly'}
+                      value={formData.feePlan ? formData.feePlan.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-') : ''}
+                      placeholder="Select a class first"
                       readOnly
                       required
                       className="w-full px-4 py-3 border border-blue-200 bg-blue-50 rounded-lg font-semibold text-blue-800 capitalize outline-none"
@@ -3954,5 +3957,34 @@ export default function AdmissionRegisterPage() {
         </ModalOverlay>
       )}
     </div>
+  )
+}
+
+export default function AdmissionRegisterPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="students_admission_view"
+      pageName="Students Admission"
+    >
+      <AdmissionRegisterContent />
+    </PermissionGuard>
   )
 }

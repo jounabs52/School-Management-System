@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { Users, UserCheck, Home, DollarSign, Calendar, AlertCircle, TrendingUp, Cake, School, BookOpen, Bus, Phone, MessageSquare, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { createClient } from '@supabase/supabase-js'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -16,7 +18,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
-export default function Dashboard() {
+function DashboardContent() {
   const [loading, setLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState({
     students: { active: 0, total: 0 },
@@ -629,5 +631,34 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function Dashboard() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="dashboard_view"
+      pageName="Dashboard"
+    >
+      <DashboardContent />
+    </PermissionGuard>
   )
 }

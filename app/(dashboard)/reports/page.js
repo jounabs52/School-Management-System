@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { getUserFromCookie } from '@/lib/clientAuth'
+import PermissionGuard from '@/components/PermissionGuard'
 import {
   BarChart3,
   CreditCard,
@@ -24,7 +26,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { getPdfSettings, hexToRgb, getMarginValues, getCellPadding, getLineWidth, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
 
-export default function ReportsPage() {
+function ReportsPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState('overview')
@@ -2933,5 +2935,34 @@ export default function ReportsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ReportsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    setCurrentUser(user)
+    setIsLoading(false)
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="reports_view"
+      pageName="Reports"
+    >
+      <ReportsPageContent />
+    </PermissionGuard>
   )
 }

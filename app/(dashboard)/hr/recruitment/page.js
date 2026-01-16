@@ -3,8 +3,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Briefcase, Plus, Edit, Trash2, Search, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function RecruitmentPage() {
+function RecruitmentContent() {
   const [activeTab, setActiveTab] = useState('jobs')
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -1731,5 +1733,34 @@ export default function RecruitmentPage() {
         ))}
       </div>
     </div>
+  )
+}
+
+export default function RecruitmentPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="staff_recruitment_view"
+      pageName="Recruitment"
+    >
+      <RecruitmentContent />
+    </PermissionGuard>
   )
 }

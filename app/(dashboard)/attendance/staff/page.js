@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { X } from 'lucide-react'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function StaffAttendancePage() {
+function StaffAttendanceContent() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [staffList, setStaffList] = useState([])
   const [filteredStaff, setFilteredStaff] = useState([])
@@ -500,5 +502,34 @@ export default function StaffAttendancePage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function StaffAttendancePage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="attendance_staff_view"
+      pageName="Staff Attendance"
+    >
+      <StaffAttendanceContent />
+    </PermissionGuard>
   )
 }

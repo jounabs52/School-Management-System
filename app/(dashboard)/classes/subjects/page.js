@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown, CheckCircle, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose }) => {
@@ -84,7 +85,7 @@ const getLoggedInUser = () => {
   }
 }
 
-export default function SubjectsPage() {
+function SubjectsContent() {
   // Debug: Check Supabase initialization
   useEffect(() => {
     console.log('📋 SubjectsPage mounted')
@@ -1710,4 +1711,33 @@ export default function SubjectsPage() {
       )}
     </div>
   )
-} 
+}
+
+export default function SubjectsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="classes_subjects_view"
+      pageName="Subjects"
+    >
+      <SubjectsContent />
+    </PermissionGuard>
+  )
+}

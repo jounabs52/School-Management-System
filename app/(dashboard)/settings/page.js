@@ -6,14 +6,16 @@ import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import Image from 'next/image'
 import StaffManagement from '@/components/StaffManagement'
+import PermissionGuard from '@/components/PermissionGuard'
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState(null)
+  const [userPermissions, setUserPermissions] = useState(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toasts, setToasts] = useState([])
   const [uploading, setUploading] = useState(false)
-  const [activeTab, setActiveTab] = useState('basic') // 'basic', 'pdf', or 'access'
+  const [activeTab, setActiveTab] = useState(null) // Will be set based on permissions
   const [imageError, setImageError] = useState(false)
   const [schoolData, setSchoolData] = useState({
     name: '',
@@ -80,6 +82,8 @@ export default function SettingsPage() {
       if (user) {
         setCurrentUser(user)
         console.log('✅ User loaded:', user.id, 'School:', user.school_id)
+        // Load user permissions
+        loadUserPermissions(user)
       } else {
         console.error('❌ No user found in cookie')
         showToast('Please log in again', 'error')
@@ -89,6 +93,56 @@ export default function SettingsPage() {
       showToast('Error loading user data', 'error')
     }
   }, [])
+
+  // Load user permissions
+  const loadUserPermissions = async (user) => {
+    try {
+      // Admin has all permissions (case-insensitive check)
+      const userRole = user.role?.toLowerCase().trim() || ''
+      if (userRole === 'admin' || userRole === 'owner') {
+        const allPermissions = {
+          settings_basic_view: true,
+          settings_pdf_view: true,
+          settings_manage_access_view: true
+        }
+        setUserPermissions(allPermissions)
+        // Set first available tab
+        setActiveTab('basic')
+        return
+      }
+
+      // Load staff permissions from database
+      const { data, error } = await supabase
+        .from('staff_permissions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('school_id', user.school_id)
+        .single()
+
+      if (error) {
+        console.error('Error loading permissions:', error)
+        setUserPermissions({})
+        return
+      }
+
+      setUserPermissions(data || {})
+
+      // Set default active tab based on available permissions
+      if (data?.settings_basic_view) {
+        setActiveTab('basic')
+      } else if (data?.settings_pdf_view) {
+        setActiveTab('pdf')
+      } else if (data?.settings_manage_access_view || data?.settings_access_view) {
+        setActiveTab('access')
+      } else {
+        // No permissions, default to basic
+        setActiveTab('basic')
+      }
+    } catch (e) {
+      console.error('Error loading permissions:', e)
+      setUserPermissions({})
+    }
+  }
 
   // Load PDF settings for current school from localStorage
   useEffect(() => {
@@ -349,15 +403,72 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
+  // Wait for currentUser to be loaded
+  if (!currentUser || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading school data...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     )
+  }
+
+  // Debug logging
+  console.log('🔍 Settings Page Check:', {
+    currentUser: currentUser?.email,
+    role: currentUser?.role,
+    roleType: typeof currentUser?.role,
+    userPermissions,
+    activeTab,
+    isAdmin: currentUser?.role === 'admin'
+  })
+
+  // Admin users always have access - skip permission check (case-insensitive)
+  const userRole = currentUser?.role?.toLowerCase().trim() || ''
+  if (userRole === 'admin' || userRole === 'owner') {
+    console.log('👑 Admin/Owner user detected - granting full access')
+    // Admin has full access, no permission check needed - continue to render
+  } else {
+    // For non-admin users, check if they have any settings permission
+    // Wait for permissions to load before checking
+    if (userPermissions === null) {
+      console.log('⏳ Waiting for permissions to load...')
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )
+    }
+
+    const hasAnySettingsPermission =
+      userPermissions?.settings_basic_view ||
+      userPermissions?.settings_pdf_view ||
+      userPermissions?.settings_manage_access_view ||
+      userPermissions?.settings_access_view
+
+    console.log('🔐 Staff user permissions check:', { hasAnySettingsPermission, userPermissions })
+
+    if (!hasAnySettingsPermission) {
+      console.log('❌ Access denied - no settings permissions')
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">
+              You don't have permission to access Settings.
+            </p>
+            <p className="text-sm text-gray-500">
+              Please contact your administrator if you believe this is an error.
+            </p>
+          </div>
+        </div>
+      )
+    }
   }
 
   return (
@@ -386,42 +497,53 @@ export default function SettingsPage() {
 
       {/* Tab Navigation */}
       <div className="mb-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('basic')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-xs transition-all ${
-            activeTab === 'basic'
-              ? 'bg-red-600 text-white shadow-lg'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-          }`}
-        >
-          <Settings size={16} />
-          Basic Settings
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('pdf')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-xs transition-all ${
-            activeTab === 'pdf'
-              ? 'bg-red-600 text-white shadow-lg'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-          }`}
-        >
-          <Settings size={16} />
-          PDF Settings
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('access')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-xs transition-all ${
-            activeTab === 'access'
-              ? 'bg-red-600 text-white shadow-lg'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-          }`}
-        >
-          <Users size={16} />
-          Manage Access
-        </button>
+        {/* Show Basic Settings tab only if user has permission */}
+        {(userRole === 'admin' || userRole === 'owner' || userPermissions?.settings_basic_view) && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('basic')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-xs transition-all ${
+              activeTab === 'basic'
+                ? 'bg-red-600 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <Settings size={16} />
+            Basic Settings
+          </button>
+        )}
+
+        {/* Show PDF Settings tab only if user has permission */}
+        {(userRole === 'admin' || userRole === 'owner' || userPermissions?.settings_pdf_view) && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('pdf')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-xs transition-all ${
+              activeTab === 'pdf'
+                ? 'bg-red-600 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <Settings size={16} />
+            PDF Settings
+          </button>
+        )}
+
+        {/* Show Manage Access tab only if user has permission */}
+        {(userRole === 'admin' || userRole === 'owner' || userPermissions?.settings_manage_access_view || userPermissions?.settings_access_view) && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('access')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-xs transition-all ${
+              activeTab === 'access'
+                ? 'bg-red-600 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <Users size={16} />
+            Manage Access
+          </button>
+        )}
       </div>
 
       {/* Warning message if not active */}

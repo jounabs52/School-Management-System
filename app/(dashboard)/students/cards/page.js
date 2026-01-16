@@ -9,6 +9,8 @@ import { convertImageToBase64 } from '@/lib/pdfUtils'
 import toast from 'react-hot-toast'
 import { Toaster } from 'react-hot-toast'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -32,7 +34,7 @@ const getLoggedInUser = () => {
   }
 }
 
-export default function StudentIDCardsPage() {
+function StudentIDCardsContent() {
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSection, setSelectedSection] = useState('')
   const [printFor, setPrintFor] = useState('individual') // 'individual' or 'all'
@@ -2474,5 +2476,34 @@ export default function StudentIDCardsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function StudentIDCardsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="students_cards_view"
+      pageName="Student ID Cards"
+    >
+      <StudentIDCardsContent />
+    </PermissionGuard>
   )
 }

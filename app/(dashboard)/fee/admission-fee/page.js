@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { Users, FileText, TrendingUp, TrendingDown, Edit, Trash2, Plus, X, CheckCircle } from 'lucide-react'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -31,7 +32,8 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-export default function AdmissionFeePolicyPage() {
+// Main Content Component
+function AdmissionFeePolicyContent() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedClass, setSelectedClass] = useState(null)
@@ -1461,5 +1463,35 @@ export default function AdmissionFeePolicyPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// Main Page Component with Permission Guard
+export default function AdmissionFeePage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="fee_admission_fee_view"
+      pageName="Admission Fee"
+    >
+      <AdmissionFeePolicyContent />
+    </PermissionGuard>
   )
 }

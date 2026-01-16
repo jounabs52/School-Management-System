@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, Eye } from 'lucide-react'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function PayrollReportsPage() {
+function PayrollReportsPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const router = useRouter()
 
@@ -108,5 +110,34 @@ export default function PayrollReportsPage() {
         </table>
       </div>
     </div>
+  )
+}
+
+export default function PayrollReportsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    setCurrentUser(user)
+    setLoading(false)
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      permissionKey="payroll_reports_view"
+      currentUser={currentUser}
+      pageName="Payroll Reports"
+    >
+      <PayrollReportsPageContent />
+    </PermissionGuard>
   )
 }
