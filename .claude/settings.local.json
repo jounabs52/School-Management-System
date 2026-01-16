@@ -12,7 +12,8 @@
       "Bash(fi)",
       "Bash(done)",
       "Bash(find:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix certificate logo display and improve PDF generation\n\n- Fixed one-time fee plan validation in database schema\n- Updated students/active PDF to match students/admission format\n- Fixed logo display in students/certificates page\n- Resolved Supabase query order issue causing page crashes\n\nChanges:\n1. lib/ourscheema.sql: Added ''one-time'' to fee_plan check constraint\n2. app/\\(dashboard\\)/students/active/page.js:\n   - Updated PDF to show full student name \\(first + last\\)\n   - Replaced addTwoColumnFields with professional multi-column layout\n   - Added responsive columns \\(3 for landscape, 2 for portrait\\)\n   - Added styled field cards with backgrounds and borders\n   - Updated section spacing to be orientation-aware\n\n3. app/\\(dashboard\\)/students/certificates/page.js:\n   - Fixed certificate generation to fetch school data directly\n   - Simplified logo loading \\(removed complex canvas clipping\\)\n   - Fixed Supabase query order \\(.select before .eq\\)\n   - Changed to fixed logo size \\(20mm\\) matching students/reports\n   - Updated both character and leaving certificate generators\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
