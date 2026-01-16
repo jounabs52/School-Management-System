@@ -263,6 +263,7 @@ export default function TestsPage() {
         const { error: testError } = await supabase
           .from('tests')
           .update({
+            user_id: currentUser.id,
             test_name: testName,
             test_date: testDate,
             result_date: resultDate || null,
@@ -282,6 +283,7 @@ export default function TestsPage() {
           test_id: editingTest.id,
           subject_id: subjectId,
           school_id: currentUser.school_id,
+          user_id: currentUser.id,
           total_marks: parseFloat(subjectMarks[subjectId])
         }))
 
@@ -300,6 +302,7 @@ export default function TestsPage() {
           .from('tests')
           .insert({
             school_id: currentUser.school_id,
+            user_id: currentUser.id,
             created_by: currentUser.id,
             test_name: testName,
             test_date: testDate,
@@ -319,6 +322,7 @@ export default function TestsPage() {
           test_id: newTest.id,
           subject_id: subjectId,
           school_id: currentUser.school_id,
+          user_id: currentUser.id,
           total_marks: parseFloat(subjectMarks[subjectId])
         }))
 

@@ -550,6 +550,7 @@ export default function ExamsPage() {
         // Update existing exam
         const newExamData = {
           school_id: currentUser.school_id,
+          user_id: currentUser.id,
           session_id: currentSession.id,
           exam_name: examName,
           start_date: examDate,
@@ -583,6 +584,7 @@ export default function ExamsPage() {
         // Always create new exam in exams table (whether from datesheet or not)
         const newExamData = {
           school_id: currentUser.school_id,
+          user_id: currentUser.id,
           session_id: currentSession.id,
           exam_name: examName,
           start_date: examDate,
@@ -609,6 +611,7 @@ export default function ExamsPage() {
       // Always insert into exam_schedules with subject-specific marks
       const schedules = selectedSubjects.map(subjectId => ({
         school_id: currentUser.school_id,
+        user_id: currentUser.id,
         exam_id: examId,
         class_id: selectedClass,
         subject_id: subjectId,
@@ -1173,26 +1176,34 @@ export default function ExamsPage() {
       {confirmDialog.show && (
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={hideConfirmDialog} />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl z-50 w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">{confirmDialog.title}</h3>
-            <p className="text-gray-600 mb-6">{confirmDialog.message}</p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={hideConfirmDialog}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDialog.onConfirm}
-                className={`px-4 py-2 text-white rounded-lg transition ${
-                  confirmDialog.confirmButtonColor === 'red'
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-blue-900 hover:bg-blue-800'
-                }`}
-              >
-                Confirm
-              </button>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl z-50 w-full max-w-md overflow-hidden">
+            <div className={`px-6 py-4 ${
+              confirmDialog.confirmButtonColor === 'red'
+                ? 'bg-gradient-to-r from-red-600 to-red-700'
+                : 'bg-gradient-to-r from-blue-900 to-blue-800'
+            }`}>
+              <h3 className="text-lg font-bold text-white">{confirmDialog.title}</h3>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-6">{confirmDialog.message}</p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={hideConfirmDialog}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDialog.onConfirm}
+                  className={`px-4 py-2 text-white rounded-lg transition ${
+                    confirmDialog.confirmButtonColor === 'red'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-blue-900 hover:bg-blue-800'
+                  }`}
+                >
+                  Confirm
+                </button>
+              </div>
             </div>
           </div>
         </>

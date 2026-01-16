@@ -28,6 +28,7 @@ export default function ExamReportsPage() {
   const [tests, setTests] = useState([])
   const [testMarks, setTestMarks] = useState([])
   const [classes, setClasses] = useState([])
+  const [sections, setSections] = useState([])
   const [subjects, setSubjects] = useState([])
 
   // Filter states
@@ -78,8 +79,17 @@ export default function ExamReportsPage() {
       const { data: schoolData } = await supabase
         .from('schools')
         .select('*')
-        .eq('school_id', user.school_id)
+        .eq('id', user.school_id)
         .single()
+
+      // Convert logo URL to base64 if needed
+      if (schoolData?.logo_url && (schoolData.logo_url.startsWith('http://') || schoolData.logo_url.startsWith('https://'))) {
+        try {
+          schoolData.logo_url = await convertImageToBase64(schoolData.logo_url)
+        } catch (error) {
+          console.error('Error converting logo:', error)
+        }
+      }
 
       setSchoolDetails(schoolData)
     } catch (error) {
@@ -108,6 +118,7 @@ export default function ExamReportsPage() {
         .from('tests')
         .select('*')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
         .order('test_date', { ascending: false })
 
       console.log('Tests response:', { data: testsData, error: testsError })
@@ -147,6 +158,24 @@ export default function ExamReportsPage() {
       console.log(`✓ Found ${classesData?.length || 0} classes`)
       setClasses(classesData || [])
 
+      // Fetch sections
+      console.log('Fetching sections...')
+      const { data: sectionsData, error: sectionsError } = await supabase
+        .from('sections')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+        .order('section_name')
+
+      console.log('Sections response:', { data: sectionsData, error: sectionsError })
+
+      if (sectionsError) {
+        console.error('Sections error:', sectionsError)
+        toast.error('Failed to load sections: ' + sectionsError.message)
+      }
+
+      console.log(`✓ Found ${sectionsData?.length || 0} sections`)
+      setSections(sectionsData || [])
+
       // Fetch subjects
       console.log('Fetching subjects...')
       const { data: subjectsData, error: subjectsError } = await supabase
@@ -171,6 +200,7 @@ export default function ExamReportsPage() {
         .from('test_marks')
         .select('*')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       console.log('Marks response:', { data: marksData, error: marksError })
 
@@ -200,14 +230,16 @@ export default function ExamReportsPage() {
       console.log('Performing manual joins...')
 
       const testsWithRelations = testsData.map(test => {
-        const classData = classesData?.find(c => c.class_id === test.class_id)
-        const subjectData = subjectsData?.find(s => s.subject_id === test.subject_id)
+        const classData = classesData?.find(c => c.id === test.class_id)
+        const sectionData = sectionsData?.find(s => s.id === test.section_id)
+        const subjectData = subjectsData?.find(s => s.id === test.subject_id)
 
-        console.log(`Test ${test.test_id}: class=${classData?.class_name}, subject=${subjectData?.subject_name}`)
+        console.log(`Test ${test.id}: class=${classData?.class_name}, section=${sectionData?.section_name}, subject=${subjectData?.subject_name}`)
 
         return {
           ...test,
           classes: classData,
+          sections: sectionData,
           subjects: subjectData
         }
       })
@@ -219,9 +251,9 @@ export default function ExamReportsPage() {
       if (marksData && marksData.length > 0) {
         const marksWithRelations = marksData.map(mark => ({
           ...mark,
-          students: studentsData?.find(s => s.student_id === mark.student_id),
-          tests: testsData?.find(t => t.test_id === mark.test_id),
-          subjects: subjectsData?.find(s => s.subject_id === mark.subject_id)
+          students: studentsData?.find(s => s.id === mark.student_id),
+          tests: testsData?.find(t => t.id === mark.test_id),
+          subjects: subjectsData?.find(s => s.id === mark.subject_id)
         }))
 
         setTestMarks(marksWithRelations)
@@ -272,7 +304,7 @@ export default function ExamReportsPage() {
     }
 
     const marks = testMarks.filter(m => m.test_id === selectedTest)
-    const test = tests.find(t => t.test_id === selectedTest)
+    const test = tests.find(t => t.id === selectedTest)
 
     if (!test || !marks.length) {
       setReportData(null)
@@ -281,29 +313,29 @@ export default function ExamReportsPage() {
     }
 
     const passThreshold = test.total_marks * 0.33
-    const presentMarks = marks.filter(m => m.status === 'present')
+    const presentMarks = marks.filter(m => !m.is_absent)
 
     const statsData = {
       totalStudents: marks.length,
       presentStudents: presentMarks.length,
-      absentStudents: marks.filter(m => m.status === 'absent').length,
-      passedStudents: presentMarks.filter(m => m.marks_obtained >= passThreshold).length,
-      failedStudents: presentMarks.filter(m => m.marks_obtained < passThreshold).length,
+      absentStudents: marks.filter(m => m.is_absent).length,
+      passedStudents: presentMarks.filter(m => m.obtained_marks >= passThreshold).length,
+      failedStudents: presentMarks.filter(m => m.obtained_marks < passThreshold).length,
       passPercentage: presentMarks.length > 0
-        ? ((presentMarks.filter(m => m.marks_obtained >= passThreshold).length / presentMarks.length) * 100).toFixed(1)
+        ? ((presentMarks.filter(m => m.obtained_marks >= passThreshold).length / presentMarks.length) * 100).toFixed(1)
         : 0,
       averageMarks: presentMarks.length > 0
-        ? (presentMarks.reduce((sum, m) => sum + m.marks_obtained, 0) / presentMarks.length).toFixed(1)
+        ? (presentMarks.reduce((sum, m) => sum + m.obtained_marks, 0) / presentMarks.length).toFixed(1)
         : 0,
-      highestMarks: presentMarks.length > 0 ? Math.max(...presentMarks.map(m => m.marks_obtained)) : 0,
-      lowestMarks: presentMarks.length > 0 ? Math.min(...presentMarks.map(m => m.marks_obtained)) : 0,
+      highestMarks: presentMarks.length > 0 ? Math.max(...presentMarks.map(m => m.obtained_marks)) : 0,
+      lowestMarks: presentMarks.length > 0 ? Math.min(...presentMarks.map(m => m.obtained_marks)) : 0,
       passThreshold,
       testName: test.test_name,
       totalMarks: test.total_marks
     }
 
     setStats(statsData)
-    setReportData(marks.sort((a, b) => (b.marks_obtained || 0) - (a.marks_obtained || 0)))
+    setReportData(marks.sort((a, b) => (b.obtained_marks || 0) - (a.obtained_marks || 0)))
   }
 
   const generateClassSummary = () => {
@@ -313,7 +345,7 @@ export default function ExamReportsPage() {
     if (selectedClass !== 'all') {
       filteredTests = filteredTests.filter(t => t.class_id === selectedClass)
       filteredMarks = filteredMarks.filter(m => {
-        const test = tests.find(t => t.test_id === m.test_id)
+        const test = tests.find(t => t.id === m.test_id)
         return test && test.class_id === selectedClass
       })
     }
@@ -321,7 +353,7 @@ export default function ExamReportsPage() {
     const classData = {}
 
     filteredTests.forEach(test => {
-      const className = `${test.classes?.class_name || 'N/A'} ${test.classes?.section || ''}`.trim()
+      const className = `${test.classes?.class_name || 'N/A'} ${test.sections?.section_name || ''}`.trim()
 
       if (!classData[className]) {
         classData[className] = {
@@ -334,14 +366,14 @@ export default function ExamReportsPage() {
         }
       }
 
-      const testMarksForTest = filteredMarks.filter(m => m.test_id === test.test_id)
+      const testMarksForTest = filteredMarks.filter(m => m.test_id === test.id)
       const passThreshold = test.total_marks * 0.33
 
       classData[className].totalTests++
       classData[className].totalStudents += testMarksForTest.length
-      classData[className].passedStudents += testMarksForTest.filter(m => m.status === 'present' && m.marks_obtained >= passThreshold).length
-      classData[className].failedStudents += testMarksForTest.filter(m => m.status === 'present' && m.marks_obtained < passThreshold).length
-      classData[className].absentStudents += testMarksForTest.filter(m => m.status === 'absent').length
+      classData[className].passedStudents += testMarksForTest.filter(m => !m.is_absent && m.obtained_marks >= passThreshold).length
+      classData[className].failedStudents += testMarksForTest.filter(m => !m.is_absent && m.obtained_marks < passThreshold).length
+      classData[className].absentStudents += testMarksForTest.filter(m => m.is_absent).length
     })
 
     const report = Object.values(classData).map(item => ({
@@ -364,23 +396,26 @@ export default function ExamReportsPage() {
   }
 
   const generateSubjectSummary = () => {
-    let filteredTests = tests
     let filteredMarks = testMarks
 
     if (selectedSubject !== 'all') {
-      filteredTests = filteredTests.filter(t => t.subject_id === selectedSubject)
       filteredMarks = filteredMarks.filter(m => m.subject_id === selectedSubject)
     }
 
     const subjectData = {}
 
-    filteredTests.forEach(test => {
-      const subjectName = test.subjects?.subject_name || 'N/A'
+    // Group marks by subject
+    filteredMarks.forEach(mark => {
+      const subject = subjects.find(s => s.id === mark.subject_id)
+      const subjectName = subject?.subject_name || 'N/A'
+      const test = tests.find(t => t.id === mark.test_id)
 
-      if (!subjectData[subjectName]) {
-        subjectData[subjectName] = {
+      if (!test) return
+
+      if (!subjectData[mark.subject_id]) {
+        subjectData[mark.subject_id] = {
           subjectName,
-          totalTests: 0,
+          totalTests: new Set(),
           totalStudents: 0,
           passedStudents: 0,
           failedStudents: 0,
@@ -389,30 +424,38 @@ export default function ExamReportsPage() {
         }
       }
 
-      const testMarksForTest = filteredMarks.filter(m => m.test_id === test.test_id)
       const passThreshold = test.total_marks * 0.33
-      const presentMarks = testMarksForTest.filter(m => m.status === 'present')
 
-      subjectData[subjectName].totalTests++
-      subjectData[subjectName].totalStudents += testMarksForTest.length
-      subjectData[subjectName].passedStudents += presentMarks.filter(m => m.marks_obtained >= passThreshold).length
-      subjectData[subjectName].failedStudents += presentMarks.filter(m => m.marks_obtained < passThreshold).length
-      subjectData[subjectName].totalMarksObtained += presentMarks.reduce((sum, m) => sum + m.marks_obtained, 0)
-      subjectData[subjectName].totalMaxMarks += presentMarks.length * test.total_marks
+      // Track unique tests
+      subjectData[mark.subject_id].totalTests.add(mark.test_id)
+      subjectData[mark.subject_id].totalStudents++
+
+      if (!mark.is_absent) {
+        if (mark.obtained_marks >= passThreshold) {
+          subjectData[mark.subject_id].passedStudents++
+        } else {
+          subjectData[mark.subject_id].failedStudents++
+        }
+        subjectData[mark.subject_id].totalMarksObtained += mark.obtained_marks
+        subjectData[mark.subject_id].totalMaxMarks += test.total_marks
+      }
     })
 
+    // Convert Set to count
     const report = Object.values(subjectData).map(item => ({
       ...item,
+      totalTests: item.totalTests.size,
       passPercentage: item.totalStudents > 0 ? ((item.passedStudents / item.totalStudents) * 100).toFixed(1) : 0,
       averagePercentage: item.totalMaxMarks > 0 ? ((item.totalMarksObtained / item.totalMaxMarks) * 100).toFixed(1) : 0
     })).sort((a, b) => b.averagePercentage - a.averagePercentage)
 
     const totalStudents = report.reduce((sum, subj) => sum + subj.totalStudents, 0)
     const totalPassed = report.reduce((sum, subj) => sum + subj.passedStudents, 0)
+    const uniqueTests = new Set(filteredMarks.map(m => m.test_id)).size
 
     setStats({
       totalSubjects: report.length,
-      totalTests: filteredTests.length,
+      totalTests: uniqueTests,
       totalStudents,
       overallPassPercentage: totalStudents > 0 ? ((totalPassed / totalStudents) * 100).toFixed(1) : 0
     })
@@ -424,7 +467,7 @@ export default function ExamReportsPage() {
     const studentPerformance = {}
 
     testMarks.forEach(mark => {
-      if (mark.status !== 'present') return
+      if (mark.is_absent) return
 
       const studentId = mark.student_id
       const student = mark.students
@@ -446,11 +489,11 @@ export default function ExamReportsPage() {
 
       const passThreshold = test.total_marks * 0.33
 
-      studentPerformance[studentId].totalMarksObtained += mark.marks_obtained
+      studentPerformance[studentId].totalMarksObtained += mark.obtained_marks
       studentPerformance[studentId].totalMaxMarks += test.total_marks
       studentPerformance[studentId].testCount++
 
-      if (mark.marks_obtained >= passThreshold) {
+      if (mark.obtained_marks >= passThreshold) {
         studentPerformance[studentId].passCount++
       }
     })
@@ -624,16 +667,16 @@ export default function ExamReportsPage() {
       // Generate table based on active tab
       if (activeTab === 'test-results' && Array.isArray(reportData)) {
         const tableData = reportData.map((mark, index) => {
-          const percentage = mark.status === 'present' ? ((mark.marks_obtained / stats.totalMarks) * 100).toFixed(1) : '-'
-          const status = mark.status === 'present'
-            ? (mark.marks_obtained >= stats.passThreshold ? 'Pass' : 'Fail')
+          const percentage = !mark.is_absent ? ((mark.obtained_marks / stats.totalMarks) * 100).toFixed(1) : '-'
+          const status = !mark.is_absent
+            ? (mark.obtained_marks >= stats.passThreshold ? 'Pass' : 'Fail')
             : 'Absent'
 
           return [
             index + 1,
             mark.students?.roll_number || 'N/A',
             `${mark.students?.first_name} ${mark.students?.last_name}`,
-            mark.status === 'present' ? mark.marks_obtained : '-',
+            !mark.is_absent ? mark.obtained_marks : '-',
             stats.totalMarks,
             percentage !== '-' ? percentage + '%' : '-',
             status
@@ -735,11 +778,9 @@ export default function ExamReportsPage() {
           yPos = pdf.lastAutoTable.finalY + 15
 
           // Check if we need a new page
-          if (yPos > 240) {
+          if (yPos > pageHeight - 50) {
             pdf.addPage()
-            yPos = addPDFHeader(pdf, schoolData, 'EXAMINATION REPORT', headerOptions)
-            addPDFWatermark(pdf, schoolData)
-            yPos += 5
+            yPos = headerHeight + 15
           }
 
           pdf.setFont('helvetica', 'bold')
@@ -947,8 +988,8 @@ export default function ExamReportsPage() {
               >
                 <option value="">Choose a test...</option>
                 {tests.map((test) => (
-                  <option key={test.test_id} value={test.test_id}>
-                    {test.test_name} - {test.classes?.class_name} {test.classes?.section} - {test.subjects?.subject_name} ({new Date(test.test_date).toLocaleDateString()})
+                  <option key={test.id} value={test.id}>
+                    {test.test_name} - {test.classes?.class_name} {test.sections?.section_name} - {test.subjects?.subject_name} ({new Date(test.test_date).toLocaleDateString()})
                   </option>
                 ))}
               </select>
@@ -967,8 +1008,8 @@ export default function ExamReportsPage() {
               >
                 <option value="all">All Classes</option>
                 {classes.map((cls) => (
-                  <option key={cls.class_id} value={cls.class_id}>
-                    {cls.class_name} {cls.section}
+                  <option key={cls.id} value={cls.id}>
+                    {cls.class_name}
                   </option>
                 ))}
               </select>
@@ -987,7 +1028,7 @@ export default function ExamReportsPage() {
               >
                 <option value="all">All Subjects</option>
                 {subjects.map((subj) => (
-                  <option key={subj.subject_id} value={subj.subject_id}>
+                  <option key={subj.id} value={subj.id}>
                     {subj.subject_name}
                   </option>
                 ))}
@@ -1053,9 +1094,9 @@ export default function ExamReportsPage() {
                 </thead>
                 <tbody>
                   {reportData.map((mark, index) => {
-                    const percentage = mark.status === 'present' ? ((mark.marks_obtained / stats.totalMarks) * 100).toFixed(1) : '-'
-                    const grade = mark.status === 'present' ? getGrade(mark.marks_obtained, stats.totalMarks) : '-'
-                    const isPass = mark.status === 'present' && mark.marks_obtained >= stats.passThreshold
+                    const percentage = !mark.is_absent ? ((mark.obtained_marks / stats.totalMarks) * 100).toFixed(1) : '-'
+                    const grade = !mark.is_absent ? getGrade(mark.obtained_marks, stats.totalMarks) : '-'
+                    const isPass = !mark.is_absent && mark.obtained_marks >= stats.passThreshold
 
                     return (
                       <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
@@ -1063,7 +1104,7 @@ export default function ExamReportsPage() {
                         <td className="px-4 py-3 border border-gray-200 font-medium">{mark.students?.roll_number || 'N/A'}</td>
                         <td className="px-4 py-3 border border-gray-200">{mark.students?.first_name} {mark.students?.last_name}</td>
                         <td className="px-4 py-3 border border-gray-200 text-center font-semibold">
-                          {mark.status === 'present' ? mark.marks_obtained : '-'}
+                          {!mark.is_absent ? mark.obtained_marks : '-'}
                         </td>
                         <td className="px-4 py-3 border border-gray-200 text-center">{stats.totalMarks}</td>
                         <td className="px-4 py-3 border border-gray-200 text-center font-medium">
@@ -1082,11 +1123,11 @@ export default function ExamReportsPage() {
                         </td>
                         <td className="px-4 py-3 border border-gray-200 text-center">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            mark.status === 'absent' ? 'bg-gray-100 text-gray-800' :
+                            mark.is_absent ? 'bg-gray-100 text-gray-800' :
                             isPass ? 'bg-green-100 text-green-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {mark.status === 'absent' ? 'Absent' : isPass ? 'Pass' : 'Fail'}
+                            {mark.is_absent ? 'Absent' : isPass ? 'Pass' : 'Fail'}
                           </span>
                         </td>
                       </tr>

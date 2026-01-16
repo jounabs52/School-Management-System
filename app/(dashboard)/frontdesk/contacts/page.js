@@ -785,7 +785,7 @@ export default function ContactsPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-blue-600 text-white text-sm">
+                <tr className="bg-blue-900 text-white text-sm">
                   <th className="px-3 py-2 text-left font-semibold">
                     <div className="flex items-center gap-2">
                       <input
@@ -851,14 +851,14 @@ export default function ContactsPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditContact(contact)}
-                          className="text-blue-500 hover:text-blue-600 p-1"
+                          className="text-black hover:bg-gray-100 p-1 rounded"
                           title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteContact(contact.id)}
-                          className="text-red-500 hover:text-red-600 p-1"
+                          className="text-black hover:bg-gray-100 p-1 rounded"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -878,7 +878,7 @@ export default function ContactsPage() {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowAddModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between sticky top-0 z-10">
+            <div className="bg-blue-900 text-white p-4 flex items-center justify-between sticky top-0 z-10">
               <h2 className="text-lg font-semibold">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
               <button onClick={() => setShowAddModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
@@ -887,26 +887,26 @@ export default function ContactsPage() {
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Name <span className="text-red-500">*</span>
+                <label className="block text-sm text-gray-700 mb-1 font-medium">
+                  Name <span className="text-blue-600">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="Contact Name"
+                  placeholder="Enter contact name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-sm text-black placeholder:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Group <span className="text-red-500">*</span>
+                <label className="block text-sm text-gray-700 mb-1 font-medium">
+                  Group <span className="text-blue-600">*</span>
                 </label>
                 <select
                   value={formData.group_id}
                   onChange={(e) => setFormData({ ...formData, group_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-sm text-black placeholder:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none"
                 >
                   <option value="">Select Group</option>
                   {groups.map(group => (
@@ -916,37 +916,37 @@ export default function ContactsPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Company</label>
+                <label className="block text-sm text-gray-700 mb-1 font-medium">Company</label>
                 <input
                   type="text"
-                  placeholder="Company Name"
+                  placeholder="Enter company name"
                   value={formData.company}
                   onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-sm text-black placeholder:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Mobile <span className="text-red-500">*</span>
+                <label className="block text-sm text-gray-700 mb-1 font-medium">
+                  Mobile <span className="text-blue-600">*</span>
                 </label>
                 <input
                   type="tel"
-                  placeholder="Mobile Number"
+                  placeholder="Enter mobile number"
                   value={formData.mobile}
                   onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-sm text-black placeholder:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">WhatsApp</label>
+                <label className="block text-sm text-gray-700 mb-1 font-medium">WhatsApp</label>
                 <input
                   type="tel"
-                  placeholder="WhatsApp Number"
+                  placeholder="Enter WhatsApp number"
                   value={formData.whatsapp}
                   onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-sm text-black placeholder:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none"
                 />
               </div>
             </div>
@@ -975,28 +975,28 @@ export default function ContactsPage() {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowImportModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
+            <div className="bg-blue-900 text-white p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Import Contact Data</h2>
               <button onClick={() => setShowImportModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6">
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-700 mb-4">
                 Download {' '}
                 <button
                   onClick={downloadSampleCSV}
-                  className="text-blue-500 hover:underline font-medium"
+                  className="text-blue-600 hover:text-blue-700 hover:underline font-semibold"
                 >
                   Sample CSV File
                 </button>
                 {' '} to see the required format.
               </p>
 
-              <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 mb-4">
+              <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg p-6 mb-4">
                 <div className="text-center">
-                  <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600 mb-2">
+                  <Upload className="w-10 h-10 text-blue-500 mx-auto mb-2" />
+                  <p className="text-gray-700 mb-2 font-medium">
                     {importFile ? importFile.name : 'Select a CSV file to import'}
                   </p>
                   <input
@@ -1008,7 +1008,7 @@ export default function ContactsPage() {
                   />
                   <label
                     htmlFor="import-file"
-                    className="inline-block px-4 py-2 border border-gray-300 rounded bg-white hover:bg-gray-100 font-medium cursor-pointer"
+                    className="inline-block px-4 py-2 border-2 border-blue-300 rounded bg-white hover:bg-blue-50 font-medium cursor-pointer text-blue-700"
                   >
                     Browse File
                   </label>
@@ -1048,7 +1048,7 @@ export default function ContactsPage() {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowGroupModal(false)} />
           <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
+            <div className="bg-blue-900 text-white p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Create Contact Group</h2>
               <button onClick={() => setShowGroupModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
@@ -1057,26 +1057,26 @@ export default function ContactsPage() {
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Group Name <span className="text-red-500">*</span>
+                <label className="block text-sm text-gray-700 mb-1 font-medium">
+                  Group Name <span className="text-blue-600">*</span>
                 </label>
                 <input
                   type="text"
                   placeholder="Enter group name"
                   value={groupFormData.group_name}
                   onChange={(e) => setGroupFormData({ ...groupFormData, group_name: e.target.value })}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-sm text-black placeholder:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Description</label>
+                <label className="block text-sm text-gray-700 mb-1 font-medium">Description</label>
                 <textarea
                   placeholder="Enter group description"
                   value={groupFormData.description}
                   onChange={(e) => setGroupFormData({ ...groupFormData, description: e.target.value })}
                   rows="3"
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border-2 border-blue-300 rounded px-3 py-2 text-sm text-black placeholder:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none"
                 />
               </div>
             </div>
@@ -1108,7 +1108,7 @@ export default function ContactsPage() {
               className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-lg">
+              <div className="bg-blue-900 text-white px-6 py-4 rounded-t-lg">
                 <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
               <div className="p-6">

@@ -179,8 +179,13 @@ export default function ExpensesPage() {
         .eq('status', 'active')
         .order('category_name')
 
-      if (error) throw error
+      // Always set categories, even if empty array
       setCategories(data || [])
+
+      // Only show error if there's an actual error AND no data was retrieved
+      if (error && !data) {
+        throw error
+      }
     } catch (error) {
       console.error('Error loading categories:', error)
       toast.error('Failed to load expense categories')
@@ -207,11 +212,17 @@ export default function ExpensesPage() {
             username
           )
         `)
+        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .order('expense_date', { ascending: false })
 
-      if (error) throw error
+      // Always set expenses, even if empty array
       setExpenses(data || [])
+
+      // Only show error if there's an actual error AND no data was retrieved
+      if (error && !data) {
+        throw error
+      }
     } catch (error) {
       console.error('Error loading expenses:', error)
       toast.error('Failed to load expenses')
@@ -264,6 +275,7 @@ export default function ExpensesPage() {
         .from('expenses')
         .insert({
           school_id: currentUser.school_id,
+          user_id: currentUser.id,
           ...formData,
           paid_by: currentUser.id
         })

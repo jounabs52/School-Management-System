@@ -350,7 +350,7 @@ export default function DirectoryPage() {
 
       <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <Users className="text-red-600 w-5 h-5" />
             People Directory
           </h1>
@@ -481,22 +481,22 @@ export default function DirectoryPage() {
           {sortedLetters.map(letter => (
             <div key={letter}>
               <div className="flex items-center gap-1.5 mb-1.5">
-                <div className="w-7 h-7 bg-red-600 text-white rounded-lg flex items-center justify-center text-base font-bold shadow-sm">
+                <div className="w-7 h-7 bg-blue-600 text-white rounded-lg flex items-center justify-center text-base font-bold shadow-sm">
                   {letter}
                 </div>
                 <div className="flex-1 h-px bg-gray-200"></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {groupedContacts[letter].map(contact => (
-                  <div key={contact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-2.5 border border-gray-100">
+                  <div key={contact.id} className="bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow p-2.5 border border-gray-200">
                     <div className="flex items-start justify-between mb-1.5">
                       <div className="flex-1">
-                        <h3 className="text-xs font-semibold text-gray-800 mb-0.5">{contact.name}</h3>
-                        <span className="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-red-50 text-red-700">
+                        <h3 className="text-xs font-semibold text-black mb-0.5">{contact.name}</h3>
+                        <span className="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700">
                           {contact.contact_groups?.group_name || 'No Group'}
                         </span>
                       </div>
-                      <div className="w-7 h-7 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                      <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm">
                         {contact.name?.charAt(0).toUpperCase()}
                       </div>
                     </div>
@@ -555,7 +555,7 @@ export default function DirectoryPage() {
                       href={hasContacts ? `#${letter}` : undefined}
                       className={`w-4 h-4 flex items-center justify-center text-[10px] font-medium rounded transition-colors ${
                         hasContacts
-                          ? 'text-red-600 hover:bg-red-50 cursor-pointer'
+                          ? 'text-blue-600 hover:bg-blue-50 cursor-pointer'
                           : 'text-gray-300 cursor-default'
                       }`}
                       onClick={(e) => {
@@ -589,38 +589,38 @@ export default function DirectoryPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700">Group Name</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700">Description</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700">Created</th>
-                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-700">Actions</th>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="text-left py-2 px-3 text-xs font-semibold border-r border-blue-800">Group Name</th>
+                    <th className="text-left py-2 px-3 text-xs font-semibold border-r border-blue-800">Description</th>
+                    <th className="text-left py-2 px-3 text-xs font-semibold border-r border-blue-800">Created</th>
+                    <th className="text-right py-2 px-3 text-xs font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {groups.map(group => (
-                    <tr key={group.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-2 px-3">
+                    <tr key={group.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                      <td className="py-2 px-3 border-r border-gray-200">
                         <div className="flex items-center gap-1.5">
-                          <div className="w-6 h-6 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Users className="w-3 h-3 text-red-600" />
+                          <div className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Users className="w-3 h-3 text-black" />
                           </div>
-                          <span className="font-medium text-gray-800 text-xs">{group.group_name}</span>
+                          <span className="font-medium text-black text-xs">{group.group_name}</span>
                         </div>
                       </td>
-                      <td className="py-2 px-3 text-xs text-gray-600">
+                      <td className="py-2 px-3 text-xs text-gray-600 border-r border-gray-200">
                         {group.description || 'No description'}
                       </td>
-                      <td className="py-2 px-3 text-xs text-gray-500">
+                      <td className="py-2 px-3 text-xs text-gray-500 border-r border-gray-200">
                         {new Date(group.created_at).toLocaleDateString()}
                       </td>
                       <td className="py-2 px-3">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button onClick={() => handleEditGroup(group)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Edit group">
+                          <button onClick={() => handleEditGroup(group)} className="p-1.5 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Edit group">
                             <Edit className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => handleDeleteGroup(group.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete group">
+                          <button onClick={() => handleDeleteGroup(group.id)} className="p-1.5 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Delete group">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -638,52 +638,52 @@ export default function DirectoryPage() {
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowAddModal(false)}></div>
           <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+            <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
               <h2 className="text-base font-semibold">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
-              <button onClick={() => setShowAddModal(false)} className="hover:bg-red-800 p-1 rounded">
+              <button onClick={() => setShowAddModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Name <span className="text-black">*</span></label>
                   <input
                     type="text"
-                    placeholder="Contact name"
+                    placeholder="Enter contact name"
                     value={contactForm.name}
                     onChange={(e) => setContactForm({...contactForm, name: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Mobile <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Mobile <span className="text-black">*</span></label>
                   <input
                     type="tel"
-                    placeholder="Mobile number"
+                    placeholder="Enter mobile number"
                     value={contactForm.mobile}
                     onChange={(e) => setContactForm({...contactForm, mobile: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">WhatsApp</label>
                   <input
                     type="tel"
-                    placeholder="WhatsApp number"
+                    placeholder="Enter WhatsApp number"
                     value={contactForm.whatsapp}
                     onChange={(e) => setContactForm({...contactForm, whatsapp: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Company</label>
                   <input
                     type="text"
-                    placeholder="Company name"
+                    placeholder="Enter company name"
                     value={contactForm.company}
                     onChange={(e) => setContactForm({...contactForm, company: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
                   />
                 </div>
                 <div>
@@ -691,7 +691,7 @@ export default function DirectoryPage() {
                   <select
                     value={contactForm.group_id}
                     onChange={(e) => setContactForm({...contactForm, group_id: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
                   >
                     <option value="">Select Group</option>
                     {groups.map(group => (
@@ -704,7 +704,7 @@ export default function DirectoryPage() {
             <div className="px-4 pb-4 border-t border-gray-200 pt-3 flex justify-end gap-2 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-1.5 text-red-500 hover:text-red-600 font-medium text-xs"
+                className="px-4 py-1.5 text-gray-700 hover:text-gray-900 font-medium text-xs"
               >
                 Close
               </button>
@@ -723,9 +723,9 @@ export default function DirectoryPage() {
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowGroupModal(false)}></div>
           <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+            <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
               <h2 className="text-base font-semibold">{editingGroup ? 'Edit Group' : 'Add New Group'}</h2>
-              <button onClick={() => setShowGroupModal(false)} className="hover:bg-red-800 p-1 rounded">
+              <button onClick={() => setShowGroupModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -733,14 +733,14 @@ export default function DirectoryPage() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Group Name <span className="text-red-500">*</span>
+                    Group Name <span className="text-black">*</span>
                   </label>
                   <input
                     type="text"
                     placeholder="e.g., Teachers, Parents, Vendors"
                     value={groupForm.group_name}
                     onChange={(e) => setGroupForm({...groupForm, group_name: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
                   />
                 </div>
                 <div>
@@ -750,7 +750,7 @@ export default function DirectoryPage() {
                     value={groupForm.description}
                     onChange={(e) => setGroupForm({...groupForm, description: e.target.value})}
                     rows="3"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none resize-none text-xs"
                   />
                 </div>
               </div>
@@ -758,7 +758,7 @@ export default function DirectoryPage() {
             <div className="px-4 pb-4 border-t border-gray-200 pt-3 flex justify-end gap-2 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowGroupModal(false)}
-                className="px-4 py-1.5 text-red-500 hover:text-red-600 font-medium text-xs"
+                className="px-4 py-1.5 text-gray-700 hover:text-gray-900 font-medium text-xs"
               >
                 Close
               </button>
@@ -780,7 +780,7 @@ export default function DirectoryPage() {
               className="bg-white rounded-lg shadow-2xl w-full max-w-sm mx-4 transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-lg">
+              <div className="bg-red-600 text-white px-4 py-3 rounded-t-lg">
                 <h3 className="text-base font-semibold">{confirmDialog.title}</h3>
               </div>
               <div className="p-4">

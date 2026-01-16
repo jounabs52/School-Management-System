@@ -186,7 +186,8 @@ export default function StaffAttendancePage() {
             staff_id: staffId,
             attendance_date: selectedDate,
             status: status,
-            marked_by: currentUser.id
+            marked_by: currentUser.id,
+            user_id: currentUser.id
           })
 
         if (error) throw error
