@@ -3,6 +3,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Empty turbopack config to acknowledge webpack config exists
+  turbopack: {},
   images: {
     remotePatterns: [
       {
