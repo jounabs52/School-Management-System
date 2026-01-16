@@ -295,7 +295,7 @@ function AdmissionInquiryContent() {
       const inquiryData = {
         ...formData,
         school_id: currentUser.school_id,
-        created_by: currentUser.id,
+        user_id: currentUser.id,
         // Convert empty strings to null for optional fields
         session_id: formData.session_id || null,
         class_id: formData.class_id || null,
@@ -421,7 +421,7 @@ function AdmissionInquiryContent() {
           // Create student record from inquiry data
           const studentData = {
             school_id: currentUser.school_id,
-            created_by: currentUser.id,
+            user_id: currentUser.id,
             admission_no: `ADM-${Date.now()}`, // Generate admission number
             name: inquiry.name,
             gender: inquiry.gender,
@@ -605,42 +605,42 @@ function AdmissionInquiryContent() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-blue-600 text-white text-sm">
+            <table className="w-full border-collapse">
+              <thead className="bg-blue-900 text-white text-sm">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">Inquiry No</th>
-                  <th className="px-3 py-2 text-left font-semibold">Name</th>
-                  <th className="px-3 py-2 text-left font-semibold">Phone</th>
-                  <th className="px-3 py-2 text-left font-semibold">Class</th>
-                  <th className="px-3 py-2 text-left font-semibold">Date</th>
-                  <th className="px-3 py-2 text-left font-semibold">Follow Up</th>
-                  <th className="px-3 py-2 text-left font-semibold">Status</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Inquiry No</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Name</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Phone</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Class</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Date</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Follow Up</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Status</th>
                   <th className="px-3 py-2 text-left font-semibold">Options</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredInquiries.map(inquiry => (
                   <tr key={inquiry.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-3 py-2 text-sm font-medium">
+                    <td className="px-3 py-2 text-sm font-medium border-r border-gray-200">
                       {inquiry.inquiry_no}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 border-r border-gray-200">
                       <div className="text-sm font-medium text-gray-900">{inquiry.name}</div>
                       {inquiry.email && <div className="text-xs text-gray-500">{inquiry.email}</div>}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-200">
                       {inquiry.phone}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-200">
                       {inquiry.classes?.class_name || '-'}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-200">
                       {new Date(inquiry.date).toLocaleDateString()}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-500">
+                    <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-200">
                       {inquiry.follow_up_date ? new Date(inquiry.follow_up_date).toLocaleDateString() : '-'}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 border-r border-gray-200">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(inquiry.status)}`}>
                         {inquiry.status}
                       </span>
@@ -1142,9 +1142,9 @@ function AdmissionInquiryContent() {
           <div
             key={toast.id}
             className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-blue-500' :
-              toast.type === 'error' ? 'bg-blue-600' :
-              toast.type === 'warning' ? 'bg-blue-500' :
+              toast.type === 'success' ? 'bg-green-500' :
+              toast.type === 'error' ? 'bg-red-500' :
+              toast.type === 'warning' ? 'bg-orange-500' :
               'bg-blue-500'
             }`}
           >

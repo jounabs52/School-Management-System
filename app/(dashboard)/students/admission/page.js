@@ -304,6 +304,16 @@ function AdmissionRegisterContent() {
         dueDate: new Date(currentYear, startMonthIndex, 10), // Due on 10th of first month
         year: currentYear
       })
+    } else if (feePlan === 'one-time') {
+      // Generate 1 one-time payment challan
+      const startMonthIndex = startingMonth - 1
+      schedule.push({
+        period: 'One Time Payment',
+        months: ['One Time'],
+        amount: monthlyFee,
+        dueDate: new Date(currentYear, startMonthIndex, 10), // Due on 10th of starting month
+        year: currentYear
+      })
     }
 
     return schedule
@@ -591,9 +601,9 @@ function AdmissionRegisterContent() {
     const selectedClass = classes.find(c => c.id === classId)
 
     // Validate fee_plan - only allow valid values from CHECK constraint
-    const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual']
+    const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual', 'one-time']
     const classFeePlan = selectedClass?.fee_plan
-    const validatedFeePlan = validFeePlans.includes(classFeePlan) ? classFeePlan : 'monthly'
+    const validatedFeePlan = validFeePlans.includes(classFeePlan) ? classFeePlan : ''
 
     setFormData({
       ...formData,
@@ -826,8 +836,8 @@ function AdmissionRegisterContent() {
       // No need to fetch from schools table anymore
 
       // Validate fee_plan before database operation
-      const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual']
-      const safeFeePlan = validFeePlans.includes(formData.feePlan) ? formData.feePlan : 'monthly'
+      const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual', 'one-time']
+      const safeFeePlan = validFeePlans.includes(formData.feePlan) ? formData.feePlan : ''
 
       if (isEditMode) {
         // Update existing student
@@ -1149,7 +1159,7 @@ function AdmissionRegisterContent() {
       // Validate fee_plan from database
       const validFeePlans = ['monthly', 'quarterly', 'semi-annual', 'annual', 'one-time']
       const dbFeePlan = fullStudent.fee_plan
-      const validatedDbFeePlan = validFeePlans.includes(dbFeePlan) ? dbFeePlan : 'monthly'
+      const validatedDbFeePlan = validFeePlans.includes(dbFeePlan) ? dbFeePlan : ''
 
       setFormData({
         id: fullStudent.id,

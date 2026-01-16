@@ -289,7 +289,7 @@ function RecruitmentContent() {
         .select(`
           *,
           application:job_applications(
-            candidate_name,
+            applicant_name,
             job:jobs(title)
           )
         `)
@@ -472,8 +472,19 @@ function RecruitmentContent() {
 
   // Add/Edit Application
   const handleAddApplication = async () => {
-    if (!applicationForm.jobId || !applicationForm.candidateName) {
-      showToast('Please fill required fields', 'warning')
+    // Validate required fields
+    if (!applicationForm.jobId) {
+      showToast('Please select a Job', 'warning')
+      return
+    }
+
+    if (!applicationForm.candidateName || applicationForm.candidateName.trim() === '') {
+      showToast('Please enter Candidate Name', 'warning')
+      return
+    }
+
+    if (!applicationForm.email || applicationForm.email.trim() === '') {
+      showToast('Please enter Email Address', 'warning')
       return
     }
 
@@ -484,13 +495,14 @@ function RecruitmentContent() {
           .from('job_applications')
           .update({
             job_id: applicationForm.jobId,
-            candidate_name: applicationForm.candidateName,
-            father_name: applicationForm.fatherName,
-            email: applicationForm.email,
-            mobile_number: applicationForm.mobileNumber,
-            cnic_number: applicationForm.cnicNumber,
-            subjects: applicationForm.department,
-            experience_level: applicationForm.experienceLevel,
+            applicant_name: (applicationForm.candidateName || '').trim(),
+            email: (applicationForm.email || '').trim(),
+            phone: applicationForm.mobileNumber || null,
+            father_name: applicationForm.fatherName || null,
+            mobile_number: applicationForm.mobileNumber || null,
+            cnic_number: applicationForm.cnicNumber || null,
+            subjects: applicationForm.department || null,
+            experience_level: applicationForm.experienceLevel || null,
             photo_url: applicationForm.photo_url || null
           })
           .eq('id', editingApplication.id)
@@ -504,14 +516,17 @@ function RecruitmentContent() {
           .from('job_applications')
           .insert({
             school_id: currentUser.school_id,
+            user_id: currentUser.id,
             job_id: applicationForm.jobId,
-            candidate_name: applicationForm.candidateName,
-            father_name: applicationForm.fatherName,
-            email: applicationForm.email,
-            mobile_number: applicationForm.mobileNumber,
-            cnic_number: applicationForm.cnicNumber,
-            subjects: applicationForm.department,
-            experience_level: applicationForm.experienceLevel,
+            applicant_name: (applicationForm.candidateName || '').trim(),
+            email: (applicationForm.email || '').trim(),
+            phone: applicationForm.mobileNumber || null,
+            father_name: applicationForm.fatherName || null,
+            mobile_number: applicationForm.mobileNumber || null,
+            cnic_number: applicationForm.cnicNumber || null,
+            subjects: applicationForm.department || null,
+            experience_level: applicationForm.experienceLevel || null,
+            status: 'pending',
             created_by: currentUser.id,
             photo_url: applicationForm.photo_url || null
           })
@@ -546,7 +561,7 @@ function RecruitmentContent() {
     setEditingApplication(app)
     setApplicationForm({
       jobId: app.job_id || '',
-      candidateName: app.candidate_name || '',
+      candidateName: app.applicant_name || '',
       cnicNumber: app.cnic_number || '',
       fatherName: app.father_name || '',
       email: app.email || '',
@@ -589,6 +604,7 @@ function RecruitmentContent() {
           .from('job_interviews')
           .insert({
             school_id: currentUser.school_id,
+            user_id: currentUser.id,
             application_id: interviewForm.applicationId,
             interview_date: interviewForm.interviewDate,
             interview_time: interviewForm.interviewTime,
@@ -686,7 +702,7 @@ function RecruitmentContent() {
               school_id: currentUser.school_id,
               created_by: currentUser.id,
               employee_number: `EMP-${Date.now()}`,
-              first_name: application.candidate_name,
+              first_name: application.applicant_name,
               father_name: application.father_name || null,
               phone: application.mobile_number || null,
               email: application.email || null,
@@ -816,34 +832,17 @@ function RecruitmentContent() {
 
       if (updateError) throw updateError
 
-      // Handle status-specific actions
-      if (newStatus === 'qualified') {
-        // Create interview record when qualified
-        const { error: interviewError } = await supabase
-          .from('job_interviews')
-          .insert({
-            school_id: currentUser.school_id,
-            application_id: id,
-            interview_date: new Date().toISOString().split('T')[0],
-            interview_time: '09:00',
-            interview_type: 'in-person',
-            status: 'scheduled',
-            created_by: currentUser.id
-          })
-
-        if (interviewError) throw interviewError
-
-        showToast('Application qualified and moved to interviews!', 'success')
-        fetchInterviews()
-        setActiveTab('interviews')
+      // Show success message based on status
+      if (newStatus === 'scheduled') {
+        showToast('Application marked as ready for interview scheduling', 'success')
+      } else if (newStatus === 'rejected') {
+        showToast('Application rejected', 'success')
       } else {
         showToast('Status updated successfully!', 'success')
       }
 
-      // Only fetch applications if needed (not jobs - too slow)
-      if (newStatus === 'qualified') {
-        fetchApplications() // Refresh to get full data with relations
-      }
+      // Refresh applications to update the list
+      fetchApplications()
     } catch (error) {
       console.error('Error updating status:', error)
       showToast('Error updating status: ' + error.message, 'error')
@@ -874,19 +873,18 @@ function RecruitmentContent() {
   const filteredApplications = useMemo(() =>
     applications
       .filter(app =>
-        app.candidate_name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
+        app.applicant_name?.toLowerCase().includes(appSearchQuery.toLowerCase()) ||
         app.job?.title?.toLowerCase().includes(appSearchQuery.toLowerCase())
       )
       .sort((a, b) => {
-        // Priority order: short-listed > qualified > schedule > rejected
+        // Priority order: pending/new applications first, scheduled second, rejected last
         const statusPriority = {
+          'pending': 1,
           'short-listed': 1,
-          'qualified': 2,
-          'schedule': 3,
-          'rejected': 4,
-          'hired': 5
+          'scheduled': 2,
+          'rejected': 3
         }
-        return (statusPriority[a.status] || 0) - (statusPriority[b.status] || 0)
+        return (statusPriority[a.status] || 1) - (statusPriority[b.status] || 1)
       }),
     [applications, appSearchQuery]
   )
@@ -894,7 +892,7 @@ function RecruitmentContent() {
   // Memoized Filtered Interviews
   const filteredInterviews = useMemo(() =>
     interviews.filter(interview =>
-      interview.application?.candidate_name?.toLowerCase().includes(interviewSearchQuery.toLowerCase()) ||
+      interview.application?.applicant_name?.toLowerCase().includes(interviewSearchQuery.toLowerCase()) ||
       interview.application?.job?.title?.toLowerCase().includes(interviewSearchQuery.toLowerCase())
     ),
     [interviews, interviewSearchQuery]
@@ -1054,23 +1052,20 @@ function RecruitmentContent() {
                     <td className="px-3 py-2 text-sm">{index + 1}</td>
                     <td className="px-3 py-2 text-sm">{app.job?.department?.department_name || 'N/A'}</td>
                     <td className="px-3 py-2 text-sm">{app.job?.title || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm">{app.candidate_name}</td>
+                    <td className="px-3 py-2 text-sm">{app.applicant_name}</td>
                     <td className="px-3 py-2 text-sm">
                       <select
-                        value={app.status}
+                        value={app.status === 'pending' || app.status === 'short-listed' ? 'pending' : app.status}
                         onChange={(e) => handleStatusChange(app.id, e.target.value)}
                         className={`px-3 py-1 rounded text-xs font-medium text-white ${
-                          app.status === 'hired' ? 'bg-red-500' :
-                          app.status === 'qualified' ? 'bg-orange-500' :
-                          app.status === 'schedule' ? 'bg-blue-500' :
+                          app.status === 'scheduled' ? 'bg-blue-500' :
+                          app.status === 'rejected' ? 'bg-red-500' :
                           'bg-orange-500'
                         }`}
                       >
-                        <option value="short-listed">Short Listed</option>
-                        <option value="qualified">Qualified</option>
-                        <option value="schedule">Schedule</option>
-                        <option value="hired">Hired</option>
-                        <option value="rejected">Rejected</option>
+                        <option value="pending">Pending</option>
+                        <option value="scheduled">Ready for Interview</option>
+                        <option value="rejected">Reject</option>
                       </select>
                     </td>
                     <td className="px-3 py-2 text-sm">
@@ -1154,7 +1149,7 @@ function RecruitmentContent() {
                   filteredInterviews.map((interview, index) => (
                     <tr key={interview.id} className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="px-3 py-2 text-sm">{index + 1}</td>
-                      <td className="px-3 py-2 text-sm">{interview.application?.candidate_name || 'N/A'}</td>
+                      <td className="px-3 py-2 text-sm">{interview.application?.applicant_name || 'N/A'}</td>
                       <td className="px-3 py-2 text-sm">{interview.application?.job?.title || 'N/A'}</td>
                       <td className="px-3 py-2 text-sm">
                         {new Date(interview.interview_date).toLocaleDateString('en-GB', {
@@ -1431,10 +1426,11 @@ function RecruitmentContent() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Candidate Name"
+                    placeholder="Enter candidate name (Required)"
                     value={applicationForm.candidateName}
                     onChange={(e) => setApplicationForm({...applicationForm, candidateName: e.target.value})}
                     className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    required
                   />
                 </div>
                 <div>
@@ -1460,13 +1456,16 @@ function RecruitmentContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="email"
-                    placeholder="Email Address"
+                    placeholder="Enter email address (Required)"
                     value={applicationForm.email}
                     onChange={(e) => setApplicationForm({...applicationForm, email: e.target.value})}
                     className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    required
                   />
                 </div>
                 <div>
@@ -1585,7 +1584,7 @@ function RecruitmentContent() {
                     <option value="">Select application</option>
                     {applications.filter(app => app.status !== 'rejected').map(app => (
                       <option key={app.id} value={app.id}>
-                        {app.candidate_name} - {app.job?.title || 'N/A'}
+                        {app.applicant_name} - {app.job?.title || 'N/A'}
                       </option>
                     ))}
                   </select>

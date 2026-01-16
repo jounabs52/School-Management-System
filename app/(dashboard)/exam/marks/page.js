@@ -77,7 +77,7 @@ function ExamMarksPageContent() {
       const { data, error } = await supabase
         .from('schools')
         .select('*')
-        .eq('school_id', currentUser.school_id)
+        .eq('id', currentUser.school_id)
         .single()
 
       if (error) throw error
@@ -274,6 +274,8 @@ function ExamMarksPageContent() {
         .from('exams')
         .select('class_id')
         .eq('id', viewDatesheet)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
         .single()
 
       if (examError) throw examError
@@ -322,6 +324,7 @@ function ExamMarksPageContent() {
         .from('exams')
         .select('*')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
         .eq('status', 'scheduled')
         .order('created_at', { ascending: false })
 
@@ -354,6 +357,7 @@ function ExamMarksPageContent() {
         .select('*')
         .in('id', examIds)
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -553,6 +557,8 @@ function ExamMarksPageContent() {
         .from('exams')
         .select('class_id')
         .eq('id', resultExam)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
         .single()
 
       if (examError) throw examError
@@ -801,6 +807,7 @@ function ExamMarksPageContent() {
         const marks = marksData[student.id] || {}
         return {
           school_id: currentUser.school_id,
+          user_id: currentUser.id,
           exam_id: selectedDatesheet,
           student_id: student.id,
           class_id: selectedClass,

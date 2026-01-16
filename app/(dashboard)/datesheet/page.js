@@ -2594,7 +2594,7 @@ function DatesheetContent() {
             </button>
           </div>
 
-          {!session && (
+          {session && !session.name && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mb-2">
               <div className="flex">
                 <AlertCircle className="h-4 w-4 text-yellow-400" />
@@ -2607,11 +2607,18 @@ function DatesheetContent() {
             </div>
           )}
 
-          <div className="mb-2 text-xs text-gray-600">
-            There are <span className="font-semibold text-red-600">{filteredDatesheets.length}</span> records for session
-            <span className="font-semibold"> {session?.name || 'Loading...'}</span>
-          </div>
+          {session && session.name && (
+            <div className="mb-2 text-xs text-gray-600">
+              There are <span className="font-semibold text-red-600">{filteredDatesheets.length}</span> records for session
+              <span className="font-semibold"> {session.name}</span>
+            </div>
+          )}
 
+          {!currentUser || loading ? (
+            <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
+              Loading datesheets...
+            </div>
+          ) : (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -2688,6 +2695,7 @@ function DatesheetContent() {
           </tbody>
         </table>
           </div>
+          )}
         </div>
       )}
 
@@ -2996,7 +3004,6 @@ function DatesheetContent() {
                       })}
                     </th>
                   ))}
-                  <th className="border border-blue-800 px-2 py-2 font-semibold text-xs">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -3080,17 +3087,7 @@ function DatesheetContent() {
                         </td>
                       )
                     })}
-                    <td className="border border-gray-200 px-2 py-1.5 text-center">
-                      <div className="flex gap-1 justify-center">
-                        <button
-                          onClick={() => handleDownloadClassDatesheet(classId)}
-                          className="text-blue-600 hover:text-blue-800 p-0.5"
-                          title="Download Datesheet"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+
                   </tr>
                 ))}
               </tbody>

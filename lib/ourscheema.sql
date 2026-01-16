@@ -1,4 +1,20 @@
+<<<<<<< HEAD
 ============================================================================
+=======
+-- ============================================================================
+-- COMPLETE SCHOOL MANAGEMENT SYSTEM DATABASE SCHEMA
+-- Version: 1.0 | All 57 Tables | Properly Dependency-Ordered
+-- ============================================================================
+-- 
+-- INSTALLATION: Run this entire script in order
+-- Database: PostgreSQL 12+ / Supabase
+-- Total Tables: 57
+-- Estimated Execution Time: 2-5 minutes
+--
+-- ============================================================================
+
+-- ============================================================================
+>>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
 -- STEP 1: CREATE HELPER FUNCTIONS
 -- ============================================================================
 
@@ -1997,6 +2013,7 @@ create table public.student_id_cards (
   status character varying(20) null default 'active'::character varying,
   barcode character varying(100) null,
   issued_by uuid null,
+<<<<<<< HEAD
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   constraint student_id_cards_pkey primary key (id),
@@ -2100,6 +2117,17 @@ create table public.staff_id_cards (
   constraint staff_id_cards_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
   constraint staff_id_cards_staff_id_fkey foreign KEY (staff_id) references staff (id) on delete CASCADE,
   constraint staff_id_cards_status_check check (
+=======
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint student_id_cards_pkey primary key (id),
+  constraint student_id_cards_school_id_card_number_key unique (school_id, card_number),
+  constraint student_id_cards_session_id_fkey foreign KEY (session_id) references sessions (id) on delete CASCADE,
+  constraint student_id_cards_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint student_id_cards_issued_by_fkey foreign KEY (issued_by) references users (id) on delete set null,
+  constraint student_id_cards_student_id_fkey foreign KEY (student_id) references students (id) on delete CASCADE,
+  constraint student_id_cards_status_check check (
+>>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
     (
       (status)::text = any (
         (
@@ -2114,6 +2142,7 @@ create table public.staff_id_cards (
   )
 ) TABLESPACE pg_default;
 
+<<<<<<< HEAD
 
 create table public.datesheet_schedules (
   id uuid not null default extensions.uuid_generate_v4 (),
@@ -2294,6 +2323,45 @@ CREATE TABLE public.book_issues (
         FOREIGN KEY (issued_by)
         REFERENCES public.users (id)
         ON DELETE SET NULL,
+=======
+-- Add user_id column to book_issues table
+-- This column is required for tracking which user manages each book issue entry
+
+-- Step 1: Add the column as nullable first
+ALTER TABLE public.book_issues
+ADD COLUMN IF NOT EXISTS user_id uuid;
+
+-- Step 2: Update existing rows with a default user_id from the school's first user
+-- This query finds the first user for each school and updates the book_issues
+UPDATE public.book_issues bi
+SET user_id = (
+  SELECT u.id
+  FROM public.users u
+  WHERE u.school_id = bi.school_id
+  LIMIT 1
+)
+WHERE bi.user_id IS NULL;
+
+-- Step 3: Now make the column NOT NULL and add foreign key constraint
+ALTER TABLE public.book_issues
+ALTER COLUMN user_id SET NOT NULL;
+
+-- Drop the constraint if it exists, then add it
+ALTER TABLE public.book_issues
+DROP CONSTRAINT IF EXISTS book_issues_user_id_fkey;
+
+ALTER TABLE public.book_issues
+ADD CONSTRAINT book_issues_user_id_fkey
+FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+-- Step 4: Create index for better query performance
+CREATE INDEX IF NOT EXISTS idx_book_issues_user_id ON public.book_issues USING btree (user_id);
+
+-- Step 5: Add comment to describe the column
+COMMENT ON COLUMN public.book_issues.user_id IS 'User who manages this book issue entry';
+
+
+>>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
 
     -- Checks
     CONSTRAINT book_issues_borrower_type_check

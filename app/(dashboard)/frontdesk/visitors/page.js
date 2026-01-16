@@ -14,7 +14,6 @@ function VisitorsContent() {
   const [visitors, setVisitors] = useState([])
   const [filteredVisitors, setFilteredVisitors] = useState([])
   const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchType, setSearchType] = useState('Via General Data')
   const [loading, setLoading] = useState(false)
@@ -126,13 +125,9 @@ function VisitorsContent() {
   const handleSearch = () => {
     let filtered = [...visitors]
 
-    // Apply date filters
+    // Apply date filter
     if (fromDate) {
-      filtered = filtered.filter(v => new Date(v.visit_date) >= new Date(fromDate))
-    }
-
-    if (toDate) {
-      filtered = filtered.filter(v => new Date(v.visit_date) <= new Date(toDate))
+      filtered = filtered.filter(v => new Date(v.visit_date).toDateString() === new Date(fromDate).toDateString())
     }
 
     // Apply search filter based on type
@@ -173,6 +168,7 @@ function VisitorsContent() {
       const visitorData = {
         ...formData,
         school_id: currentUser.school_id,
+        user_id: currentUser.id,
         visit_date: new Date().toISOString().split('T')[0],
         // Convert empty strings to null for time fields
         time_out: formData.time_out || null
@@ -362,18 +358,11 @@ function VisitorsContent() {
             </div>
           </div>
 
-          {/* Date Filters */}
+          {/* Date Filter */}
           <input
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
-          />
-
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
             className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
           />
 
@@ -403,33 +392,33 @@ function VisitorsContent() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-blue-600 text-white text-sm">
+            <table className="w-full border-collapse">
+              <thead className="bg-blue-900 text-white text-sm">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">Sr.</th>
-                  <th className="px-3 py-2 text-left font-semibold">Visitor Name</th>
-                  <th className="px-3 py-2 text-left font-semibold">Destination</th>
-                  <th className="px-3 py-2 text-left font-semibold">Time In</th>
-                  <th className="px-3 py-2 text-left font-semibold">Time Out</th>
-                  <th className="px-3 py-2 text-left font-semibold">Date</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Sr.</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Visitor Name</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Destination</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Time In</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Time Out</th>
+                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Date</th>
                   <th className="px-3 py-2 text-left font-semibold">Options</th>
                 </tr>
               </thead>
             <tbody>
               {filteredVisitors.map((visitor, index) => (
                 <tr key={visitor.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-3 py-2 text-sm">{index + 1}</td>
-                  <td className="px-3 py-2 text-sm font-medium">{visitor.visitor_name}</td>
-                  <td className="px-3 py-2 text-sm">{visitor.destination}</td>
-                  <td className="px-3 py-2 text-sm">{visitor.time_in}</td>
-                  <td className="px-3 py-2 text-sm">
+                  <td className="px-3 py-2 text-sm border-r border-gray-200">{index + 1}</td>
+                  <td className="px-3 py-2 text-sm font-medium border-r border-gray-200">{visitor.visitor_name}</td>
+                  <td className="px-3 py-2 text-sm border-r border-gray-200">{visitor.destination}</td>
+                  <td className="px-3 py-2 text-sm border-r border-gray-200">{visitor.time_in}</td>
+                  <td className="px-3 py-2 text-sm border-r border-gray-200">
                     {visitor.time_out ? (
                       visitor.time_out
                     ) : (
                       <span className="text-blue-600 font-medium">Mark Left</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-sm">
+                  <td className="px-3 py-2 text-sm border-r border-gray-200">
                     {visitor.visit_date ? new Date(visitor.visit_date).toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: 'short',
@@ -638,9 +627,9 @@ function VisitorsContent() {
           <div
             key={toast.id}
             className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-blue-500' :
-              toast.type === 'error' ? 'bg-blue-600' :
-              toast.type === 'warning' ? 'bg-blue-500' :
+              toast.type === 'success' ? 'bg-green-500' :
+              toast.type === 'error' ? 'bg-red-500' :
+              toast.type === 'warning' ? 'bg-orange-500' :
               'bg-blue-500'
             }`}
           >

@@ -181,6 +181,7 @@ function LibraryPageContent() {
         .from('books')
         .select('*')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -246,14 +247,59 @@ function LibraryPageContent() {
 
   const fetchMembers = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch library members
+      const { data: membersData, error: membersError } = await supabase
         .from('library_members')
         .select('*')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setMembers(data || [])
+      if (membersError) throw membersError
+
+      if (!membersData || membersData.length === 0) {
+        setMembers([])
+        return
+      }
+
+      // Get unique student and staff IDs
+      const studentIds = membersData.filter(m => m.member_type === 'student').map(m => m.member_id)
+      const staffIds = membersData.filter(m => m.member_type === 'staff').map(m => m.member_id)
+
+      // Fetch students
+      let studentsMap = {}
+      if (studentIds.length > 0) {
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('id, first_name, last_name, admission_number')
+          .in('id', studentIds)
+
+        if (!studentsError && studentsData) {
+          studentsMap = Object.fromEntries(studentsData.map(s => [s.id, s]))
+        }
+      }
+
+      // Fetch staff
+      let staffMap = {}
+      if (staffIds.length > 0) {
+        const { data: staffData, error: staffError } = await supabase
+          .from('staff')
+          .select('id, first_name, last_name, computer_no')
+          .in('id', staffIds)
+
+        if (!staffError && staffData) {
+          staffMap = Object.fromEntries(staffData.map(s => [s.id, s]))
+        }
+      }
+
+      // Merge data
+      const enrichedMembers = membersData.map(member => ({
+        ...member,
+        students: member.member_type === 'student' ? studentsMap[member.member_id] : null,
+        staff: member.member_type === 'staff' ? staffMap[member.member_id] : null
+      }))
+
+      setMembers(enrichedMembers)
     } catch (error) {
       console.error('Error fetching members:', error)
     }
@@ -268,6 +314,7 @@ function LibraryPageContent() {
           books(book_title, author, book_number)
         `)
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
         .in('status', ['issued', 'overdue'])
         .order('issue_date', { ascending: false })
 
@@ -292,6 +339,7 @@ function LibraryPageContent() {
         .from('book_issues')
         .select('*')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
       if (issuesError) {
@@ -304,6 +352,7 @@ function LibraryPageContent() {
         .from('books')
         .select('id, book_title, author, book_number')
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       if (booksError) {
         console.error('❌ Error fetching books:', booksError)
@@ -368,6 +417,7 @@ function LibraryPageContent() {
       const bookData = {
         ...currentBook,
         school_id: currentUser.school_id,
+        user_id: currentUser.id,
         created_by: currentUser.id,
         available_copies: parseInt(currentBook.available_copies) || 1,
         total_copies: parseInt(currentBook.total_copies) || 1,
@@ -424,6 +474,7 @@ function LibraryPageContent() {
         .from('book_issues')
         .insert([{
           school_id: currentUser.school_id,
+          user_id: currentUser.id,
           book_id: issueForm.book_id,
           borrower_type: issueForm.borrower_type,
           borrower_id: issueForm.borrower_id,
@@ -474,6 +525,7 @@ function LibraryPageContent() {
         })
         .eq('id', selectedIssue.id)
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       if (updateError) throw updateError
 
@@ -538,7 +590,7 @@ function LibraryPageContent() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
     if (diffDays > 0) {
-      return diffDays * 5 // $5 per day fine
+      return diffDays * 5 // Rs. 5 per day fine
     }
     return 0
   }
@@ -593,6 +645,7 @@ function LibraryPageContent() {
         .update({ fine_paid: true })
         .eq('id', issueId)
         .eq('school_id', currentUser.school_id)
+        .eq('user_id', currentUser.id)
 
       if (error) throw error
 
@@ -1153,41 +1206,54 @@ function LibraryPageContent() {
                   <thead>
                     <tr className="bg-blue-900 text-white">
                       <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Membership #</th>
+                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Name</th>
                       <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Type</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Member ID</th>
                       <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Join Date</th>
                       <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Expiry Date</th>
                       <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {members.map((member, index) => (
-                      <tr
-                        key={member.id}
-                        className={`${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                        } hover:bg-blue-50 transition`}
-                      >
-                        <td className="px-3 py-2.5 border border-gray-200 font-medium">{member.membership_number}</td>
-                        <td className="px-3 py-2.5 border border-gray-200 capitalize">{member.member_type}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{member.member_id}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          {new Date(member.membership_date).toLocaleDateString('en-GB')}
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          {member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-GB') : 'N/A'}
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            member.status === 'active' ? 'bg-green-100 text-green-700' :
-                            member.status === 'suspended' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {member.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {members.map((member, index) => {
+                      const memberName = member.member_type === 'student'
+                        ? `${member.students?.first_name || ''} ${member.students?.last_name || ''}`
+                        : `${member.staff?.first_name || ''} ${member.staff?.last_name || ''}`
+
+                      const memberId = member.member_type === 'student'
+                        ? member.students?.admission_number
+                        : member.staff?.computer_no
+
+                      return (
+                        <tr
+                          key={member.id}
+                          className={`${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          } hover:bg-blue-50 transition`}
+                        >
+                          <td className="px-3 py-2.5 border border-gray-200 font-medium">{member.membership_number}</td>
+                          <td className="px-3 py-2.5 border border-gray-200">
+                            <div className="font-medium">{memberName}</div>
+                            <div className="text-xs text-gray-500">{memberId}</div>
+                          </td>
+                          <td className="px-3 py-2.5 border border-gray-200 capitalize">{member.member_type}</td>
+                          <td className="px-3 py-2.5 border border-gray-200">
+                            {new Date(member.membership_date).toLocaleDateString('en-GB')}
+                          </td>
+                          <td className="px-3 py-2.5 border border-gray-200">
+                            {member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-GB') : 'N/A'}
+                          </td>
+                          <td className="px-3 py-2.5 border border-gray-200">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              member.status === 'active' ? 'bg-green-100 text-green-700' :
+                              member.status === 'suspended' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {member.status}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1348,7 +1414,7 @@ function LibraryPageContent() {
                             <td className="px-3 py-2.5 border border-gray-200">
                               {record.fine_amount > 0 ? (
                                 <div>
-                                  <div className="font-medium">${record.fine_amount}</div>
+                                  <div className="font-medium">Rs. {record.fine_amount}</div>
                                   <div className="flex items-center gap-2 mt-1">
                                     <div className={`text-xs ${record.fine_paid ? 'text-green-600' : 'text-red-600'}`}>
                                       {record.fine_paid ? 'Paid' : 'Unpaid'}
@@ -1620,7 +1686,7 @@ function LibraryPageContent() {
                       onChange={(e) => setReturnForm({...returnForm, fine_amount: e.target.value})}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Calculated: ${calculateFine(selectedIssue.due_date)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Calculated: Rs. {calculateFine(selectedIssue.due_date)}</p>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1779,6 +1845,7 @@ function LibraryPageContent() {
                           .insert([{
                             ...memberForm,
                             school_id: currentUser.school_id,
+                            user_id: currentUser.id,
                             created_by: currentUser.id
                           }])
 

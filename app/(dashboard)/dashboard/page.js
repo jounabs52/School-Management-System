@@ -33,12 +33,38 @@ function DashboardContent() {
     },
     expenses: { currentMonth: 0, today: 0 },
     salary: {
-      lastMonth: { total: 0, paid: 0, payable: 0 },
+      currentMonth: { total: 0, paid: 0, payable: 0 },
       totalPayables: 0
     },
     birthdays: { today: 0 },
     library: { totalBooks: 0 },
     transport: { totalStudents: 0 },
+    frontdesk: {
+      contacts: { total: 0, today: 0 },
+      visitors: { total: 0, today: 0 },
+      inquiries: { total: 0, today: 0, pending: 0 }
+    },
+    datesheets: { total: 0, upcoming: 0 },
+    attendance: {
+      students: {
+        present: 0,
+        absent: 0,
+        late: 0,
+        halfDay: 0,
+        onLeave: 0,
+        withoutAttendance: 0,
+        total: 0
+      },
+      staff: {
+        present: 0,
+        absent: 0,
+        late: 0,
+        halfDay: 0,
+        onLeave: 0,
+        withoutAttendance: 0,
+        total: 0
+      }
+    },
     charts: {
       cashInOut: [],
       admissions: [],
@@ -47,12 +73,158 @@ function DashboardContent() {
       totalCashIn: 0,
       totalCashOut: 0
     },
-    currentMonth: '',
-    lastMonth: ''
+    currentMonth: ''
   })
 
   useEffect(() => {
     fetchDashboardData()
+
+    // Setup real-time subscriptions for automatic updates
+    const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+    const userId = user?.id
+    const schoolId = user?.school_id
+
+    if (!userId || !schoolId) return
+
+    // Subscribe to changes in key tables
+    const subscriptions = []
+
+    // Students subscription
+    const studentsSubscription = supabase
+      .channel('students_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'students', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(studentsSubscription)
+
+    // Staff subscription
+    const staffSubscription = supabase
+      .channel('staff_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'staff', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(staffSubscription)
+
+    // Contacts subscription
+    const contactsSubscription = supabase
+      .channel('contacts_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'contacts', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(contactsSubscription)
+
+    // Visitors subscription
+    const visitorsSubscription = supabase
+      .channel('visitors_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'visitors', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(visitorsSubscription)
+
+    // Admission Inquiries subscription
+    const inquiriesSubscription = supabase
+      .channel('inquiries_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'admission_inquiries', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(inquiriesSubscription)
+
+    // Datesheets subscription
+    const datesheetsSubscription = supabase
+      .channel('datesheets_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'datesheets', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(datesheetsSubscription)
+
+    // Expenses subscription
+    const expensesSubscription = supabase
+      .channel('expenses_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(expensesSubscription)
+
+    // Fee Challans subscription
+    const feeChallansSubscription = supabase
+      .channel('fee_challans_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'fee_challans', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(feeChallansSubscription)
+
+    // Fee Payments subscription
+    const feePaymentsSubscription = supabase
+      .channel('fee_payments_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'fee_payments', filter: `school_id=eq.${schoolId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(feePaymentsSubscription)
+
+    // Student Attendance subscription
+    const studentAttendanceSubscription = supabase
+      .channel('student_attendance_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'student_attendance', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(studentAttendanceSubscription)
+
+    // Staff Attendance subscription
+    const staffAttendanceSubscription = supabase
+      .channel('staff_attendance_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'staff_attendance', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(staffAttendanceSubscription)
+
+    // Salary Payments subscription
+    const salaryPaymentsSubscription = supabase
+      .channel('salary_payments_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'salary_payments', filter: `school_id=eq.${schoolId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(salaryPaymentsSubscription)
+
+    // Transport Passengers subscription
+    const transportPassengersSubscription = supabase
+      .channel('transport_passengers_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'transport_passengers', filter: `user_id=eq.${userId}` },
+        () => fetchDashboardData()
+      )
+      .subscribe()
+    subscriptions.push(transportPassengersSubscription)
+
+    // Cleanup function to unsubscribe when component unmounts
+    return () => {
+      subscriptions.forEach(subscription => {
+        supabase.removeChannel(subscription)
+      })
+    }
   }, [])
 
   const fetchDashboardData = async () => {
@@ -83,17 +255,31 @@ function DashboardContent() {
         feesResult,
         collectionsResult,
         expensesResult,
-        salariesResult,
-        libraryResult
+        salaryPaymentsResult,
+        libraryResult,
+        contactsResult,
+        visitorsResult,
+        inquiriesResult,
+        datesheetsResult,
+        studentAttendanceResult,
+        staffAttendanceResult,
+        transportPassengersResult
       ] = await Promise.all([
         supabase.from('students').select('*').eq('user_id', userId).eq('school_id', schoolId),
         supabase.from('staff').select('*').eq('user_id', userId).eq('school_id', schoolId),
         supabase.from('classes').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('school_id', schoolId),
         supabase.from('fee_challans').select('*').eq('user_id', userId).eq('school_id', schoolId),
-        supabase.from('fee_collections').select('*').eq('user_id', userId).eq('school_id', schoolId),
+        supabase.from('fee_payments').select('*').eq('school_id', schoolId),
         supabase.from('expenses').select('*').eq('user_id', userId).eq('school_id', schoolId),
-        supabase.from('salaries').select('*').eq('user_id', userId).eq('school_id', schoolId),
-        supabase.from('library_books').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('school_id', schoolId)
+        supabase.from('salary_payments').select('*').eq('school_id', schoolId),
+        supabase.from('books').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('school_id', schoolId),
+        supabase.from('contacts').select('*').eq('user_id', userId).eq('school_id', schoolId),
+        supabase.from('visitors').select('*').eq('user_id', userId).eq('school_id', schoolId),
+        supabase.from('admission_inquiries').select('*').eq('user_id', userId).eq('school_id', schoolId),
+        supabase.from('datesheets').select('*').eq('user_id', userId).eq('school_id', schoolId),
+        supabase.from('student_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
+        supabase.from('staff_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
+        supabase.from('transport_passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active')
       ])
 
       // Process students
@@ -118,18 +304,33 @@ function DashboardContent() {
 
       // Fee calculations
       const feeChallans = feesResult.data || []
+      const feePayments = collectionsResult.data || []
+
+      // Calculate total paid amount per challan
+      const challanPayments = {}
+      feePayments.forEach(payment => {
+        if (!challanPayments[payment.challan_id]) {
+          challanPayments[payment.challan_id] = 0
+        }
+        challanPayments[payment.challan_id] += parseFloat(payment.amount_paid) || 0
+      })
+
       const currentMonthChallans = feeChallans.filter(f => {
         if (!f.created_at) return false
         const challanDate = new Date(f.created_at)
         return challanDate.getMonth() + 1 === currentMonth && challanDate.getFullYear() === currentYear
       })
 
-      const feePostedCurrentMonth = currentMonthChallans.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0)
-      const feeReceivedCurrentMonth = currentMonthChallans.reduce((sum, f) => sum + (parseFloat(f.paid_amount) || 0), 0)
+      const feePostedCurrentMonth = currentMonthChallans.reduce((sum, f) => sum + (parseFloat(f.total_amount) || 0), 0)
+      const feeReceivedCurrentMonth = currentMonthChallans.reduce((sum, f) => {
+        const paidAmount = challanPayments[f.id] || 0
+        return sum + paidAmount
+      }, 0)
       const feeReceivableCurrentMonth = feePostedCurrentMonth - feeReceivedCurrentMonth
 
       const totalReceivable = feeChallans.reduce((sum, f) => {
-        const unpaid = (parseFloat(f.amount) || 0) - (parseFloat(f.paid_amount) || 0)
+        const paidAmount = challanPayments[f.id] || 0
+        const unpaid = (parseFloat(f.total_amount) || 0) - paidAmount
         return sum + (unpaid > 0 ? unpaid : 0)
       }, 0)
 
@@ -139,7 +340,10 @@ function DashboardContent() {
 
       feeChallans.forEach(f => {
         if (!f.created_at) return
-        const unpaid = (parseFloat(f.amount) || 0) - (parseFloat(f.paid_amount) || 0)
+
+        const paidAmount = challanPayments[f.id] || 0
+        const unpaid = (parseFloat(f.total_amount) || 0) - paidAmount
+
         if (unpaid > 0) {
           const challanDate = new Date(f.created_at)
           const monthName = months[challanDate.getMonth()]
@@ -147,11 +351,10 @@ function DashboardContent() {
         }
       })
 
-      // Collections
-      const collectionsData = collectionsResult.data || []
-      const todayCollection = collectionsData
+      // Collections (Today's collections)
+      const todayCollection = feePayments
         .filter(c => c.created_at && c.created_at.startsWith(today))
-        .reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)
+        .reduce((sum, c) => sum + (parseFloat(c.amount_paid) || 0), 0)
 
       // Expenses
       const expensesData = expensesResult.data || []
@@ -167,23 +370,22 @@ function DashboardContent() {
         .filter(e => e.created_at && e.created_at.startsWith(today))
         .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
 
-      // Salary
-      const salariesData = salariesResult.data || []
-      const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1
-      const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear
+      // Salary Payments - Show current month instead of last month
+      const salaryPaymentsData = salaryPaymentsResult.data || []
 
-      const lastMonthSalaries = salariesData.filter(s => {
-        return s.month === lastMonth && s.year === lastMonthYear
+      // Filter for current month salaries
+      const currentMonthSalaries = salaryPaymentsData.filter(s => {
+        return s.payment_month === currentMonth && s.payment_year === currentYear
       })
 
-      const totalSalaryLastMonth = lastMonthSalaries.reduce((sum, s) => sum + (parseFloat(s.total_salary) || 0), 0)
-      const paidSalaryLastMonth = lastMonthSalaries
+      const totalSalaryCurrentMonth = currentMonthSalaries.reduce((sum, s) => sum + (parseFloat(s.net_salary) || 0), 0)
+      const paidSalaryCurrentMonth = currentMonthSalaries
         .filter(s => s.status === 'paid')
-        .reduce((sum, s) => sum + (parseFloat(s.total_salary) || 0), 0)
+        .reduce((sum, s) => sum + (parseFloat(s.net_salary) || 0), 0)
 
-      const totalPayables = salariesData
+      const totalPayables = salaryPaymentsData
         .filter(s => s.status !== 'paid')
-        .reduce((sum, s) => sum + (parseFloat(s.total_salary) || 0), 0)
+        .reduce((sum, s) => sum + (parseFloat(s.net_salary) || 0), 0)
 
       // Birthdays today
       const todayBirthdays = allStudents.filter(s => {
@@ -195,8 +397,72 @@ function DashboardContent() {
       // Library
       const libraryBooks = libraryResult.count || 0
 
-      // Transport
-      const transportStudents = allStudents.filter(s => s.transport === true).length
+      // Transport - Count unique students enrolled in transport
+      console.log('🚌 Transport Debug:', {
+        hasError: transportPassengersResult.error,
+        error: transportPassengersResult.error,
+        dataLength: transportPassengersResult.data?.length,
+        rawData: transportPassengersResult.data,
+        userId: userId,
+        schoolId: schoolId
+      })
+
+      const transportPassengersData = transportPassengersResult.data || []
+      const uniqueTransportStudents = new Set(transportPassengersData.map(p => p.student_id).filter(Boolean))
+      const transportStudents = uniqueTransportStudents.size
+
+      console.log('🚌 Transport Calculated:', {
+        passengersCount: transportPassengersData.length,
+        uniqueStudents: transportStudents,
+        studentIds: Array.from(uniqueTransportStudents)
+      })
+
+      // Contacts data
+      const contactsData = contactsResult.data || []
+      const totalContacts = contactsData.length
+      const todayContacts = contactsData.filter(c => c.created_at && c.created_at.startsWith(today)).length
+
+      // Visitors data
+      const visitorsData = visitorsResult.data || []
+      const totalVisitors = visitorsData.length
+      const todayVisitors = visitorsData.filter(v => v.visit_date && v.visit_date === today).length
+
+      // Admission Inquiries data
+      const inquiriesData = inquiriesResult.data || []
+      const totalInquiries = inquiriesData.length
+      const todayInquiries = inquiriesData.filter(i => i.date && i.date === today).length
+      const pendingInquiries = inquiriesData.filter(i => i.status === 'pending' || !i.status).length
+
+      // Datesheets data
+      const datesheetsData = datesheetsResult.data || []
+      const totalDatesheets = datesheetsData.length
+      const upcomingDatesheets = datesheetsData.filter(d => {
+        if (!d.start_date) return false
+        const startDate = new Date(d.start_date)
+        return startDate >= now
+      }).length
+
+      // Student Attendance data (Today's attendance)
+      const studentAttendanceData = studentAttendanceResult.data || []
+      const totalActiveStudents = activeStudentsCount
+
+      const studentPresent = studentAttendanceData.filter(a => a.status === 'present').length
+      const studentAbsent = studentAttendanceData.filter(a => a.status === 'absent').length
+      const studentLate = studentAttendanceData.filter(a => a.status === 'late').length
+      const studentHalfDay = studentAttendanceData.filter(a => a.status === 'half-day').length
+      const studentOnLeave = studentAttendanceData.filter(a => a.status === 'on-leave').length
+      const studentWithoutAttendance = totalActiveStudents - studentAttendanceData.length
+
+      // Staff Attendance data (Today's attendance)
+      const staffAttendanceData = staffAttendanceResult.data || []
+      const totalActiveStaff = activeStaffCount
+
+      const staffPresent = staffAttendanceData.filter(a => a.status === 'present').length
+      const staffAbsent = staffAttendanceData.filter(a => a.status === 'absent').length
+      const staffLate = staffAttendanceData.filter(a => a.status === 'late').length
+      const staffHalfDay = staffAttendanceData.filter(a => a.status === 'half-day').length
+      const staffOnLeave = staffAttendanceData.filter(a => a.status === 'on-leave').length
+      const staffWithoutAttendance = totalActiveStaff - staffAttendanceData.length
 
       // Cash In/Out chart data
       const cashInOutData = []
@@ -206,9 +472,9 @@ function DashboardContent() {
       for (let day = 1; day <= 29; day += 2) {
         const dayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
-        const dayCashIn = collectionsData
+        const dayCashIn = feePayments
           .filter(c => c.created_at && c.created_at.startsWith(dayStr))
-          .reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)
+          .reduce((sum, c) => sum + (parseFloat(c.amount_paid) || 0), 0)
 
         const dayCashOut = expensesData
           .filter(e => e.created_at && e.created_at.startsWith(dayStr))
@@ -255,16 +521,42 @@ function DashboardContent() {
         },
         expenses: { currentMonth: currentMonthExpenses, today: todayExpenses },
         salary: {
-          lastMonth: {
-            total: totalSalaryLastMonth,
-            paid: paidSalaryLastMonth,
-            payable: totalSalaryLastMonth - paidSalaryLastMonth
+          currentMonth: {
+            total: totalSalaryCurrentMonth,
+            paid: paidSalaryCurrentMonth,
+            payable: totalSalaryCurrentMonth - paidSalaryCurrentMonth
           },
           totalPayables: totalPayables
         },
         birthdays: { today: todayBirthdays },
         library: { totalBooks: libraryBooks },
         transport: { totalStudents: transportStudents },
+        frontdesk: {
+          contacts: { total: totalContacts, today: todayContacts },
+          visitors: { total: totalVisitors, today: todayVisitors },
+          inquiries: { total: totalInquiries, today: todayInquiries, pending: pendingInquiries }
+        },
+        datesheets: { total: totalDatesheets, upcoming: upcomingDatesheets },
+        attendance: {
+          students: {
+            present: studentPresent,
+            absent: studentAbsent,
+            late: studentLate,
+            halfDay: studentHalfDay,
+            onLeave: studentOnLeave,
+            withoutAttendance: studentWithoutAttendance,
+            total: totalActiveStudents
+          },
+          staff: {
+            present: staffPresent,
+            absent: staffAbsent,
+            late: staffLate,
+            halfDay: staffHalfDay,
+            onLeave: staffOnLeave,
+            withoutAttendance: staffWithoutAttendance,
+            total: totalActiveStaff
+          }
+        },
         charts: {
           cashInOut: cashInOutData,
           admissions: admissionChartData,
@@ -273,8 +565,7 @@ function DashboardContent() {
           totalCashIn: totalCashIn,
           totalCashOut: totalCashOut
         },
-        currentMonth: months[currentMonth - 1],
-        lastMonth: months[lastMonth - 1]
+        currentMonth: months[currentMonth - 1]
       })
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -376,9 +667,9 @@ function DashboardContent() {
             <div className="bg-gradient-to-r from-teal-600 to-cyan-700 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.salary.lastMonth.total.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Salary {dashboardData.lastMonth}-2025</p>
-                  <p className="text-xs opacity-80">Total salary of {dashboardData.lastMonth}-2025</p>
+                  <p className="text-4xl font-bold">{dashboardData.salary.currentMonth.total.toLocaleString()}</p>
+                  <p className="text-sm mt-1">Salary {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
+                  <p className="text-xs opacity-80">Total salary of {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
                 </div>
                 <DollarSign className="w-10 h-10 opacity-80" />
               </div>
@@ -387,9 +678,9 @@ function DashboardContent() {
             <div className="bg-gradient-to-r from-indigo-700 to-blue-800 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.salary.lastMonth.paid.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Paid ({dashboardData.lastMonth}-2025)</p>
-                  <p className="text-xs opacity-80">Total paid in month: {dashboardData.salary.lastMonth.paid.toLocaleString()}</p>
+                  <p className="text-4xl font-bold">{dashboardData.salary.currentMonth.paid.toLocaleString()}</p>
+                  <p className="text-sm mt-1">Paid ({dashboardData.currentMonth}-{new Date().getFullYear()})</p>
+                  <p className="text-xs opacity-80">Total paid in month: {dashboardData.salary.currentMonth.paid.toLocaleString()}</p>
                 </div>
                 <DollarSign className="w-10 h-10 opacity-80" />
               </div>
@@ -398,8 +689,8 @@ function DashboardContent() {
             <div className="bg-gradient-to-r from-gray-800 to-black rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.salary.lastMonth.payable.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Payable {dashboardData.lastMonth}-2025</p>
+                  <p className="text-4xl font-bold">{dashboardData.salary.currentMonth.payable.toLocaleString()}</p>
+                  <p className="text-sm mt-1">Payable {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
                   <p className="text-xs opacity-80">Total Payables: {dashboardData.salary.totalPayables.toLocaleString()}</p>
                 </div>
                 <AlertCircle className="w-10 h-10 opacity-80" />
@@ -476,6 +767,56 @@ function DashboardContent() {
             </div>
           </div>
 
+          {/* Row 6 - Frontdesk Data */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-2xl p-6 text-white shadow-xl">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-4xl font-bold">{dashboardData.frontdesk.contacts.total}</p>
+                  <p className="text-sm mt-1">Total Contacts</p>
+                  <p className="text-xs opacity-80">Added Today: {dashboardData.frontdesk.contacts.today}</p>
+                </div>
+                <Phone className="w-10 h-10 opacity-80" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-teal-700 to-green-800 rounded-2xl p-6 text-white shadow-xl">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-4xl font-bold">{dashboardData.frontdesk.visitors.total}</p>
+                  <p className="text-sm mt-1">Total Visitors</p>
+                  <p className="text-xs opacity-80">Today: {dashboardData.frontdesk.visitors.today}</p>
+                </div>
+                <Users className="w-10 h-10 opacity-80" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-violet-700 to-purple-800 rounded-2xl p-6 text-white shadow-xl">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-4xl font-bold">{dashboardData.frontdesk.inquiries.total}</p>
+                  <p className="text-sm mt-1">Admission Inquiries</p>
+                  <p className="text-xs opacity-80">Pending: {dashboardData.frontdesk.inquiries.pending}</p>
+                </div>
+                <MessageSquare className="w-10 h-10 opacity-80" />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 7 - Datesheets */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="bg-gradient-to-r from-rose-600 to-pink-700 rounded-2xl p-6 text-white shadow-xl">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-4xl font-bold">{dashboardData.datesheets.total}</p>
+                  <p className="text-sm mt-1">Total Datesheets</p>
+                  <p className="text-xs opacity-80">Upcoming: {dashboardData.datesheets.upcoming}</p>
+                </div>
+                <Calendar className="w-10 h-10 opacity-80" />
+              </div>
+            </div>
+          </div>
+
           {/* CHARTS SECTION */}
           <div className="space-y-6">
             {/* Cash In/Out Summary Chart */}
@@ -536,7 +877,6 @@ function DashboardContent() {
               <span className="bg-blue-600 px-6 py-2 rounded-full text-sm font-bold">Fee Receivable Report</span>
             </div>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between py-1"><span>Previous Balance</span><span className="font-medium">0</span></div>
               {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((month, index) => {
                 const amount = dashboardData.fee.byMonth[month] || 0
                 const isCurrentMonth = month === dashboardData.currentMonth
@@ -547,7 +887,6 @@ function DashboardContent() {
                   </div>
                 )
               })}
-              <div className="flex justify-between py-1"><span>Next Year Balance</span><span className="font-medium">0</span></div>
               <div className="flex justify-between border-t-2 border-white pt-3 mt-2">
                 <span className="font-bold">Total Receivable</span>
                 <span className="text-xl font-bold">{dashboardData.fee.totalReceivable.toLocaleString()}</span>
@@ -563,31 +902,31 @@ function DashboardContent() {
                 <Users className="w-6 h-6" />
               </div>
             </div>
-            <p className="text-center text-sm opacity-90 mb-4">21-Nov-2025</p>
+            <p className="text-center text-sm opacity-90 mb-4">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-1">
-                <span>Present - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Present - {dashboardData.attendance.students.present}</span>
+                <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.present / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/20 pb-3">
-                <span>Absent - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Absent - {dashboardData.attendance.students.absent}</span>
+                <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.absent / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1">
-                <span>Late Arrival - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Late Arrival - {dashboardData.attendance.students.late}</span>
+                <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.late / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1">
-                <span>Short Leave - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Half Day - {dashboardData.attendance.students.halfDay}</span>
+                <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.halfDay / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1">
-                <span>On Leave - 0</span>
-                <span className="font-medium">0%</span>
+                <span>On Leave - {dashboardData.attendance.students.onLeave}</span>
+                <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.onLeave / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between border-t-2 border-white/40 pt-3 mt-3">
-                <span className="font-bold text-yellow-300">Without Attendance - {dashboardData.students.active}</span>
-                <span className="font-bold">100%</span>
+                <span className="font-bold text-yellow-300">Without Attendance - {dashboardData.attendance.students.withoutAttendance}</span>
+                <span className="font-bold">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.withoutAttendance / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
             </div>
           </div>
@@ -600,31 +939,31 @@ function DashboardContent() {
                 <UserCheck className="w-6 h-6" />
               </div>
             </div>
-            <p className="text-center text-sm opacity-90 mb-4">21-Nov-2025</p>
+            <p className="text-center text-sm opacity-90 mb-4">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-1">
-                <span>Present - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Present - {dashboardData.attendance.staff.present}</span>
+                <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.present / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/20 pb-3">
-                <span>Absent - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Absent - {dashboardData.attendance.staff.absent}</span>
+                <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.absent / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1">
-                <span>Late Arrival - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Late Arrival - {dashboardData.attendance.staff.late}</span>
+                <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.late / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1">
-                <span>Short Leave - 0</span>
-                <span className="font-medium">0%</span>
+                <span>Half Day - {dashboardData.attendance.staff.halfDay}</span>
+                <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.halfDay / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between py-1">
-                <span>On Leave - 0</span>
-                <span className="font-medium">0%</span>
+                <span>On Leave - {dashboardData.attendance.staff.onLeave}</span>
+                <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.onLeave / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
               <div className="flex justify-between border-t-2 border-white/40 pt-3 mt-3">
-                <span className="font-bold text-yellow-300">Without Attendance - {dashboardData.staff.active}</span>
-                <span className="font-bold">100%</span>
+                <span className="font-bold text-yellow-300">Without Attendance - {dashboardData.attendance.staff.withoutAttendance}</span>
+                <span className="font-bold">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.withoutAttendance / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
             </div>
           </div>
