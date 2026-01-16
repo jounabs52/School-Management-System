@@ -858,7 +858,7 @@ function ActiveStudentsContent() {
       doc.setFontSize(13)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
       doc.setTextColor(...primaryRgb)
-      doc.text(selectedStudent.first_name || '', infoX, cardY + 9)
+      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, cardY + 9)
 
       // Admission Number - SETTINGS TEXT COLOR & FONT with icon-like label
       doc.setFontSize(7.5)
@@ -917,55 +917,76 @@ function ActiveStudentsContent() {
 
       // Helper function for fields - CLEAN TWO COLUMN LAYOUT
       const addTwoColumnFields = (fields) => {
-        const col1LabelX = margins.left + 4
-        const col1ValueX = col1LabelX + 40
-        const col2LabelX = pageWidth / 2 + 5
-        const col2ValueX = col2LabelX + 40
-
-        const footerSpace = 20
-        const maxY = pageHeight - footerSpace
-        const rowHeight = 5
+        // Use 3 columns for landscape, 2 for portrait
+        const numColumns = orientation === 'landscape' ? 3 : 2
+        const gapSize = 2
+        const totalGaps = (numColumns - 1) * gapSize
+        const colWidth = (pageWidth - margins.left - margins.right - totalGaps) / numColumns
 
         let col = 0
+        let rowY = yPos
+
+        // Professional color scheme
+        const fieldBgRgb = [249, 250, 251] // Very light gray
+        const labelColorRgb = [107, 114, 128] // Gray-500
+        const borderRgb = [229, 231, 235] // Gray-200
+
+        // Reserve space for footer (footer area starts at pageHeight - 20)
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+
+        // COMPACT field height
+        const fieldHeight = 7.5
 
         fields.forEach(([label, value]) => {
           if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
-            // Check page space
-            if (yPos + 6 > maxY) {
+            // Check if we need a new page
+            if (rowY + 10 > maxContentY) {
               doc.addPage()
-              yPos = 40
+              rowY = margins.top || 15
               col = 0
             }
 
-            // Determine column
-            const labelX = col === 0 ? col1LabelX : col2LabelX
-            const valueX = col === 0 ? col1ValueX : col2ValueX
+            const xPos = margins.left + (col * (colWidth + gapSize))
 
-            // Label - uppercase, gray, small, SETTINGS FONT
-            doc.setFontSize(7)
-            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
-            doc.setTextColor(100, 100, 100)
-            doc.text(String(label).toUpperCase() + ':', labelX, yPos)
+            // Card background with subtle shadow effect
+            doc.setFillColor(...fieldBgRgb)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'F')
 
-            // Value - normal, SETTINGS TEXT COLOR & FONT
-            doc.setFontSize(parseInt(pdfSettings.fontSize || 8) + 0.5)
+            // Subtle border for definition
+            doc.setDrawColor(...borderRgb)
+            doc.setLineWidth(0.2)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'S')
+
+            // Label - small gray uppercase
+            doc.setFontSize(5.5)
             doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
-            doc.setTextColor(...textRgb)
-            const maxWidth = (pageWidth / 2) - valueX - 5
-            doc.text(String(value), valueX, yPos, { maxWidth })
+            doc.setTextColor(...labelColorRgb)
+            doc.text(label.toUpperCase(), xPos + 1.5, rowY + 3)
+
+            // Value - larger and bold with proper text fitting
+            doc.setFontSize(7.5)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+            doc.setTextColor(31, 41, 55) // Gray-800
+
+            // Smart truncation based on column width
+            const maxChars = orientation === 'landscape' ? 28 : 35
+            let valueText = String(value)
+            if (valueText.length > maxChars) {
+              valueText = valueText.substring(0, maxChars - 3) + '...'
+            }
+
+            doc.text(valueText, xPos + 1.5, rowY + 6, { maxWidth: colWidth - 3 })
 
             col++
-            if (col >= 2) {
+            if (col >= numColumns) {
               col = 0
-              yPos += rowHeight
+              rowY += fieldHeight + 1.5
             }
           }
         })
 
-        // If last row had only one column, move to next row
-        if (col === 1) {
-          yPos += rowHeight
-        }
+        yPos = col === 0 ? rowY : rowY + fieldHeight + 1.5
       }
 
       // Basic Information
@@ -981,7 +1002,7 @@ function ActiveStudentsContent() {
         ['Nationality', selectedStudent.nationality || 'Pakistan']
       ])
 
-      yPos += 2
+      yPos += orientation === 'landscape' ? 1.5 : 2
 
       // Academic Information
       addSectionHeader('ACADEMIC INFORMATION')
@@ -994,7 +1015,7 @@ function ActiveStudentsContent() {
         ['Status', selectedStudent.status]
       ])
 
-      yPos += 2
+      yPos += orientation === 'landscape' ? 1.5 : 2
 
       // Father Information
       if (selectedStudent.father_name) {
@@ -1008,7 +1029,7 @@ function ActiveStudentsContent() {
           ['Occupation', selectedStudent.father_occupation],
           ['Annual Income', selectedStudent.father_annual_income]
         ])
-        yPos += 2
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Mother Information
@@ -1023,7 +1044,7 @@ function ActiveStudentsContent() {
           ['Occupation', selectedStudent.mother_occupation],
           ['Annual Income', selectedStudent.mother_annual_income]
         ])
-        yPos += 2
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Contact Information
@@ -1037,7 +1058,7 @@ function ActiveStudentsContent() {
           ['State', selectedStudent.state],
           ['Postal Code', selectedStudent.postal_code]
         ])
-        yPos += 2
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Fee Information

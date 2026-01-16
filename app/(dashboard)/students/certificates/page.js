@@ -241,9 +241,9 @@ function StudentCertificatesContent() {
       const { id: userId, school_id: schoolId } = getLoggedInUser()
       const { data, error } = await supabase
         .from('sections')
+        .select('id, section_name')
         .eq('user_id', userId)
         .eq('school_id', schoolId)
-        .select('id, section_name')
         .eq('class_id', selectedClass)
         .eq('status', 'active')
         .order('section_name', { ascending: true })
@@ -480,66 +480,26 @@ function StudentCertificatesContent() {
           .single()
 
         if (!error && data) {
+          // Simple logo loading approach (same as students/reports)
+          console.log('Fetched school data:', data)
+          console.log('Logo URL from database:', data?.logo_url)
+
           let logoBase64 = data?.logo_url
           if (data?.logo_url && (data.logo_url.startsWith('http://') || data.logo_url.startsWith('https://'))) {
-            // Load and clip logo based on settings
             try {
-              const logoImg = new Image()
-              logoImg.crossOrigin = 'anonymous'
-
-              logoBase64 = await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Logo load timeout')), 8000)
-
-                logoImg.onload = () => {
-                  clearTimeout(timeout)
-                  try {
-                    const canvas = document.createElement('canvas')
-                    canvas.width = logoImg.width
-                    canvas.height = logoImg.height
-                    const ctx = canvas.getContext('2d')
-
-                    // Apply logo style from settings
-                    if (pdfSettings.logoStyle === 'circle') {
-                      ctx.beginPath()
-                      ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2, 0, Math.PI * 2)
-                      ctx.closePath()
-                      ctx.clip()
-                    } else if (pdfSettings.logoStyle === 'rounded') {
-                      const radius = Math.min(canvas.width, canvas.height) * 0.1
-                      ctx.beginPath()
-                      ctx.moveTo(radius, 0)
-                      ctx.lineTo(canvas.width - radius, 0)
-                      ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius)
-                      ctx.lineTo(canvas.width, canvas.height - radius)
-                      ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height)
-                      ctx.lineTo(radius, canvas.height)
-                      ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius)
-                      ctx.lineTo(0, radius)
-                      ctx.quadraticCurveTo(0, 0, radius, 0)
-                      ctx.closePath()
-                      ctx.clip()
-                    }
-
-                    ctx.drawImage(logoImg, 0, 0)
-                    resolve(canvas.toDataURL('image/png'))
-                  } catch (err) {
-                    reject(err)
-                  }
-                }
-
-                logoImg.onerror = () => {
-                  clearTimeout(timeout)
-                  reject(new Error('Failed to load logo'))
-                }
-
-                logoImg.src = data.logo_url
-              })
-            } catch (err) {
-              console.error('Logo clipping error:', err)
+              console.log('Converting logo URL to base64...')
               logoBase64 = await convertImageToBase64(data.logo_url)
+              console.log('Logo converted successfully. Preview:', logoBase64?.substring(0, 50))
+            } catch (err) {
+              console.error('Logo conversion error:', err)
             }
+          } else {
+            console.log('Logo URL is already base64 or not a URL:', logoBase64?.substring(0, 50))
           }
           schoolDataToUse = { ...data, logo: logoBase64 }
+          console.log('schoolDataToUse set with logo:', !!schoolDataToUse.logo)
+        } else {
+          console.error('Error fetching school data or no data:', error)
         }
       } catch (err) {
         console.error('Error fetching school data:', err)
@@ -689,6 +649,20 @@ function StudentCertificatesContent() {
 
   // Character Certificate Generator
   const generateCharacterCertificate = async (jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData) => {
+    // Fetch school data directly (same as students/reports)
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    const { data: schoolData } = await supabase
+      .from('schools')
+      .select('*')
+      .eq('id', schoolId)
+      .limit(1)
+      .single()
+
+    let schoolLogo = schoolData?.logo_url
+    if (schoolData?.logo_url && (schoolData.logo_url.startsWith('http://') || schoolData.logo_url.startsWith('https://'))) {
+      schoolLogo = await convertImageToBase64(schoolData.logo_url)
+    }
+
     const doc = new jsPDF({
       orientation: certificateSettings.pageOrientation || 'portrait',
       unit: 'mm',
@@ -742,33 +716,22 @@ function StudentCertificatesContent() {
     const fieldSpacing = isLandscape ? Math.max((certificateSettings.fieldSpacing || 9) - 2, 6) : (certificateSettings.fieldSpacing || 9)
     const sectionSpacing = isLandscape ? Math.max((certificateSettings.sectionSpacing || 20) - 8, 10) : (certificateSettings.sectionSpacing || 20)
 
-    // School logo at top center with circular/rounded style from settings
+    // School logo at top center (same as students/reports)
     let currentHeaderY = margin + (isLandscape ? 10 : 15)
-    if (certificateSettings.showSchoolLogo && schoolDataToUse?.logo) {
+
+    if (certificateSettings.showSchoolLogo && schoolLogo) {
       try {
-        const logoSize = getLogoSize(certificateSettings.logoSize || 'medium')
+        const logoSize = 20  // Fixed size same as students/reports
         const logoX = (pageWidth - logoSize) / 2
 
         let format = 'PNG'
-        if (schoolDataToUse.logo.includes('data:image/jpeg') || schoolDataToUse.logo.includes('data:image/jpg')) {
+        if (schoolLogo.includes('data:image/jpeg') || schoolLogo.includes('data:image/jpg')) {
           format = 'JPEG'
         }
 
-        // Add logo
-        doc.addImage(schoolDataToUse.logo, format, logoX, currentHeaderY, logoSize, logoSize)
+        doc.addImage(schoolLogo, format, logoX, currentHeaderY, logoSize, logoSize)
 
-        // Add border based on logo style from PDF settings
-        if (pdfSettings.logoStyle === 'circle') {
-          doc.setDrawColor(...borderRgb)
-          doc.setLineWidth(0.5)
-          doc.circle(logoX + logoSize/2, currentHeaderY + logoSize/2, logoSize/2, 'S')
-        } else if (pdfSettings.logoStyle === 'rounded') {
-          doc.setDrawColor(...borderRgb)
-          doc.setLineWidth(0.5)
-          doc.roundedRect(logoX, currentHeaderY, logoSize, logoSize, 3, 3, 'S')
-        }
-
-        currentHeaderY += logoSize + headerSpacing  // Move down by logo size + spacing
+        currentHeaderY += logoSize + headerSpacing
       } catch (error) {
         console.error('Error adding logo:', error)
       }
@@ -779,9 +742,9 @@ function StudentCertificatesContent() {
     doc.setFont(PDF_FONTS.primary, 'bold')
     doc.setTextColor(...headerRgb)
     // Use school data if settings name contains unwanted characters
-    let instituteName = certificateSettings.instituteName || schoolDataToUse?.name || 'School Name'
+    let instituteName = certificateSettings.instituteName || schoolData?.name || 'School Name'
     if (instituteName.includes('%') || instituteName.includes('6606')) {
-      instituteName = schoolDataToUse?.name || 'Superior College Bhakkar'
+      instituteName = schoolData?.name || 'Superior College Bhakkar'
     }
     doc.text(instituteName, pageWidth / 2, currentHeaderY, { align: 'center' })
     currentHeaderY += headerSpacing
@@ -790,7 +753,7 @@ function StudentCertificatesContent() {
     doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
     doc.setTextColor(...textRgb)
-    doc.text(certificateSettings.instituteLocation || schoolDataToUse?.address || 'School Address', pageWidth / 2, currentHeaderY, { align: 'center' })
+    doc.text(certificateSettings.instituteLocation || schoolData?.address || 'School Address', pageWidth / 2, currentHeaderY, { align: 'center' })
     currentHeaderY += headerSpacing
 
     // Certificate Title
@@ -906,9 +869,9 @@ function StudentCertificatesContent() {
     doc.setTextColor(...textRgb)
 
     const fatherName = studentData.father_name || 'N/A'
-    let collegeName = certificateSettings.instituteName || schoolDataToUse?.name || 'This Institution'
+    let collegeName = certificateSettings.instituteName || schoolData?.name || 'This Institution'
     if (collegeName.includes('%') || collegeName.includes('6606')) {
-      collegeName = schoolDataToUse?.name || 'Superior College Bhakkar'
+      collegeName = schoolData?.name || 'Superior College Bhakkar'
     }
     const marksObtained = studentData.marks_obtained || 'N/A'
     const totalMarks = studentData.total_marks || 'N/A'
@@ -979,6 +942,20 @@ function StudentCertificatesContent() {
 
   // Leaving Certificate Generator
   const generateLeavingCertificate = async (jsPDF, studentData, schoolDataToUse, pdfSettings, examMarksData) => {
+    // Fetch school data directly (same as students/reports)
+    const { id: userId, school_id: schoolId } = getLoggedInUser()
+    const { data: schoolData } = await supabase
+      .from('schools')
+      .select('*')
+      .eq('id', schoolId)
+      .limit(1)
+      .single()
+
+    let schoolLogo = schoolData?.logo_url
+    if (schoolData?.logo_url && (schoolData.logo_url.startsWith('http://') || schoolData.logo_url.startsWith('https://'))) {
+      schoolLogo = await convertImageToBase64(schoolData.logo_url)
+    }
+
     const doc = new jsPDF({
       orientation: certificateSettings.pageOrientation || 'portrait',
       unit: 'mm',
@@ -1028,33 +1005,22 @@ function StudentCertificatesContent() {
     const fieldSpacing = isLandscape ? Math.max((certificateSettings.fieldSpacing || 9) - 2, 6) : (certificateSettings.fieldSpacing || 9)
     const sectionSpacing = isLandscape ? Math.max((certificateSettings.sectionSpacing || 20) - 8, 10) : (certificateSettings.sectionSpacing || 20)
 
-    // School logo at top center with circular/rounded style from settings
+    // School logo at top center (same as students/reports)
     let currentHeaderY = margin + (isLandscape ? 10 : 15)
-    if (certificateSettings.showSchoolLogo && schoolDataToUse?.logo) {
+
+    if (certificateSettings.showSchoolLogo && schoolLogo) {
       try {
-        const logoSize = getLogoSize(certificateSettings.logoSize || 'medium')
+        const logoSize = 20  // Fixed size same as students/reports
         const logoX = (pageWidth - logoSize) / 2
 
         let format = 'PNG'
-        if (schoolDataToUse.logo.includes('data:image/jpeg') || schoolDataToUse.logo.includes('data:image/jpg')) {
+        if (schoolLogo.includes('data:image/jpeg') || schoolLogo.includes('data:image/jpg')) {
           format = 'JPEG'
         }
 
-        // Add logo
-        doc.addImage(schoolDataToUse.logo, format, logoX, currentHeaderY, logoSize, logoSize)
+        doc.addImage(schoolLogo, format, logoX, currentHeaderY, logoSize, logoSize)
 
-        // Add border based on logo style from PDF settings
-        if (pdfSettings.logoStyle === 'circle') {
-          doc.setDrawColor(...borderRgb)
-          doc.setLineWidth(0.5)
-          doc.circle(logoX + logoSize/2, currentHeaderY + logoSize/2, logoSize/2, 'S')
-        } else if (pdfSettings.logoStyle === 'rounded') {
-          doc.setDrawColor(...borderRgb)
-          doc.setLineWidth(0.5)
-          doc.roundedRect(logoX, currentHeaderY, logoSize, logoSize, 3, 3, 'S')
-        }
-
-        currentHeaderY += logoSize + headerSpacing  // Move down by logo size + spacing
+        currentHeaderY += logoSize + headerSpacing
       } catch (error) {
         console.error('Error adding logo:', error)
       }
@@ -1065,9 +1031,9 @@ function StudentCertificatesContent() {
     doc.setFont(PDF_FONTS.primary, 'bold')
     doc.setTextColor(...headerRgb)
     // Use school data if settings name contains unwanted characters
-    let instituteName = certificateSettings.instituteName || schoolDataToUse?.name || 'School Name'
+    let instituteName = certificateSettings.instituteName || schoolData?.name || 'School Name'
     if (instituteName.includes('%') || instituteName.includes('6606')) {
-      instituteName = schoolDataToUse?.name || 'Superior College Bhakkar'
+      instituteName = schoolData?.name || 'Superior College Bhakkar'
     }
     doc.text(instituteName, pageWidth / 2, currentHeaderY, { align: 'center' })
     currentHeaderY += headerSpacing
@@ -1076,7 +1042,7 @@ function StudentCertificatesContent() {
     doc.setFontSize(9)
     doc.setFont(PDF_FONTS.secondary, 'normal')
     doc.setTextColor(...textRgb)
-    doc.text(certificateSettings.instituteLocation || schoolDataToUse?.address || 'School Address', pageWidth / 2, currentHeaderY, { align: 'center' })
+    doc.text(certificateSettings.instituteLocation || schoolData?.address || 'School Address', pageWidth / 2, currentHeaderY, { align: 'center' })
     currentHeaderY += headerSpacing
 
     // Certificate Title - "LEAVING CERTIFICATE"
@@ -1212,9 +1178,9 @@ function StudentCertificatesContent() {
     doc.setTextColor(...textRgb)
 
     const fatherName = studentData.father_name || 'N/A'
-    let collegeName = certificateSettings.instituteName || schoolDataToUse?.name || 'This Institution'
+    let collegeName = certificateSettings.instituteName || schoolData?.name || 'This Institution'
     if (collegeName.includes('%') || collegeName.includes('6606')) {
-      collegeName = schoolDataToUse?.name || 'Superior College Bhakkar'
+      collegeName = schoolData?.name || 'Superior College Bhakkar'
     }
 
     // Determine son/daughter based on gender

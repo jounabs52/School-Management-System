@@ -771,7 +771,7 @@ CREATE TABLE public.students (
   CONSTRAINT students_school_id_fkey FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
   CONSTRAINT students_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT students_fee_plan_check CHECK (
-    (fee_plan)::text = ANY (ARRAY['monthly'::character varying, 'quarterly'::character varying, 'semi-annual'::character varying, 'annual'::character varying]::text[])
+    (fee_plan)::text = ANY (ARRAY['monthly'::character varying, 'quarterly'::character varying, 'semi-annual'::character varying, 'annual'::character varying, 'one-time'::character varying]::text[])
   ),
   CONSTRAINT students_discount_type_check CHECK (
     (discount_type)::text = ANY (ARRAY['fixed'::character varying, 'percentage'::character varying]::text[])
