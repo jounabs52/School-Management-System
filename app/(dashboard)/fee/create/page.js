@@ -203,12 +203,42 @@ function FeeCreateContent() {
           .eq('status', 'active')
           .order('admission_number', { ascending: true }),
 
-        // Fetch challans with optimized query
+        // Fetch challans - simplified query first
         supabase
           .from('fee_challans')
-          .select(`
-            *,
-            students!student_id (
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('school_id', user.school_id)
+          .order('id', { ascending: false })
+      ])
+
+      if (classesResult.error) throw classesResult.error
+      const classesData = classesResult.data || []
+      setClasses(classesData)
+
+      if (sectionsResult.error) throw sectionsResult.error
+      const sectionsData = sectionsResult.data || []
+      setSections(sectionsData)
+
+      if (feeTypesResult.error) throw feeTypesResult.error
+      setFeeHeads(feeTypesResult.data || [])
+
+      if (studentsResult.error) throw studentsResult.error
+      setStudents(studentsResult.data || [])
+
+      // Process challans with efficient mapping
+      if (!challansResult.error && challansResult.data) {
+        console.log('Challans fetched in fetchInitialData:', challansResult.data.length)
+
+        // Get unique student IDs from challans
+        const studentIds = [...new Set(challansResult.data.map(c => c.student_id).filter(Boolean))]
+
+        // Fetch student data separately
+        let studentsMap = {}
+        if (studentIds.length > 0) {
+          const { data: studentsFromChallans } = await supabase
+            .from('students')
+            .select(`
               id,
               admission_number,
               first_name,
@@ -234,31 +264,15 @@ function FeeCreateContent() {
               discount_amount,
               discount_value,
               discount_type,
-              final_fee,
-              status
-            )
-          `)
-          .eq('user_id', user.id)
-          .eq('school_id', user.school_id)
-          .order('created_at', { ascending: false })
-      ])
+              final_fee
+            `)
+            .in('id', studentIds)
 
-      if (classesResult.error) throw classesResult.error
-      const classesData = classesResult.data || []
-      setClasses(classesData)
+          studentsFromChallans?.forEach(student => {
+            studentsMap[student.id] = student
+          })
+        }
 
-      if (sectionsResult.error) throw sectionsResult.error
-      const sectionsData = sectionsResult.data || []
-      setSections(sectionsData)
-
-      if (feeTypesResult.error) throw feeTypesResult.error
-      setFeeHeads(feeTypesResult.data || [])
-
-      if (studentsResult.error) throw studentsResult.error
-      setStudents(studentsResult.data || [])
-
-      // Process challans with efficient mapping
-      if (!challansResult.error && challansResult.data) {
         // Fetch all payments for these challans
         const challanIds = challansResult.data.map(c => c.id).filter(Boolean)
         const { data: paymentsData } = await supabase
@@ -283,21 +297,71 @@ function FeeCreateContent() {
         sectionsData.forEach(s => { sectionMap[s.id] = s })
 
         const enrichedData = challansResult.data.map((challan) => {
+          // Use challan's total_amount as it includes all fee items (monthly + other fees)
+          const totalAmount = challan.total_amount
+
           // Get paid amount from payment map
           const paidAmount = paymentMap[challan.id] || 0
 
+          // Auto-calculate status based on payment and due date
+          let autoStatus = challan.status // Default to existing status
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const dueDate = challan.due_date ? new Date(challan.due_date) : null
+          if (dueDate) dueDate.setHours(0, 0, 0, 0)
+
+          // Status logic:
+          // 1. If fully paid, status = 'paid'
+          // 2. If past due date and not fully paid, status = 'overdue'
+          // 3. Otherwise, status = 'pending'
+          if (paidAmount >= totalAmount) {
+            autoStatus = 'paid'
+          } else if (dueDate && dueDate < today) {
+            autoStatus = 'overdue'
+          } else {
+            autoStatus = 'pending'
+          }
+
+          // Update status in database if it changed
+          if (autoStatus !== challan.status) {
+            supabase
+              .from('fee_challans')
+              .update({ status: autoStatus, updated_at: new Date().toISOString() })
+              .eq('id', challan.id)
+              .eq('user_id', user.id)
+              .eq('school_id', user.school_id)
+              .then(({ error: updateError }) => {
+                if (updateError) {
+                  console.error('Error auto-updating status:', updateError)
+                }
+              })
+          }
+
+          // Get student data from studentsMap
+          const student = studentsMap[challan.student_id] || null
+
           return {
             ...challan,
+            // Use challan's actual total_amount (includes all fee items)
             paid_amount: paidAmount,
-            students: {
-              ...challan.students,
-              classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
-              sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
-            }
+            status: autoStatus,
+            students: student ? {
+              ...student,
+              classes: classMap[student.current_class_id] || { class_name: 'N/A' },
+              sections: sectionMap[student.current_section_id] || { section_name: 'N/A' }
+            } : null
           }
         })
 
+        console.log('Setting createdChallans with enriched data:', enrichedData.length)
         setCreatedChallans(enrichedData)
+      } else if (challansResult.error) {
+        console.error('Error fetching challans in fetchInitialData:', challansResult.error)
+        console.error('Error details:', JSON.stringify(challansResult.error, null, 2))
+        console.error('Error message:', challansResult.error?.message)
+        console.error('Error code:', challansResult.error?.code)
+      } else {
+        console.log('No challans data found')
       }
 
       setLoading(false)
@@ -679,7 +743,12 @@ function FeeCreateContent() {
   const fetchCreatedChallans = async () => {
     try {
       const user = getUserFromCookie()
-      if (!user) return
+      if (!user) {
+        console.log('fetchCreatedChallans: No user found')
+        return
+      }
+
+      console.log('fetchCreatedChallans: Fetching challans for user:', user.id, 'school:', user.school_id)
 
       const { data, error } = await supabase
         .from('fee_challans')
@@ -711,13 +780,14 @@ function FeeCreateContent() {
             discount_amount,
             discount_value,
             discount_type,
-            final_fee,
-            status
+            final_fee
           )
         `)
         .eq('user_id', user.id)
         .eq('school_id', user.school_id)
-        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+
+      console.log('fetchCreatedChallans: Query result -', 'error:', error, 'data count:', data?.length)
 
       if (!error && data) {
         // Fetch all payments for these challans
@@ -799,9 +869,10 @@ function FeeCreateContent() {
           }
         })
 
+        console.log('fetchCreatedChallans: Setting enriched data -', enrichedData.length, 'challans')
         setCreatedChallans(enrichedData)
       } else if (error) {
-        console.error('Error fetching challans:', error)
+        console.error('fetchCreatedChallans: Error fetching challans:', error)
       }
     } catch (error) {
       console.error('Error fetching challans:', error)
@@ -2163,6 +2234,10 @@ function FeeCreateContent() {
       }
 
       showToast(`Successfully created ${createdCount} monthly fee challan(s)!`, 'success')
+
+      // Refresh the challans list
+      await fetchCreatedChallans()
+
       setShowChallanModal(false)
       setMonthlyChallanForm({
         class: '',
