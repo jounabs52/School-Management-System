@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Edit2, X, Trash2, MapPin, DollarSign, CheckCircle, AlertCircle, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -250,9 +251,15 @@ function RoutesContent() {
         }
       }
 
+      // Calculate max fare from stations
+      const maxFare = formData.stationsList.length > 0
+        ? Math.max(...formData.stationsList.map(s => parseFloat(s.fare) || 0))
+        : 0
+
       // Add new route to state with counts
       const newRoute = {
         ...routeData[0],
+        fare: maxFare,
         stations_count: stationsCount,
         vehicles_count: 0,
         passengers_count: 0
@@ -386,12 +393,24 @@ function RoutesContent() {
         }
       }
 
+      // Fetch updated stations to recalculate max fare
+      const { data: updatedStations } = await supabase
+        .from('stations')
+        .select('fare')
+        .eq('route_id', selectedRoute.id)
+        .eq('status', 'active')
+
+      const maxFare = updatedStations && updatedStations.length > 0
+        ? Math.max(...updatedStations.map(s => s.fare || 0))
+        : 0
+
       // Update route in state
       setRoutes(routes.map(route =>
         route.id === selectedRoute.id
           ? {
               ...route,
               route_name: formData.routeName,
+              fare: maxFare,
               stations_count: (route.stations_count || 0) + additionalStations
             }
           : route
@@ -764,31 +783,39 @@ function RoutesContent() {
       return
     }
 
-    const csvData = filteredRoutes.map((route, index) => ({
-      'Sr.': index + 1,
-      'Route Name': route.route_name || 'N/A',
-      'Total Stations': route.station_count || 0,
-      'Fare Range': route.fare_range || 'N/A'
-    }))
+    try {
+      const exportData = filteredRoutes.map((route, index) => ({
+        'Sr.': index + 1,
+        'Route Name': route.route_name || 'N/A',
+        'Fare': route.fare || 0,
+        'Stations': route.stations_count || 0,
+        'Vehicles': route.vehicles_count || 0,
+        'Passengers': route.passengers_count || 0
+      }))
 
-    const headers = Object.keys(csvData[0])
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => headers.map(header => {
-        const value = row[header]
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(','))
-    ].join('\n')
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const date = new Date().toISOString().split('T')[0]
-    a.download = `transport-routes-${date}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-    showToast('CSV exported successfully!', 'success')
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 5 },   // Sr.
+        { wch: 25 },  // Route Name
+        { wch: 10 },  // Fare
+        { wch: 10 },  // Stations
+        { wch: 10 },  // Vehicles
+        { wch: 12 }   // Passengers
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Routes')
+
+      const date = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `transport-routes-${date}.xlsx`)
+
+      showToast('Excel file exported successfully!', 'success')
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      showToast('Failed to export Excel file', 'error')
+    }
   }
 
   // Pagination calculations

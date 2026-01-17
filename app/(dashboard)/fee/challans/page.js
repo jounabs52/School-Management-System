@@ -242,17 +242,9 @@ function FeeChallanContent() {
       }
 
       const enrichedChallans = challansData?.map(challan => {
-        // Use real-time student fee data if available
-        const studentFinalFee = challan.students?.final_fee
-        const studentBaseFee = challan.students?.base_fee
-        const studentDiscountAmount = challan.students?.discount_amount
-
         return {
           ...challan,
-          // Override with current student fee data for real-time updates
-          total_amount: studentFinalFee !== null && studentFinalFee !== undefined ? studentFinalFee : challan.total_amount,
-          base_fee: studentBaseFee !== null && studentBaseFee !== undefined ? studentBaseFee : challan.base_fee,
-          discount_amount: studentDiscountAmount !== null && studentDiscountAmount !== undefined ? studentDiscountAmount : challan.discount_amount,
+          // Use challan's total_amount as it includes all fee items (monthly + other fees)
           students: challan.students ? {
             ...challan.students,
             classes: challan.students.current_class_id ? classesMap[challan.students.current_class_id] : null,
@@ -280,7 +272,8 @@ function FeeChallanContent() {
         .select(`
           *,
           fee_types!fee_type_id (
-            fee_name
+            fee_name,
+            fee_fund
           )
         `)
         .eq('user_id', user.id)
@@ -316,7 +309,8 @@ function FeeChallanContent() {
         .select(`
           *,
           fee_types!fee_type_id (
-            fee_name
+            fee_name,
+            fee_fund
           )
         `)
         .eq('user_id', user.id)
@@ -665,30 +659,40 @@ function FeeChallanContent() {
       doc.text('FEE BREAKDOWN', leftMargin, yPos)
       yPos += 2
 
-      // Build detailed fee breakdown table
+      // Build detailed fee breakdown table from actual challan items
       const tableData = []
 
-      // Calculate base fee from items (sum of all positive amounts)
-      const baseFee = student?.base_fee || challanToUse?.base_fee || 0
-      const discountAmount = student?.discount_amount || challanToUse?.discount_amount || 0
-
-      // Add base fee row
-      if (baseFee > 0) {
-        tableData.push(['Base Fee', formatCurrency(baseFee)])
-      }
-
-      // Add other fee items
+      // Add ALL fee items from fee_challan_items table
       if (itemsToUse && itemsToUse.length > 0) {
+        // New challan with detailed fee items
         itemsToUse.forEach(item => {
-          const itemName = item.fee_types?.fee_name || item.description
-          // Skip if it's labeled as "Monthly Fee" or "Base Fee" since we already added it
-          if (itemName !== 'Monthly Fee' && itemName !== 'Base Fee') {
-            tableData.push([itemName, formatCurrency(item.amount)])
-          }
+          const itemName = item.fee_types?.fee_name || item.description || 'Fee'
+          const itemAmount = parseFloat(item.amount) || 0
+          tableData.push([itemName, formatCurrency(itemAmount)])
         })
+      } else {
+        // Fallback for old challans: calculate fees from total_amount
+        const totalAmount = parseFloat(challanToUse?.total_amount) || 0
+        const baseFee = parseFloat(student?.base_fee) || parseFloat(challanToUse?.base_fee) || 0
+        const discountAmount = parseFloat(student?.discount_amount) || parseFloat(challanToUse?.discount_amount) || 0
+
+        // Calculate other fees: total_amount - (baseFee - discount)
+        const monthlyFeeAfterDiscount = baseFee - discountAmount
+        const otherFeesAmount = totalAmount - monthlyFeeAfterDiscount
+
+        // Add Monthly Fee
+        if (baseFee > 0) {
+          tableData.push(['Monthly Fee', formatCurrency(baseFee)])
+        }
+
+        // Add Other Fees if they exist
+        if (otherFeesAmount > 0) {
+          tableData.push(['Other Fees', formatCurrency(otherFeesAmount)])
+        }
       }
 
       // Add discount row if exists
+      const discountAmount = student?.discount_amount || challanToUse?.discount_amount || 0
       if (discountAmount > 0) {
         tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
       }
@@ -842,18 +846,39 @@ function FeeChallanContent() {
       for (let i = 0; i < filteredChallans.length; i++) {
         const challan = filteredChallans[i]
 
-        // Fetch challan items
-        const { data: items } = await supabase
+        // Fetch challan items - simplified query
+        const { data: items, error: itemsError } = await supabase
           .from('fee_challan_items')
-          .select(`
-            *,
-            fee_types!fee_type_id (
-              fee_name
-            )
-          `)
-          .eq('user_id', user.id)
-        .eq('school_id', user.school_id)
+          .select('*')
           .eq('challan_id', challan.id)
+
+        // If items exist, fetch fee type names separately
+        if (items && items.length > 0) {
+          const feeTypeIds = items.map(i => i.fee_type_id).filter(Boolean)
+          if (feeTypeIds.length > 0) {
+            const { data: feeTypes } = await supabase
+              .from('fee_types')
+              .select('id, fee_name')
+              .in('id', feeTypeIds)
+
+            // Create a map of fee type names
+            const feeTypeMap = {}
+            feeTypes?.forEach(ft => {
+              feeTypeMap[ft.id] = ft.fee_name
+            })
+
+            // Add fee type names to items
+            items.forEach(item => {
+              if (item.fee_type_id && feeTypeMap[item.fee_type_id]) {
+                item.fee_type_name = feeTypeMap[item.fee_type_id]
+              }
+            })
+          }
+        }
+
+        if (itemsError) {
+          console.error('Error fetching challan items for PDF:', itemsError)
+        }
 
         const itemsToUse = items || []
         const student = challan.students
@@ -1074,30 +1099,40 @@ function FeeChallanContent() {
         doc.text('FEE BREAKDOWN', leftMargin, yPos)
         yPos += 2
 
-        // Build detailed fee breakdown table
+        // Build detailed fee breakdown table from actual challan items
         const tableData = []
 
-        // Calculate base fee from items (sum of all positive amounts)
-        const baseFee = student?.base_fee || challan?.base_fee || 0
-        const discountAmount = student?.discount_amount || challan?.discount_amount || 0
-
-        // Add base fee row
-        if (baseFee > 0) {
-          tableData.push(['Base Fee', formatCurrency(baseFee)])
-        }
-
-        // Add other fee items
+        // Add ALL fee items from fee_challan_items table
         if (itemsToUse && itemsToUse.length > 0) {
+          // New challan with detailed fee items
           itemsToUse.forEach(item => {
-            const itemName = item.fee_types?.fee_name || item.description
-            // Skip if it's labeled as "Monthly Fee" or "Base Fee" since we already added it
-            if (itemName !== 'Monthly Fee' && itemName !== 'Base Fee') {
-              tableData.push([itemName, formatCurrency(item.amount)])
-            }
+            const itemName = item.fee_type_name || item.description || 'Fee'
+            const itemAmount = parseFloat(item.amount) || 0
+            tableData.push([itemName, formatCurrency(itemAmount)])
           })
+        } else {
+          // Fallback for old challans: calculate fees from total_amount
+          const totalAmount = parseFloat(challan?.total_amount) || 0
+          const baseFee = parseFloat(student?.base_fee) || parseFloat(challan?.base_fee) || 0
+          const discountAmount = parseFloat(student?.discount_amount) || parseFloat(challan?.discount_amount) || 0
+
+          // Calculate other fees: total_amount - (baseFee - discount)
+          const monthlyFeeAfterDiscount = baseFee - discountAmount
+          const otherFeesAmount = totalAmount - monthlyFeeAfterDiscount
+
+          // Add Monthly Fee
+          if (baseFee > 0) {
+            tableData.push(['Monthly Fee', formatCurrency(baseFee)])
+          }
+
+          // Add Other Fees if they exist
+          if (otherFeesAmount > 0) {
+            tableData.push(['Other Fees', formatCurrency(otherFeesAmount)])
+          }
         }
 
         // Add discount row if exists
+        const discountAmount = student?.discount_amount || challan?.discount_amount || 0
         if (discountAmount > 0) {
           tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
         }
@@ -1333,15 +1368,15 @@ function FeeChallanContent() {
               className="w-full pl-7 pr-2.5 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
-          {/* Download CSV Button - Always visible */}
+          {/* Download PDF Button - Always visible */}
           <button
             onClick={handleBulkDownload}
             disabled={filteredChallans.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            title="Download CSV"
+            title="Download PDF"
           >
             <Download size={14} />
-            <span>Download CSV</span>
+            <span>Download PDF</span>
           </button>
         </div>
 

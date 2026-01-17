@@ -880,13 +880,25 @@ function PassengersContent() {
           }
         }
 
+        let stationInfo = null
+        if (formData.station) {
+          const station = routeStations.find(s => s.id === formData.station)
+          if (station) {
+            stationInfo = {
+              station_name: station.station_name,
+              fare: station.fare
+            }
+          }
+        }
+
         // Add new passenger to state
         const newPassenger = {
           ...data[0],
           students: studentInfo,
           staff: staffInfo,
           routes: routeInfo,
-          vehicles: vehicleInfo
+          vehicles: vehicleInfo,
+          stations: stationInfo
         }
 
         setPassengers([newPassenger, ...passengers])
@@ -1724,7 +1736,7 @@ function PassengersContent() {
             onClick={() => {
               setShowModal(true);
               setActiveButton('STUDENT');
-              setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '' });
+              setFormData({ type: 'STUDENT', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '', due_date: '' });
               setFilteredStudents([]);
               setFilteredStaff([]);
               setStudentSearchTerm('');
@@ -1743,7 +1755,7 @@ function PassengersContent() {
             onClick={() => {
               setShowModal(true);
               setActiveButton('STAFF');
-              setFormData({ type: 'STAFF', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '' });
+              setFormData({ type: 'STAFF', classId: '', studentId: '', departmentId: '', staffId: '', identifier: '', route: '', station: '', vehicle: '', due_date: '' });
               setFilteredStudents([]);
               setFilteredStaff([]);
               setStudentSearchTerm('');

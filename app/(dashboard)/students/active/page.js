@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import * as XLSX from 'xlsx'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getLineWidth, applyPdfSettings, addCompactPDFHeader, addPDFFooter } from '@/lib/pdfSettings'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -260,13 +261,16 @@ function ActiveStudentsContent() {
                 if (s.id === payload.new.id) {
                   return {
                     ...s,
-                    first_name: payload.new.first_name,
-                    last_name: payload.new.last_name,
-                    father_name: payload.new.father_name,
-                    cnic: payload.new.cnic,
-                    roll_number: payload.new.roll_number,
-                    discount_amount: payload.new.discount_amount,
-                    // Keep class/section names from existing data
+                    admNo: payload.new.admission_number,
+                    name: `${payload.new.first_name}${payload.new.last_name ? ' ' + payload.new.last_name : ''}`,
+                    father: payload.new.father_name || 'N/A',
+                    class: payload.new.current_class_id,
+                    gender: payload.new.gender,
+                    avatar: payload.new.gender === 'female' ? '👧' : (payload.new.gender === 'male' ? '👦' : '🧑'),
+                    dateOfBirth: payload.new.date_of_birth,
+                    admissionDate: payload.new.admission_date,
+                    cnic: payload.new.admission_number,
+                    // Keep other existing formatted data
                   }
                 }
                 return s
@@ -427,37 +431,59 @@ function ActiveStudentsContent() {
       return
     }
 
-    const csvData = filteredStudents.map((student, index) => ({
-      'Sr.': index + 1,
-      'Session': student.session || 'N/A',
-      'Class': student.class || 'N/A',
-      'Student Name': student.name || 'N/A',
-      'Father Name': student.father || 'N/A',
-      'Admission No.': student.admNo || 'N/A',
-      'CNIC': student.cnic || 'N/A',
-      'Gender': student.gender || 'N/A',
-      'Date of Birth': student.dateOfBirth || 'N/A',
-      'Admission Date': student.admissionDate || 'N/A'
-    }))
+    try {
+      // Helper function to format date
+      const formatDate = (dateStr) => {
+        if (!dateStr) return 'N/A'
+        const date = new Date(dateStr)
+        if (isNaN(date.getTime())) return 'N/A'
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+      }
 
-    const headers = Object.keys(csvData[0])
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => headers.map(header => {
-        const value = row[header]
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(','))
-    ].join('\n')
+      const exportData = filteredStudents.map((student, index) => ({
+        'Sr.': index + 1,
+        'Session': student.session || 'N/A',
+        'Class': getClassName(student.class),
+        'Student Name': student.name || 'N/A',
+        'Father Name': student.father || 'N/A',
+        'Admission No.': student.admNo || 'N/A',
+        'CNIC': student.cnic || 'N/A',
+        'Gender': student.gender || 'N/A',
+        'Date of Birth': formatDate(student.dateOfBirth),
+        'Admission Date': formatDate(student.admissionDate)
+      }))
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const date = new Date().toISOString().split('T')[0]
-    a.download = `active-students-${date}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-    showToast('CSV exported successfully!', 'success')
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 5 },   // Sr.
+        { wch: 12 },  // Session
+        { wch: 12 },  // Class
+        { wch: 20 },  // Student Name
+        { wch: 20 },  // Father Name
+        { wch: 12 },  // Admission No.
+        { wch: 15 },  // CNIC
+        { wch: 8 },   // Gender
+        { wch: 15 },  // Date of Birth
+        { wch: 15 }   // Admission Date
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Active Students')
+
+      const date = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `active-students-${date}.xlsx`)
+
+      showToast('Excel file exported successfully!', 'success')
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      showToast('Failed to export Excel file', 'error')
+    }
   }
 
   const filteredStudents = students.filter(student => {

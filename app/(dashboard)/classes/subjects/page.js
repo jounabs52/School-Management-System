@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, Search, Edit2, Trash2, X, BookOpen, ChevronDown, CheckCircle, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -358,45 +359,47 @@ function SubjectsContent() {
       return
     }
 
-    // Sort by standard_fee (low to high) for export
-    const sortedGroups = [...groupedSubjectsArray].sort((a, b) => {
-      const feeA = parseFloat(a.standardFee) || 0
-      const feeB = parseFloat(b.standardFee) || 0
-      return feeA - feeB
-    })
+    try {
+      // Sort by standard_fee (low to high) for export
+      const sortedGroups = [...groupedSubjectsArray].sort((a, b) => {
+        const feeA = parseFloat(a.standardFee) || 0
+        const feeB = parseFloat(b.standardFee) || 0
+        return feeA - feeB
+      })
 
-    const csvData = sortedGroups.map((classGroup, index) => {
-      // Format subjects as comma-separated list
-      const subjectsList = classGroup.subjects
-        .map(sub => sub.subjectName)
-        .join(', ')
+      const exportData = sortedGroups.map((classGroup, index) => {
+        // Format subjects as comma-separated list
+        const subjectsList = classGroup.subjects
+          .map(sub => sub.subjectName)
+          .join(', ')
 
-      return {
-        'Sr.': index + 1,
-        'Class Name': classGroup.className || 'N/A',
-        'Subjects': subjectsList || 'N/A'
-      }
-    })
+        return {
+          'Sr.': index + 1,
+          'Class Name': classGroup.className || 'N/A',
+          'Subjects': subjectsList || 'N/A'
+        }
+      })
 
-    const headers = Object.keys(csvData[0])
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => headers.map(header => {
-        const value = row[header]
-        // Wrap in quotes if contains comma
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(','))
-    ].join('\n')
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const date = new Date().toISOString().split('T')[0]
-    a.download = `subjects-${date}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-    showToast('CSV exported successfully!', 'success')
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 5 },   // Sr.
+        { wch: 20 },  // Class Name
+        { wch: 60 }   // Subjects (wider for comma-separated list)
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Subjects')
+
+      const date = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `subjects-${date}.xlsx`)
+
+      showToast('Excel file exported successfully!', 'success')
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      showToast('Failed to export Excel file', 'error')
+    }
   }
 
   // Group subjects by class
