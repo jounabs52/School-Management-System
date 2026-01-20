@@ -1109,8 +1109,29 @@ function TestMarksPage() {
 }
 
 export default function TestMarksPageWithPermission() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const getCookie = (name) => {
+      const value = `; ${document.cookie}`
+      const parts = value.split(`; ${name}=`)
+      if (parts.length === 2) return parts.pop().split(';').shift()
+      return null
+    }
+
+    const userData = getCookie('user-data')
+    if (userData) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userData))
+        setCurrentUser(user)
+      } catch (e) {
+        console.error('Error parsing user data:', e)
+      }
+    }
+  }, [])
+
   return (
-    <PermissionGuard permissionKey="examination_testmarks_view" pageName="Test Marks">
+    <PermissionGuard permissionKey="examination_testmarks_view" pageName="Test Marks" currentUser={currentUser}>
       <TestMarksPage />
     </PermissionGuard>
   )

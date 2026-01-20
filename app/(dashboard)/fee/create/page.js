@@ -732,19 +732,6 @@ function FeeCreateContent() {
             first_name,
             last_name,
             father_name,
-            mother_name,
-            date_of_birth,
-            gender,
-            blood_group,
-            religion,
-            caste,
-            phone,
-            email,
-            address,
-            city,
-            state,
-            postal_code,
-            admission_date,
             current_class_id,
             current_section_id,
             fee_plan,
@@ -759,9 +746,12 @@ function FeeCreateContent() {
         .eq('school_id', user.school_id)
         .order('id', { ascending: false })
 
-      console.log('fetchCreatedChallans: Query result -', 'error:', error, 'data count:', data?.length)
+      console.log('fetchCreatedChallans: Query result -', 'error:', error?.message || error, 'data count:', data?.length)
 
-      if (!error && data) {
+      // Check if error exists and has message or code (handles empty error objects)
+      const hasError = error && (error.message || error.code || Object.keys(error).length > 0)
+
+      if (!hasError && data) {
         // Fetch all payments for these challans
         const challanIds = data.map(c => c.id).filter(Boolean)
         const { data: paymentsData } = await supabase
@@ -779,12 +769,29 @@ function FeeCreateContent() {
           paymentMap[payment.challan_id] += parseFloat(payment.amount_paid || 0)
         })
 
-        // Create lookup maps for efficient matching
-        const classMap = {}
-        classes.forEach(c => { classMap[c.id] = c })
+        // Get unique class and section IDs from challans
+        const classIds = [...new Set(data.map(c => c.students?.current_class_id).filter(Boolean))]
+        const sectionIds = [...new Set(data.map(c => c.students?.current_section_id).filter(Boolean))]
 
-        const sectionMap = {}
-        sections.forEach(s => { sectionMap[s.id] = s })
+        // Fetch classes and sections data directly
+        let classMap = {}
+        let sectionMap = {}
+
+        if (classIds.length > 0) {
+          const { data: classesData } = await supabase
+            .from('classes')
+            .select('id, class_name')
+            .in('id', classIds)
+          classesData?.forEach(c => { classMap[c.id] = c })
+        }
+
+        if (sectionIds.length > 0) {
+          const { data: sectionsData } = await supabase
+            .from('sections')
+            .select('id, section_name')
+            .in('id', sectionIds)
+          sectionsData?.forEach(s => { sectionMap[s.id] = s })
+        }
 
         // Enrich with class and section data, payment data, and auto-calculate status
         const enrichedData = data.map((challan) => {
@@ -843,11 +850,13 @@ function FeeCreateContent() {
 
         console.log('fetchCreatedChallans: Setting enriched data -', enrichedData.length, 'challans')
         setCreatedChallans(enrichedData)
-      } else if (error) {
-        console.error('fetchCreatedChallans: Error fetching challans:', error)
+      } else if (hasError) {
+        console.error('fetchCreatedChallans: Error fetching challans:', error?.message || error?.code || JSON.stringify(error))
+      } else if (!data) {
+        console.log('fetchCreatedChallans: No data returned from query')
       }
     } catch (error) {
-      console.error('Error fetching challans:', error)
+      console.error('Error fetching challans:', error?.message || error)
     }
   }
 
@@ -1192,6 +1201,11 @@ function FeeCreateContent() {
       doc.text('FEE BREAKDOWN', leftMargin, yPos)
       yPos += 2
 
+      // Calculate paid amount and balance due
+      const totalAmount = parseFloat(challan?.total_amount || 0)
+      const paidAmount = parseFloat(challan?.paid_amount || 0)
+      const balanceDue = Math.max(0, totalAmount - paidAmount)
+
       // Build detailed fee breakdown table from actual challan items
       const tableData = []
 
@@ -1201,43 +1215,50 @@ function FeeCreateContent() {
         itemsToUse.forEach(item => {
           const itemName = item.fee_type_name || item.description || 'Fee'
           const itemAmount = parseFloat(item.amount) || 0
-          tableData.push([itemName, formatCurrency(itemAmount)])
+          tableData.push({ label: itemName, amount: formatCurrency(itemAmount), type: 'normal' })
         })
       } else {
         // Fallback for old challans: calculate fees from total_amount
-        const totalAmount = parseFloat(challan?.total_amount) || 0
         const baseFee = parseFloat(student?.base_fee) || parseFloat(challan?.base_fee) || 0
-        const discountAmount = parseFloat(student?.discount_amount) || parseFloat(challan?.discount_amount) || 0
+        const discountAmt = parseFloat(student?.discount_amount) || parseFloat(challan?.discount_amount) || 0
 
         // Calculate other fees: total_amount - (baseFee - discount)
-        const monthlyFeeAfterDiscount = baseFee - discountAmount
+        const monthlyFeeAfterDiscount = baseFee - discountAmt
         const otherFeesAmount = totalAmount - monthlyFeeAfterDiscount
 
         // Add Monthly Fee
         if (baseFee > 0) {
-          tableData.push(['Monthly Fee', formatCurrency(baseFee)])
+          tableData.push({ label: 'Monthly Fee', amount: formatCurrency(baseFee), type: 'normal' })
         }
 
         // Add Other Fees if they exist
         if (otherFeesAmount > 0) {
-          tableData.push(['Other Fees', formatCurrency(otherFeesAmount)])
+          tableData.push({ label: 'Other Fees', amount: formatCurrency(otherFeesAmount), type: 'normal' })
         }
       }
 
       // Add discount row if exists
       const discountAmount = student?.discount_amount || challan?.discount_amount || 0
       if (discountAmount > 0) {
-        tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
+        tableData.push({ label: 'Discount', amount: `- ${formatCurrency(discountAmount)}`, type: 'discount' })
       }
+
+      // Add summary rows
+      tableData.push({ label: 'TOTAL FEE PAYABLE', amount: formatCurrency(totalAmount), type: 'total' })
+      tableData.push({ label: 'Already Paid', amount: formatCurrency(paidAmount), type: 'paid' })
+      tableData.push({ label: 'Balance Due', amount: formatCurrency(balanceDue), type: 'balance' })
+
+      // Convert to autoTable format
+      const tableBody = tableData.map(row => [row.label, row.amount])
 
       const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
       const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
 
-      if (tableData.length > 0) {
+      if (tableBody.length > 0) {
         autoTable(doc, {
           startY: yPos,
           head: [['Particulars', 'Amount']],
-          body: tableData,
+          body: tableBody,
           theme: pdfSettings.tableStyle || 'grid',
           headStyles: {
             fillColor: hexToRgb(pdfSettings.tableHeaderColor),
@@ -1245,55 +1266,67 @@ function FeeCreateContent() {
             fontSize: parseInt(pdfSettings.fontSize) + 1,
             fontStyle: 'bold',
             halign: 'left',
-            cellPadding: { top: cellPaddingValue - 1, bottom: cellPaddingValue - 1, left: 5, right: 5 }
+            cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 }
           },
           bodyStyles: {
             fontSize: parseInt(pdfSettings.fontSize) + 1,
             cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 },
             textColor: textColorRgb
           },
-          alternateRowStyles: {
-            fillColor: alternateRowColorRgb
-          },
           columnStyles: {
-            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+            0: { cellWidth: 130, halign: 'left' },
             1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
           },
           margin: { left: leftMargin, right: leftMargin },
           didParseCell: function(data) {
             data.cell.styles.lineColor = secondaryColorRgb
             data.cell.styles.lineWidth = lineWidthValue
-          },
-          didDrawCell: function(data) {
-            if (data.column.index === 1 && data.section === 'body') {
-              const amountText = data.cell.raw || ''
-              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
-                doc.setTextColor(220, 38, 38) // Red color for discount
+
+            if (data.section === 'body') {
+              const rowType = tableData[data.row.index]?.type
+
+              // Style for TOTAL FEE PAYABLE row
+              if (rowType === 'total') {
+                data.cell.styles.fillColor = hexToRgb('#F0FDF4')
+                data.cell.styles.fontStyle = 'bold'
+                if (data.column.index === 0) {
+                  data.cell.styles.textColor = textColorRgb
+                } else {
+                  data.cell.styles.textColor = primaryColorRgb
+                }
+              }
+              // Style for Already Paid row
+              else if (rowType === 'paid') {
+                data.cell.styles.fillColor = [255, 255, 255]
+                data.cell.styles.fontStyle = 'bold'
+                if (data.column.index === 1) {
+                  data.cell.styles.textColor = [34, 197, 94] // Green
+                }
+              }
+              // Style for Balance Due row
+              else if (rowType === 'balance') {
+                data.cell.styles.fillColor = balanceDue > 0 ? hexToRgb('#FEF2F2') : hexToRgb('#F0FDF4')
+                data.cell.styles.fontStyle = 'bold'
+                if (data.column.index === 1) {
+                  data.cell.styles.textColor = balanceDue > 0 ? [220, 38, 38] : [34, 197, 94] // Red if due, green if paid
+                }
+              }
+              // Style for Discount row
+              else if (rowType === 'discount') {
+                if (data.column.index === 1) {
+                  data.cell.styles.textColor = [220, 38, 38] // Red for discount
+                }
+              }
+              // Alternate row colors for normal rows
+              else if (data.row.index % 2 === 1) {
+                data.cell.styles.fillColor = alternateRowColorRgb
               }
             }
           }
         })
 
-        yPos = doc.lastAutoTable.finalY + 3
+        yPos = doc.lastAutoTable.finalY + 5
       }
-
-      // TOTAL FEE PAYABLE
-      const bgColorRgb = hexToRgb(pdfSettings.backgroundColor || '#F0FDF4')
-      doc.setFillColor(...bgColorRgb)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
-      doc.setDrawColor(...secondaryColorRgb)
-      doc.setLineWidth(lineWidthValue)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
-
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
-
-      doc.setTextColor(...primaryColorRgb)
-      doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
-
-      yPos += 15
 
       // Amount in words
       doc.setFontSize(parseInt(pdfSettings.fontSize))
