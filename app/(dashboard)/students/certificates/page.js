@@ -16,6 +16,8 @@ import {
   getMarginValues,
   getLogoSize
 } from '@/lib/pdfSettings'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -39,7 +41,7 @@ const getLoggedInUser = () => {
   }
 }
 
-export default function StudentCertificatesPage() {
+function StudentCertificatesContent() {
   const [classes, setClasses] = useState([])
   const [sections, setSections] = useState([])
   const [students, setStudents] = useState([])
@@ -2374,5 +2376,34 @@ export default function StudentCertificatesPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function StudentCertificatesPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="students_certificates_view"
+      pageName="Student Certificates"
+    >
+      <StudentCertificatesContent />
+    </PermissionGuard>
   )
 }

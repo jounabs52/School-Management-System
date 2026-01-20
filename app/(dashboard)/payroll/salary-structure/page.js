@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { AlertCircle } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
+import PermissionGuard from '@/components/PermissionGuard'
 
 export default function SalaryStructurePage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -439,6 +440,11 @@ export default function SalaryStructurePage() {
   }
 
   return (
+    <PermissionGuard
+      permissionKey="payroll_create_view"
+      currentUser={currentUser}
+      pageName="Create Salary"
+    >
     <div className="p-1">
       <Toaster
         position="top-right"
@@ -921,5 +927,6 @@ export default function SalaryStructurePage() {
         </>
       )}
     </div>
+    </PermissionGuard>
   )
 }

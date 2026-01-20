@@ -8,6 +8,7 @@ import {
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { supabase } from '@/lib/supabase'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -34,7 +35,8 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-export default function FeeReportsPage() {
+// Main Content Component
+function FeeReportsContent() {
   const [activeTab, setActiveTab] = useState('defaulters')
   const [loading, setLoading] = useState(true)
   const [defaulters, setDefaulters] = useState([])
@@ -926,5 +928,35 @@ export default function FeeReportsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Main Page Component with Permission Guard
+export default function FeeReportsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="fee_reports_view"
+      pageName="Fee Reports"
+    >
+      <FeeReportsContent />
+    </PermissionGuard>
   )
 }

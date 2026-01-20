@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { supabase } from '@/lib/supabase'
+import PermissionGuard from '@/components/PermissionGuard'
 
-export default function DebugPage() {
+function DebugPageContent() {
   const [user, setUser] = useState(null)
   const [testResult, setTestResult] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -144,5 +145,34 @@ export default function DebugPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DebugPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    setCurrentUser(user)
+    setIsLoading(false)
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="debug_view"
+      pageName="Debug"
+    >
+      <DebugPageContent />
+    </PermissionGuard>
   )
 }

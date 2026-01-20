@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { X, Plus, Search, Save, AlertCircle, CheckCircle, Edit, Trash2, FileText } from 'lucide-react'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Helper to get logged-in user
 const getLoggedInUser = () => {
@@ -15,7 +16,7 @@ const getLoggedInUser = () => {
   }
 }
 
-export default function ExamsPage() {
+function ExamsPage() {
   const [currentUser, setCurrentUser] = useState(null)
   const [exams, setExams] = useState([])
   const [allDatesheets, setAllDatesheets] = useState([])
@@ -1209,5 +1210,13 @@ export default function ExamsPage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function ExamsPageWithPermission() {
+  return (
+    <PermissionGuard permissionKey="examination_exams_view" pageName="Exams">
+      <ExamsPage />
+    </PermissionGuard>
   )
 }

@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+============================================================================
+=======
 -- ============================================================================
 -- COMPLETE SCHOOL MANAGEMENT SYSTEM DATABASE SCHEMA
 -- Version: 1.0 | All 57 Tables | Properly Dependency-Ordered
@@ -11,6 +14,7 @@
 -- ============================================================================
 
 -- ============================================================================
+>>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
 -- STEP 1: CREATE HELPER FUNCTIONS
 -- ============================================================================
 
@@ -2009,6 +2013,7 @@ create table public.student_id_cards (
   status character varying(20) null default 'active'::character varying,
   barcode character varying(100) null,
   issued_by uuid null,
+<<<<<<< HEAD
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   constraint student_id_cards_pkey primary key (id),
@@ -2032,6 +2037,293 @@ create table public.student_id_cards (
   )
 ) TABLESPACE pg_default;
 
+
+
+
+create table public.staff_attendance (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  staff_id uuid not null,
+  school_id uuid not null,
+  attendance_date date not null,
+  check_in_time time without time zone null,
+  check_out_time time without time zone null,
+  status character varying(20) not null,
+  remarks text null,
+  marked_by uuid null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint staff_attendance_pkey primary key (id),
+  constraint staff_attendance_school_id_staff_id_attendance_date_key unique (school_id, staff_id, attendance_date),
+  constraint staff_attendance_marked_by_fkey foreign KEY (marked_by) references users (id) on delete set null,
+  constraint staff_attendance_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint staff_attendance_staff_id_fkey foreign KEY (staff_id) references staff (id) on delete CASCADE,
+  constraint staff_attendance_status_check check (
+    (
+      (status)::text = any (
+        (
+          array[
+            'present'::character varying,
+            'absent'::character varying,
+            'half-day'::character varying,
+            'late'::character varying,
+            'on-leave'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_staff_attendance_school_date on public.staff_attendance using btree (school_id, staff_id, attendance_date) TABLESPACE pg_default;
+
+create table public.staff_certificates (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  staff_id uuid not null,
+  school_id uuid not null,
+  certificate_type character varying(100) not null,
+  issue_date date not null default CURRENT_DATE,
+  issued_by character varying(255) null,
+  certificate_number character varying(100) null,
+  file_url text null,
+  remarks text null,
+  created_by uuid null,
+  created_at timestamp with time zone null default now(),
+  user_id uuid not null,
+  constraint staff_certificates_pkey primary key (id),
+  constraint staff_certificates_school_id_certificate_number_key unique (school_id, certificate_number),
+  constraint staff_certificates_created_by_fkey foreign KEY (created_by) references users (id) on delete set null,
+  constraint staff_certificates_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint staff_certificates_staff_id_fkey foreign KEY (staff_id) references staff (id) on delete CASCADE,
+  constraint staff_certificates_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_staff_certificates_user_id on public.staff_certificates using btree (user_id) TABLESPACE pg_default;
+
+create table public.staff_id_cards (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  staff_id uuid not null,
+  school_id uuid not null,
+  card_number character varying(50) not null,
+  issue_date date not null default CURRENT_DATE,
+  expiry_date date null,
+  status character varying(20) null default 'active'::character varying,
+  barcode character varying(100) null,
+  issued_by uuid null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint staff_id_cards_pkey primary key (id),
+  constraint staff_id_cards_school_id_card_number_key unique (school_id, card_number),
+  constraint staff_id_cards_issued_by_fkey foreign KEY (issued_by) references users (id) on delete set null,
+  constraint staff_id_cards_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint staff_id_cards_staff_id_fkey foreign KEY (staff_id) references staff (id) on delete CASCADE,
+  constraint staff_id_cards_status_check check (
+=======
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint student_id_cards_pkey primary key (id),
+  constraint student_id_cards_school_id_card_number_key unique (school_id, card_number),
+  constraint student_id_cards_session_id_fkey foreign KEY (session_id) references sessions (id) on delete CASCADE,
+  constraint student_id_cards_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint student_id_cards_issued_by_fkey foreign KEY (issued_by) references users (id) on delete set null,
+  constraint student_id_cards_student_id_fkey foreign KEY (student_id) references students (id) on delete CASCADE,
+  constraint student_id_cards_status_check check (
+>>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
+    (
+      (status)::text = any (
+        (
+          array[
+            'active'::character varying,
+            'expired'::character varying,
+            'lost'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+<<<<<<< HEAD
+
+create table public.datesheet_schedules (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  datesheet_id uuid not null,
+  school_id uuid not null,
+  created_by uuid null,
+  class_id uuid not null,
+  subject_id uuid null,
+  exam_date date not null,
+  start_time time without time zone not null,
+  end_time time without time zone not null,
+  room_number character varying(100) null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  user_id uuid not null,
+  constraint datesheet_schedules_pkey primary key (id),
+  constraint datesheet_schedules_created_by_fkey foreign KEY (created_by) references users (id) on delete set null,
+  constraint datesheet_schedules_datesheet_id_fkey foreign KEY (datesheet_id) references datesheets (id) on delete CASCADE,
+  constraint datesheet_schedules_class_id_fkey foreign KEY (class_id) references classes (id) on delete CASCADE,
+  constraint datesheet_schedules_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint datesheet_schedules_subject_id_fkey foreign KEY (subject_id) references subjects (id) on delete set null,
+  constraint datesheet_schedules_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_datesheet_schedules_datesheet_id on public.datesheet_schedules using btree (datesheet_id) TABLESPACE pg_default;
+
+create index IF not exists idx_datesheet_schedules_school_id on public.datesheet_schedules using btree (school_id) TABLESPACE pg_default;
+
+create index IF not exists idx_datesheet_schedules_class_id on public.datesheet_schedules using btree (class_id) TABLESPACE pg_default;
+
+create index IF not exists idx_datesheet_schedules_user_id on public.datesheet_schedules using btree (user_id) TABLESPACE pg_default;
+
+create table public.roll_no_slips (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  school_id uuid not null,
+  datesheet_id uuid not null,
+  student_id uuid not null,
+  generated_by uuid null,
+  slip_number character varying(100) not null,
+  slip_type character varying(50) not null,
+  gender character varying(20) null,
+  file_url text null,
+  configuration jsonb null,
+  status character varying(20) null default 'generated'::character varying,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  class_id uuid null,
+  constraint roll_no_slips_pkey primary key (id),
+  constraint roll_no_slips_school_id_datesheet_id_student_id_slip_type_key unique (school_id, datesheet_id, student_id, slip_type),
+  constraint roll_no_slips_datesheet_id_fkey foreign KEY (datesheet_id) references datesheets (id) on delete CASCADE,
+  constraint roll_no_slips_generated_by_fkey foreign KEY (generated_by) references users (id) on delete set null,
+  constraint roll_no_slips_class_id_fkey foreign KEY (class_id) references classes (id) on delete set null,
+  constraint roll_no_slips_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint roll_no_slips_student_id_fkey foreign KEY (student_id) references students (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_roll_no_slips_class_id on public.roll_no_slips using btree (class_id) TABLESPACE pg_default;
+
+create table public.expense_categories (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  school_id uuid not null,
+  created_by uuid null,
+  category_name character varying(100) not null,
+  description text null,
+  status character varying(20) null default 'active'::character varying,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  user_id uuid not null,
+  constraint expense_categories_pkey primary key (id),
+  constraint expense_categories_school_id_category_name_key unique (school_id, category_name),
+  constraint expense_categories_created_by_fkey foreign KEY (created_by) references users (id) on delete set null,
+  constraint expense_categories_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint expense_categories_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE,
+  constraint expense_categories_status_check check (
+    (
+      (status)::text = any (
+        (
+          array[
+            'active'::character varying,
+            'inactive'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_expense_categories_user_id on public.expense_categories using btree (user_id) TABLESPACE pg_default;
+
+create table public.expenses (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  school_id uuid not null,
+  expense_category_id uuid not null,
+  expense_date date not null,
+  amount numeric(12, 2) not null,
+  payment_method character varying(50) null,
+  invoice_number character varying(100) null,
+  vendor_name character varying(255) null,
+  description text null,
+  paid_by uuid null,
+  approved_by uuid null,
+  receipt_url text null,
+  status character varying(20) null default 'pending'::character varying,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint expenses_pkey primary key (id),
+  constraint expenses_school_id_fkey foreign KEY (school_id) references schools (id) on delete CASCADE,
+  constraint expenses_expense_category_id_fkey foreign KEY (expense_category_id) references expense_categories (id) on delete CASCADE,
+  constraint expenses_paid_by_fkey foreign KEY (paid_by) references users (id) on delete set null,
+  constraint expenses_approved_by_fkey foreign KEY (approved_by) references users (id) on delete set null,
+  constraint expenses_payment_method_check check (
+    (
+      (payment_method)::text = any (
+        (
+          array[
+            'cash'::character varying,
+            'cheque'::character varying,
+            'online'::character varying,
+            'bank_transfer'::character varying
+          ]
+        )::text[]
+      )
+    )
+  ),
+  constraint expenses_status_check check (
+    (
+      (status)::text = any (
+        (
+          array[
+            'pending'::character varying,
+            'approved'::character varying,
+            'paid'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+
+
+CREATE TABLE public.book_issues (
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+
+    school_id UUID NOT NULL,
+    book_id UUID NOT NULL,
+
+    borrower_type VARCHAR(20) NOT NULL,
+    borrower_id UUID NOT NULL,
+
+    issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE NOT NULL,
+    return_date DATE,
+
+    fine_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+    fine_paid BOOLEAN NOT NULL DEFAULT FALSE,
+
+    issued_by UUID,
+    status VARCHAR(20) NOT NULL DEFAULT 'issued',
+
+    remarks TEXT,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- Foreign Keys
+    CONSTRAINT book_issues_school_id_fkey
+        FOREIGN KEY (school_id)
+        REFERENCES public.schools (id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT book_issues_book_id_fkey
+        FOREIGN KEY (book_id)
+        REFERENCES public.books (id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT book_issues_issued_by_fkey
+        FOREIGN KEY (issued_by)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL,
+=======
 -- Add user_id column to book_issues table
 -- This column is required for tracking which user manages each book issue entry
 
@@ -2069,6 +2361,13 @@ CREATE INDEX IF NOT EXISTS idx_book_issues_user_id ON public.book_issues USING b
 COMMENT ON COLUMN public.book_issues.user_id IS 'User who manages this book issue entry';
 
 
+>>>>>>> 0bff88ac9f59af5f44b259d5fb867eb5dfab8b61
 
+    -- Checks
+    CONSTRAINT book_issues_borrower_type_check
+        CHECK (borrower_type IN ('student', 'staff')),
 
+    CONSTRAINT book_issues_status_check
+        CHECK (status IN ('issued', 'returned', 'overdue', 'lost'))
+);
 

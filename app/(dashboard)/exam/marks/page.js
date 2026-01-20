@@ -15,8 +15,10 @@ import {
 } from '@/lib/pdfSettings'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function ExamMarksPage() {
+function ExamMarksPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [schoolData, setSchoolData] = useState(null)
   const [datesheets, setDatesheets] = useState([])
@@ -2086,5 +2088,34 @@ export default function ExamMarksPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function ExamMarksPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="exam_marks_view"
+      pageName="Exam Marks"
+    >
+      <ExamMarksPageContent />
+    </PermissionGuard>
   )
 }

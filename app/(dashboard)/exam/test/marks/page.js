@@ -15,8 +15,9 @@ import {
 } from '@/lib/pdfSettings'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
 
-export default function TestMarksPage() {
+function TestMarksPage() {
   const [currentUser, setCurrentUser] = useState(null)
   const [schoolData, setSchoolData] = useState(null)
   const [tests, setTests] = useState([])
@@ -1104,5 +1105,13 @@ export default function TestMarksPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function TestMarksPageWithPermission() {
+  return (
+    <PermissionGuard permissionKey="examination_testmarks_view" pageName="Test Marks">
+      <TestMarksPage />
+    </PermissionGuard>
   )
 }

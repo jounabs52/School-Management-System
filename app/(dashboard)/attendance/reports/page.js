@@ -14,8 +14,10 @@ import {
   PDF_COLORS,
   PDF_FONTS
 } from '@/lib/pdfUtils'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function AttendanceReportsPage() {
+function AttendanceReportsContent() {
   const [activeTab, setActiveTab] = useState('student')
   const [currentUser, setCurrentUser] = useState(null)
   const [schoolData, setSchoolData] = useState(null)
@@ -2590,4 +2592,33 @@ export default function AttendanceReportsPage() {
       </div>
     )
   }
+}
+
+export default function AttendanceReportsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="attendance_reports_view"
+      pageName="Attendance Reports"
+    >
+      <AttendanceReportsContent />
+    </PermissionGuard>
+  )
 }

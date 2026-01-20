@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getUserFromCookie } from '@/lib/clientAuth'
+import PermissionGuard from '@/components/PermissionGuard'
 import { supabase } from '@/lib/supabase'
 import { AlertCircle, Printer, Download, ArrowLeft } from 'lucide-react'
 import jsPDF from 'jspdf'
@@ -18,7 +20,7 @@ import {
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 
-export default function SalaryRegisterReport() {
+function SalaryRegisterReportContent() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState(null)
   const [salaryStructures, setSalaryStructures] = useState([])
@@ -636,5 +638,34 @@ export default function SalaryRegisterReport() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function SalaryRegisterReport() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    setCurrentUser(user)
+    setIsLoading(false)
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="payroll_salary_register_view"
+      pageName="Salary Register"
+    >
+      <SalaryRegisterReportContent />
+    </PermissionGuard>
   )
 }

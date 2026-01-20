@@ -7,6 +7,7 @@ import { getUserFromCookie } from '@/lib/clientAuth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { getPdfSettings, hexToRgb, getMarginValues, formatCurrency, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -33,7 +34,8 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-export default function FeeChallanPage() {
+// Main Content Component
+function FeeChallanContent() {
   const [challans, setChallans] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -1739,5 +1741,35 @@ export default function FeeChallanPage() {
         </>
       )}
     </div>
+  )
+}
+
+// Main Page Component with Permission Guard
+export default function FeeChallanPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="fee_challans_view"
+      pageName="Fee Challans"
+    >
+      <FeeChallanContent />
+    </PermissionGuard>
   )
 }

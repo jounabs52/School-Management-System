@@ -6,8 +6,10 @@ import {
   X, Plus, Search, Users, Mail, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle,
   ChevronDown, Download, FileSpreadsheet, Upload
 } from 'lucide-react'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function VisitorsPage() {
+function VisitorsContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [visitors, setVisitors] = useState([])
   const [filteredVisitors, setFilteredVisitors] = useState([])
@@ -645,5 +647,34 @@ export default function VisitorsPage() {
         ))}
       </div>
     </div>
+  )
+}
+
+export default function VisitorsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="frontdesk_visitors_view"
+      pageName="Visitors"
+    >
+      <VisitorsContent />
+    </PermissionGuard>
   )
 }

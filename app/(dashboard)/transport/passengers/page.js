@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Edit2, X, Trash2, Printer, CheckCircle, AlertCircle, ArrowRightLeft, RefreshCw } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import PermissionGuard from '@/components/PermissionGuard'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
@@ -53,7 +54,7 @@ function Toast({ message, type, onClose }) {
   )
 }
 
-export default function PassengersPage() {
+function PassengersContent() {
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -2652,5 +2653,34 @@ export default function PassengersPage() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function PassengersPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="transport_passengers_view"
+      pageName="Transport Passengers"
+    >
+      <PassengersContent />
+    </PermissionGuard>
   )
 }

@@ -18,8 +18,10 @@ import {
 } from '@/lib/pdfSettings'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function ExpensesPage() {
+function ExpensesPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
@@ -1624,5 +1626,34 @@ export default function ExpensesPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function ExpensesPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    setCurrentUser(user)
+    setLoading(false)
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      permissionKey="payroll_expenses_view"
+      currentUser={currentUser}
+      pageName="Payroll Expenses"
+    >
+      <ExpensesPageContent />
+    </PermissionGuard>
   )
 }

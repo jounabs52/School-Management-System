@@ -91,7 +91,7 @@ export default function LoginPage() {
             <School className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-3xl font-extrabold text-gray-800 mb-1">
-            SmartSchool Pro
+            Smart School Pro
           </h1>
           <p className="text-lg text-gray-600 font-medium">School Management System</p>
         </div>
@@ -186,7 +186,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="text-center mt-4 text-xs text-gray-600">
-          <p>© {new Date().getFullYear()} SmartSchool Pro • All Rights Reserved</p>
+          <p>© {new Date().getFullYear()} Smart School Pro • All Rights Reserved</p>
         </div>
       </div>
     </div>

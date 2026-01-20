@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { supabase } from '@/lib/supabase'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -31,7 +32,8 @@ const Toast = ({ message, type, onClose }) => {
   )
 }
 
-export default function FeeGeneratePage() {
+// Main Content Component
+function FeeGenerateContent() {
   const [activeTab, setActiveTab] = useState('periods')
   const [sessions, setSessions] = useState([])
   const [classes, setClasses] = useState([])
@@ -645,5 +647,35 @@ export default function FeeGeneratePage() {
         />
       )}
     </div>
+  )
+}
+
+// Main Page Component with Permission Guard
+export default function FeeGeneratePage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="fee_generate_view"
+      pageName="Generate Fee"
+    >
+      <FeeGenerateContent />
+    </PermissionGuard>
   )
 }

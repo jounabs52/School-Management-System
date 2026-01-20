@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { AlertCircle } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function StaffPayrollPage() {
+function StaffPayrollPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
   const [searchEmployeeNumber, setSearchEmployeeNumber] = useState('')
   const [searchGeneralData, setSearchGeneralData] = useState('')
@@ -1224,5 +1226,34 @@ export default function StaffPayrollPage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function StaffPayrollPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    setCurrentUser(user)
+    setLoading(false)
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      permissionKey="payroll_pay_view"
+      currentUser={currentUser}
+      pageName="Pay Salary"
+    >
+      <StaffPayrollPageContent />
+    </PermissionGuard>
   )
 }

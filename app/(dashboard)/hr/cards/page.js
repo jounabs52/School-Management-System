@@ -8,8 +8,10 @@ import QRCode from 'qrcode'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import { getPdfSettings } from '@/lib/pdfSettings'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function StaffIDCardsPage() {
+function StaffIDCardsContent() {
   const [validityUpto, setValidityUpto] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStaffId, setSelectedStaffId] = useState('')
@@ -1267,5 +1269,34 @@ export default function StaffIDCardsPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function StaffIDCardsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="staff_cards_view"
+      pageName="Staff ID Cards"
+    >
+      <StaffIDCardsContent />
+    </PermissionGuard>
   )
 }

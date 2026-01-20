@@ -6,6 +6,8 @@ import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 import { convertImageToBase64, addDecorativeBorder, PDF_FONTS } from '@/lib/pdfUtils'
 import QRCode from 'qrcode'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -34,7 +36,7 @@ const getLoggedInUser = () => {
   }
 }
 
-export default function StudentReportsPage() {
+function StudentReportsContent() {
   const [activeTab, setActiveTab] = useState('certificates') // 'certificates' or 'cards'
   const [certificateType, setCertificateType] = useState('all') // 'all', 'character', 'leaving'
   const [certificates, setCertificates] = useState([])
@@ -2052,5 +2054,34 @@ export default function StudentReportsPage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function StudentReportsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="students_reports_view"
+      pageName="Student Reports"
+    >
+      <StudentReportsContent />
+    </PermissionGuard>
   )
 }

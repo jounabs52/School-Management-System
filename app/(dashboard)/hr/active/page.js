@@ -11,8 +11,10 @@ import autoTable from 'jspdf-autotable'
 import { convertImageToBase64, addPDFHeader, addPDFFooter } from '@/lib/pdfUtils'
 import { getPdfSettings, getAutoTableStyles } from '@/lib/pdfSettings'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import PermissionGuard from '@/components/PermissionGuard'
+import { getUserFromCookie } from '@/lib/clientAuth'
 
-export default function ActiveStaffPage() {
+function ActiveStaffContent() {
   const [searchType, setSearchType] = useState('Via General Data')
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -1909,5 +1911,34 @@ export default function ActiveStaffPage() {
         onClose={handleClosePdfPreview}
       />
     </div>
+  )
+}
+
+export default function ActiveStaffPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="staff_active_view"
+      pageName="Active Staff"
+    >
+      <ActiveStaffContent />
+    </PermissionGuard>
   )
 }

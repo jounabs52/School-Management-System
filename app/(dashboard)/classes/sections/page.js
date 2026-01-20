@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Plus, Search, Edit2, Trash2, X, CheckCircle, XCircle, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose }) => {
@@ -43,7 +44,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -51,11 +52,11 @@ const Toast = ({ message, type, onClose }) => {
     style={{
       animation: 'slideIn 0.3s ease-out'
     }}>
-      {type === 'success' && <CheckCircle size={20} strokeWidth={2.5} />}
-      {type === 'error' && <X size={20} strokeWidth={2.5} />}
-      <span className="font-medium text-sm">{message}</span>
+      {type === 'success' && <CheckCircle size={16} strokeWidth={2.5} />}
+      {type === 'error' && <X size={16} strokeWidth={2.5} />}
+      <span className="font-medium text-xs">{message}</span>
       <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity">
-        <X size={18} strokeWidth={2.5} />
+        <X size={14} strokeWidth={2.5} />
       </button>
       <style jsx>{`
         @keyframes slideIn {
@@ -84,7 +85,7 @@ const getLoggedInUser = () => {
   }
 }
 
-export default function SectionsPage() {
+function SectionsContent() {
   // Debug: Check Supabase initialization
   useEffect(() => {
     console.log('📋 SectionsPage mounted')
@@ -722,26 +723,26 @@ export default function SectionsPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
       {/* Top Button */}
-      <div className="mb-6">
+      <div className="mb-4">
         <button
           onClick={() => setShowSidebar(true)}
-          className="bg-[#DC2626] text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-lg"
+          className="bg-red-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-red-700 transition flex items-center gap-1.5 shadow-lg"
         >
-          <Plus size={20} />
+          <Plus size={16} />
           Assign Section
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Search Sections</h2>
+      <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-base font-bold text-gray-800">Search Sections</h2>
           <button
             onClick={exportToCSV}
             className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
@@ -751,14 +752,14 @@ export default function SectionsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex flex-col md:flex-row gap-3">
           {/* Class Dropdown */}
-          <div>
-            <label className="block text-gray-600 text-sm mb-2">Class</label>
+          <div className="md:w-40">
+            <label className="block text-gray-600 text-xs mb-1.5">Class</label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Classes</option>
               {classList.map((cls) => (
@@ -770,12 +771,12 @@ export default function SectionsPage() {
           </div>
 
           {/* Section Dropdown */}
-          <div>
-            <label className="block text-gray-600 text-sm mb-2">Section</label>
+          <div className="md:w-40">
+            <label className="block text-gray-600 text-xs mb-1.5">Section</label>
             <select
               value={selectedSectionFilter}
               onChange={(e) => setSelectedSectionFilter(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Sections</option>
               {uniqueSectionNames.map((sectionName) => (
@@ -787,16 +788,16 @@ export default function SectionsPage() {
           </div>
 
           {/* General Search */}
-          <div>
-            <label className="block text-gray-600 text-sm mb-2">Search</label>
+          <div className="flex-1">
+            <label className="block text-gray-600 text-xs mb-1.5">Search</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
@@ -806,28 +807,28 @@ export default function SectionsPage() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-blue-900 text-white">
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class Name</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Section Name</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Incharge Name</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Room Number</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Capacity</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Section Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Incharge Name</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Room Number</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Capacity</th>
+                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-3 py-6 text-center text-gray-500">
                     Loading sections...
                   </td>
                 </tr>
               ) : filteredSections.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-3 py-6 text-center text-gray-500">
                     No sections found
                   </td>
                 </tr>
@@ -844,14 +845,16 @@ export default function SectionsPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-                      <td className="px-4 py-3 border border-gray-200 text-blue-600">{startIndex + index + 1}</td>
-                      <td className="px-4 py-3 border border-gray-200 font-medium">{section.class_name}</td>
-                      <td className="px-4 py-3 border border-gray-200">{section.section_name}</td>
-                      <td className="px-4 py-3 border border-gray-200">{section.teacher_name || '-'}</td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
+                        <span className="text-blue-600 font-medium">{section.class_name}</span>
+                      </td>
+                      <td className="px-3 py-2.5 border border-gray-200">{section.section_name}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">{section.teacher_name || '-'}</td>
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {section.room_number || '-'}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
+                      <td className="px-3 py-2.5 border border-gray-200">
                         {capacity > 0 ? (
                           <div className="flex items-center gap-2">
                             <span className={`font-medium ${isFull ? 'text-red-600' : 'text-blue-600'}`}>
@@ -867,11 +870,11 @@ export default function SectionsPage() {
                           '-'
                         )}
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">
-                      <div className="flex items-center gap-2">
+                      <td className="px-3 py-2.5 border border-gray-200">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleToggleStatus(section)}
-                          className={`p-2 rounded-lg transition ${
+                          className={`p-1.5 rounded-lg transition ${
                             section.status === 'active'
                               ? 'text-green-600 hover:bg-green-50'
                               : 'text-gray-400 hover:bg-gray-50'
@@ -879,22 +882,22 @@ export default function SectionsPage() {
                           title={section.status === 'active' ? 'Active - Click to Deactivate' : 'Inactive - Click to Activate'}
                         >
                           {section.status === 'active' ? (
-                            <CheckCircle size={18} />
+                            <CheckCircle size={16} />
                           ) : (
-                            <XCircle size={18} />
+                            <XCircle size={16} />
                           )}
                         </button>
                         <button
                           onClick={() => handleEdit(section)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                         >
-                          <Edit2 size={18} />
+                          <Edit2 size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(section)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -908,15 +911,15 @@ export default function SectionsPage() {
 
         {/* Pagination Controls */}
         {filteredSections.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-            <div className="text-sm text-gray-600">
+          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+            <div className="text-xs text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredSections.length)} of {filteredSections.length} sections
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
                   currentPage === 1
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -924,40 +927,40 @@ export default function SectionsPage() {
               >
                 Previous
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {(() => {
-                  const maxVisiblePages = 5
+                  const pages = []
+                  const maxVisiblePages = 4
                   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
                   let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
 
+                  // Adjust startPage if we're near the end
                   if (endPage - startPage + 1 < maxVisiblePages) {
                     startPage = Math.max(1, endPage - maxVisiblePages + 1)
                   }
 
-                  const pages = []
                   for (let i = startPage; i <= endPage; i++) {
-                    pages.push(i)
+                    pages.push(
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${
+                          currentPage === i
+                            ? 'bg-[#1E3A8A] text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                        }`}
+                      >
+                        {i}
+                      </button>
+                    )
                   }
-
-                  return pages.map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-10 rounded-lg font-medium transition ${
-                        currentPage === page
-                          ? 'bg-[#1E3A8A] text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))
+                  return pages
                 })()}
               </div>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
                   currentPage === totalPages
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -975,27 +978,27 @@ export default function SectionsPage() {
         <ModalOverlay onClose={() => setShowSidebar(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             {/* Sidebar Header */}
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Add New Section</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                  <h3 className="text-base font-bold">Add New Section</h3>
+                  <p className="text-blue-200 text-xs mt-0.5">Fill in the details below</p>
                 </div>
                 <button
                   onClick={() => setShowSidebar(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
             {/* Sidebar Body */}
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              <div className="space-y-4">
                 {/* Class */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -1017,7 +1020,7 @@ export default function SectionsPage() {
                         setFormData({ ...formData, class: selectedClassId })
                       }
                     }}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Class</option>
                     {classList.map((cls) => (
@@ -1029,8 +1032,8 @@ export default function SectionsPage() {
                 </div>
 
                 {/* Section */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Section Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1038,13 +1041,13 @@ export default function SectionsPage() {
                     placeholder="e.g., A, B, Green, Blue"
                     value={formData.section}
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
 
                 {/* Section Incharge */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Section Incharge
                   </label>
                   <div className="relative">
@@ -1065,10 +1068,10 @@ export default function SectionsPage() {
                       onBlur={() => {
                         setTimeout(() => setShowInchargeDropdown(false), 200)
                       }}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                     {showInchargeDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                         {staffList
                           .filter(staff => {
                             if (!inchargeSearchTerm) return true
@@ -1084,7 +1087,7 @@ export default function SectionsPage() {
                                 setInchargeSearchTerm(fullName)
                                 setShowInchargeDropdown(false)
                               }}
-                              className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                              className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
                             >
                               {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
                             </div>
@@ -1095,8 +1098,8 @@ export default function SectionsPage() {
                 </div>
 
                 {/* Room Number */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Room Number
                   </label>
                   <input
@@ -1104,13 +1107,13 @@ export default function SectionsPage() {
                     placeholder="e.g., 101, A-12"
                     value={formData.roomNumber}
                     onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
 
                 {/* Capacity */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Capacity
                   </label>
                   <input
@@ -1118,26 +1121,26 @@ export default function SectionsPage() {
                     placeholder="e.g., 40"
                     value={formData.capacity}
                     onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
               </div>
             </div>
 
             {/* Sidebar Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-4 py-3 bg-white">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setShowSidebar(false)}
-                  className="flex-1 px-4 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center gap-2 shadow-md hover:shadow-lg"
+                  className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} />
                   Save
                 </button>
               </div>
@@ -1151,27 +1154,27 @@ export default function SectionsPage() {
         <ModalOverlay onClose={() => setShowEditSidebar(false)}>
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             {/* Sidebar Header */}
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Edit Section</h3>
-                  <p className="text-blue-200 text-sm mt-1">Update section details</p>
+                  <h3 className="text-base font-bold">Edit Section</h3>
+                  <p className="text-blue-200 text-xs mt-0.5">Update section details</p>
                 </div>
                 <button
                   onClick={() => setShowEditSidebar(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
             {/* Sidebar Body */}
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              <div className="space-y-4">
                 {/* Class */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Class <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -1193,7 +1196,7 @@ export default function SectionsPage() {
                         setEditFormData({ ...editFormData, class: selectedClassId })
                       }
                     }}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Class</option>
                     {classList.map((cls) => (
@@ -1205,22 +1208,22 @@ export default function SectionsPage() {
                 </div>
 
                 {/* Section */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Section Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={editFormData.section}
                     onChange={(e) => setEditFormData({ ...editFormData, section: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     placeholder="e.g., A, B, Green, Blue"
                   />
                 </div>
 
                 {/* Section Incharge */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Section Incharge
                   </label>
                   <select
@@ -1228,7 +1231,7 @@ export default function SectionsPage() {
                     onChange={(e) => {
                       setEditFormData({ ...editFormData, incharge: e.target.value })
                     }}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Teacher</option>
                     {staffList.map((staff) => (
@@ -1240,8 +1243,8 @@ export default function SectionsPage() {
                 </div>
 
                 {/* Room Number */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Room Number
                   </label>
                   <input
@@ -1249,13 +1252,13 @@ export default function SectionsPage() {
                     placeholder="e.g., 101, A-12"
                     value={editFormData.roomNumber}
                     onChange={(e) => setEditFormData({ ...editFormData, roomNumber: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
 
                 {/* Capacity */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Capacity
                   </label>
                   <input
@@ -1263,26 +1266,26 @@ export default function SectionsPage() {
                     placeholder="e.g., 40"
                     value={editFormData.capacity}
                     onChange={(e) => setEditFormData({ ...editFormData, capacity: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
               </div>
             </div>
 
             {/* Sidebar Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-4 py-3 bg-white">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setShowEditSidebar(false)}
-                  className="flex-1 px-4 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center gap-2 shadow-md hover:shadow-lg"
+                  className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
                 >
-                  <Edit2 size={16} />
+                  <Edit2 size={14} />
                   Update
                 </button>
               </div>
@@ -1294,27 +1297,27 @@ export default function SectionsPage() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedSection && (
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full my-8" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-xl">
+                <h3 className="text-base font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
+              <div className="p-4">
+                <p className="text-gray-700 text-sm mb-4">
                   Are you sure you want to delete section <span className="font-bold text-red-600">{selectedSection.section_name}</span> from <span className="font-bold">{selectedSection.class_name || 'Unknown Class'}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={14} />
                     Delete
                   </button>
                 </div>
@@ -1324,5 +1327,34 @@ export default function SectionsPage() {
         </ModalOverlay>
       )}
     </div>
+  )
+}
+
+export default function SectionsPage() {
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    const user = getUserFromCookie()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  return (
+    <PermissionGuard
+      currentUser={currentUser}
+      permissionKey="classes_sections_view"
+      pageName="Sections"
+    >
+      <SectionsContent />
+    </PermissionGuard>
   )
 }
