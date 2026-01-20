@@ -285,10 +285,10 @@ function DashboardContent() {
         supabase.from('student_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
         supabase.from('staff_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
 
-        supabase.from('passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active')
-=======
+        supabase.from('passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active'),
+
         supabase.from('transport_passengers').select('student_id').eq('school_id', schoolId).eq('status', 'active')
->>>>>>> f2a65988b9bb02fbc1cf675bf4cceb0ba2b2b684
+
       ])
 
       // Process students
