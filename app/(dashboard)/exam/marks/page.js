@@ -1893,7 +1893,7 @@ function ExamMarksPageContent() {
               <div className="bg-white rounded-lg border-2 border-gray-300 overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 text-center">
-                  <h1 className="text-2xl font-bold mb-1">School Management System</h1>
+                  <h1 className="text-2xl font-bold mb-1">{schoolData?.name || 'School'}</h1>
                   <h2 className="text-lg font-semibold">EXAMINATION RESULT CARD</h2>
                 </div>
 

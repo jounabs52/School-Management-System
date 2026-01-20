@@ -117,10 +117,6 @@ function SalaryPaidReportContent() {
             employee_number,
             designation,
             department
-          ),
-          paid_by_user:paid_by (
-            id,
-            username
           )
         `)
         .eq('school_id', currentUser.school_id)
@@ -427,22 +423,26 @@ function SalaryPaidReportContent() {
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
           success: {
             duration: 3000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#10b981',
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: '#ef4444',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#ef4444',
             },
           },
         }}
@@ -553,7 +553,6 @@ function SalaryPaidReportContent() {
                   <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Narration</th>
                   <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Amount Paid</th>
                   <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Date</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold print:hidden">User</th>
                 </tr>
               </thead>
               <tbody>
@@ -575,9 +574,6 @@ function SalaryPaidReportContent() {
                     </td>
                     <td className="border border-gray-200 px-3 py-2.5 text-center">
                       {new Date(payment.payment_date).toLocaleDateString('en-GB')}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-center print:hidden">
-                      {payment.paid_by_user?.username || 'N/A'}
                     </td>
                   </tr>
                 ))}

@@ -771,22 +771,26 @@ function ExpensesPageContent() {
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
           success: {
             duration: 3000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#10b981',
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: '#ef4444',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#ef4444',
             },
           },
         }}

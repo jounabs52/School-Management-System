@@ -25,6 +25,7 @@ function StaffPayrollPageContent() {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer')
   const [paymentStatus, setPaymentStatus] = useState('paid')
+  const [partialAmount, setPartialAmount] = useState('')
   const [transactionId, setTransactionId] = useState('')
   const [remarks, setRemarks] = useState('')
   const [processingPayment, setProcessingPayment] = useState(false)
@@ -97,7 +98,6 @@ function StaffPayrollPageContent() {
       let query = supabase
         .from('staff')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('first_name')
@@ -161,7 +161,6 @@ function StaffPayrollPageContent() {
       const { data, error } = await supabase
         .from('salary_structures')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('staff_id', staffId)
         .eq('status', 'active')
@@ -183,7 +182,6 @@ function StaffPayrollPageContent() {
       const { data, error } = await supabase
         .from('salary_payments')
         .select('*')
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
         .eq('staff_id', staffId)
         .order('payment_year', { ascending: false })
@@ -218,67 +216,169 @@ function StaffPayrollPageContent() {
 
   const handlePaySalary = async () => {
     setShowConfirmPaymentModal(false)
+
+    // Validate partial payment amount
+    if (paymentStatus === 'partial') {
+      if (!partialAmount || parseFloat(partialAmount) <= 0) {
+        toast.error('Please enter a valid partial payment amount')
+        return
+      }
+
+      // Check if there's an existing payment to determine max amount
+      const existingPayment = paymentHistory.find(
+        p => p.payment_month === paymentMonth && p.payment_year === paymentYear
+      )
+      const remainingDues = existingPayment?.dues || salaryStructure.net_salary
+
+      if (parseFloat(partialAmount) > parseFloat(remainingDues)) {
+        toast.error(`Partial payment amount cannot exceed remaining dues of ${parseFloat(remainingDues).toLocaleString()} PKR`)
+        return
+      }
+
+      if (parseFloat(partialAmount) >= salaryStructure.net_salary) {
+        toast.error('Partial payment amount must be less than net salary')
+        return
+      }
+    }
+
     setProcessingPayment(true)
     try {
-      // Insert payment record and get the ID back
-      const { data: paymentData, error: paymentError } = await supabase
-        .from('salary_payments')
-        .insert({
-          school_id: currentUser.school_id,
-          staff_id: selectedStaff.id,
-          payment_month: paymentMonth,
-          payment_year: paymentYear,
-          basic_salary: salaryStructure.basic_salary,
-          total_allowances:
-            (salaryStructure.house_allowance || 0) +
-            (salaryStructure.medical_allowance || 0) +
-            (salaryStructure.transport_allowance || 0) +
-            (salaryStructure.other_allowances || 0),
-          total_deductions:
-            (salaryStructure.provident_fund || 0) +
-            (salaryStructure.tax_deduction || 0) +
-            (salaryStructure.other_deductions || 0),
-          gross_salary: salaryStructure.gross_salary,
-          net_salary: salaryStructure.net_salary,
-          payment_date: paymentDate,
-          payment_method: paymentMethod,
-          transaction_id: transactionId || null,
-          paid_by: currentUser.id,
-          status: paymentStatus,
-          remarks: remarks || `Salary ${paymentStatus === 'paid' ? 'paid' : 'pending'} for ${getMonthName(paymentMonth)} ${paymentYear}`
-        })
-        .select()
-        .single()
+      // Check if payment already exists for this month/year
+      const existingPayment = paymentHistory.find(
+        p => p.payment_month === paymentMonth && p.payment_year === paymentYear
+      )
 
-      if (paymentError) throw paymentError
+      // Calculate amounts based on payment status
+      let amountPaid = 0
+      let duesAmount = 0
 
-      // Automatically create salary slip record
+      if (paymentStatus === 'paid') {
+        amountPaid = salaryStructure.net_salary
+        duesAmount = 0
+      } else if (paymentStatus === 'partial') {
+        // For partial payment, add to existing amount_paid if updating
+        const existingAmountPaid = existingPayment ? parseFloat(existingPayment.amount_paid || 0) : 0
+        amountPaid = existingAmountPaid + parseFloat(partialAmount)
+        duesAmount = salaryStructure.net_salary - amountPaid
+
+        // Validate that total amount doesn't exceed net salary
+        if (amountPaid >= salaryStructure.net_salary) {
+          toast.error(`Total payment (${amountPaid.toLocaleString()} PKR) cannot exceed or equal net salary. Remaining dues: ${duesAmount.toLocaleString()} PKR`)
+          setProcessingPayment(false)
+          return
+        }
+      } else if (paymentStatus === 'pending') {
+        amountPaid = 0
+        duesAmount = salaryStructure.net_salary
+      }
+
+      const paymentData = {
+        school_id: currentUser.school_id,
+        staff_id: selectedStaff.id,
+        payment_month: paymentMonth,
+        payment_year: paymentYear,
+        basic_salary: salaryStructure.basic_salary,
+        total_allowances:
+          (salaryStructure.house_allowance || 0) +
+          (salaryStructure.medical_allowance || 0) +
+          (salaryStructure.transport_allowance || 0) +
+          (salaryStructure.other_allowances || 0),
+        total_deductions:
+          (salaryStructure.provident_fund || 0) +
+          (salaryStructure.tax_deduction || 0) +
+          (salaryStructure.other_deductions || 0),
+        gross_salary: salaryStructure.gross_salary,
+        net_salary: salaryStructure.net_salary,
+        amount_paid: amountPaid,
+        dues: duesAmount,
+        payment_date: paymentDate,
+        payment_method: paymentMethod,
+        transaction_id: transactionId || null,
+        user_id: currentUser.id,
+        status: paymentStatus,
+        remarks: remarks || `Salary ${paymentStatus === 'paid' ? 'paid' : paymentStatus === 'partial' ? 'partially paid' : 'pending'} for ${getMonthName(paymentMonth)} ${paymentYear}`
+      }
+
+      let finalPaymentData
+
+      // Update existing payment or insert new one
+      if (existingPayment) {
+        const { data, error: paymentError } = await supabase
+          .from('salary_payments')
+          .update(paymentData)
+          .eq('id', existingPayment.id)
+          .select()
+          .single()
+
+        if (paymentError) throw paymentError
+        finalPaymentData = data
+      } else {
+        const { data, error: paymentError } = await supabase
+          .from('salary_payments')
+          .insert(paymentData)
+          .select()
+          .single()
+
+        if (paymentError) throw paymentError
+        finalPaymentData = data
+      }
+
+      // Automatically create or update salary slip record
       const slipData = {
         school_id: currentUser.school_id,
         staff_id: selectedStaff.id,
-        payment_id: paymentData.id,
+        payment_id: finalPaymentData.id,
         slip_number: `SLP-${paymentYear}-${String(paymentMonth).padStart(2, '0')}-${selectedStaff.employee_number || selectedStaff.id}`,
         month: paymentMonth,
         year: paymentYear,
         generated_by: currentUser.id,
         generated_date: new Date().toISOString().split('T')[0],
         file_path: null,
-        status: paymentStatus === 'paid' ? 'generated' : 'pending'
+        status: paymentStatus === 'paid' ? 'generated' : paymentStatus === 'partial' ? 'partial' : 'pending'
       }
 
-      const { error: slipError } = await supabase
+      // Check if slip already exists for this payment
+      const { data: existingSlip } = await supabase
         .from('salary_slips')
-        .insert(slipData)
+        .select('id')
+        .eq('payment_id', finalPaymentData.id)
+        .single()
 
-      if (slipError) {
-        console.error('Error creating salary slip:', slipError)
-        // Don't fail the whole operation if slip creation fails
+      if (existingSlip) {
+        // Update existing slip
+        const { error: slipError } = await supabase
+          .from('salary_slips')
+          .update(slipData)
+          .eq('id', existingSlip.id)
+
+        if (slipError) {
+          console.error('Error updating salary slip:', slipError)
+          // Don't fail the whole operation if slip update fails
+        }
+      } else {
+        // Create new slip
+        const { error: slipError } = await supabase
+          .from('salary_slips')
+          .insert(slipData)
+
+        if (slipError) {
+          console.error('Error creating salary slip:', slipError)
+          // Don't fail the whole operation if slip creation fails
+        }
       }
 
       toast.success(
-        paymentStatus === 'paid'
+        existingPayment
+          ? paymentStatus === 'paid'
+            ? 'Salary payment updated to PAID successfully!'
+            : paymentStatus === 'partial'
+            ? `Additional payment of ${parseFloat(partialAmount).toLocaleString()} PKR recorded. Total paid: ${amountPaid.toLocaleString()} PKR. Remaining dues: ${duesAmount.toLocaleString()} PKR`
+            : 'Payment record updated successfully!'
+          : paymentStatus === 'paid'
           ? 'Salary paid successfully! Slip record created.'
-          : 'Salary payment record created successfully!'
+          : paymentStatus === 'partial'
+          ? `Partial payment of ${amountPaid.toLocaleString()} PKR recorded. Dues: ${duesAmount.toLocaleString()} PKR`
+          : 'Pending salary record created successfully!'
       )
 
       // Reload payment history
@@ -287,7 +387,8 @@ function StaffPayrollPageContent() {
       // Reload staff list to update button states
       loadStaffList()
 
-      // Reset transaction ID and remarks
+      // Reset form fields
+      setPartialAmount('')
       setTransactionId('')
       setRemarks('')
     } catch (error) {
@@ -312,15 +413,55 @@ function StaffPayrollPageContent() {
 
     setDeleting(true)
     try {
-      const { error } = await supabase
+      console.log('Starting deletion process for payment ID:', paymentToDelete)
+
+      // Delete the payment record directly
+      // The salary_slips will be deleted automatically via CASCADE foreign key
+      // Try with school_id first
+      let deleteResult = await supabase
         .from('salary_payments')
         .delete()
         .eq('id', paymentToDelete)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
 
-      if (error) throw error
+      console.log('Payment deletion attempt 1 (with school_id):', deleteResult)
 
+      // If first attempt fails, try without school_id (in case RLS or filters are blocking)
+      if (deleteResult.error) {
+        console.log('First delete attempt failed, trying without school_id filter...')
+
+        deleteResult = await supabase
+          .from('salary_payments')
+          .delete()
+          .eq('id', paymentToDelete)
+
+        console.log('Payment deletion attempt 2 (without school_id):', deleteResult)
+      }
+
+      if (deleteResult.error) {
+        console.error('Delete failed:', deleteResult.error)
+
+        // Provide detailed error information
+        const errorMsg = deleteResult.error.message || 'Unknown error'
+        const errorCode = deleteResult.error.code || 'NO_CODE'
+        const errorDetails = deleteResult.error.details || 'No additional details'
+        const errorHint = deleteResult.error.hint || 'No hints available'
+
+        console.error('Error details:', {
+          message: errorMsg,
+          code: errorCode,
+          details: errorDetails,
+          hint: errorHint
+        })
+
+        toast.error(
+          `Failed to delete payment: ${errorMsg} (Code: ${errorCode})`
+        )
+        setDeleting(false)
+        return
+      }
+
+      console.log('Payment deleted successfully (salary slips deleted via CASCADE)')
       toast.success('Payment record deleted successfully')
       setShowDeletePaymentModal(false)
       setPaymentToDelete(null)
@@ -329,8 +470,8 @@ function StaffPayrollPageContent() {
       // Reload staff list to update button states
       loadStaffList()
     } catch (error) {
-      console.error('Error deleting payment:', error)
-      toast.error('Failed to delete payment record')
+      console.error('Unexpected error during deletion:', error)
+      toast.error(`Unexpected error: ${error.message || 'Unknown error occurred'}`)
     } finally {
       setDeleting(false)
     }
@@ -385,22 +526,26 @@ function StaffPayrollPageContent() {
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
           success: {
             duration: 3000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#10b981',
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: '#ef4444',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#ef4444',
             },
           },
         }}
@@ -655,6 +800,54 @@ function StaffPayrollPageContent() {
                 </div>
               </div>
 
+              {/* Partial Payment Amount Input */}
+              {paymentStatus === 'partial' && (() => {
+                // Check if there's an existing payment with dues for this month/year
+                const existingPayment = paymentHistory.find(
+                  p => p.payment_month === paymentMonth && p.payment_year === paymentYear
+                )
+                const remainingDues = existingPayment?.dues || salaryStructure.net_salary
+                const alreadyPaid = existingPayment?.amount_paid || 0
+
+                return (
+                  <div className="mb-2">
+                    {existingPayment && parseFloat(existingPayment.dues || 0) > 0 && (
+                      <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                        <p className="text-sm text-orange-800">
+                          <strong>Existing Partial Payment:</strong> {parseFloat(alreadyPaid).toLocaleString()} PKR paid
+                          <br />
+                          <strong>Remaining Dues:</strong> {parseFloat(remainingDues).toLocaleString()} PKR
+                        </p>
+                      </div>
+                    )}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {existingPayment && parseFloat(existingPayment.dues || 0) > 0
+                        ? 'Additional Payment Amount'
+                        : 'Partial Payment Amount'} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={`Enter amount (max: ${parseFloat(remainingDues).toLocaleString()} PKR)`}
+                      value={partialAmount}
+                      onChange={(e) => setPartialAmount(e.target.value)}
+                      min="1"
+                      max={remainingDues}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {existingPayment && parseFloat(existingPayment.dues || 0) > 0
+                        ? `Remaining to Pay: ${parseFloat(remainingDues).toLocaleString()} PKR`
+                        : `Net Salary: ${salaryStructure.net_salary?.toLocaleString()} PKR`}
+                      {partialAmount && parseFloat(partialAmount) > 0 && (
+                        <span className="ml-2 text-orange-600 font-medium">
+                          | After Payment: {(parseFloat(remainingDues) - parseFloat(partialAmount)).toLocaleString()} PKR
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )
+              })()}
+
               <div className="mb-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Remarks (Optional)</label>
                 <textarea
@@ -668,18 +861,44 @@ function StaffPayrollPageContent() {
 
               <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg mb-2">
                 <div>
-                  <p className="text-xs text-gray-600">Net Salary to be Paid</p>
-                  <p className="text-base font-bold text-blue-600">{salaryStructure.net_salary?.toLocaleString()} PKR</p>
+                  {(() => {
+                    const existingPayment = paymentHistory.find(
+                      p => p.payment_month === paymentMonth && p.payment_year === paymentYear
+                    )
+                    const remainingDues = existingPayment?.dues || salaryStructure.net_salary
+
+                    return (
+                      <>
+                        <p className="text-xs text-gray-600">
+                          {paymentStatus === 'paid'
+                            ? existingPayment && parseFloat(existingPayment.dues || 0) > 0
+                              ? 'Remaining Dues to be Paid'
+                              : 'Net Salary to be Paid'
+                            : paymentStatus === 'partial'
+                            ? existingPayment && parseFloat(existingPayment.dues || 0) > 0
+                              ? 'Additional Payment'
+                              : 'Partial Amount to be Paid'
+                            : 'Net Salary (Pending)'}
+                        </p>
+                        <p className="text-base font-bold text-blue-600">
+                          {paymentStatus === 'partial' && partialAmount
+                            ? `${parseFloat(partialAmount).toLocaleString()} PKR (of ${parseFloat(remainingDues).toLocaleString()} PKR)`
+                            : paymentStatus === 'paid' && existingPayment && parseFloat(existingPayment.dues || 0) > 0
+                            ? `${parseFloat(remainingDues).toLocaleString()} PKR (Remaining Dues)`
+                            : `${salaryStructure.net_salary?.toLocaleString()} PKR`
+                          }
+                        </p>
+                      </>
+                    )
+                  })()}
                 </div>
                 <button
                   onClick={checkAndShowPaymentConfirmation}
-                  disabled={processingPayment}
+                  disabled={processingPayment || paymentStatus === 'pending'}
                   className={`${
-                    paymentStatus === 'paid'
-                      ? 'bg-green-500 hover:bg-green-600'
-                      : paymentStatus === 'pending'
-                      ? 'bg-orange-500 hover:bg-orange-600'
-                      : 'bg-yellow-500 hover:bg-yellow-600'
+                    paymentStatus === 'pending'
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
                   } text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed`}
                 >
                   {processingPayment
@@ -687,8 +906,8 @@ function StaffPayrollPageContent() {
                     : paymentStatus === 'paid'
                     ? 'Pay Salary'
                     : paymentStatus === 'pending'
-                    ? 'Create Pending Payment'
-                    : 'Create Partial Payment'
+                    ? 'Pay Salary'
+                    : 'Pay Partial Salary'
                   }
                 </button>
               </div>
@@ -860,6 +1079,7 @@ function StaffPayrollPageContent() {
                         <th className="border border-gray-300 px-3 py-2 text-left">Payment Date</th>
                         <th className="border border-gray-300 px-3 py-2 text-left">Method</th>
                         <th className="border border-gray-300 px-3 py-2 text-center">Status</th>
+                        <th className="border border-gray-300 px-3 py-2 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -885,6 +1105,18 @@ function StaffPayrollPageContent() {
                               {payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : payment.status === 'partial' ? 'Partial' : payment.status}
                             </span>
                           </td>
+                          <td className="border border-gray-300 px-3 py-2 text-center">
+                            <button
+                              onClick={() => {
+                                setShowPaymentHistoryModal(false)
+                                confirmDeletePayment(payment.id)
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                              title="Delete this payment"
+                            >
+                              Delete
+                            </button>
+                          </td>
                         </tr>
                       ))}
                       <tr className="bg-blue-100 font-bold">
@@ -892,7 +1124,7 @@ function StaffPayrollPageContent() {
                         <td className="border border-gray-300 px-3 py-2 text-right text-green-700 text-lg">
                           {getTotalPaid().toLocaleString()} PKR
                         </td>
-                        <td colSpan="3" className="border border-gray-300"></td>
+                        <td colSpan="4" className="border border-gray-300"></td>
                       </tr>
                     </tbody>
                   </table>

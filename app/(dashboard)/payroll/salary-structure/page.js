@@ -328,7 +328,7 @@ export default function SalaryStructurePage() {
             net_salary: calculateNetSalary(),
             payment_date: new Date().toISOString().split('T')[0],
             payment_method: 'pending',
-            paid_by: currentUser.id,
+            user_id: currentUser.id,
             status: 'pending',
             remarks: `Pending salary slip for ${getMonthName(currentMonth)} ${currentYear}`
           }
@@ -450,22 +450,26 @@ export default function SalaryStructurePage() {
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
           success: {
             duration: 3000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#10b981',
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: '#ef4444',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#ef4444',
             },
           },
         }}
