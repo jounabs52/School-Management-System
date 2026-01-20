@@ -203,10 +203,27 @@ function FeeCreateContent() {
           .eq('status', 'active')
           .order('admission_number', { ascending: true }),
 
-        // Fetch challans - simplified query first
+        // Fetch challans with student data using JOIN
         supabase
           .from('fee_challans')
-          .select('*')
+          .select(`
+            *,
+            students!student_id (
+              id,
+              admission_number,
+              first_name,
+              last_name,
+              father_name,
+              current_class_id,
+              current_section_id,
+              fee_plan,
+              base_fee,
+              discount_amount,
+              discount_value,
+              discount_type,
+              final_fee
+            )
+          `)
           .eq('user_id', user.id)
           .eq('school_id', user.school_id)
           .order('id', { ascending: false })
@@ -229,49 +246,6 @@ function FeeCreateContent() {
       // Process challans with efficient mapping
       if (!challansResult.error && challansResult.data) {
         console.log('Challans fetched in fetchInitialData:', challansResult.data.length)
-
-        // Get unique student IDs from challans
-        const studentIds = [...new Set(challansResult.data.map(c => c.student_id).filter(Boolean))]
-
-        // Fetch student data separately
-        let studentsMap = {}
-        if (studentIds.length > 0) {
-          const { data: studentsFromChallans } = await supabase
-            .from('students')
-            .select(`
-              id,
-              admission_number,
-              first_name,
-              last_name,
-              father_name,
-              mother_name,
-              date_of_birth,
-              gender,
-              blood_group,
-              religion,
-              caste,
-              phone,
-              email,
-              address,
-              city,
-              state,
-              postal_code,
-              admission_date,
-              current_class_id,
-              current_section_id,
-              fee_plan,
-              base_fee,
-              discount_amount,
-              discount_value,
-              discount_type,
-              final_fee
-            `)
-            .in('id', studentIds)
-
-          studentsFromChallans?.forEach(student => {
-            studentsMap[student.id] = student
-          })
-        }
 
         // Fetch all payments for these challans
         const challanIds = challansResult.data.map(c => c.id).filter(Boolean)
@@ -337,18 +311,16 @@ function FeeCreateContent() {
               })
           }
 
-          // Get student data from studentsMap
-          const student = studentsMap[challan.student_id] || null
-
+          // Use student data from JOIN query
           return {
             ...challan,
             // Use challan's actual total_amount (includes all fee items)
             paid_amount: paidAmount,
             status: autoStatus,
-            students: student ? {
-              ...student,
-              classes: classMap[student.current_class_id] || { class_name: 'N/A' },
-              sections: sectionMap[student.current_section_id] || { section_name: 'N/A' }
+            students: challan.students ? {
+              ...challan.students,
+              classes: classMap[challan.students.current_class_id] || { class_name: 'N/A' },
+              sections: sectionMap[challan.students.current_section_id] || { section_name: 'N/A' }
             } : null
           }
         })
@@ -861,11 +833,11 @@ function FeeCreateContent() {
             // Use challan's actual total_amount (includes all fee items)
             paid_amount: paidAmount,
             status: autoStatus,
-            students: {
+            students: challan.students ? {
               ...challan.students,
               classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
               sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
-            }
+            } : null
           }
         })
 
@@ -1958,37 +1930,73 @@ function FeeCreateContent() {
     setViewChallan(challan)
   }
 
-  const handleStatusToggle = async (challanId, currentStatus) => {
-    const statusCycle = {
-      'pending': 'paid',
-      'paid': 'overdue',
-      'overdue': 'pending'
-    }
-    const newStatus = statusCycle[currentStatus] || 'pending'
-
+  const handleStatusToggle = async (challanId) => {
     try {
       const user = getUserFromCookie()
-      const { error } = await supabase
+      if (!user) {
+        showToast('User not found', 'error')
+        return
+      }
+
+      // Find the challan to get its details
+      const challan = createdChallans.find(c => c.id === challanId)
+      if (!challan) {
+        showToast('Challan not found', 'error')
+        return
+      }
+
+      const totalAmount = parseFloat(challan.total_amount || 0)
+      const paidAmount = parseFloat(challan.paid_amount || 0)
+      const balanceDue = totalAmount - paidAmount
+
+      if (balanceDue <= 0) {
+        showToast('This challan is already fully paid', 'info')
+        return
+      }
+
+      // Generate a unique receipt number
+      const receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
+
+      // Create a payment record for the remaining balance
+      const { error: paymentError } = await supabase
+        .from('fee_payments')
+        .insert({
+          school_id: user.school_id,
+          challan_id: challanId,
+          student_id: challan.student_id,
+          payment_date: new Date().toISOString().split('T')[0],
+          amount_paid: balanceDue,
+          payment_method: 'cash',
+          receipt_number: receiptNumber,
+          received_by: user.id,
+          remarks: 'Marked as paid via status toggle'
+        })
+
+      if (paymentError) throw paymentError
+
+      // Update challan status to paid
+      const { error: updateError } = await supabase
         .from('fee_challans')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: 'paid', updated_at: new Date().toISOString() })
         .eq('id', challanId)
         .eq('user_id', user.id)
         .eq('school_id', user.school_id)
 
-      if (error) throw error
+      if (updateError) throw updateError
 
+      // Update local state
       setCreatedChallans(prevChallans =>
-        prevChallans.map(challan =>
-          challan.id === challanId
-            ? { ...challan, status: newStatus }
-            : challan
+        prevChallans.map(c =>
+          c.id === challanId
+            ? { ...c, status: 'paid', paid_amount: totalAmount }
+            : c
         )
       )
 
-      showToast(`Status updated to ${newStatus.toUpperCase()}`, 'success')
+      showToast(`Fee marked as PAID. Payment of Rs. ${balanceDue.toLocaleString()} recorded.`, 'success')
     } catch (error) {
-      console.error('Error updating status:', error)
-      showToast('Failed to update status', 'error')
+      console.error('Error marking fee as paid:', error)
+      showToast('Failed to mark fee as paid: ' + error.message, 'error')
     }
   }
 
@@ -2560,7 +2568,7 @@ function FeeCreateContent() {
                         )}
                         {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
                           <button
-                            onClick={() => handleStatusToggle(challan.id, challan.status)}
+                            onClick={() => handleStatusToggle(challan.id)}
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded transition"
                             title="Toggle Status"
                           >

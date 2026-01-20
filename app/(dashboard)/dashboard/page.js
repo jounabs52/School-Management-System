@@ -20,6 +20,8 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 function DashboardContent() {
   const [loading, setLoading] = useState(true)
+  const [showCashInOutChart, setShowCashInOutChart] = useState(true)
+  const [showAdmissionChart, setShowAdmissionChart] = useState(true)
   const [dashboardData, setDashboardData] = useState({
     students: { active: 0, total: 0 },
     staff: { active: 0, total: 0 },
@@ -211,9 +213,9 @@ function DashboardContent() {
 
     // Transport Passengers subscription
     const transportPassengersSubscription = supabase
-      .channel('transport_passengers_changes')
+      .channel('passengers_changes')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'transport_passengers', filter: `user_id=eq.${userId}` },
+        { event: '*', schema: 'public', table: 'passengers', filter: `user_id=eq.${userId}` },
         () => fetchDashboardData()
       )
       .subscribe()
@@ -279,7 +281,7 @@ function DashboardContent() {
         supabase.from('datesheets').select('*').eq('user_id', userId).eq('school_id', schoolId),
         supabase.from('student_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
         supabase.from('staff_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
-        supabase.from('transport_passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active')
+        supabase.from('passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active')
       ])
 
       // Process students
@@ -469,7 +471,10 @@ function DashboardContent() {
       let totalCashIn = 0
       let totalCashOut = 0
 
-      for (let day = 1; day <= 29; day += 2) {
+      // Get the number of days in the current month
+      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
+
+      for (let day = 1; day <= daysInMonth; day++) {
         const dayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
         const dayCashIn = feePayments
@@ -491,7 +496,7 @@ function DashboardContent() {
       let totalAdmissions = 0
       let totalWithdrawals = 0
 
-      for (let day = 1; day <= 29; day += 2) {
+      for (let day = 1; day <= daysInMonth; day++) {
         const dayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
         const dayAdmissions = allStudents.filter(s => s.admission_date && s.admission_date.startsWith(dayStr)).length
@@ -820,50 +825,193 @@ function DashboardContent() {
           {/* CHARTS SECTION */}
           <div className="space-y-6">
             {/* Cash In/Out Summary Chart */}
-            <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-200">
-              <h2 className="text-2xl font-bold text-center text-gray-800 mb-1">Cash In / Out Summary</h2>
-              <p className="text-center text-gray-600 text-sm mb-6">For Month {dashboardData.currentMonth}, 2025</p>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={dashboardData.charts.cashInOut} barGap={0}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={{ stroke: '#9ca3af' }} />
-                  <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} tick={{ fontSize: 12 }} axisLine={{ stroke: '#9ca3af' }} />
-                  <Tooltip formatter={(value) => value.toLocaleString()} contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
-                  <Bar dataKey="cashIn" fill="#4f46e5" name="Cash IN" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="cashOut" fill="#84cc16" name="Cash Out" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="mt-4 text-sm flex items-center justify-start gap-4">
-                <span className="text-orange-600 font-semibold">Total Cash In:</span>
-                <span className="text-orange-600">{dashboardData.charts.totalCashIn.toLocaleString()}</span>
-                <span className="text-red-600 font-semibold ml-4">Total Cash Out:</span>
-                <span className="text-red-600">{dashboardData.charts.totalCashOut.toLocaleString()}</span>
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-2xl border-2 border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">Cash In / Out Summary</span>
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">For Month {dashboardData.currentMonth}, {new Date().getFullYear()}</p>
+                </div>
+                <button
+                  onClick={() => setShowCashInOutChart(!showCashInOutChart)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    showCashInOutChart
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg hover:shadow-xl'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  {showCashInOutChart ? 'Hide Chart' : 'Show Chart'}
+                </button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Note:- including bank transactions</p>
+
+              {showCashInOutChart && (
+                <>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={dashboardData.charts.cashInOut} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                      <defs>
+                        <linearGradient id="cashInGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#059669" stopOpacity={0.9}/>
+                        </linearGradient>
+                        <linearGradient id="cashOutGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#dc2626" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fontSize: 11, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#d1d5db' }}
+                        label={{ value: 'Day of Month', position: 'insideBottom', offset: -10, style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
+                      />
+                      <YAxis
+                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        tick={{ fontSize: 11, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#d1d5db' }}
+                        label={{ value: 'Amount (PKR)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
+                      />
+                      <Tooltip
+                        formatter={(value) => [`PKR ${value.toLocaleString()}`, '']}
+                        contentStyle={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                          padding: '12px'
+                        }}
+                        labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}
+                      />
+                      <Legend
+                        wrapperStyle={{ paddingTop: '30px' }}
+                        iconType="circle"
+                        iconSize={12}
+                      />
+                      <Bar dataKey="cashIn" fill="url(#cashInGradient)" name="Cash IN" radius={[8, 8, 0, 0]} barSize={16} />
+                      <Bar dataKey="cashOut" fill="url(#cashOutGradient)" name="Cash Out" radius={[8, 8, 0, 0]} barSize={16} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                    <div className="flex items-center justify-around text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-500 to-green-600"></div>
+                        <span className="text-gray-700 font-semibold">Total Cash In:</span>
+                        <span className="text-green-700 font-bold text-lg">PKR {dashboardData.charts.totalCashIn.toLocaleString()}</span>
+                      </div>
+                      <div className="w-px h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-500 to-red-600"></div>
+                        <span className="text-gray-700 font-semibold">Total Cash Out:</span>
+                        <span className="text-red-700 font-bold text-lg">PKR {dashboardData.charts.totalCashOut.toLocaleString()}</span>
+                      </div>
+                      <div className="w-px h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700 font-semibold">Net:</span>
+                        <span className={`font-bold text-lg ${dashboardData.charts.totalCashIn - dashboardData.charts.totalCashOut >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          PKR {(dashboardData.charts.totalCashIn - dashboardData.charts.totalCashOut).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3 text-center italic">Note: Including bank transactions</p>
+                </>
+              )}
             </div>
 
             {/* Students Admission/Withdrawal Summary Chart */}
-            <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-200">
-              <h2 className="text-2xl font-bold text-center text-gray-800 mb-1">Students Admission/Withdrawl Summary</h2>
-              <p className="text-center text-gray-600 text-sm mb-6">For Month {dashboardData.currentMonth}, 2025</p>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={dashboardData.charts.admissions} barGap={0}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={{ stroke: '#9ca3af' }} />
-                  <YAxis domain={[0, Math.max(1.25, Math.ceil(Math.max(...dashboardData.charts.admissions.map(d => Math.max(d.admissions, d.withdrawals))) * 1.25))]} tick={{ fontSize: 12 }} axisLine={{ stroke: '#9ca3af' }} label={{ value: 'Students', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
-                  <Bar dataKey="admissions" fill="#06b6d4" name="Admissions" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="withdrawals" fill="#84cc16" name="Withdrawls" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="mt-4 text-sm flex items-center justify-start gap-4">
-                <span className="text-orange-600 font-semibold">Total Admissions:</span>
-                <span className="text-orange-600">{dashboardData.charts.totalAdmissions}</span>
-                <span className="text-red-600 font-semibold ml-4">Total Withdrawls:</span>
-                <span className="text-red-600">{dashboardData.charts.totalWithdrawals}</span>
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-2xl border-2 border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <span className="bg-gradient-to-r from-cyan-600 to-blue-600 text-transparent bg-clip-text">Students Admission/Withdrawal Summary</span>
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">For Month {dashboardData.currentMonth}, {new Date().getFullYear()}</p>
+                </div>
+                <button
+                  onClick={() => setShowAdmissionChart(!showAdmissionChart)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    showAdmissionChart
+                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg hover:shadow-xl'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  {showAdmissionChart ? 'Hide Chart' : 'Show Chart'}
+                </button>
               </div>
+
+              {showAdmissionChart && (
+                <>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={dashboardData.charts.admissions} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                      <defs>
+                        <linearGradient id="admissionsGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#0891b2" stopOpacity={0.9}/>
+                        </linearGradient>
+                        <linearGradient id="withdrawalsGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#d97706" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fontSize: 11, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#d1d5db' }}
+                        label={{ value: 'Day of Month', position: 'insideBottom', offset: -10, style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
+                      />
+                      <YAxis
+                        domain={[0, Math.max(5, Math.ceil(Math.max(...dashboardData.charts.admissions.map(d => Math.max(d.admissions, d.withdrawals))) * 1.25))]}
+                        tick={{ fontSize: 11, fill: '#6b7280' }}
+                        axisLine={{ stroke: '#d1d5db' }}
+                        label={{ value: 'Number of Students', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
+                        allowDecimals={false}
+                      />
+                      <Tooltip
+                        formatter={(value, name) => [value, name === 'admissions' ? 'Admissions' : 'Withdrawals']}
+                        contentStyle={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                          padding: '12px'
+                        }}
+                        labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}
+                      />
+                      <Legend
+                        wrapperStyle={{ paddingTop: '30px' }}
+                        iconType="circle"
+                        iconSize={12}
+                      />
+                      <Bar dataKey="admissions" fill="url(#admissionsGradient)" name="Admissions" radius={[8, 8, 0, 0]} barSize={16} />
+                      <Bar dataKey="withdrawals" fill="url(#withdrawalsGradient)" name="Withdrawals" radius={[8, 8, 0, 0]} barSize={16} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                    <div className="flex items-center justify-around text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600"></div>
+                        <span className="text-gray-700 font-semibold">Total Admissions:</span>
+                        <span className="text-cyan-700 font-bold text-lg">{dashboardData.charts.totalAdmissions}</span>
+                      </div>
+                      <div className="w-px h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-600"></div>
+                        <span className="text-gray-700 font-semibold">Total Withdrawals:</span>
+                        <span className="text-amber-700 font-bold text-lg">{dashboardData.charts.totalWithdrawals}</span>
+                      </div>
+                      <div className="w-px h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700 font-semibold">Net Change:</span>
+                        <span className={`font-bold text-lg ${dashboardData.charts.totalAdmissions - dashboardData.charts.totalWithdrawals >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {dashboardData.charts.totalAdmissions - dashboardData.charts.totalWithdrawals >= 0 ? '+' : ''}{dashboardData.charts.totalAdmissions - dashboardData.charts.totalWithdrawals}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
