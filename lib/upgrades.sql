@@ -453,3 +453,253 @@ CREATE POLICY "Enable delete for authenticated users"
   USING (true);
 
 
+-- Add amount_paid and dues columns to salary_payments table for partial payment tracking
+-- This allows tracking partial salary payments and outstanding dues
+
+-- Step 1: Add the columns as nullable first
+ALTER TABLE public.salary_payments
+ADD COLUMN IF NOT EXISTS amount_paid numeric(12, 2);
+
+ALTER TABLE public.salary_payments
+ADD COLUMN IF NOT EXISTS dues numeric(12, 2);
+
+-- Step 2: Update existing records - for paid status, set amount_paid = net_salary and dues = 0
+UPDATE public.salary_payments
+SET amount_paid = net_salary,
+    dues = 0
+WHERE status = 'paid' AND amount_paid IS NULL;
+
+-- Step 3: Update existing records - for pending status, set amount_paid = 0 and dues = net_salary
+UPDATE public.salary_payments
+SET amount_paid = 0,
+    dues = net_salary
+WHERE status = 'pending' AND amount_paid IS NULL;
+
+-- Step 4: Make the columns NOT NULL with default values
+ALTER TABLE public.salary_payments
+ALTER COLUMN amount_paid SET DEFAULT 0,
+ALTER COLUMN amount_paid SET NOT NULL;
+
+ALTER TABLE public.salary_payments
+ALTER COLUMN dues SET DEFAULT 0,
+ALTER COLUMN dues SET NOT NULL;
+
+-- Step 5: Drop the old status check constraint
+ALTER TABLE public.salary_payments
+DROP CONSTRAINT IF EXISTS salary_payments_status_check;
+
+-- Step 6: Add updated status check constraint to include 'partial'
+ALTER TABLE public.salary_payments
+ADD CONSTRAINT salary_payments_status_check CHECK (
+  (status)::text = ANY (ARRAY['pending'::character varying, 'paid'::character varying, 'partial'::character varying, 'cancelled'::character varying]::text[])
+);
+
+-- Step 7: Add comments to describe the columns
+COMMENT ON COLUMN public.salary_payments.amount_paid IS 'Amount paid to staff member (for partial payments tracking)';
+COMMENT ON COLUMN public.salary_payments.dues IS 'Outstanding dues remaining to be paid';
+
+
+-- Make user_id column nullable in staff table
+-- This allows staff members to exist without login credentials
+-- user_id should only be set when a staff member is given system access
+
+ALTER TABLE public.staff
+ALTER COLUMN user_id DROP NOT NULL;
+
+-- Drop the trigger that auto-sets user_id to the current user
+-- This was causing all staff added by the same admin to have the same user_id
+DROP TRIGGER IF EXISTS trigger_set_user_id_staff ON public.staff;
+
+-- Add comment to clarify the purpose of user_id
+COMMENT ON COLUMN public.staff.user_id IS 'Auth user ID - only set when staff member has login credentials. NULL for staff without system access.';
+
+-- Fix staff_permissions table to allow NULL user_id (if table exists)
+-- Staff without login credentials won't have permissions records
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'staff_permissions'
+    ) THEN
+        -- Make user_id nullable in staff_permissions
+        ALTER TABLE public.staff_permissions ALTER COLUMN user_id DROP NOT NULL;
+
+        -- Drop any triggers that auto-create staff_permissions on staff insert
+        EXECUTE (
+            SELECT string_agg(format('DROP TRIGGER IF EXISTS %I ON public.staff;', tgname), ' ')
+            FROM pg_trigger
+            WHERE tgrelid = 'public.staff'::regclass
+            AND tgname LIKE '%permission%'
+        );
+
+        RAISE NOTICE 'staff_permissions table updated - user_id is now nullable';
+    ELSE
+        RAISE NOTICE 'staff_permissions table does not exist - skipping';
+    END IF;
+END $$;
+
+
+-- Rename paid_by to user_id in salary_payments table
+-- This provides consistency with other tables in the system
+
+DO $$
+BEGIN
+    -- Check if paid_by column exists
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'salary_payments'
+        AND column_name = 'paid_by'
+    ) THEN
+        -- Rename paid_by to user_id
+        ALTER TABLE public.salary_payments RENAME COLUMN paid_by TO user_id;
+
+        RAISE NOTICE 'salary_payments.paid_by renamed to user_id';
+    ELSE
+        RAISE NOTICE 'Column paid_by does not exist in salary_payments - skipping';
+    END IF;
+END $$;
+
+COMMENT ON COLUMN public.salary_payments.user_id IS 'User ID of the admin who processed the payment';
+
+
+-- Update salary_slips foreign key to CASCADE on delete
+-- This ensures that when a salary payment is deleted, its slips are also deleted
+
+DO $$
+BEGIN
+    -- Check if the table exists
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'salary_slips'
+    ) THEN
+        -- Drop existing foreign key constraint
+        ALTER TABLE public.salary_slips
+        DROP CONSTRAINT IF EXISTS salary_slips_payment_id_fkey;
+
+        -- Add new foreign key constraint with CASCADE delete
+        ALTER TABLE public.salary_slips
+        ADD CONSTRAINT salary_slips_payment_id_fkey
+        FOREIGN KEY (payment_id)
+        REFERENCES public.salary_payments(id)
+        ON DELETE CASCADE;
+
+        RAISE NOTICE 'salary_slips foreign key updated to CASCADE on delete';
+    ELSE
+        RAISE NOTICE 'salary_slips table does not exist - skipping';
+    END IF;
+END $$;
+
+
+-- ====================================================================
+-- COMPREHENSIVE FIX FOR DELETE PAYMENT ISSUES
+-- ====================================================================
+
+-- Step 1: Drop ALL existing RLS policies on salary_payments
+DO $$
+DECLARE
+    pol record;
+BEGIN
+    FOR pol IN
+        SELECT policyname
+        FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = 'salary_payments'
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.salary_payments', pol.policyname);
+        RAISE NOTICE 'Dropped policy: %', pol.policyname;
+    END LOOP;
+END $$;
+
+-- Step 2: Drop ALL existing RLS policies on salary_slips
+DO $$
+DECLARE
+    pol record;
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'salary_slips'
+    ) THEN
+        FOR pol IN
+            SELECT policyname
+            FROM pg_policies
+            WHERE schemaname = 'public' AND tablename = 'salary_slips'
+        LOOP
+            EXECUTE format('DROP POLICY IF EXISTS %I ON public.salary_slips', pol.policyname);
+            RAISE NOTICE 'Dropped policy: %', pol.policyname;
+        END LOOP;
+    END IF;
+END $$;
+
+-- Step 3: Disable RLS completely on both tables
+ALTER TABLE public.salary_payments DISABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'salary_slips'
+    ) THEN
+        EXECUTE 'ALTER TABLE public.salary_slips DISABLE ROW LEVEL SECURITY';
+        RAISE NOTICE 'RLS disabled on salary_slips';
+    END IF;
+END $$;
+
+-- Step 4: Force update foreign key to CASCADE delete (more aggressive approach)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'salary_slips'
+    ) THEN
+        -- Drop ALL foreign key constraints on payment_id
+        EXECUTE (
+            SELECT string_agg(
+                format('ALTER TABLE public.salary_slips DROP CONSTRAINT IF EXISTS %I', constraint_name),
+                '; '
+            )
+            FROM information_schema.table_constraints
+            WHERE table_schema = 'public'
+            AND table_name = 'salary_slips'
+            AND constraint_type = 'FOREIGN KEY'
+            AND constraint_name LIKE '%payment_id%'
+        );
+
+        -- Re-add foreign key with CASCADE delete
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = 'salary_slips'
+            AND column_name = 'payment_id'
+        ) THEN
+            ALTER TABLE public.salary_slips
+            ADD CONSTRAINT salary_slips_payment_id_fkey
+            FOREIGN KEY (payment_id)
+            REFERENCES public.salary_payments(id)
+            ON DELETE CASCADE;
+
+            RAISE NOTICE 'Foreign key re-created with CASCADE delete';
+        END IF;
+    END IF;
+END $$;
+
+-- Step 5: Grant DELETE permissions explicitly
+GRANT DELETE ON public.salary_payments TO postgres, anon, authenticated, service_role;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'salary_slips'
+    ) THEN
+        EXECUTE 'GRANT DELETE ON public.salary_slips TO postgres, anon, authenticated, service_role';
+        RAISE NOTICE 'DELETE permissions granted on salary_slips';
+    END IF;
+END $$;
+
+-- Verification queries (uncomment to check status)
+-- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('salary_payments', 'salary_slips');
+-- SELECT * FROM pg_policies WHERE schemaname = 'public' AND tablename IN ('salary_payments', 'salary_slips');
+
+

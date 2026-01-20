@@ -233,7 +233,6 @@ export default function ActiveStaffPage() {
       const { data, error } = await supabase
         .from('staff')
         .select('*')
-        .eq('user_id', currentUser.id)          // ✅ Filter by user
         .eq('school_id', currentUser.school_id) // ✅ Filter by school
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -337,7 +336,6 @@ export default function ActiveStaffPage() {
         .from('staff')
         .update({ status: newStatus })
         .eq('id', staffId)
-        .eq('user_id', currentUser.id)          // ✅ Security check
         .eq('school_id', currentUser.school_id) // ✅ Security check
 
       if (error) throw error
@@ -364,7 +362,6 @@ export default function ActiveStaffPage() {
             .from('staff')
             .delete()
             .eq('id', staffId)
-            .eq('user_id', currentUser.id)
             .eq('school_id', currentUser.school_id)
 
           if (error) throw error
@@ -930,7 +927,6 @@ export default function ActiveStaffPage() {
         .from('staff')
         .update(staffRecord)
         .eq('id', editingStaff.id)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
 
       if (error) throw error

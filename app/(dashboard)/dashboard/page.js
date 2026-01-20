@@ -211,7 +211,7 @@ export default function Dashboard() {
     const transportPassengersSubscription = supabase
       .channel('transport_passengers_changes')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'transport_passengers', filter: `user_id=eq.${userId}` },
+        { event: '*', schema: 'public', table: 'transport_passengers', filter: `school_id=eq.${schoolId}` },
         () => fetchDashboardData()
       )
       .subscribe()
@@ -277,7 +277,7 @@ export default function Dashboard() {
         supabase.from('datesheets').select('*').eq('user_id', userId).eq('school_id', schoolId),
         supabase.from('student_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
         supabase.from('staff_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
-        supabase.from('transport_passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active')
+        supabase.from('transport_passengers').select('student_id').eq('school_id', schoolId).eq('status', 'active')
       ])
 
       // Process students
@@ -396,24 +396,9 @@ export default function Dashboard() {
       const libraryBooks = libraryResult.count || 0
 
       // Transport - Count unique students enrolled in transport
-      console.log('🚌 Transport Debug:', {
-        hasError: transportPassengersResult.error,
-        error: transportPassengersResult.error,
-        dataLength: transportPassengersResult.data?.length,
-        rawData: transportPassengersResult.data,
-        userId: userId,
-        schoolId: schoolId
-      })
-
       const transportPassengersData = transportPassengersResult.data || []
       const uniqueTransportStudents = new Set(transportPassengersData.map(p => p.student_id).filter(Boolean))
       const transportStudents = uniqueTransportStudents.size
-
-      console.log('🚌 Transport Calculated:', {
-        passengersCount: transportPassengersData.length,
-        uniqueStudents: transportStudents,
-        studentIds: Array.from(uniqueTransportStudents)
-      })
 
       // Contacts data
       const contactsData = contactsResult.data || []

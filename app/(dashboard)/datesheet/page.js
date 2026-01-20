@@ -106,7 +106,7 @@ export default function DatesheetPage() {
   const [reportType, setReportType] = useState('') // 'datesheet', 'rollno', 'admit-card'
   const [reportConfig, setReportConfig] = useState({
     selectedDatesheet: null,
-    selectedClass: 'all',
+    selectedClass: '',
     genderFilter: 'all',
     showRoomNumber: true,
     showExamTime: true,
@@ -488,15 +488,10 @@ export default function DatesheetPage() {
     }
   }, [viewMode, schedules, selectedClasses, activeClassTab, generateCalendarDateRange])
 
-  // Fetch slips by datesheet and class filters
-  const fetchSlipsByFilters = useCallback(async (datesheetId, classId = null) => {
-    if (!datesheetId) {
-      setFetchedSlips([])
-      return
-    }
-
+  // Fetch slips by class filter (all datesheets)
+  const fetchSlipsByFilters = useCallback(async (classId = null) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('roll_no_slips')
         .select(`
           *,
@@ -508,15 +503,17 @@ export default function DatesheetPage() {
             current_class_id
           )
         `)
-        .eq('datesheet_id', datesheetId)
+        .eq('school_id', currentUser?.school_id)
         .order('created_at', { ascending: false })
+
+      const { data, error } = await query
 
       if (error) throw error
 
       // Filter by class on the client side if classId is provided
-      let filteredData = data
+      let filteredData = data || []
       if (classId) {
-        filteredData = data.filter(slip => slip.students?.current_class_id === classId)
+        filteredData = filteredData.filter(slip => slip.students?.current_class_id === classId)
       }
 
       // Get class names from the classes state
@@ -546,23 +543,14 @@ export default function DatesheetPage() {
       showToast('Failed to load slips', 'error')
       setFetchedSlips([])
     }
-  }, [classes])
+  }, [classes, currentUser?.school_id])
 
-  // Auto-select first datesheet when on reports tab and none selected
+  // Fetch slips when filters change or when on reports tab
   useEffect(() => {
-    if (activeTab === 'reports' && !selectedExamForReport && datesheets.length > 0) {
-      setSelectedExamForReport(datesheets[0].id)
+    if (activeTab === 'reports') {
+      fetchSlipsByFilters(slipClassFilter || null)
     }
-  }, [activeTab, selectedExamForReport, datesheets])
-
-  // Fetch slips when filters change
-  useEffect(() => {
-    if (selectedExamForReport) {
-      fetchSlipsByFilters(selectedExamForReport, slipClassFilter || null)
-    } else {
-      setFetchedSlips([])
-    }
-  }, [selectedExamForReport, slipClassFilter, fetchSlipsByFilters])
+  }, [activeTab, slipClassFilter, fetchSlipsByFilters])
 
   const fetchSchedules = async (datesheetId, classIds = []) => {
     if (!currentUser?.school_id) return
@@ -1881,24 +1869,31 @@ export default function DatesheetPage() {
   }
 
   const handleOpenReportConfig = (type) => {
-    // Pre-select datesheet and class if available
-    const examId = selectedExamForReport || null
-    const classFilter = slipClassFilter || 'all'
+    // Pre-select first available datesheet if none is selected
+    const examId = datesheets.length > 0 ? datesheets[0].id : null
+
+    // Get the first class from the selected datesheet
+    let firstClassId = ''
+    if (examId) {
+      const selectedDatesheet = datesheets.find(d => d.id === examId)
+      const classesInDatesheet = selectedDatesheet?.class_ids || []
+      firstClassId = classesInDatesheet.length > 0 ? classesInDatesheet[0] : ''
+    }
 
     setReportConfig(prev => ({
       ...prev,
       selectedDatesheet: examId,
-      selectedClass: classFilter
+      selectedClass: firstClassId
     }))
 
     setReportType(type)
 
     // Filter students based on selected class
-    if (classFilter && classFilter !== 'all') {
-      const classStudents = students.filter(s => s.current_class_id === classFilter)
+    if (firstClassId) {
+      const classStudents = students.filter(s => s.current_class_id === firstClassId)
       setFilteredStudents(classStudents)
     } else {
-      setFilteredStudents(students)
+      setFilteredStudents([])
     }
 
     setShowReportConfigModal(true)
@@ -1914,13 +1909,45 @@ export default function DatesheetPage() {
         slip_type: slip.slip_type || 'roll_no_slip',
         students: null // Will be fetched by generateRollNoSlipPDF if needed
       }
-      
+
       // Generate PDF for the single slip
       await generateRollNoSlipPDF(slipWithIds)
     } catch (error) {
       console.error('Error viewing slip:', error)
       showToast('Error viewing slip', 'error')
     }
+  }
+
+  const handleDeleteSlip = async (slipId) => {
+    showConfirmDialog(
+      'Delete Slip',
+      'Are you sure you want to delete this slip? This action cannot be undone.',
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('roll_no_slips')
+            .delete()
+            .eq('id', slipId)
+            .eq('school_id', currentUser.school_id)
+
+          if (error) throw error
+
+          showToast('Slip deleted successfully', 'success')
+
+          // Refresh the slips list
+          await fetchSlipsByFilters(slipClassFilter || null)
+
+          // Also refresh the generated slips modal if it's open
+          if (showGeneratedSlipsModal && selectedExamForReport) {
+            const slipType = reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip'
+            await fetchGeneratedSlips(selectedExamForReport, slipType)
+          }
+        } catch (error) {
+          console.error('Error deleting slip:', error)
+          showToast(`Failed to delete slip: ${error.message}`, 'error')
+        }
+      }
+    )
   }
 
   const handleGenerateReport = async () => {
@@ -1961,6 +1988,26 @@ export default function DatesheetPage() {
         data = result.data
         error = result.error
       } else if (reportType === 'rollno' || reportType === 'admit-card') {
+        // First, validate that the datesheet has schedules for the selected class
+        const { data: schedulesCheck, error: scheduleError } = await supabase
+          .from('datesheet_schedules')
+          .select('id')
+          .eq('datesheet_id', reportConfig.selectedDatesheet)
+          .eq('class_id', reportConfig.selectedClass)
+          .not('subject_id', 'is', null)
+          .limit(1)
+
+        if (scheduleError) {
+          console.error('Error checking schedules:', scheduleError)
+          showToast('Error validating datesheet schedules', 'error')
+          return
+        }
+
+        if (!schedulesCheck || schedulesCheck.length === 0) {
+          showToast('Cannot generate slips: No exam schedules found for this class. Please add subjects to the datesheet schedule first.', 'error')
+          return
+        }
+
         // For roll no slips and admit cards, we need to create entries for each student
         let studentsToProcess = []
 
@@ -1971,10 +2018,8 @@ export default function DatesheetPage() {
             studentsToProcess = [selectedStudent]
           }
         } else {
-          // Get all students based on class filter
-          studentsToProcess = reportConfig.selectedClass !== 'all'
-            ? students.filter(s => s.current_class_id === reportConfig.selectedClass)
-            : students
+          // Get all students in the selected class
+          studentsToProcess = students.filter(s => s.current_class_id === reportConfig.selectedClass)
         }
 
         if (studentsToProcess.length === 0) {
@@ -1982,14 +2027,37 @@ export default function DatesheetPage() {
           return
         }
 
-        // Create roll no slips for all students
-        const slips = studentsToProcess.map(student => ({
+        // Check which students already have slips for this datesheet
+        const slipType = reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip'
+        const { data: existingSlips, error: fetchError } = await supabase
+          .from('roll_no_slips')
+          .select('student_id')
+          .eq('school_id', currentUser.school_id)
+          .eq('datesheet_id', reportConfig.selectedDatesheet)
+          .eq('slip_type', slipType)
+
+        if (fetchError) throw fetchError
+
+        // Get IDs of students who already have slips
+        const existingStudentIds = new Set(existingSlips?.map(slip => slip.student_id) || [])
+
+        // Filter out students who already have slips
+        const studentsNeedingSlips = studentsToProcess.filter(student => !existingStudentIds.has(student.id))
+
+        if (studentsNeedingSlips.length === 0) {
+          showToast('All selected students already have slips for this datesheet', 'info')
+          setShowReportConfigModal(false)
+          return
+        }
+
+        // Create roll no slips only for students who don't have them
+        const slips = studentsNeedingSlips.map(student => ({
           school_id: currentUser.school_id,
           datesheet_id: reportConfig.selectedDatesheet,
           student_id: student.id,
           class_id: student.current_class_id, // Store the class_id for later use
           slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
-          slip_type: reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip',
+          slip_type: slipType,
           gender: student.gender,
           file_url: `/reports/${reportType}/${reportConfig.selectedDatesheet}/${student.id}`,
           generated_by: currentUser.id,
@@ -2006,9 +2074,14 @@ export default function DatesheetPage() {
         error = result.error
 
         if (!error) {
-          showToast(`${reportType} generated for ${studentsToProcess.length} students and saved successfully`, 'success')
+          const skippedCount = studentsToProcess.length - studentsNeedingSlips.length
+          const message = skippedCount > 0
+            ? `Generated ${studentsNeedingSlips.length} new ${reportType} slips (${skippedCount} students already had slips)`
+            : `${reportType} generated for ${studentsNeedingSlips.length} students and saved successfully`
+          showToast(message, 'success')
+
           // Refresh the slips
-          await fetchSlipsByFilters(reportConfig.selectedDatesheet, slipClassFilter || null)
+          await fetchSlipsByFilters(slipClassFilter || null)
         }
       }
 
@@ -2022,98 +2095,6 @@ export default function DatesheetPage() {
     } catch (error) {
       console.error('❌ Error saving report:', error)
       showToast(`Failed to save report: ${error.message}`, 'error')
-    }
-  }
-
-  const handleGenerateAllClassSlips = async () => {
-    if (!reportConfig.selectedDatesheet || (typeof reportConfig.selectedDatesheet === 'string' && reportConfig.selectedDatesheet.trim() === '') || !currentUser?.school_id || !currentUser?.id) {
-      showToast('Please select a datesheet first', 'error')
-      return
-    }
-
-    if (!reportConfig.selectedClass || reportConfig.selectedClass === 'all') {
-      showToast('Please select a specific class to generate all slips', 'warning')
-      return
-    }
-
-    try {
-      setLoading(true)
-
-      // Get the selected datesheet details
-      const selectedDatesheet = datesheets.find(d => d.id === reportConfig.selectedDatesheet)
-      if (!selectedDatesheet) {
-        showToast('Selected datesheet not found', 'error')
-        return
-      }
-
-      // Get all students in the selected class
-      const classStudents = students.filter(s => s.current_class_id === reportConfig.selectedClass)
-
-      if (classStudents.length === 0) {
-        showToast('No students found in the selected class', 'warning')
-        return
-      }
-
-      // Check which students already have slips for this datesheet
-      const slipType = reportType === 'admit-card' ? 'admit_card' : 'roll_no_slip'
-      const { data: existingSlips, error: fetchError } = await supabase
-        .from('roll_no_slips')
-        .select('student_id')
-        .eq('school_id', currentUser.school_id)
-        .eq('datesheet_id', reportConfig.selectedDatesheet)
-        .eq('slip_type', slipType)
-
-      if (fetchError) throw fetchError
-
-      // Get IDs of students who already have slips
-      const existingStudentIds = new Set(existingSlips?.map(slip => slip.student_id) || [])
-
-      // Filter out students who already have slips
-      const studentsNeedingSlips = classStudents.filter(student => !existingStudentIds.has(student.id))
-
-      if (studentsNeedingSlips.length === 0) {
-        showToast('All students in this class already have slips for this datesheet', 'info')
-        setShowReportConfigModal(false)
-        return
-      }
-
-      // Create roll no slips only for students who don't have them
-      const slips = studentsNeedingSlips.map(student => ({
-        school_id: currentUser.school_id,
-        datesheet_id: reportConfig.selectedDatesheet,
-        student_id: student.id,
-        slip_number: `${selectedDatesheet.title}-${student.admission_number}`,
-        slip_type: slipType,
-        gender: student.gender,
-        file_url: `/reports/${reportType}/${reportConfig.selectedDatesheet}/${student.id}`,
-        generated_by: currentUser.id,
-        configuration: reportConfig,
-        status: 'generated'
-      }))
-
-      const { data, error } = await supabase
-        .from('roll_no_slips')
-        .insert(slips)
-        .select()
-
-      if (error) throw error
-
-      const skippedCount = classStudents.length - studentsNeedingSlips.length
-      const message = skippedCount > 0
-        ? `Generated ${studentsNeedingSlips.length} new slips (${skippedCount} students already had slips)`
-        : `Successfully generated slips for all ${studentsNeedingSlips.length} students in the class`
-
-      showToast(message, 'success')
-
-      // Refresh the slips
-      await fetchSlipsByFilters(reportConfig.selectedDatesheet, slipClassFilter || null)
-
-      setShowReportConfigModal(false)
-    } catch (error) {
-      console.error('❌ Error generating all class slips:', error)
-      showToast(`Failed to generate all class slips: ${error.message}`, 'error')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -3494,7 +3475,7 @@ export default function DatesheetPage() {
 
           {/* Class Filter */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Class (Optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Class</label>
             <select
               value={slipClassFilter}
               onChange={(e) => setSlipClassFilter(e.target.value)}
@@ -3530,19 +3511,28 @@ export default function DatesheetPage() {
                       <td className="border border-gray-200 px-3 py-2.5">{slip.class_name}</td>
                       <td className="border border-gray-200 px-3 py-2.5">{slip.slip_number}</td>
                       <td className="border border-gray-200 px-3 py-2.5 text-center">
-                        <button
-                          onClick={() => handleViewSlip(slip)}
-                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
-                        >
-                          View
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleViewSlip(slip)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSlip(slip.id)}
+                            className="bg-red-600 text-white p-1.5 rounded hover:bg-red-700 transition-colors"
+                            title="Delete slip"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td colSpan="6" className="border border-gray-200 px-3 py-8 text-center text-gray-500">
-                      {selectedExamForReport ? (slipClassFilter ? 'No slips found for this class' : 'No slips generated yet. Click "Generate New Slips" to create slips.') : 'Please select a datesheet from the Schedule tab first'}
+                      {slipClassFilter ? 'No slips found for this class' : 'No slips generated yet. Click "Generate New Slips" to create slips.'}
                     </td>
                   </tr>
                 )}
@@ -3600,14 +3590,23 @@ export default function DatesheetPage() {
                               {new Date(slip.created_at).toLocaleDateString()}
                             </td>
                             <td className="border border-gray-200 px-4 py-2.5 text-center">
-                              <button
-                                onClick={() => generateRollNoSlipPDF(slip)}
-                                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm flex items-center gap-1 mx-auto"
-                                title="Download PDF"
-                              >
-                                <Download className="w-4 h-4" />
-                                PDF
-                              </button>
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => generateRollNoSlipPDF(slip)}
+                                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm flex items-center gap-1"
+                                  title="Download PDF"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  PDF
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSlip(slip.id)}
+                                  className="bg-red-600 text-white p-1.5 rounded hover:bg-red-700 transition-colors"
+                                  title="Delete slip"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -3658,13 +3657,24 @@ export default function DatesheetPage() {
                     <select
                       value={reportConfig.selectedDatesheet}
                       onChange={(e) => {
-                        // Reset class selection when datesheet changes
+                        // Get the selected datesheet and auto-select first class
+                        const selectedDatesheet = datesheets.find(d => d.id === e.target.value)
+                        const classesInDatesheet = selectedDatesheet?.class_ids || []
+                        const firstClassId = classesInDatesheet.length > 0 ? classesInDatesheet[0] : ''
+
                         setReportConfig({
                           ...reportConfig,
                           selectedDatesheet: e.target.value,
-                          selectedClass: 'all' // Reset to "All Classes"
+                          selectedClass: firstClassId
                         })
-                        setFilteredStudents(students) // Reset student filter
+
+                        // Filter students by first class
+                        if (firstClassId) {
+                          const classStudents = students.filter(s => s.current_class_id === firstClassId)
+                          setFilteredStudents(classStudents)
+                        } else {
+                          setFilteredStudents([])
+                        }
                       }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
@@ -3684,17 +3694,12 @@ export default function DatesheetPage() {
                         const newConfig = { ...reportConfig, selectedClass: e.target.value }
                         setReportConfig(newConfig)
                         // Filter students when class changes
-                        if (e.target.value !== 'all') {
-                          const classStudents = students.filter(s => s.current_class_id === e.target.value)
-                          setFilteredStudents(classStudents)
-                        } else {
-                          setFilteredStudents(students)
-                        }
+                        const classStudents = students.filter(s => s.current_class_id === e.target.value)
+                        setFilteredStudents(classStudents)
                       }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       disabled={!reportConfig.selectedDatesheet}
                     >
-                      <option value="all">All Classes</option>
                       {(() => {
                         // Filter classes based on selected datesheet
                         if (reportConfig.selectedDatesheet) {
@@ -3707,10 +3712,7 @@ export default function DatesheetPage() {
                               ))
                           }
                         }
-                        // If no datesheet selected, show all classes
-                        return classes.map(cls => (
-                          <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                        ))
+                        return <option value="">Select a datesheet first</option>
                       })()}
                     </select>
                   </div>
@@ -3866,21 +3868,12 @@ export default function DatesheetPage() {
               >
                 Cancel
               </button>
-              {(reportType === 'rollno' || reportType === 'admit-card') && reportConfig.selectedClass && reportConfig.selectedClass !== 'all' && (
-                <button
-                  onClick={handleGenerateAllClassSlips}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition disabled:bg-gray-400"
-                >
-                  {loading ? 'Generating...' : 'Generate All Class Slips'}
-                </button>
-              )}
               <button
                 onClick={handleGenerateReport}
                 disabled={loading}
                 className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
-                {loading ? 'Generating...' : 'Generate Report'} <span className="text-xl">→</span>
+                {loading ? 'Generating...' : 'Generate'} <span className="text-xl">→</span>
               </button>
             </div>
           </div>

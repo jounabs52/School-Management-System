@@ -27,6 +27,9 @@ export default function ExamReportsPage() {
   // Data states
   const [tests, setTests] = useState([])
   const [testMarks, setTestMarks] = useState([])
+  const [exams, setExams] = useState([])
+  const [examMarks, setExamMarks] = useState([])
+  const [combinedAssessments, setCombinedAssessments] = useState([]) // Combined tests + exams
   const [classes, setClasses] = useState([])
   const [sections, setSections] = useState([])
   const [subjects, setSubjects] = useState([])
@@ -36,6 +39,7 @@ export default function ExamReportsPage() {
   const [selectedClass, setSelectedClass] = useState('all')
   const [selectedSubject, setSelectedSubject] = useState('all')
   const [selectedTest, setSelectedTest] = useState('')
+  const [selectedType, setSelectedType] = useState('') // 'test' or 'exam'
 
   // Report data
   const [reportData, setReportData] = useState(null)
@@ -57,10 +61,10 @@ export default function ExamReportsPage() {
   }, [currentUser])
 
   useEffect(() => {
-    if (currentUser && tests.length > 0) {
+    if (currentUser && (tests.length > 0 || exams.length > 0)) {
       generateReport()
     }
-  }, [activeTab, selectedClass, selectedSubject, selectedTest, tests, testMarks])
+  }, [activeTab, selectedClass, selectedSubject, selectedTest, selectedType, tests, testMarks, exams, examMarks, combinedAssessments])
 
   const checkAuth = async () => {
     const userCookie = document.cookie
@@ -263,8 +267,94 @@ export default function ExamReportsPage() {
         console.log('No marks to join')
       }
 
+      // Fetch exams from exams table
+      console.log('Fetching exams...')
+      const { data: examsData, error: examsError } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+        .order('created_at', { ascending: false })
+
+      console.log('Exams response:', { data: examsData, error: examsError })
+
+      if (examsError) {
+        console.error('Exams error:', examsError)
+      }
+
+      const examsWithRelations = (examsData || []).map(exam => {
+        const classData = classesData?.find(c => c.id === exam.class_id)
+        const sectionData = sectionsData?.find(s => s.id === exam.section_id)
+
+        return {
+          ...exam,
+          classes: classData,
+          sections: sectionData
+        }
+      })
+
+      setExams(examsWithRelations)
+      console.log(`✓ Found ${examsWithRelations.length} exams`)
+
+      // Fetch exam marks
+      console.log('Fetching exam marks...')
+      const { data: examMarksData, error: examMarksError } = await supabase
+        .from('exam_marks')
+        .select('*')
+        .eq('school_id', currentUser.school_id)
+
+      console.log('Exam marks response:', { data: examMarksData, error: examMarksError })
+
+      if (examMarksError) {
+        console.error('Exam marks error:', examMarksError)
+      }
+
+      // Join exam marks with students
+      if (examMarksData && examMarksData.length > 0) {
+        const examMarksWithRelations = examMarksData.map(mark => ({
+          ...mark,
+          students: studentsData?.find(s => s.id === mark.student_id),
+          exams: examsData?.find(e => e.id === mark.exam_id),
+          subjects: subjectsData?.find(s => s.id === mark.subject_id)
+        }))
+
+        setExamMarks(examMarksWithRelations)
+        console.log(`✓ Created ${examMarksWithRelations.length} exam marks with relations`)
+      } else {
+        setExamMarks([])
+        console.log('No exam marks to join')
+      }
+
+      // Create combined assessments list for dropdown
+      const combined = [
+        ...testsWithRelations.map(t => ({
+          id: t.id,
+          name: t.test_name,
+          type: 'test',
+          date: t.test_date,
+          classes: t.classes,
+          sections: t.sections,
+          subjects: t.subjects,
+          total_marks: t.total_marks,
+          original: t
+        })),
+        ...examsWithRelations.map(e => ({
+          id: e.id,
+          name: e.exam_name,
+          type: 'exam',
+          date: e.exam_date || e.created_at,
+          classes: e.classes,
+          sections: e.sections,
+          subjects: null, // Exams may have multiple subjects
+          total_marks: e.total_marks,
+          original: e
+        }))
+      ].sort((a, b) => new Date(b.date) - new Date(a.date))
+
+      setCombinedAssessments(combined)
+      console.log(`✓ Combined ${combined.length} assessments (${testsWithRelations.length} tests + ${examsWithRelations.length} exams)`)
+
       console.log('=== DATA FETCH COMPLETE ===')
-      toast.success(`Loaded ${testsWithRelations.length} tests successfully`)
+      toast.success(`Loaded ${testsWithRelations.length} tests and ${examsWithRelations.length} exams`)
 
     } catch (error) {
       console.error('=== ERROR FETCHING DATA ===')
@@ -303,16 +393,33 @@ export default function ExamReportsPage() {
       return
     }
 
-    const marks = testMarks.filter(m => m.test_id === selectedTest)
-    const test = tests.find(t => t.id === selectedTest)
+    // Find the assessment in combined list to determine type
+    const assessment = combinedAssessments.find(a => a.id === selectedTest)
+    const isExam = assessment?.type === 'exam'
 
-    if (!test || !marks.length) {
+    let marks, assessmentData, totalMarks, assessmentName
+
+    if (isExam) {
+      // Handle exam
+      marks = examMarks.filter(m => m.exam_id === selectedTest)
+      assessmentData = exams.find(e => e.id === selectedTest)
+      totalMarks = assessmentData?.total_marks || 100
+      assessmentName = assessmentData?.exam_name || 'Exam'
+    } else {
+      // Handle test
+      marks = testMarks.filter(m => m.test_id === selectedTest)
+      assessmentData = tests.find(t => t.id === selectedTest)
+      totalMarks = assessmentData?.total_marks || 100
+      assessmentName = assessmentData?.test_name || 'Test'
+    }
+
+    if (!assessmentData || !marks.length) {
       setReportData(null)
       setStats({})
       return
     }
 
-    const passThreshold = test.total_marks * 0.33
+    const passThreshold = totalMarks * 0.33
     const presentMarks = marks.filter(m => !m.is_absent)
 
     const statsData = {
@@ -330,8 +437,9 @@ export default function ExamReportsPage() {
       highestMarks: presentMarks.length > 0 ? Math.max(...presentMarks.map(m => m.obtained_marks)) : 0,
       lowestMarks: presentMarks.length > 0 ? Math.min(...presentMarks.map(m => m.obtained_marks)) : 0,
       passThreshold,
-      testName: test.test_name,
-      totalMarks: test.total_marks
+      testName: assessmentName,
+      totalMarks: totalMarks,
+      isExam: isExam
     }
 
     setStats(statsData)
@@ -340,18 +448,26 @@ export default function ExamReportsPage() {
 
   const generateClassSummary = () => {
     let filteredTests = tests
-    let filteredMarks = testMarks
+    let filteredTestMarks = testMarks
+    let filteredExams = exams
+    let filteredExamMarks = examMarks
 
     if (selectedClass !== 'all') {
       filteredTests = filteredTests.filter(t => t.class_id === selectedClass)
-      filteredMarks = filteredMarks.filter(m => {
+      filteredTestMarks = filteredTestMarks.filter(m => {
         const test = tests.find(t => t.id === m.test_id)
         return test && test.class_id === selectedClass
+      })
+      filteredExams = filteredExams.filter(e => e.class_id === selectedClass)
+      filteredExamMarks = filteredExamMarks.filter(m => {
+        const exam = exams.find(e => e.id === m.exam_id)
+        return exam && exam.class_id === selectedClass
       })
     }
 
     const classData = {}
 
+    // Process tests
     filteredTests.forEach(test => {
       const className = `${test.classes?.class_name || 'N/A'} ${test.sections?.section_name || ''}`.trim()
 
@@ -359,6 +475,7 @@ export default function ExamReportsPage() {
         classData[className] = {
           className,
           totalTests: 0,
+          totalExams: 0,
           totalStudents: 0,
           passedStudents: 0,
           failedStudents: 0,
@@ -366,7 +483,7 @@ export default function ExamReportsPage() {
         }
       }
 
-      const testMarksForTest = filteredMarks.filter(m => m.test_id === test.id)
+      const testMarksForTest = filteredTestMarks.filter(m => m.test_id === test.id)
       const passThreshold = test.total_marks * 0.33
 
       classData[className].totalTests++
@@ -376,8 +493,35 @@ export default function ExamReportsPage() {
       classData[className].absentStudents += testMarksForTest.filter(m => m.is_absent).length
     })
 
+    // Process exams
+    filteredExams.forEach(exam => {
+      const className = `${exam.classes?.class_name || 'N/A'} ${exam.sections?.section_name || ''}`.trim()
+
+      if (!classData[className]) {
+        classData[className] = {
+          className,
+          totalTests: 0,
+          totalExams: 0,
+          totalStudents: 0,
+          passedStudents: 0,
+          failedStudents: 0,
+          absentStudents: 0
+        }
+      }
+
+      const examMarksForExam = filteredExamMarks.filter(m => m.exam_id === exam.id)
+      const passThreshold = (exam.total_marks || 100) * 0.33
+
+      classData[className].totalExams++
+      classData[className].totalStudents += examMarksForExam.length
+      classData[className].passedStudents += examMarksForExam.filter(m => !m.is_absent && m.obtained_marks >= passThreshold).length
+      classData[className].failedStudents += examMarksForExam.filter(m => !m.is_absent && m.obtained_marks < passThreshold).length
+      classData[className].absentStudents += examMarksForExam.filter(m => m.is_absent).length
+    })
+
     const report = Object.values(classData).map(item => ({
       ...item,
+      totalAssessments: item.totalTests + item.totalExams,
       passPercentage: item.totalStudents > 0 ? ((item.passedStudents / item.totalStudents) * 100).toFixed(1) : 0
     })).sort((a, b) => b.passPercentage - a.passPercentage)
 
@@ -387,6 +531,7 @@ export default function ExamReportsPage() {
     setStats({
       totalClasses: report.length,
       totalTests: filteredTests.length,
+      totalExams: filteredExams.length,
       totalStudents,
       totalPassed,
       overallPassPercentage: totalStudents > 0 ? ((totalPassed / totalStudents) * 100).toFixed(1) : 0
@@ -396,16 +541,18 @@ export default function ExamReportsPage() {
   }
 
   const generateSubjectSummary = () => {
-    let filteredMarks = testMarks
+    let filteredTestMarks = testMarks
+    let filteredExamMarks = examMarks
 
     if (selectedSubject !== 'all') {
-      filteredMarks = filteredMarks.filter(m => m.subject_id === selectedSubject)
+      filteredTestMarks = filteredTestMarks.filter(m => m.subject_id === selectedSubject)
+      filteredExamMarks = filteredExamMarks.filter(m => m.subject_id === selectedSubject)
     }
 
     const subjectData = {}
 
-    // Group marks by subject
-    filteredMarks.forEach(mark => {
+    // Group test marks by subject
+    filteredTestMarks.forEach(mark => {
       const subject = subjects.find(s => s.id === mark.subject_id)
       const subjectName = subject?.subject_name || 'N/A'
       const test = tests.find(t => t.id === mark.test_id)
@@ -416,6 +563,7 @@ export default function ExamReportsPage() {
         subjectData[mark.subject_id] = {
           subjectName,
           totalTests: new Set(),
+          totalExams: new Set(),
           totalStudents: 0,
           passedStudents: 0,
           failedStudents: 0,
@@ -441,21 +589,64 @@ export default function ExamReportsPage() {
       }
     })
 
-    // Convert Set to count
+    // Group exam marks by subject
+    filteredExamMarks.forEach(mark => {
+      const subject = subjects.find(s => s.id === mark.subject_id)
+      const subjectName = subject?.subject_name || 'N/A'
+      const exam = exams.find(e => e.id === mark.exam_id)
+
+      if (!exam) return
+
+      if (!subjectData[mark.subject_id]) {
+        subjectData[mark.subject_id] = {
+          subjectName,
+          totalTests: new Set(),
+          totalExams: new Set(),
+          totalStudents: 0,
+          passedStudents: 0,
+          failedStudents: 0,
+          totalMarksObtained: 0,
+          totalMaxMarks: 0
+        }
+      }
+
+      const totalMarks = exam.total_marks || 100
+      const passThreshold = totalMarks * 0.33
+
+      // Track unique exams
+      subjectData[mark.subject_id].totalExams.add(mark.exam_id)
+      subjectData[mark.subject_id].totalStudents++
+
+      if (!mark.is_absent) {
+        if (mark.obtained_marks >= passThreshold) {
+          subjectData[mark.subject_id].passedStudents++
+        } else {
+          subjectData[mark.subject_id].failedStudents++
+        }
+        subjectData[mark.subject_id].totalMarksObtained += mark.obtained_marks
+        subjectData[mark.subject_id].totalMaxMarks += totalMarks
+      }
+    })
+
+    // Convert Sets to counts and calculate totals
     const report = Object.values(subjectData).map(item => ({
       ...item,
       totalTests: item.totalTests.size,
+      totalExams: item.totalExams.size,
+      totalAssessments: item.totalTests.size + item.totalExams.size,
       passPercentage: item.totalStudents > 0 ? ((item.passedStudents / item.totalStudents) * 100).toFixed(1) : 0,
       averagePercentage: item.totalMaxMarks > 0 ? ((item.totalMarksObtained / item.totalMaxMarks) * 100).toFixed(1) : 0
     })).sort((a, b) => b.averagePercentage - a.averagePercentage)
 
     const totalStudents = report.reduce((sum, subj) => sum + subj.totalStudents, 0)
     const totalPassed = report.reduce((sum, subj) => sum + subj.passedStudents, 0)
-    const uniqueTests = new Set(filteredMarks.map(m => m.test_id)).size
+    const uniqueTests = new Set(filteredTestMarks.map(m => m.test_id)).size
+    const uniqueExams = new Set(filteredExamMarks.map(m => m.exam_id)).size
 
     setStats({
       totalSubjects: report.length,
       totalTests: uniqueTests,
+      totalExams: uniqueExams,
       totalStudents,
       overallPassPercentage: totalStudents > 0 ? ((totalPassed / totalStudents) * 100).toFixed(1) : 0
     })
@@ -466,6 +657,7 @@ export default function ExamReportsPage() {
   const generateTopPerformers = () => {
     const studentPerformance = {}
 
+    // Process test marks
     testMarks.forEach(mark => {
       if (mark.is_absent) return
 
@@ -483,6 +675,7 @@ export default function ExamReportsPage() {
           totalMarksObtained: 0,
           totalMaxMarks: 0,
           testCount: 0,
+          examCount: 0,
           passCount: 0
         }
       }
@@ -498,14 +691,50 @@ export default function ExamReportsPage() {
       }
     })
 
+    // Process exam marks
+    examMarks.forEach(mark => {
+      if (mark.is_absent) return
+
+      const studentId = mark.student_id
+      const student = mark.students
+      const exam = mark.exams
+
+      if (!student || !exam) return
+
+      if (!studentPerformance[studentId]) {
+        studentPerformance[studentId] = {
+          student_id: studentId,
+          student_name: `${student.first_name} ${student.last_name}`,
+          roll_number: student.roll_number,
+          totalMarksObtained: 0,
+          totalMaxMarks: 0,
+          testCount: 0,
+          examCount: 0,
+          passCount: 0
+        }
+      }
+
+      const totalMarks = exam.total_marks || 100
+      const passThreshold = totalMarks * 0.33
+
+      studentPerformance[studentId].totalMarksObtained += mark.obtained_marks
+      studentPerformance[studentId].totalMaxMarks += totalMarks
+      studentPerformance[studentId].examCount++
+
+      if (mark.obtained_marks >= passThreshold) {
+        studentPerformance[studentId].passCount++
+      }
+    })
+
     const studentsWithPercentage = Object.values(studentPerformance)
       .map(student => ({
         ...student,
+        assessmentCount: student.testCount + student.examCount,
         averagePercentage: student.totalMaxMarks > 0
           ? ((student.totalMarksObtained / student.totalMaxMarks) * 100).toFixed(2)
           : 0
       }))
-      .filter(student => student.testCount > 0)
+      .filter(student => student.assessmentCount > 0)
       .sort((a, b) => b.averagePercentage - a.averagePercentage)
 
     const topPerformers = studentsWithPercentage.slice(0, 10)
@@ -701,10 +930,10 @@ export default function ExamReportsPage() {
       } else if (activeTab === 'class-summary' && Array.isArray(reportData)) {
         autoTable(pdf, {
           startY: yPos,
-          head: [['Class', 'Tests', 'Students', 'Passed', 'Failed', 'Absent', 'Pass %']],
+          head: [['Class', 'Assessments', 'Students', 'Passed', 'Failed', 'Absent', 'Pass %']],
           body: reportData.map(item => [
             item.className,
-            item.totalTests,
+            item.totalAssessments,
             item.totalStudents,
             item.passedStudents,
             item.failedStudents,
@@ -725,10 +954,10 @@ export default function ExamReportsPage() {
       } else if (activeTab === 'subject-summary' && Array.isArray(reportData)) {
         autoTable(pdf, {
           startY: yPos,
-          head: [['Subject', 'Tests', 'Students', 'Passed', 'Failed', 'Pass %', 'Avg %']],
+          head: [['Subject', 'Assessments', 'Students', 'Passed', 'Failed', 'Pass %', 'Avg %']],
           body: reportData.map(item => [
             item.subjectName,
-            item.totalTests,
+            item.totalAssessments,
             item.totalStudents,
             item.passedStudents,
             item.failedStudents,
@@ -750,12 +979,12 @@ export default function ExamReportsPage() {
         // Top performers - use green header for top performers
         autoTable(pdf, {
           startY: yPos,
-          head: [['Rank', 'Roll No.', 'Student Name', 'Tests', 'Pass', 'Average %']],
+          head: [['Rank', 'Roll No.', 'Student Name', 'Assessments', 'Pass', 'Average %']],
           body: reportData.topPerformers.map((student, idx) => [
             idx + 1,
             student.roll_number,
             student.student_name,
-            student.testCount,
+            student.assessmentCount,
             student.passCount,
             `${student.averagePercentage}%`
           ]),
@@ -791,11 +1020,11 @@ export default function ExamReportsPage() {
 
           autoTable(pdf, {
             startY: yPos,
-            head: [['Roll No.', 'Student Name', 'Tests', 'Pass', 'Average %']],
+            head: [['Roll No.', 'Student Name', 'Assessments', 'Pass', 'Average %']],
             body: reportData.needsAttention.map(student => [
               student.roll_number,
               student.student_name,
-              student.testCount,
+              student.assessmentCount,
               student.passCount,
               `${student.averagePercentage}%`
             ]),
@@ -979,19 +1208,44 @@ export default function ExamReportsPage() {
           {activeTab === 'test-results' && (
             <div className="md:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Test *
+                Select Test/Exam *
               </label>
               <select
                 value={selectedTest}
-                onChange={(e) => setSelectedTest(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSelectedTest(value)
+                  // Find the type of selected assessment
+                  const assessment = combinedAssessments.find(a => a.id === value)
+                  setSelectedType(assessment?.type || '')
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Choose a test...</option>
-                {tests.map((test) => (
-                  <option key={test.id} value={test.id}>
-                    {test.test_name} - {test.classes?.class_name} {test.sections?.section_name} - {test.subjects?.subject_name} ({new Date(test.test_date).toLocaleDateString()})
-                  </option>
-                ))}
+                <option value="">Choose a test or exam...</option>
+                {combinedAssessments.length > 0 && (
+                  <>
+                    {/* Tests Section */}
+                    {tests.length > 0 && (
+                      <optgroup label="Tests">
+                        {combinedAssessments.filter(a => a.type === 'test').map((assessment) => (
+                          <option key={`test-${assessment.id}`} value={assessment.id}>
+                            {assessment.name} - {assessment.classes?.class_name || 'N/A'} {assessment.sections?.section_name || ''} - {assessment.subjects?.subject_name || 'N/A'} ({new Date(assessment.date).toLocaleDateString()})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {/* Exams Section */}
+                    {exams.length > 0 && (
+                      <optgroup label="Exams">
+                        {combinedAssessments.filter(a => a.type === 'exam').map((assessment) => (
+                          <option key={`exam-${assessment.id}`} value={assessment.id}>
+                            {assessment.name} - {assessment.classes?.class_name || 'All Classes'} {assessment.sections?.section_name || ''} ({new Date(assessment.date).toLocaleDateString()})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </>
+                )}
               </select>
             </div>
           )}
@@ -1145,7 +1399,7 @@ export default function ExamReportsPage() {
                 <thead>
                   <tr className="bg-blue-900 text-white">
                     <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
                     <th className="px-4 py-3 text-center font-semibold border border-blue-800">Students</th>
                     <th className="px-4 py-3 text-center font-semibold border border-blue-800">Passed</th>
                     <th className="px-4 py-3 text-center font-semibold border border-blue-800">Failed</th>
@@ -1157,7 +1411,7 @@ export default function ExamReportsPage() {
                   {reportData.map((item, index) => (
                     <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
                       <td className="px-4 py-3 border border-gray-200 font-medium">{item.className}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalTests}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalAssessments}</td>
                       <td className="px-4 py-3 border border-gray-200 text-center">{item.totalStudents}</td>
                       <td className="px-4 py-3 border border-gray-200 text-center">
                         <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
@@ -1189,7 +1443,7 @@ export default function ExamReportsPage() {
                 <thead>
                   <tr className="bg-blue-900 text-white">
                     <th className="px-4 py-3 text-left font-semibold border border-blue-800">Subject</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
                     <th className="px-4 py-3 text-center font-semibold border border-blue-800">Students</th>
                     <th className="px-4 py-3 text-center font-semibold border border-blue-800">Passed</th>
                     <th className="px-4 py-3 text-center font-semibold border border-blue-800">Failed</th>
@@ -1201,7 +1455,7 @@ export default function ExamReportsPage() {
                   {reportData.map((item, index) => (
                     <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
                       <td className="px-4 py-3 border border-gray-200 font-medium">{item.subjectName}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalTests}</td>
+                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalAssessments}</td>
                       <td className="px-4 py-3 border border-gray-200 text-center">{item.totalStudents}</td>
                       <td className="px-4 py-3 border border-gray-200 text-center">
                         <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
@@ -1237,7 +1491,7 @@ export default function ExamReportsPage() {
                         <th className="px-4 py-3 text-left font-semibold border border-blue-800">Rank</th>
                         <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
                         <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
                         <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass</th>
                         <th className="px-4 py-3 text-center font-semibold border border-blue-800">Average %</th>
                       </tr>
@@ -1248,7 +1502,7 @@ export default function ExamReportsPage() {
                           <td className="px-4 py-3 border border-gray-200 font-bold">{idx + 1}</td>
                           <td className="px-4 py-3 border border-gray-200">{student.roll_number}</td>
                           <td className="px-4 py-3 border border-gray-200 font-medium">{student.student_name}</td>
-                          <td className="px-4 py-3 border border-gray-200 text-center">{student.testCount}</td>
+                          <td className="px-4 py-3 border border-gray-200 text-center">{student.assessmentCount}</td>
                           <td className="px-4 py-3 border border-gray-200 text-center">{student.passCount}</td>
                           <td className="px-4 py-3 border border-gray-200 text-center font-bold text-green-700">
                             {student.averagePercentage}%
@@ -1272,7 +1526,7 @@ export default function ExamReportsPage() {
                         <tr className="bg-blue-900 text-white">
                           <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
                           <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Tests</th>
+                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
                           <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass</th>
                           <th className="px-4 py-3 text-center font-semibold border border-blue-800">Average %</th>
                         </tr>
@@ -1282,7 +1536,7 @@ export default function ExamReportsPage() {
                           <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
                             <td className="px-4 py-3 border border-gray-200">{student.roll_number}</td>
                             <td className="px-4 py-3 border border-gray-200 font-medium">{student.student_name}</td>
-                            <td className="px-4 py-3 border border-gray-200 text-center">{student.testCount}</td>
+                            <td className="px-4 py-3 border border-gray-200 text-center">{student.assessmentCount}</td>
                             <td className="px-4 py-3 border border-gray-200 text-center">{student.passCount}</td>
                             <td className="px-4 py-3 border border-gray-200 text-center font-bold text-red-700">
                               {student.averagePercentage}%

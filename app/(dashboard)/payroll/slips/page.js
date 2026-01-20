@@ -27,8 +27,6 @@ import {
   PDF_FONTS
 } from '@/lib/pdfUtils'
 
-
-import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 
@@ -268,17 +266,9 @@ export default function SalarySlipsPage() {
   }
 
   const calculateBalance = (payment) => {
-    // Balance = Net Salary - (if any partial payment made)
-    if (payment.status === 'paid') {
-      return 0
-    } else if (payment.status === 'pending') {
-      return parseFloat(payment.net_salary || 0)
-    } else if (payment.status === 'partial') {
-      // For partial payments, you might track actual amount paid separately
-      // For now, show full amount as balance
-      return parseFloat(payment.net_salary || 0)
-    }
-    return parseFloat(payment.net_salary || 0)
+    // Return dues amount from database
+    // dues = net_salary - amount_paid
+    return parseFloat(payment.dues || 0)
   }
 
   const handleViewDetails = (payment) => {
@@ -540,6 +530,26 @@ export default function SalarySlipsPage() {
         doc.text('Net Salary', startX + 26.5, currentY + 3.8, { align: 'center' })
         doc.text(netSalary.toLocaleString(), startX + 59.5, currentY + 3.8, { align: 'center' })
 
+        // Payment Status Information (for partial and pending payments)
+        if (payment.status === 'partial' || payment.status === 'pending') {
+          currentY += 6
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(6.5)
+
+          if (payment.status === 'partial') {
+            const amountPaid = parseFloat(payment.amount_paid || 0)
+            const dues = parseFloat(payment.dues || 0)
+            doc.setTextColor(0, 128, 0) // Green for paid
+            doc.text(`Amount Paid: ${amountPaid.toLocaleString()}`, startX + 5, currentY)
+            doc.setTextColor(255, 0, 0) // Red for dues
+            doc.text(`Dues: ${dues.toLocaleString()}`, startX + 40, currentY)
+          } else if (payment.status === 'pending') {
+            doc.setTextColor(255, 128, 0) // Orange for pending
+            doc.text(`Status: PENDING - Amount Due: ${netSalary.toLocaleString()}`, startX + copyWidth / 2, currentY, { align: 'center' })
+          }
+          doc.setTextColor(...textColor) // Reset to default color
+        }
+
         // Amount in words
         currentY += 8
         doc.setFontSize(7)
@@ -639,22 +649,26 @@ export default function SalarySlipsPage() {
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
           success: {
             duration: 3000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#10b981',
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: '#ef4444',
+              color: '#fff',
+            },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#ef4444',
             },
           },
         }}
