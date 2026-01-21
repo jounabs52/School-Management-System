@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle, Download } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
+import * as XLSX from 'xlsx'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getLineWidth, applyPdfSettings, addCompactPDFHeader, addPDFFooter } from '@/lib/pdfSettings'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
@@ -260,13 +261,16 @@ function ActiveStudentsContent() {
                 if (s.id === payload.new.id) {
                   return {
                     ...s,
-                    first_name: payload.new.first_name,
-                    last_name: payload.new.last_name,
-                    father_name: payload.new.father_name,
-                    cnic: payload.new.cnic,
-                    roll_number: payload.new.roll_number,
-                    discount_amount: payload.new.discount_amount,
-                    // Keep class/section names from existing data
+                    admNo: payload.new.admission_number,
+                    name: `${payload.new.first_name}${payload.new.last_name ? ' ' + payload.new.last_name : ''}`,
+                    father: payload.new.father_name || 'N/A',
+                    class: payload.new.current_class_id,
+                    gender: payload.new.gender,
+                    avatar: payload.new.gender === 'female' ? '👧' : (payload.new.gender === 'male' ? '👦' : '🧑'),
+                    dateOfBirth: payload.new.date_of_birth,
+                    admissionDate: payload.new.admission_date,
+                    cnic: payload.new.admission_number,
+                    // Keep other existing formatted data
                   }
                 }
                 return s
@@ -427,37 +431,59 @@ function ActiveStudentsContent() {
       return
     }
 
-    const csvData = filteredStudents.map((student, index) => ({
-      'Sr.': index + 1,
-      'Session': student.session || 'N/A',
-      'Class': student.class || 'N/A',
-      'Student Name': student.name || 'N/A',
-      'Father Name': student.father || 'N/A',
-      'Admission No.': student.admNo || 'N/A',
-      'CNIC': student.cnic || 'N/A',
-      'Gender': student.gender || 'N/A',
-      'Date of Birth': student.dateOfBirth || 'N/A',
-      'Admission Date': student.admissionDate || 'N/A'
-    }))
+    try {
+      // Helper function to format date
+      const formatDate = (dateStr) => {
+        if (!dateStr) return 'N/A'
+        const date = new Date(dateStr)
+        if (isNaN(date.getTime())) return 'N/A'
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+      }
 
-    const headers = Object.keys(csvData[0])
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => headers.map(header => {
-        const value = row[header]
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(','))
-    ].join('\n')
+      const exportData = filteredStudents.map((student, index) => ({
+        'Sr.': index + 1,
+        'Session': student.session || 'N/A',
+        'Class': getClassName(student.class),
+        'Student Name': student.name || 'N/A',
+        'Father Name': student.father || 'N/A',
+        'Admission No.': student.admNo || 'N/A',
+        'CNIC': student.cnic || 'N/A',
+        'Gender': student.gender || 'N/A',
+        'Date of Birth': formatDate(student.dateOfBirth),
+        'Admission Date': formatDate(student.admissionDate)
+      }))
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const date = new Date().toISOString().split('T')[0]
-    a.download = `active-students-${date}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-    showToast('CSV exported successfully!', 'success')
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 5 },   // Sr.
+        { wch: 12 },  // Session
+        { wch: 12 },  // Class
+        { wch: 20 },  // Student Name
+        { wch: 20 },  // Father Name
+        { wch: 12 },  // Admission No.
+        { wch: 15 },  // CNIC
+        { wch: 8 },   // Gender
+        { wch: 15 },  // Date of Birth
+        { wch: 15 }   // Admission Date
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Active Students')
+
+      const date = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `active-students-${date}.xlsx`)
+
+      showToast('Excel file exported successfully!', 'success')
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      showToast('Failed to export Excel file', 'error')
+    }
   }
 
   const filteredStudents = students.filter(student => {
@@ -858,7 +884,7 @@ function ActiveStudentsContent() {
       doc.setFontSize(13)
       doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
       doc.setTextColor(...primaryRgb)
-      doc.text(selectedStudent.first_name || '', infoX, cardY + 9)
+      doc.text(`${selectedStudent.first_name} ${selectedStudent.last_name || ''}`, infoX, cardY + 9)
 
       // Admission Number - SETTINGS TEXT COLOR & FONT with icon-like label
       doc.setFontSize(7.5)
@@ -917,55 +943,76 @@ function ActiveStudentsContent() {
 
       // Helper function for fields - CLEAN TWO COLUMN LAYOUT
       const addTwoColumnFields = (fields) => {
-        const col1LabelX = margins.left + 4
-        const col1ValueX = col1LabelX + 40
-        const col2LabelX = pageWidth / 2 + 5
-        const col2ValueX = col2LabelX + 40
-
-        const footerSpace = 20
-        const maxY = pageHeight - footerSpace
-        const rowHeight = 5
+        // Use 3 columns for landscape, 2 for portrait
+        const numColumns = orientation === 'landscape' ? 3 : 2
+        const gapSize = 2
+        const totalGaps = (numColumns - 1) * gapSize
+        const colWidth = (pageWidth - margins.left - margins.right - totalGaps) / numColumns
 
         let col = 0
+        let rowY = yPos
+
+        // Professional color scheme
+        const fieldBgRgb = [249, 250, 251] // Very light gray
+        const labelColorRgb = [107, 114, 128] // Gray-500
+        const borderRgb = [229, 231, 235] // Gray-200
+
+        // Reserve space for footer (footer area starts at pageHeight - 20)
+        const footerReservedSpace = 20
+        const maxContentY = pageHeight - footerReservedSpace
+
+        // COMPACT field height
+        const fieldHeight = 7.5
 
         fields.forEach(([label, value]) => {
           if (value && value !== 'N/A' && value !== null && value !== undefined && value !== '') {
-            // Check page space
-            if (yPos + 6 > maxY) {
+            // Check if we need a new page
+            if (rowY + 10 > maxContentY) {
               doc.addPage()
-              yPos = 40
+              rowY = margins.top || 15
               col = 0
             }
 
-            // Determine column
-            const labelX = col === 0 ? col1LabelX : col2LabelX
-            const valueX = col === 0 ? col1ValueX : col2ValueX
+            const xPos = margins.left + (col * (colWidth + gapSize))
 
-            // Label - uppercase, gray, small, SETTINGS FONT
-            doc.setFontSize(7)
-            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
-            doc.setTextColor(100, 100, 100)
-            doc.text(String(label).toUpperCase() + ':', labelX, yPos)
+            // Card background with subtle shadow effect
+            doc.setFillColor(...fieldBgRgb)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'F')
 
-            // Value - normal, SETTINGS TEXT COLOR & FONT
-            doc.setFontSize(parseInt(pdfSettings.fontSize || 8) + 0.5)
+            // Subtle border for definition
+            doc.setDrawColor(...borderRgb)
+            doc.setLineWidth(0.2)
+            doc.roundedRect(xPos, rowY, colWidth, fieldHeight, 1, 1, 'S')
+
+            // Label - small gray uppercase
+            doc.setFontSize(5.5)
             doc.setFont(pdfSettings.fontFamily || 'helvetica', 'normal')
-            doc.setTextColor(...textRgb)
-            const maxWidth = (pageWidth / 2) - valueX - 5
-            doc.text(String(value), valueX, yPos, { maxWidth })
+            doc.setTextColor(...labelColorRgb)
+            doc.text(label.toUpperCase(), xPos + 1.5, rowY + 3)
+
+            // Value - larger and bold with proper text fitting
+            doc.setFontSize(7.5)
+            doc.setFont(pdfSettings.fontFamily || 'helvetica', 'bold')
+            doc.setTextColor(31, 41, 55) // Gray-800
+
+            // Smart truncation based on column width
+            const maxChars = orientation === 'landscape' ? 28 : 35
+            let valueText = String(value)
+            if (valueText.length > maxChars) {
+              valueText = valueText.substring(0, maxChars - 3) + '...'
+            }
+
+            doc.text(valueText, xPos + 1.5, rowY + 6, { maxWidth: colWidth - 3 })
 
             col++
-            if (col >= 2) {
+            if (col >= numColumns) {
               col = 0
-              yPos += rowHeight
+              rowY += fieldHeight + 1.5
             }
           }
         })
 
-        // If last row had only one column, move to next row
-        if (col === 1) {
-          yPos += rowHeight
-        }
+        yPos = col === 0 ? rowY : rowY + fieldHeight + 1.5
       }
 
       // Basic Information
@@ -981,7 +1028,7 @@ function ActiveStudentsContent() {
         ['Nationality', selectedStudent.nationality || 'Pakistan']
       ])
 
-      yPos += 2
+      yPos += orientation === 'landscape' ? 1.5 : 2
 
       // Academic Information
       addSectionHeader('ACADEMIC INFORMATION')
@@ -994,7 +1041,7 @@ function ActiveStudentsContent() {
         ['Status', selectedStudent.status]
       ])
 
-      yPos += 2
+      yPos += orientation === 'landscape' ? 1.5 : 2
 
       // Father Information
       if (selectedStudent.father_name) {
@@ -1008,7 +1055,7 @@ function ActiveStudentsContent() {
           ['Occupation', selectedStudent.father_occupation],
           ['Annual Income', selectedStudent.father_annual_income]
         ])
-        yPos += 2
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Mother Information
@@ -1023,7 +1070,7 @@ function ActiveStudentsContent() {
           ['Occupation', selectedStudent.mother_occupation],
           ['Annual Income', selectedStudent.mother_annual_income]
         ])
-        yPos += 2
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Contact Information
@@ -1037,7 +1084,7 @@ function ActiveStudentsContent() {
           ['State', selectedStudent.state],
           ['Postal Code', selectedStudent.postal_code]
         ])
-        yPos += 2
+        yPos += orientation === 'landscape' ? 1.5 : 2
       }
 
       // Fee Information

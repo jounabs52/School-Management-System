@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, Search, Edit2, X, Eye, Trash2, ArrowLeft, CheckCircle, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie, getSchoolId } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -505,42 +506,58 @@ function ClassListContent() {
       return
     }
 
-    // Export ALL classes (not just filtered ones) sorted by fee
-    const sortedClasses = [...classes].sort((a, b) => {
-      const feeA = parseFloat(a.standard_fee) || 0
-      const feeB = parseFloat(b.standard_fee) || 0
-      return feeA - feeB
-    })
+    try {
+      // Export ALL classes (not just filtered ones) sorted by fee
+      const sortedClasses = [...classes].sort((a, b) => {
+        const feeA = parseFloat(a.standard_fee) || 0
+        const feeB = parseFloat(b.standard_fee) || 0
+        return feeA - feeB
+      })
 
-    const csvData = sortedClasses.map((cls, index) => ({
-      'Sr.': index + 1,
-      'Class Name': cls.class_name || 'N/A',
-      'Standard Fee': cls.standard_fee || 0,
-      'Fee Plan': cls.fee_plan || 'Monthly',
-      'Students': cls.total_students || 0,
-      'Total Fee': cls.total_fee || 0,
-      'Discount': cls.total_discount || 0,
-      'Budget': cls.budget || 0
-    }))
+      const exportData = sortedClasses.map((cls, index) => {
+        const totalStudents = cls.total_students || 0
+        const standardFee = parseFloat(cls.standard_fee) || 0
+        const totalFee = standardFee * totalStudents
+        const discount = parseFloat(cls.total_discount) || 0
+        const budget = totalFee - discount
 
-    const headers = Object.keys(csvData[0])
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => headers.map(header => {
-        const value = row[header]
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(','))
-    ].join('\n')
+        return {
+          'Sr.': index + 1,
+          'Class Name': cls.class_name || 'N/A',
+          'Standard Fee': standardFee,
+          'Fee Plan': cls.fee_plan === 'annual' ? 'Annual' : cls.fee_plan === 'one-time' ? 'One-Time' : 'Monthly',
+          'Students': totalStudents,
+          'Total Fee': totalFee,
+          'Discount': discount,
+          'Budget': budget
+        }
+      })
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const date = new Date().toISOString().split('T')[0]
-    a.download = `classes-list-${date}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-    showToast('Excel exported successfully!', 'success')
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 5 },   // Sr.
+        { wch: 15 },  // Class Name
+        { wch: 12 },  // Standard Fee
+        { wch: 12 },  // Fee Plan
+        { wch: 10 },  // Students
+        { wch: 12 },  // Total Fee
+        { wch: 10 },  // Discount
+        { wch: 12 }   // Budget
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Classes')
+
+      const date = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `classes-list-${date}.xlsx`)
+
+      showToast('Excel file exported successfully!', 'success')
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      showToast('Failed to export Excel file', 'error')
+    }
   }
 
   // Pagination logic

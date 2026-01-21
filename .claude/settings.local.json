@@ -1,17 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep:*)",
-      "Bash(wc:*)",
-      "Bash(tail:*)",
-      "Bash(cat:*)",
-      "Bash(head:*)",
-      "Bash(while read file)",
-      "Bash(do if ! grep -q \"PermissionGuard\" \"$file\")",
-      "Bash(then echo \"$file\")",
-      "Bash(fi)",
-      "Bash(done)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(dir /s /b \"e:\\\\SMS\\\\app\\\\\\(dashboard\\)\\\\fee\")"
     ]
   }
 }

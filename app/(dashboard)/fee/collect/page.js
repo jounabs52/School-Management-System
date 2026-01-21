@@ -45,11 +45,95 @@ const Toast = ({ message, type, onClose }) => {
 const PrintChallan = ({ challan, school, onClose }) => {
   const printRef = useRef()
   const feeSchedule = challan?.fee_schedule || []
+  const [feeItems, setFeeItems] = useState([])
+
+  // Fetch fee items when component mounts
+  useEffect(() => {
+    const fetchFeeItems = async () => {
+      try {
+        const { data: items, error: itemsError } = await supabase
+          .from('fee_challan_items')
+          .select('*')
+          .eq('challan_id', challan.id)
+
+        if (itemsError) {
+          console.error('Error fetching fee items:', itemsError)
+          return
+        }
+
+        // If items exist, fetch fee type names
+        if (items && items.length > 0) {
+          const feeTypeIds = items.map(i => i.fee_type_id).filter(Boolean)
+          if (feeTypeIds.length > 0) {
+            const { data: feeTypes } = await supabase
+              .from('fee_types')
+              .select('id, fee_name')
+              .in('id', feeTypeIds)
+
+            const feeTypeMap = {}
+            feeTypes?.forEach(ft => {
+              feeTypeMap[ft.id] = ft.fee_name
+            })
+
+            items.forEach(item => {
+              if (item.fee_type_id && feeTypeMap[item.fee_type_id]) {
+                item.fee_type_name = feeTypeMap[item.fee_type_id]
+              }
+            })
+          }
+
+          setFeeItems(items)
+        }
+      } catch (error) {
+        console.error('Error fetching fee items:', error)
+      }
+    }
+
+    if (challan?.id) {
+      fetchFeeItems()
+    }
+  }, [challan?.id])
 
   const handlePrint = async () => {
     try {
       // Get user ID for PDF settings
       const currentUser = getUserFromCookie()
+
+      // Fetch challan items - simplified query
+      const { data: items, error: itemsError } = await supabase
+        .from('fee_challan_items')
+        .select('*')
+        .eq('challan_id', challan.id)
+
+      // If items exist, fetch fee type names separately
+      if (items && items.length > 0) {
+        const feeTypeIds = items.map(i => i.fee_type_id).filter(Boolean)
+        if (feeTypeIds.length > 0) {
+          const { data: feeTypes } = await supabase
+            .from('fee_types')
+            .select('id, fee_name')
+            .in('id', feeTypeIds)
+
+          // Create a map of fee type names
+          const feeTypeMap = {}
+          feeTypes?.forEach(ft => {
+            feeTypeMap[ft.id] = ft.fee_name
+          })
+
+          // Add fee type names to items
+          items.forEach(item => {
+            if (item.fee_type_id && feeTypeMap[item.fee_type_id]) {
+              item.fee_type_name = feeTypeMap[item.fee_type_id]
+            }
+          })
+        }
+      }
+
+      if (itemsError) {
+        console.error('Error fetching challan items for PDF:', itemsError)
+      }
+
+      const itemsToUse = items || []
 
       // Fetch class data for fee plan
       const { data: classData } = await supabase
@@ -297,28 +381,40 @@ const PrintChallan = ({ challan, school, onClose }) => {
       doc.text('FEE BREAKDOWN', leftMargin, yPos)
       yPos += 2
 
-      // Build detailed fee breakdown table
+      // Build detailed fee breakdown table from actual challan items
       const tableData = []
 
-      // Get base fee and discount
-      const baseFee = challan?.student?.base_fee || challan?.base_fee || 0
-      const discountAmount = challan?.student?.discount_amount || challan?.discount_amount || 0
-
-      // Add base fee row
-      if (baseFee > 0) {
-        tableData.push(['Base Fee', formatCurrency(baseFee)])
-      }
-
-      // Add other fees from fee schedule if available
-      if (feeSchedule && feeSchedule.length > 0) {
-        feeSchedule.forEach(item => {
-          if (item.period && item.period !== 'Monthly Fee' && item.period !== 'Base Fee') {
-            tableData.push([item.period, formatCurrency(item.amount)])
-          }
+      // Add ALL fee items from fee_challan_items table
+      if (itemsToUse && itemsToUse.length > 0) {
+        // New challan with detailed fee items
+        itemsToUse.forEach(item => {
+          const itemName = item.fee_type_name || item.description || 'Fee'
+          const itemAmount = parseFloat(item.amount) || 0
+          tableData.push([itemName, formatCurrency(itemAmount)])
         })
+      } else {
+        // Fallback for old challans: calculate fees from total_amount
+        const totalAmount = parseFloat(challan?.total_amount) || 0
+        const baseFee = parseFloat(challan?.student?.base_fee) || parseFloat(challan?.base_fee) || 0
+        const discountAmount = parseFloat(challan?.student?.discount_amount) || parseFloat(challan?.discount_amount) || 0
+
+        // Calculate other fees: total_amount - (baseFee - discount)
+        const monthlyFeeAfterDiscount = baseFee - discountAmount
+        const otherFeesAmount = totalAmount - monthlyFeeAfterDiscount
+
+        // Add Monthly Fee
+        if (baseFee > 0) {
+          tableData.push(['Monthly Fee', formatCurrency(baseFee)])
+        }
+
+        // Add Other Fees if they exist
+        if (otherFeesAmount > 0) {
+          tableData.push(['Other Fees', formatCurrency(otherFeesAmount)])
+        }
       }
 
       // Add discount row if exists
+      const discountAmount = challan?.student?.discount_amount || challan?.discount_amount || 0
       if (discountAmount > 0) {
         tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
       }
@@ -644,16 +740,41 @@ const PrintChallan = ({ challan, school, onClose }) => {
                   Payment Summary
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '12px' }}>
-                  <div style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>Base Fee (Monthly)</div>
-                    <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>Rs. {parseFloat(challan?.base_fee || 0).toLocaleString()}</div>
+                {/* Fee Items - Dynamic */}
+                {feeItems.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '12px' }}>
+                    {feeItems.map((item, idx) => (
+                      <div key={idx} style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>
+                          {item.fee_type_name || item.description || 'Fee'}
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>
+                          Rs. {parseFloat(item.amount || 0).toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>Discount ({challan?.discount_type || 'fixed'})</div>
-                    <div style={{ fontSize: '20px', fontWeight: '700', color: '#16a34a' }}>Rs. {parseFloat(challan?.discount_amount || 0).toLocaleString()}</div>
+                ) : (
+                  // Fallback for old challans
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>Base Fee (Monthly)</div>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>Rs. {parseFloat(challan?.student?.base_fee || challan?.base_fee || 0).toLocaleString()}</div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Show discount if exists */}
+                {(challan?.student?.discount_amount || challan?.discount_amount) > 0 && (
+                  <div style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>
+                      Discount ({challan?.student?.discount_type || challan?.discount_type || 'fixed'})
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: '700', color: '#16a34a' }}>
+                      Rs. {parseFloat(challan?.student?.discount_amount || challan?.discount_amount || 0).toLocaleString()}
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                   <div style={{ background: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -994,20 +1115,12 @@ function FeeCollectContent() {
       })
 
       const challansWithDetails = (challansData || []).map(challan => {
-        // Use real-time student fee data if available
-        const studentFinalFee = challan.students?.final_fee
-        const studentBaseFee = challan.students?.base_fee
-        const studentDiscountAmount = challan.students?.discount_amount
-
         // Calculate paid amount from payments
         const paidAmount = paymentMap[challan.id] || 0
 
         return {
           ...challan,
-          // Override with current student fee data for real-time updates
-          total_amount: studentFinalFee !== null && studentFinalFee !== undefined ? studentFinalFee : challan.total_amount,
-          base_fee: studentBaseFee !== null && studentBaseFee !== undefined ? studentBaseFee : challan.base_fee,
-          discount_amount: studentDiscountAmount !== null && studentDiscountAmount !== undefined ? studentDiscountAmount : challan.discount_amount,
+          // Use challan's total_amount as it includes all fee items (monthly + other fees)
           paid_amount: paidAmount,
           student: {
             ...challan.students,

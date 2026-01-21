@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Edit2, X, Trash2, CheckCircle, AlertCircle, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -361,33 +362,39 @@ function VehiclesContent() {
       return
     }
 
-    const csvData = filteredVehicles.map((vehicle, index) => ({
-      'Sr.': index + 1,
-      'Registration No.': vehicle.registration_number || 'N/A',
-      'Route': vehicle.route_name || 'N/A',
-      'Driver Name': vehicle.driver_name || 'N/A',
-      'Driver Mobile': vehicle.driver_mobile || 'N/A',
-      'Seating Capacity': vehicle.seating_capacity || 'N/A'
-    }))
+    try {
+      const exportData = filteredVehicles.map((vehicle, index) => ({
+        'Sr.': index + 1,
+        'Registration No.': vehicle.registration_number || 'N/A',
+        'Route': vehicle.routes?.route_name || 'N/A',
+        'Driver Name': vehicle.driver_name || 'N/A',
+        'Driver Mobile': vehicle.driver_mobile || 'N/A',
+        'Seating Capacity': vehicle.seating_capacity || 'N/A'
+      }))
 
-    const headers = Object.keys(csvData[0])
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => headers.map(header => {
-        const value = row[header]
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(','))
-    ].join('\n')
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const date = new Date().toISOString().split('T')[0]
-    a.download = `transport-vehicles-${date}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-    showToast('CSV exported successfully!', 'success')
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 5 },   // Sr.
+        { wch: 18 },  // Registration No.
+        { wch: 25 },  // Route
+        { wch: 20 },  // Driver Name
+        { wch: 15 },  // Driver Mobile
+        { wch: 15 }   // Seating Capacity
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Vehicles')
+
+      const date = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `transport-vehicles-${date}.xlsx`)
+
+      showToast('Excel file exported successfully!', 'success')
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      showToast('Failed to export Excel file', 'error')
+    }
   }
 
   // Pagination calculations

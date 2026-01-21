@@ -203,7 +203,7 @@ function FeeCreateContent() {
           .eq('status', 'active')
           .order('admission_number', { ascending: true }),
 
-        // Fetch challans with optimized query
+        // Fetch challans with student data using JOIN
         supabase
           .from('fee_challans')
           .select(`
@@ -226,7 +226,7 @@ function FeeCreateContent() {
           `)
           .eq('user_id', user.id)
           .eq('school_id', user.school_id)
-          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
       ])
 
       if (classesResult.error) throw classesResult.error
@@ -245,22 +245,95 @@ function FeeCreateContent() {
 
       // Process challans with efficient mapping
       if (!challansResult.error && challansResult.data) {
+        console.log('Challans fetched in fetchInitialData:', challansResult.data.length)
+
+        // Fetch all payments for these challans
+        const challanIds = challansResult.data.map(c => c.id).filter(Boolean)
+        const { data: paymentsData } = await supabase
+          .from('fee_payments')
+          .select('challan_id, amount_paid')
+          .in('challan_id', challanIds)
+          .eq('school_id', user.school_id)
+
+        // Calculate total paid amount for each challan
+        const paymentMap = {}
+        paymentsData?.forEach(payment => {
+          if (!paymentMap[payment.challan_id]) {
+            paymentMap[payment.challan_id] = 0
+          }
+          paymentMap[payment.challan_id] += parseFloat(payment.amount_paid || 0)
+        })
+
         const classMap = {}
         classesData.forEach(c => { classMap[c.id] = c })
 
         const sectionMap = {}
         sectionsData.forEach(s => { sectionMap[s.id] = s })
 
-        const enrichedData = challansResult.data.map((challan) => ({
-          ...challan,
-          students: {
-            ...challan.students,
-            classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
-            sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
-          }
-        }))
+        const enrichedData = challansResult.data.map((challan) => {
+          // Use challan's total_amount as it includes all fee items (monthly + other fees)
+          const totalAmount = challan.total_amount
 
+          // Get paid amount from payment map
+          const paidAmount = paymentMap[challan.id] || 0
+
+          // Auto-calculate status based on payment and due date
+          let autoStatus = challan.status // Default to existing status
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const dueDate = challan.due_date ? new Date(challan.due_date) : null
+          if (dueDate) dueDate.setHours(0, 0, 0, 0)
+
+          // Status logic:
+          // 1. If fully paid, status = 'paid'
+          // 2. If past due date and not fully paid, status = 'overdue'
+          // 3. Otherwise, status = 'pending'
+          if (paidAmount >= totalAmount) {
+            autoStatus = 'paid'
+          } else if (dueDate && dueDate < today) {
+            autoStatus = 'overdue'
+          } else {
+            autoStatus = 'pending'
+          }
+
+          // Update status in database if it changed
+          if (autoStatus !== challan.status) {
+            supabase
+              .from('fee_challans')
+              .update({ status: autoStatus, updated_at: new Date().toISOString() })
+              .eq('id', challan.id)
+              .eq('user_id', user.id)
+              .eq('school_id', user.school_id)
+              .then(({ error: updateError }) => {
+                if (updateError) {
+                  console.error('Error auto-updating status:', updateError)
+                }
+              })
+          }
+
+          // Use student data from JOIN query
+          return {
+            ...challan,
+            // Use challan's actual total_amount (includes all fee items)
+            paid_amount: paidAmount,
+            status: autoStatus,
+            students: challan.students ? {
+              ...challan.students,
+              classes: classMap[challan.students.current_class_id] || { class_name: 'N/A' },
+              sections: sectionMap[challan.students.current_section_id] || { section_name: 'N/A' }
+            } : null
+          }
+        })
+
+        console.log('Setting createdChallans with enriched data:', enrichedData.length)
         setCreatedChallans(enrichedData)
+      } else if (challansResult.error) {
+        console.error('Error fetching challans in fetchInitialData:', challansResult.error)
+        console.error('Error details:', JSON.stringify(challansResult.error, null, 2))
+        console.error('Error message:', challansResult.error?.message)
+        console.error('Error code:', challansResult.error?.code)
+      } else {
+        console.log('No challans data found')
       }
 
       setLoading(false)
@@ -443,6 +516,7 @@ function FeeCreateContent() {
               user_id: user?.id,
               school_id: user?.school_id,
               fee_type_id: monthlyFeeType.id,
+              fee_fund: monthlyFeeType.fee_fund || 'Monthly Fee',
               description: 'Monthly Fee',
               amount: monthlyFeeAmount
             }
@@ -466,6 +540,7 @@ function FeeCreateContent() {
             user_id: user?.id,
             school_id: user?.school_id,
             fee_type_id: fee.fee_type_id,
+            fee_fund: fee.fee_fund || 'Other',
             description: fee.name || 'Other Fee',
             amount: feeAmount
           }
@@ -564,7 +639,7 @@ function FeeCreateContent() {
             id,
             amount,
             fee_type_id,
-            fee_types(fee_name)
+            fee_types(fee_name, fee_fund)
           `)
           .eq('user_id', user.id)
         .eq('school_id', user.school_id)
@@ -640,7 +715,12 @@ function FeeCreateContent() {
   const fetchCreatedChallans = async () => {
     try {
       const user = getUserFromCookie()
-      if (!user) return
+      if (!user) {
+        console.log('fetchCreatedChallans: No user found')
+        return
+      }
+
+      console.log('fetchCreatedChallans: Fetching challans for user:', user.id, 'school:', user.school_id)
 
       const { data, error } = await supabase
         .from('fee_challans')
@@ -652,6 +732,19 @@ function FeeCreateContent() {
             first_name,
             last_name,
             father_name,
+            mother_name,
+            date_of_birth,
+            gender,
+            blood_group,
+            religion,
+            caste,
+            phone,
+            email,
+            address,
+            city,
+            state,
+            postal_code,
+            admission_date,
             current_class_id,
             current_section_id,
             fee_plan,
@@ -664,7 +757,9 @@ function FeeCreateContent() {
         `)
         .eq('user_id', user.id)
         .eq('school_id', user.school_id)
-        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+
+      console.log('fetchCreatedChallans: Query result -', 'error:', error, 'data count:', data?.length)
 
       if (!error && data) {
         // Fetch all payments for these challans
@@ -693,13 +788,8 @@ function FeeCreateContent() {
 
         // Enrich with class and section data, payment data, and auto-calculate status
         const enrichedData = data.map((challan) => {
-          // Use real-time student fee data if available
-          const studentFinalFee = challan.students?.final_fee
-          const studentBaseFee = challan.students?.base_fee
-          const studentDiscountAmount = challan.students?.discount_amount
-
-          // Calculate total amount
-          const totalAmount = studentFinalFee !== null && studentFinalFee !== undefined ? studentFinalFee : challan.total_amount
+          // Use challan's total_amount as it includes all fee items (monthly + other fees)
+          const totalAmount = challan.total_amount
 
           // Get paid amount from payment map
           const paidAmount = paymentMap[challan.id] || 0
@@ -740,23 +830,21 @@ function FeeCreateContent() {
 
           return {
             ...challan,
-            // Override with current student fee data for real-time updates
-            total_amount: totalAmount,
-            base_fee: studentBaseFee !== null && studentBaseFee !== undefined ? studentBaseFee : challan.base_fee,
-            discount_amount: studentDiscountAmount !== null && studentDiscountAmount !== undefined ? studentDiscountAmount : challan.discount_amount,
+            // Use challan's actual total_amount (includes all fee items)
             paid_amount: paidAmount,
             status: autoStatus,
-            students: {
+            students: challan.students ? {
               ...challan.students,
               classes: classMap[challan.students?.current_class_id] || { class_name: 'N/A' },
               sections: sectionMap[challan.students?.current_section_id] || { section_name: 'N/A' }
-            }
+            } : null
           }
         })
 
+        console.log('fetchCreatedChallans: Setting enriched data -', enrichedData.length, 'challans')
         setCreatedChallans(enrichedData)
       } else if (error) {
-        console.error('Error fetching challans:', error)
+        console.error('fetchCreatedChallans: Error fetching challans:', error)
       }
     } catch (error) {
       console.error('Error fetching challans:', error)
@@ -836,18 +924,39 @@ function FeeCreateContent() {
 
       const schoolData = schoolResult.data || {}
 
-      // Fetch challan items
-      const { data: items } = await supabase
+      // Fetch challan items - simplified query
+      const { data: items, error: itemsError } = await supabase
         .from('fee_challan_items')
-        .select(`
-          *,
-          fee_types!fee_type_id (
-            fee_name
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('school_id', user.school_id)
+        .select('*')
         .eq('challan_id', challan.id)
+
+      // If items exist, fetch fee type names separately
+      if (items && items.length > 0) {
+        const feeTypeIds = items.map(i => i.fee_type_id).filter(Boolean)
+        if (feeTypeIds.length > 0) {
+          const { data: feeTypes } = await supabase
+            .from('fee_types')
+            .select('id, fee_name')
+            .in('id', feeTypeIds)
+
+          // Create a map of fee type names
+          const feeTypeMap = {}
+          feeTypes?.forEach(ft => {
+            feeTypeMap[ft.id] = ft.fee_name
+          })
+
+          // Add fee type names to items
+          items.forEach(item => {
+            if (item.fee_type_id && feeTypeMap[item.fee_type_id]) {
+              item.fee_type_name = feeTypeMap[item.fee_type_id]
+            }
+          })
+        }
+      }
+
+      if (itemsError) {
+        console.error('Error fetching challan items for PDF:', itemsError)
+      }
 
       const itemsToUse = items || []
       const student = challan.students
@@ -1083,30 +1192,40 @@ function FeeCreateContent() {
       doc.text('FEE BREAKDOWN', leftMargin, yPos)
       yPos += 2
 
-      // Build detailed fee breakdown table
+      // Build detailed fee breakdown table from actual challan items
       const tableData = []
 
-      // Calculate base fee from items (sum of all positive amounts)
-      const baseFee = student?.base_fee || challan?.base_fee || 0
-      const discountAmount = student?.discount_amount || challan?.discount_amount || 0
-
-      // Add base fee row
-      if (baseFee > 0) {
-        tableData.push(['Base Fee', formatCurrency(baseFee)])
-      }
-
-      // Add other fee items
+      // Add ALL fee items from fee_challan_items table
       if (itemsToUse && itemsToUse.length > 0) {
+        // New challan with detailed fee items
         itemsToUse.forEach(item => {
-          const itemName = item.fee_types?.fee_name || item.description
-          // Skip if it's labeled as "Monthly Fee" or "Base Fee" since we already added it
-          if (itemName !== 'Monthly Fee' && itemName !== 'Base Fee') {
-            tableData.push([itemName, formatCurrency(item.amount)])
-          }
+          const itemName = item.fee_type_name || item.description || 'Fee'
+          const itemAmount = parseFloat(item.amount) || 0
+          tableData.push([itemName, formatCurrency(itemAmount)])
         })
+      } else {
+        // Fallback for old challans: calculate fees from total_amount
+        const totalAmount = parseFloat(challan?.total_amount) || 0
+        const baseFee = parseFloat(student?.base_fee) || parseFloat(challan?.base_fee) || 0
+        const discountAmount = parseFloat(student?.discount_amount) || parseFloat(challan?.discount_amount) || 0
+
+        // Calculate other fees: total_amount - (baseFee - discount)
+        const monthlyFeeAfterDiscount = baseFee - discountAmount
+        const otherFeesAmount = totalAmount - monthlyFeeAfterDiscount
+
+        // Add Monthly Fee
+        if (baseFee > 0) {
+          tableData.push(['Monthly Fee', formatCurrency(baseFee)])
+        }
+
+        // Add Other Fees if they exist
+        if (otherFeesAmount > 0) {
+          tableData.push(['Other Fees', formatCurrency(otherFeesAmount)])
+        }
       }
 
       // Add discount row if exists
+      const discountAmount = student?.discount_amount || challan?.discount_amount || 0
       if (discountAmount > 0) {
         tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
       }
@@ -1571,6 +1690,7 @@ function FeeCreateContent() {
 
           if (itemsError) {
             console.error('Error batch creating fee items:', itemsError)
+            showToast(`Warning: Challans created but fee items failed: ${itemsError.message}`, 'warning')
           }
         }
       }
@@ -1664,7 +1784,7 @@ function FeeCreateContent() {
               id,
               amount,
               fee_type_id,
-              fee_types(fee_name)
+              fee_types(fee_name, fee_fund)
             `)
             .eq('user_id', user.id)
         .eq('school_id', user.school_id)
@@ -1678,7 +1798,8 @@ function FeeCreateContent() {
             .select(`
               *,
               fee_types:fee_type_id (
-                fee_name
+                fee_name,
+                fee_fund
               )
             `)
             .eq('challan_id', challan.id)
@@ -1809,37 +1930,73 @@ function FeeCreateContent() {
     setViewChallan(challan)
   }
 
-  const handleStatusToggle = async (challanId, currentStatus) => {
-    const statusCycle = {
-      'pending': 'paid',
-      'paid': 'overdue',
-      'overdue': 'pending'
-    }
-    const newStatus = statusCycle[currentStatus] || 'pending'
-
+  const handleStatusToggle = async (challanId) => {
     try {
       const user = getUserFromCookie()
-      const { error } = await supabase
+      if (!user) {
+        showToast('User not found', 'error')
+        return
+      }
+
+      // Find the challan to get its details
+      const challan = createdChallans.find(c => c.id === challanId)
+      if (!challan) {
+        showToast('Challan not found', 'error')
+        return
+      }
+
+      const totalAmount = parseFloat(challan.total_amount || 0)
+      const paidAmount = parseFloat(challan.paid_amount || 0)
+      const balanceDue = totalAmount - paidAmount
+
+      if (balanceDue <= 0) {
+        showToast('This challan is already fully paid', 'info')
+        return
+      }
+
+      // Generate a unique receipt number
+      const receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
+
+      // Create a payment record for the remaining balance
+      const { error: paymentError } = await supabase
+        .from('fee_payments')
+        .insert({
+          school_id: user.school_id,
+          challan_id: challanId,
+          student_id: challan.student_id,
+          payment_date: new Date().toISOString().split('T')[0],
+          amount_paid: balanceDue,
+          payment_method: 'cash',
+          receipt_number: receiptNumber,
+          received_by: user.id,
+          remarks: 'Marked as paid via status toggle'
+        })
+
+      if (paymentError) throw paymentError
+
+      // Update challan status to paid
+      const { error: updateError } = await supabase
         .from('fee_challans')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: 'paid', updated_at: new Date().toISOString() })
         .eq('id', challanId)
         .eq('user_id', user.id)
         .eq('school_id', user.school_id)
 
-      if (error) throw error
+      if (updateError) throw updateError
 
+      // Update local state
       setCreatedChallans(prevChallans =>
-        prevChallans.map(challan =>
-          challan.id === challanId
-            ? { ...challan, status: newStatus }
-            : challan
+        prevChallans.map(c =>
+          c.id === challanId
+            ? { ...c, status: 'paid', paid_amount: totalAmount }
+            : c
         )
       )
 
-      showToast(`Status updated to ${newStatus.toUpperCase()}`, 'success')
+      showToast(`Fee marked as PAID. Payment of Rs. ${balanceDue.toLocaleString()} recorded.`, 'success')
     } catch (error) {
-      console.error('Error updating status:', error)
-      showToast('Failed to update status', 'error')
+      console.error('Error marking fee as paid:', error)
+      showToast('Failed to mark fee as paid: ' + error.message, 'error')
     }
   }
 
@@ -2067,6 +2224,7 @@ function FeeCreateContent() {
             school_id: user.school_id,
             challan_id: challan.id,
             fee_type_id: fs.fee_type_id,
+            fee_fund: fs.fee_types?.fee_fund || 'Monthly Fee',
             description: fs.fee_types?.fee_name || 'Monthly Fee',
             amount: parseFloat(fs.amount)
           }))
@@ -2084,6 +2242,10 @@ function FeeCreateContent() {
       }
 
       showToast(`Successfully created ${createdCount} monthly fee challan(s)!`, 'success')
+
+      // Refresh the challans list
+      await fetchCreatedChallans()
+
       setShowChallanModal(false)
       setMonthlyChallanForm({
         class: '',
@@ -2406,7 +2568,7 @@ function FeeCreateContent() {
                         )}
                         {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
                           <button
-                            onClick={() => handleStatusToggle(challan.id, challan.status)}
+                            onClick={() => handleStatusToggle(challan.id)}
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded transition"
                             title="Toggle Status"
                           >
@@ -2844,64 +3006,203 @@ function FeeCreateContent() {
 
             {/* Content - Clean Section Layout */}
             <div className="p-6 bg-white max-h-[70vh] overflow-y-auto">
-              {/* Academic Information */}
+              {/* Student Information */}
               <div className="mb-6">
-                <h4 className="text-base font-bold text-gray-900 mb-4">Academic Information</h4>
+                <h4 className="text-base font-bold text-gray-900 mb-4">Student Information</h4>
                 <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Class</p>
-                    <p className="text-base font-medium text-gray-900">
-                      {viewChallan.students?.classes?.class_name || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Section</p>
-                    <p className="text-base font-medium text-gray-900">
-                      {viewChallan.students?.sections?.section_name || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Admission Date</p>
-                    <p className="text-base font-medium text-gray-900">
-                      {new Date(viewChallan.issue_date).toLocaleDateString()}
-                    </p>
-                  </div>
+                  {viewChallan.students?.first_name && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Student Name</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {viewChallan.students.first_name} {viewChallan.students.last_name}
+                      </p>
+                    </div>
+                  )}
+                  {viewChallan.students?.admission_number && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Admission No.</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {viewChallan.students.admission_number}
+                      </p>
+                    </div>
+                  )}
+                  {viewChallan.students?.date_of_birth && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Date of Birth</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {new Date(viewChallan.students.date_of_birth).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                  {viewChallan.students?.gender && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Gender</p>
+                      <p className="text-base font-medium text-gray-900 capitalize">
+                        {viewChallan.students.gender}
+                      </p>
+                    </div>
+                  )}
+                  {viewChallan.students?.blood_group && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Blood Group</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {viewChallan.students.blood_group}
+                      </p>
+                    </div>
+                  )}
+                  {viewChallan.students?.religion && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Religion</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {viewChallan.students.religion}
+                      </p>
+                    </div>
+                  )}
+                  {viewChallan.students?.caste && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Caste</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {viewChallan.students.caste}
+                      </p>
+                    </div>
+                  )}
+                  {viewChallan.students?.admission_date && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Admission Date</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {new Date(viewChallan.students.admission_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Father Information */}
-              <div className="mb-6 pt-6 border-t border-gray-200">
-                <h4 className="text-base font-bold text-gray-900 mb-4">Father Information</h4>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Father Name</p>
-                  <p className="text-base font-medium text-gray-900">
-                    {viewChallan.students?.father_name || 'N/A'}
-                  </p>
+              {/* Academic Information */}
+              {(viewChallan.students?.classes?.class_name || viewChallan.students?.sections?.section_name || viewChallan.students?.status) && (
+                <div className="mb-6 pt-6 border-t border-gray-200">
+                  <h4 className="text-base font-bold text-gray-900 mb-4">Academic Information</h4>
+                  <div className="grid grid-cols-2 gap-6">
+                    {viewChallan.students?.classes?.class_name && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Class</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {viewChallan.students.classes.class_name}
+                        </p>
+                      </div>
+                    )}
+                    {viewChallan.students?.sections?.section_name && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Section</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {viewChallan.students.sections.section_name}
+                        </p>
+                      </div>
+                    )}
+                    {viewChallan.students?.status && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Status</p>
+                        <p className="text-base font-medium text-gray-900 capitalize">
+                          {viewChallan.students.status}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Parent Information */}
+              {(viewChallan.students?.father_name || viewChallan.students?.mother_name) && (
+                <div className="mb-6 pt-6 border-t border-gray-200">
+                  <h4 className="text-base font-bold text-gray-900 mb-4">Parent Information</h4>
+                  <div className="grid grid-cols-2 gap-6">
+                    {viewChallan.students?.father_name && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Father Name</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {viewChallan.students.father_name}
+                        </p>
+                      </div>
+                    )}
+                    {viewChallan.students?.mother_name && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Mother Name</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {viewChallan.students.mother_name}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Information */}
+              {(viewChallan.students?.phone || viewChallan.students?.email || viewChallan.students?.address) && (
+                <div className="mb-6 pt-6 border-t border-gray-200">
+                  <h4 className="text-base font-bold text-gray-900 mb-4">Contact Information</h4>
+                  <div className="grid grid-cols-2 gap-6">
+                    {viewChallan.students?.phone && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Phone</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {viewChallan.students.phone}
+                        </p>
+                      </div>
+                    )}
+                    {viewChallan.students?.email && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Email</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {viewChallan.students.email}
+                        </p>
+                      </div>
+                    )}
+                    {viewChallan.students?.address && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-gray-500 mb-1">Address</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {viewChallan.students.address}
+                          {viewChallan.students.city && `, ${viewChallan.students.city}`}
+                          {viewChallan.students.state && `, ${viewChallan.students.state}`}
+                          {viewChallan.students.postal_code && ` - ${viewChallan.students.postal_code}`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Fee Information */}
               <div className="pt-6 border-t border-gray-200">
                 <h4 className="text-base font-bold text-gray-900 mb-4">Fee Information</h4>
-                <div className="grid grid-cols-2 gap-6 mb-4">
+                <div className="grid grid-cols-2 gap-6">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Base Fee</p>
                     <p className="text-base font-medium text-gray-900">
-                      {viewChallan.students?.base_fee || '0'}
+                      Rs. {parseFloat(viewChallan.students?.base_fee || 0).toLocaleString()}
                     </p>
                   </div>
+                  {viewChallan.students?.discount_amount > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Discount</p>
+                      <p className="text-base font-medium text-gray-900">
+                        Rs. {parseFloat(viewChallan.students.discount_amount).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Discount</p>
+                    <p className="text-xs text-gray-500 mb-1">Final Fee</p>
                     <p className="text-base font-medium text-gray-900">
-                      {viewChallan.students?.discount_amount || '0'}
+                      Rs. {parseFloat(viewChallan.students?.final_fee || viewChallan.total_amount || 0).toLocaleString()}
                     </p>
                   </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Final Fee</p>
-                  <p className="text-base font-medium text-gray-900">
-                    {viewChallan.students?.final_fee || viewChallan.total_amount || '0'}
-                  </p>
+                  {viewChallan.students?.fee_plan && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Fee Plan</p>
+                      <p className="text-base font-medium text-gray-900 capitalize">
+                        {viewChallan.students.fee_plan}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
