@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, UserCheck, Home, DollarSign, Calendar, AlertCircle, TrendingUp, Cake, School, BookOpen, Bus, Phone, MessageSquare, Loader2 } from 'lucide-react'
+import { Users, UserCheck, DollarSign, Calendar, AlertCircle, TrendingUp, School, BookOpen, Bus, Phone, MessageSquare, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { createClient } from '@supabase/supabase-js'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -285,10 +285,9 @@ function DashboardContent() {
         supabase.from('student_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
         supabase.from('staff_attendance').select('*').eq('user_id', userId).eq('school_id', schoolId).eq('attendance_date', today),
 
-        supabase.from('passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active')
-=======
+        supabase.from('passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active'),
+
         supabase.from('transport_passengers').select('student_id').eq('school_id', schoolId).eq('status', 'active')
->>>>>>> f2a65988b9bb02fbc1cf675bf4cceb0ba2b2b684
       ])
 
       // Process students
@@ -587,7 +586,7 @@ function DashboardContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT SIDE - 15 CARDS + CHARTS */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Row 1 - Student, Staff, Families */}
+          {/* Row 1 - Student, Staff, Fee Posted */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
@@ -611,20 +610,6 @@ function DashboardContent() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-xl">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-4xl font-bold">{dashboardData.families.active}</p>
-                  <p className="text-sm mt-1">Active Families</p>
-                  <p className="text-xs opacity-80">Total Families: {dashboardData.families.total}</p>
-                </div>
-                <Home className="w-10 h-10 opacity-80" />
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2 - Fee Information */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-red-700 to-red-900 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -635,7 +620,10 @@ function DashboardContent() {
                 <DollarSign className="w-10 h-10 opacity-80" />
               </div>
             </div>
+          </div>
 
+          {/* Row 2 - Fee Received, Fee Receivable, Salary Total */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-xl relative">
               <div className="flex justify-between items-start">
                 <div>
@@ -657,10 +645,7 @@ function DashboardContent() {
                 <div className="bg-white/20 rounded-full px-3 py-1 text-sm font-bold">{100 - dashboardData.fee.currentMonth.percentage}%</div>
               </div>
             </div>
-          </div>
 
-          {/* Row 3 - Salary Information */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-teal-600 to-cyan-700 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -671,7 +656,10 @@ function DashboardContent() {
                 <DollarSign className="w-10 h-10 opacity-80" />
               </div>
             </div>
+          </div>
 
+          {/* Row 3 - Salary Paid, Salary Payable, Today Collection */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-indigo-700 to-blue-800 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -693,10 +681,7 @@ function DashboardContent() {
                 <AlertCircle className="w-10 h-10 opacity-80" />
               </div>
             </div>
-          </div>
 
-          {/* Row 4 - Today's Data */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-pink-600 to-red-600 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -707,7 +692,10 @@ function DashboardContent() {
                 <Calendar className="w-10 h-10 opacity-80" />
               </div>
             </div>
+          </div>
 
+          {/* Row 4 - Today Expenses, Classes, Library */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-red-600 to-pink-700 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -719,20 +707,6 @@ function DashboardContent() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-xl">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-4xl font-bold">{dashboardData.birthdays.today}</p>
-                  <p className="text-sm mt-1">Student Birthday</p>
-                  <p className="text-xs opacity-80">{dashboardData.birthdays.today > 0 ? `${dashboardData.birthdays.today} birthday${dashboardData.birthdays.today > 1 ? 's' : ''} today` : 'No birthdays today'}</p>
-                </div>
-                <Cake className="w-10 h-10 opacity-80" />
-              </div>
-            </div>
-          </div>
-
-          {/* Row 5 - School Resources */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-purple-700 to-indigo-800 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -752,7 +726,10 @@ function DashboardContent() {
                 <BookOpen className="w-10 h-10 opacity-80" />
               </div>
             </div>
+          </div>
 
+          {/* Row 5 - Transport, Contacts, Visitors */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-orange-600 to-yellow-600 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -762,10 +739,7 @@ function DashboardContent() {
                 <Bus className="w-10 h-10 opacity-80" />
               </div>
             </div>
-          </div>
 
-          {/* Row 6 - Frontdesk Data */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -787,7 +761,10 @@ function DashboardContent() {
                 <Users className="w-10 h-10 opacity-80" />
               </div>
             </div>
+          </div>
 
+          {/* Row 6 - Inquiries, Datesheets */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-violet-700 to-purple-800 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
@@ -798,10 +775,7 @@ function DashboardContent() {
                 <MessageSquare className="w-10 h-10 opacity-80" />
               </div>
             </div>
-          </div>
 
-          {/* Row 7 - Datesheets */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-gradient-to-r from-rose-600 to-pink-700 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
