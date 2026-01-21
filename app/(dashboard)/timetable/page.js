@@ -2149,7 +2149,7 @@ function TimetableContent() {
     const matchesSearch = period.period_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          period.start_time?.includes(searchTerm) ||
                          period.end_time?.includes(searchTerm)
-    const matchesClass = selectedClassFilter === '' || period.class_id === selectedClassFilter
+    const matchesClass = selectedClassFilter === '' || String(period.class_id) === selectedClassFilter
     return matchesSearch && matchesClass
   })
 
@@ -2731,7 +2731,7 @@ function TimetableContent() {
             </div>
 
             <p className="text-xs text-gray-600 mb-3">
-              There are <span className="text-red-600 font-semibold">{periods.length}</span> periods registered in the system.
+              There are <span className="text-red-600 font-semibold">{filteredPeriods.length}</span> periods registered in the system.
             </p>
           </div>
 
