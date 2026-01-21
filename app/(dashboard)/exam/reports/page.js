@@ -402,13 +402,61 @@ function ExamReportsPageContent() {
     let marks, assessmentData, totalMarks, assessmentName
 
     if (isExam) {
-      // Handle exam
-      marks = examMarks.filter(m => m.exam_id === selectedTest)
+      // Handle exam - need to aggregate marks by student
+      const rawMarks = examMarks.filter(m => m.exam_id === selectedTest)
       assessmentData = exams.find(e => e.id === selectedTest)
-      totalMarks = assessmentData?.total_marks || 100
       assessmentName = assessmentData?.exam_name || 'Exam'
+
+      // Get unique subjects for this exam
+      const subjectIds = [...new Set(rawMarks.map(m => m.subject_id))]
+      const subjectCount = subjectIds.length
+
+      // Aggregate marks by student
+      const studentMarksMap = {}
+      rawMarks.forEach(mark => {
+        const studentId = mark.student_id
+        if (!studentMarksMap[studentId]) {
+          studentMarksMap[studentId] = {
+            student_id: studentId,
+            students: mark.students,
+            obtained_marks: 0,
+            total_marks: 0,
+            subject_count: 0,
+            is_absent: true, // Will be set to false if any subject is not absent
+            subjects_marks: [] // Store individual subject marks for reference
+          }
+        }
+
+        // Use mark's own total_marks if available, otherwise use default 100 per subject
+        const markTotalMarks = mark.total_marks || 100
+        studentMarksMap[studentId].total_marks += markTotalMarks
+        studentMarksMap[studentId].subject_count++
+
+        if (!mark.is_absent) {
+          studentMarksMap[studentId].obtained_marks += (mark.obtained_marks || 0)
+          studentMarksMap[studentId].is_absent = false
+        }
+
+        // Store subject-wise marks
+        const subject = subjects.find(s => s.id === mark.subject_id)
+        studentMarksMap[studentId].subjects_marks.push({
+          subject_name: subject?.subject_name || 'N/A',
+          obtained_marks: mark.obtained_marks,
+          total_marks: markTotalMarks,
+          is_absent: mark.is_absent
+        })
+      })
+
+      marks = Object.values(studentMarksMap)
+
+      // Get totalMarks from actual student marks data
+      if (marks.length > 0) {
+        totalMarks = marks[0].total_marks
+      } else {
+        totalMarks = (assessmentData?.total_marks || 100) * subjectCount
+      }
     } else {
-      // Handle test
+      // Handle test - single subject, no aggregation needed
       marks = testMarks.filter(m => m.test_id === selectedTest)
       assessmentData = tests.find(t => t.id === selectedTest)
       totalMarks = assessmentData?.total_marks || 100
@@ -441,7 +489,8 @@ function ExamReportsPageContent() {
       passThreshold,
       testName: assessmentName,
       totalMarks: totalMarks,
-      isExam: isExam
+      isExam: isExam,
+      subjectCount: isExam ? marks[0]?.subject_count : 1
     }
 
     setStats(statsData)
@@ -495,7 +544,7 @@ function ExamReportsPageContent() {
       classData[className].absentStudents += testMarksForTest.filter(m => m.is_absent).length
     })
 
-    // Process exams
+    // Process exams - aggregate marks by student first
     filteredExams.forEach(exam => {
       const className = `${exam.classes?.class_name || 'N/A'} ${exam.sections?.section_name || ''}`.trim()
 
@@ -512,13 +561,39 @@ function ExamReportsPageContent() {
       }
 
       const examMarksForExam = filteredExamMarks.filter(m => m.exam_id === exam.id)
-      const passThreshold = (exam.total_marks || 100) * 0.33
+
+      // Aggregate marks by student to avoid counting each subject as a separate student
+      const studentMarksMap = {}
+      examMarksForExam.forEach(mark => {
+        const studentId = mark.student_id
+        if (!studentMarksMap[studentId]) {
+          studentMarksMap[studentId] = {
+            obtained_marks: 0,
+            total_marks: 0,
+            is_absent: true
+          }
+        }
+        const markTotalMarks = mark.total_marks || 100
+        studentMarksMap[studentId].total_marks += markTotalMarks
+        if (!mark.is_absent) {
+          studentMarksMap[studentId].obtained_marks += (mark.obtained_marks || 0)
+          studentMarksMap[studentId].is_absent = false
+        }
+      })
+
+      // Now count unique students and their pass/fail status
+      const aggregatedStudents = Object.values(studentMarksMap)
+      const passThresholdPercent = 0.33
 
       classData[className].totalExams++
-      classData[className].totalStudents += examMarksForExam.length
-      classData[className].passedStudents += examMarksForExam.filter(m => !m.is_absent && m.obtained_marks >= passThreshold).length
-      classData[className].failedStudents += examMarksForExam.filter(m => !m.is_absent && m.obtained_marks < passThreshold).length
-      classData[className].absentStudents += examMarksForExam.filter(m => m.is_absent).length
+      classData[className].totalStudents += aggregatedStudents.length
+      classData[className].passedStudents += aggregatedStudents.filter(s =>
+        !s.is_absent && s.obtained_marks >= (s.total_marks * passThresholdPercent)
+      ).length
+      classData[className].failedStudents += aggregatedStudents.filter(s =>
+        !s.is_absent && s.obtained_marks < (s.total_marks * passThresholdPercent)
+      ).length
+      classData[className].absentStudents += aggregatedStudents.filter(s => s.is_absent).length
     })
 
     const report = Object.values(classData).map(item => ({
@@ -612,8 +687,8 @@ function ExamReportsPageContent() {
         }
       }
 
-      const totalMarks = exam.total_marks || 100
-      const passThreshold = totalMarks * 0.33
+      const markTotalMarks = mark.total_marks || 100
+      const passThreshold = markTotalMarks * 0.33
 
       // Track unique exams
       subjectData[mark.subject_id].totalExams.add(mark.exam_id)
@@ -626,7 +701,7 @@ function ExamReportsPageContent() {
           subjectData[mark.subject_id].failedStudents++
         }
         subjectData[mark.subject_id].totalMarksObtained += mark.obtained_marks
-        subjectData[mark.subject_id].totalMaxMarks += totalMarks
+        subjectData[mark.subject_id].totalMaxMarks += markTotalMarks
       }
     })
 
@@ -894,6 +969,15 @@ function ExamReportsPageContent() {
 
       // Get autoTable styles from centralized settings
       const autoTableStyles = getAutoTableStyles(pdfSettings)
+
+      // Add note for exams with multiple subjects
+      if (activeTab === 'test-results' && stats.isExam && stats.subjectCount > 1) {
+        pdf.setFont('helvetica', 'italic')
+        pdf.setFontSize(9)
+        pdf.setTextColor(100, 100, 100)
+        pdf.text(`* Results show combined marks from ${stats.subjectCount} subjects`, 15, yPos)
+        yPos += 8
+      }
 
       // Generate table based on active tab
       if (activeTab === 'test-results' && Array.isArray(reportData)) {
@@ -1330,7 +1414,14 @@ function ExamReportsPageContent() {
       {/* Report Content */}
       {reportData && (
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">{getReportTitle()}</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">{getReportTitle()}</h2>
+            {activeTab === 'test-results' && stats.isExam && stats.subjectCount > 1 && (
+              <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                Combined marks from {stats.subjectCount} subjects
+              </span>
+            )}
+          </div>
 
           {/* Test Results Table */}
           {activeTab === 'test-results' && Array.isArray(reportData) && (

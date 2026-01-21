@@ -507,7 +507,7 @@ function ExamMarksPageContent() {
       data?.forEach(mark => {
         marksMap[mark.student_id] = {
           obtained_marks: mark.obtained_marks,
-          is_absent: mark.obtained_marks === null,
+          is_absent: mark.is_absent || false,
           remarks: mark.remarks || '',
           id: mark.id
         }
@@ -805,6 +805,7 @@ function ExamMarksPageContent() {
       // Prepare data for upsert
       const marksToSave = students.map(student => {
         const marks = marksData[student.id] || {}
+        const isAbsent = marks.is_absent || false
         return {
           school_id: currentUser.school_id,
           user_id: currentUser.id,
@@ -814,7 +815,8 @@ function ExamMarksPageContent() {
           section_id: selectedSection || student.current_section_id,
           subject_id: selectedSubject,
           total_marks: parseFloat(totalMarks),
-          obtained_marks: marks.is_absent ? null : (marks.obtained_marks ? parseFloat(marks.obtained_marks) : null),
+          obtained_marks: isAbsent ? null : (marks.obtained_marks ? parseFloat(marks.obtained_marks) : null),
+          is_absent: isAbsent,
           entered_by: currentUser.id,
           entry_date: new Date().toISOString().split('T')[0]
         }
