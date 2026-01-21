@@ -21,6 +21,13 @@ export default function PermissionGuard({ children, permissionKey, currentUser, 
 
   useEffect(() => {
     async function checkPermission() {
+      // If currentUser is null, keep loading - user data is still being fetched
+      if (currentUser === null) {
+        setLoading(true)
+        return
+      }
+
+      // If currentUser exists but is missing required fields, deny access
       if (!currentUser?.id || !currentUser?.school_id) {
         setHasAccess(false)
         setLoading(false)

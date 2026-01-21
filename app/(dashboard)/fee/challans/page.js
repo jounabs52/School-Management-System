@@ -241,10 +241,31 @@ function FeeChallanContent() {
         }
       }
 
+      // Fetch all payments for these challans
+      const challanIds = challansData?.map(c => c.id).filter(Boolean) || []
+      const { data: paymentsData } = await supabase
+        .from('fee_payments')
+        .select('challan_id, amount_paid')
+        .in('challan_id', challanIds)
+        .eq('school_id', user.school_id)
+
+      // Calculate total paid amount for each challan
+      const paymentMap = {}
+      paymentsData?.forEach(payment => {
+        if (!paymentMap[payment.challan_id]) {
+          paymentMap[payment.challan_id] = 0
+        }
+        paymentMap[payment.challan_id] += parseFloat(payment.amount_paid || 0)
+      })
+
       const enrichedChallans = challansData?.map(challan => {
+        // Calculate paid amount from payments
+        const paidAmount = paymentMap[challan.id] || 0
+
         return {
           ...challan,
           // Use challan's total_amount as it includes all fee items (monthly + other fees)
+          paid_amount: paidAmount,
           students: challan.students ? {
             ...challan.students,
             classes: challan.students.current_class_id ? classesMap[challan.students.current_class_id] : null,
@@ -659,6 +680,11 @@ function FeeChallanContent() {
       doc.text('FEE BREAKDOWN', leftMargin, yPos)
       yPos += 2
 
+      // Calculate paid amount and balance due
+      const totalAmount = parseFloat(challanToUse?.total_amount || 0)
+      const paidAmount = parseFloat(challanToUse?.paid_amount || 0)
+      const balanceDue = Math.max(0, totalAmount - paidAmount)
+
       // Build detailed fee breakdown table from actual challan items
       const tableData = []
 
@@ -668,43 +694,50 @@ function FeeChallanContent() {
         itemsToUse.forEach(item => {
           const itemName = item.fee_types?.fee_name || item.description || 'Fee'
           const itemAmount = parseFloat(item.amount) || 0
-          tableData.push([itemName, formatCurrency(itemAmount)])
+          tableData.push({ label: itemName, amount: formatCurrency(itemAmount), type: 'normal' })
         })
       } else {
         // Fallback for old challans: calculate fees from total_amount
-        const totalAmount = parseFloat(challanToUse?.total_amount) || 0
         const baseFee = parseFloat(student?.base_fee) || parseFloat(challanToUse?.base_fee) || 0
-        const discountAmount = parseFloat(student?.discount_amount) || parseFloat(challanToUse?.discount_amount) || 0
+        const discountAmt = parseFloat(student?.discount_amount) || parseFloat(challanToUse?.discount_amount) || 0
 
         // Calculate other fees: total_amount - (baseFee - discount)
-        const monthlyFeeAfterDiscount = baseFee - discountAmount
+        const monthlyFeeAfterDiscount = baseFee - discountAmt
         const otherFeesAmount = totalAmount - monthlyFeeAfterDiscount
 
         // Add Monthly Fee
         if (baseFee > 0) {
-          tableData.push(['Monthly Fee', formatCurrency(baseFee)])
+          tableData.push({ label: 'Monthly Fee', amount: formatCurrency(baseFee), type: 'normal' })
         }
 
         // Add Other Fees if they exist
         if (otherFeesAmount > 0) {
-          tableData.push(['Other Fees', formatCurrency(otherFeesAmount)])
+          tableData.push({ label: 'Other Fees', amount: formatCurrency(otherFeesAmount), type: 'normal' })
         }
       }
 
       // Add discount row if exists
       const discountAmount = student?.discount_amount || challanToUse?.discount_amount || 0
       if (discountAmount > 0) {
-        tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
+        tableData.push({ label: 'Discount', amount: `- ${formatCurrency(discountAmount)}`, type: 'discount' })
       }
+
+      // Add summary rows
+      tableData.push({ label: 'TOTAL FEE PAYABLE', amount: formatCurrency(totalAmount), type: 'total' })
+      tableData.push({ label: 'Already Paid', amount: formatCurrency(paidAmount), type: 'paid' })
+      tableData.push({ label: 'Balance Due', amount: formatCurrency(balanceDue), type: 'balance' })
+
+      // Convert to autoTable format
+      const tableBody = tableData.map(row => [row.label, row.amount])
 
       const cellPaddingValue = pdfSettings.cellPadding === 'comfortable' ? 5 : pdfSettings.cellPadding === 'normal' ? 4 : 3
       const alternateRowColorRgb = hexToRgb(pdfSettings.alternateRowColor || '#F8FAFC')
 
-      if (tableData.length > 0) {
+      if (tableBody.length > 0) {
         autoTable(doc, {
           startY: yPos,
           head: [['Particulars', 'Amount']],
-          body: tableData,
+          body: tableBody,
           theme: pdfSettings.tableStyle || 'grid',
           headStyles: {
             fillColor: hexToRgb(pdfSettings.tableHeaderColor),
@@ -712,55 +745,67 @@ function FeeChallanContent() {
             fontSize: parseInt(pdfSettings.fontSize) + 1,
             fontStyle: 'bold',
             halign: 'left',
-            cellPadding: { top: cellPaddingValue - 1, bottom: cellPaddingValue - 1, left: 5, right: 5 }
+            cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 }
           },
           bodyStyles: {
             fontSize: parseInt(pdfSettings.fontSize) + 1,
             cellPadding: { top: cellPaddingValue, bottom: cellPaddingValue, left: 5, right: 5 },
             textColor: textColorRgb
           },
-          alternateRowStyles: {
-            fillColor: alternateRowColorRgb
-          },
           columnStyles: {
-            0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+            0: { cellWidth: 130, halign: 'left' },
             1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
           },
           margin: { left: leftMargin, right: leftMargin },
           didParseCell: function(data) {
             data.cell.styles.lineColor = secondaryColorRgb
             data.cell.styles.lineWidth = lineWidthValue
-          },
-          didDrawCell: function(data) {
-            if (data.column.index === 1 && data.section === 'body') {
-              const amountText = data.cell.raw || ''
-              if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
-                doc.setTextColor(220, 38, 38) // Red color for discount
+
+            if (data.section === 'body') {
+              const rowType = tableData[data.row.index]?.type
+
+              // Style for TOTAL FEE PAYABLE row
+              if (rowType === 'total') {
+                data.cell.styles.fillColor = hexToRgb('#F0FDF4')
+                data.cell.styles.fontStyle = 'bold'
+                if (data.column.index === 0) {
+                  data.cell.styles.textColor = textColorRgb
+                } else {
+                  data.cell.styles.textColor = primaryColorRgb
+                }
+              }
+              // Style for Already Paid row
+              else if (rowType === 'paid') {
+                data.cell.styles.fillColor = [255, 255, 255]
+                data.cell.styles.fontStyle = 'bold'
+                if (data.column.index === 1) {
+                  data.cell.styles.textColor = [34, 197, 94] // Green
+                }
+              }
+              // Style for Balance Due row
+              else if (rowType === 'balance') {
+                data.cell.styles.fillColor = balanceDue > 0 ? hexToRgb('#FEF2F2') : hexToRgb('#F0FDF4')
+                data.cell.styles.fontStyle = 'bold'
+                if (data.column.index === 1) {
+                  data.cell.styles.textColor = balanceDue > 0 ? [220, 38, 38] : [34, 197, 94] // Red if due, green if paid
+                }
+              }
+              // Style for Discount row
+              else if (rowType === 'discount') {
+                if (data.column.index === 1) {
+                  data.cell.styles.textColor = [220, 38, 38] // Red for discount
+                }
+              }
+              // Alternate row colors for normal rows
+              else if (data.row.index % 2 === 1) {
+                data.cell.styles.fillColor = alternateRowColorRgb
               }
             }
           }
         })
 
-        yPos = doc.lastAutoTable.finalY + 3
+        yPos = doc.lastAutoTable.finalY + 5
       }
-
-      // TOTAL FEE PAYABLE
-      const bgColorRgb = hexToRgb(pdfSettings.backgroundColor || '#F0FDF4')
-      doc.setFillColor(...bgColorRgb)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
-      doc.setDrawColor(...secondaryColorRgb)
-      doc.setLineWidth(lineWidthValue)
-      doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
-
-      doc.setFontSize(parseInt(pdfSettings.fontSize) + 2)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(...textColorRgb)
-      doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
-
-      doc.setTextColor(...primaryColorRgb)
-      doc.text(formatCurrency(challanToUse.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
-
-      yPos += 15
 
       // Amount in words
       doc.setFontSize(parseInt(pdfSettings.fontSize))
@@ -822,12 +867,11 @@ function FeeChallanContent() {
 
   const handleBulkDownload = async () => {
     if (filteredChallans.length === 0) {
-      showToast('No challans to download', 'error')
+      showToast('No challans available to download', 'error')
       return
     }
 
     try {
-      showToast(`Preparing ${filteredChallans.length} PDF(s)...`, 'info')
 
       const user = getUserFromCookie()
       if (!user) return
@@ -1099,6 +1143,11 @@ function FeeChallanContent() {
         doc.text('FEE BREAKDOWN', leftMargin, yPos)
         yPos += 2
 
+        // Calculate paid amount and balance due
+        const totalAmount = parseFloat(challan?.total_amount || 0)
+        const paidAmount = parseFloat(challan?.paid_amount || 0)
+        const balanceDue = Math.max(0, totalAmount - paidAmount)
+
         // Build detailed fee breakdown table from actual challan items
         const tableData = []
 
@@ -1108,40 +1157,47 @@ function FeeChallanContent() {
           itemsToUse.forEach(item => {
             const itemName = item.fee_type_name || item.description || 'Fee'
             const itemAmount = parseFloat(item.amount) || 0
-            tableData.push([itemName, formatCurrency(itemAmount)])
+            tableData.push({ label: itemName, amount: formatCurrency(itemAmount), type: 'normal' })
           })
         } else {
           // Fallback for old challans: calculate fees from total_amount
-          const totalAmount = parseFloat(challan?.total_amount) || 0
           const baseFee = parseFloat(student?.base_fee) || parseFloat(challan?.base_fee) || 0
-          const discountAmount = parseFloat(student?.discount_amount) || parseFloat(challan?.discount_amount) || 0
+          const discountAmt = parseFloat(student?.discount_amount) || parseFloat(challan?.discount_amount) || 0
 
           // Calculate other fees: total_amount - (baseFee - discount)
-          const monthlyFeeAfterDiscount = baseFee - discountAmount
+          const monthlyFeeAfterDiscount = baseFee - discountAmt
           const otherFeesAmount = totalAmount - monthlyFeeAfterDiscount
 
           // Add Monthly Fee
           if (baseFee > 0) {
-            tableData.push(['Monthly Fee', formatCurrency(baseFee)])
+            tableData.push({ label: 'Monthly Fee', amount: formatCurrency(baseFee), type: 'normal' })
           }
 
           // Add Other Fees if they exist
           if (otherFeesAmount > 0) {
-            tableData.push(['Other Fees', formatCurrency(otherFeesAmount)])
+            tableData.push({ label: 'Other Fees', amount: formatCurrency(otherFeesAmount), type: 'normal' })
           }
         }
 
         // Add discount row if exists
         const discountAmount = student?.discount_amount || challan?.discount_amount || 0
         if (discountAmount > 0) {
-          tableData.push(['Discount', `- ${formatCurrency(discountAmount)}`])
+          tableData.push({ label: 'Discount', amount: `- ${formatCurrency(discountAmount)}`, type: 'discount' })
         }
 
-        if (tableData.length > 0) {
+        // Add summary rows
+        tableData.push({ label: 'TOTAL FEE PAYABLE', amount: formatCurrency(totalAmount), type: 'total' })
+        tableData.push({ label: 'Already Paid', amount: formatCurrency(paidAmount), type: 'paid' })
+        tableData.push({ label: 'Balance Due', amount: formatCurrency(balanceDue), type: 'balance' })
+
+        // Convert to autoTable format
+        const tableBody = tableData.map(row => [row.label, row.amount])
+
+        if (tableBody.length > 0) {
           autoTable(doc, {
             startY: yPos,
             head: [['Particulars', 'Amount']],
-            body: tableData,
+            body: tableBody,
             theme: 'grid',
             headStyles: {
               fillColor: hexToRgb(pdfSettings.tableHeaderColor),
@@ -1149,7 +1205,7 @@ function FeeChallanContent() {
               fontSize: 9,
               fontStyle: 'bold',
               halign: 'left',
-              cellPadding: { top: 3, bottom: 3, left: 5, right: 5 }
+              cellPadding: { top: 4, bottom: 4, left: 5, right: 5 }
             },
             bodyStyles: {
               fontSize: 9,
@@ -1157,43 +1213,53 @@ function FeeChallanContent() {
               textColor: [0, 0, 0]
             },
             columnStyles: {
-              0: { cellWidth: 130, halign: 'left', fontStyle: 'normal' },
+              0: { cellWidth: 130, halign: 'left' },
               1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
             },
             margin: { left: leftMargin, right: leftMargin },
             didParseCell: function(data) {
               data.cell.styles.lineColor = [200, 200, 200]
               data.cell.styles.lineWidth = 0.1
-            },
-            didDrawCell: function(data) {
-              if (data.column.index === 1 && data.section === 'body') {
-                const amountText = data.cell.raw || ''
-                if (amountText.includes('-') || amountText.toLowerCase().includes('discount')) {
-                  doc.setTextColor(220, 38, 38)
+
+              if (data.section === 'body') {
+                const rowType = tableData[data.row.index]?.type
+
+                // Style for TOTAL FEE PAYABLE row
+                if (rowType === 'total') {
+                  data.cell.styles.fillColor = [240, 253, 244]
+                  data.cell.styles.fontStyle = 'bold'
+                  if (data.column.index === 1) {
+                    data.cell.styles.textColor = [22, 163, 74] // Green
+                  }
+                }
+                // Style for Already Paid row
+                else if (rowType === 'paid') {
+                  data.cell.styles.fillColor = [255, 255, 255]
+                  data.cell.styles.fontStyle = 'bold'
+                  if (data.column.index === 1) {
+                    data.cell.styles.textColor = [34, 197, 94] // Green
+                  }
+                }
+                // Style for Balance Due row
+                else if (rowType === 'balance') {
+                  data.cell.styles.fillColor = balanceDue > 0 ? [254, 242, 242] : [240, 253, 244]
+                  data.cell.styles.fontStyle = 'bold'
+                  if (data.column.index === 1) {
+                    data.cell.styles.textColor = balanceDue > 0 ? [220, 38, 38] : [34, 197, 94]
+                  }
+                }
+                // Style for Discount row
+                else if (rowType === 'discount') {
+                  if (data.column.index === 1) {
+                    data.cell.styles.textColor = [220, 38, 38] // Red for discount
+                  }
                 }
               }
             }
           })
 
-          yPos = doc.lastAutoTable.finalY + 3
+          yPos = doc.lastAutoTable.finalY + 5
         }
-
-        // TOTAL FEE PAYABLE
-        doc.setFillColor(240, 253, 244)
-        doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10, 'F')
-        doc.setDrawColor(200, 200, 200)
-        doc.setLineWidth(0.1)
-        doc.rect(leftMargin, yPos, pageWidth - leftMargin - margins.right, 10)
-
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(0, 0, 0)
-        doc.text('TOTAL FEE PAYABLE', leftMargin + 5, yPos + 6.5)
-
-        doc.setTextColor(22, 163, 74)
-        doc.text(formatCurrency(challan.total_amount), rightMargin - 5, yPos + 6.5, { align: 'right' })
-
-        yPos += 15
 
         // Amount in words
         doc.setFontSize(8)
@@ -1237,10 +1303,10 @@ function FeeChallanContent() {
         await new Promise(resolve => setTimeout(resolve, 300))
       }
 
-      showToast(`Successfully downloaded ${filteredChallans.length} PDF(s)!`, 'success')
+      showToast('PDF file downloaded successfully!', 'success')
     } catch (error) {
       console.error('Error in bulk download:', error)
-      showToast(`Failed to download PDFs: ${error.message}`, 'error')
+      showToast('Failed to download PDF file', 'error')
     }
   }
 
@@ -1408,7 +1474,9 @@ function FeeChallanContent() {
                 <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Class</th>
                 <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Issue Date</th>
                 <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Due Date</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Amount</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Total Amount</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Already Paid</th>
+                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Balance Due</th>
                 <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Status</th>
                 <th className="px-3 py-2.5 text-center font-semibold text-xs border border-blue-800">Options</th>
               </tr>
@@ -1416,21 +1484,25 @@ function FeeChallanContent() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-8 text-center text-gray-500 text-xs">
+                  <td colSpan="11" className="px-3 py-8 text-center text-gray-500 text-xs">
                     Loading...
                   </td>
                 </tr>
               ) : paginatedChallans.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-8 text-center text-gray-500 text-xs">
+                  <td colSpan="11" className="px-3 py-8 text-center text-gray-500 text-xs">
                     No challans found
                   </td>
                 </tr>
               ) : (
                 paginatedChallans.map((challan, index) => {
                   const student = challan.students
+                  const totalAmount = parseFloat(challan.total_amount)
+                  const paidAmount = parseFloat(challan.paid_amount || 0)
+                  const balanceDue = totalAmount - paidAmount
+
                   return (
-                    <tr key={challan.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                    <tr key={challan.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition ${challan.status === 'paid' ? 'bg-green-50' : ''}`}>
                       <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">{startIndex + index + 1}</td>
                       <td className="px-3 py-2.5 text-blue-600 font-medium text-xs border border-gray-200">
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'N/A'}
@@ -1446,7 +1518,17 @@ function FeeChallanContent() {
                         {new Date(challan.due_date).toLocaleDateString()}
                       </td>
                       <td className="px-3 py-2.5 text-gray-900 font-bold text-xs border border-gray-200">
-                        Rs. {parseFloat(challan.total_amount).toLocaleString()}
+                        Rs. {totalAmount.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2.5 border border-gray-200">
+                        <span className="text-green-600 font-semibold text-xs">
+                          Rs. {paidAmount.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 border border-gray-200">
+                        <span className={`font-bold text-xs ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          Rs. {balanceDue.toLocaleString()}
+                        </span>
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
@@ -1543,8 +1625,12 @@ function FeeChallanContent() {
           <>
             {paginatedChallans.map((challan, index) => {
               const student = challan.students
+              const totalAmount = parseFloat(challan.total_amount)
+              const paidAmount = parseFloat(challan.paid_amount || 0)
+              const balanceDue = totalAmount - paidAmount
+
               return (
-                <div key={challan.id} className="bg-white rounded-lg shadow p-3 border border-gray-200">
+                <div key={challan.id} className={`bg-white rounded-lg shadow p-3 border border-gray-200 ${challan.status === 'paid' ? 'bg-green-50' : ''}`}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <div className="text-xs text-gray-500 mb-0.5">Challan #{startIndex + index + 1}</div>
@@ -1577,9 +1663,21 @@ function FeeChallanContent() {
                       <span className="text-gray-900">{new Date(challan.due_date).toLocaleDateString()}</span>
                     </div>
                     <div className="flex justify-between items-center pt-1.5 border-t border-gray-200">
-                      <span className="text-gray-600 font-semibold">Amount:</span>
-                      <span className="text-red-600 font-bold text-sm">
-                        Rs. {parseFloat(challan.total_amount).toLocaleString()}
+                      <span className="text-gray-600 font-semibold">Total Amount:</span>
+                      <span className="text-gray-900 font-bold text-sm">
+                        Rs. {totalAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-semibold">Already Paid:</span>
+                      <span className="text-green-600 font-semibold text-sm">
+                        Rs. {paidAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-semibold">Balance Due:</span>
+                      <span className={`font-bold text-sm ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        Rs. {balanceDue.toLocaleString()}
                       </span>
                     </div>
                   </div>

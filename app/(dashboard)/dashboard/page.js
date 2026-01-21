@@ -288,6 +288,7 @@ function DashboardContent() {
         supabase.from('passengers').select('student_id').eq('user_id', userId).eq('school_id', schoolId).eq('status', 'active'),
 
         supabase.from('transport_passengers').select('student_id').eq('school_id', schoolId).eq('status', 'active')
+
       ])
 
       // Process students
