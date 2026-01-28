@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 import {
   BookOpen, Plus, Edit, Trash2, X, Save, Search,
   Users, BookCopy, RotateCcw, AlertCircle, CheckCircle,
@@ -683,87 +685,89 @@ function LibraryPageContent() {
   const categories = [...new Set(books.map(book => book.category).filter(Boolean))]
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-[10001] space-y-2">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-xl border animate-slideIn ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg shadow-xl border animate-slideIn max-w-[90vw] sm:max-w-sm ${
               toast.type === 'success'
                 ? 'bg-green-50 border-green-200 text-green-800'
                 : 'bg-red-50 border-red-200 text-red-800'
             }`}
           >
             {toast.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
             )}
-            <span className="font-medium text-sm flex-1">{toast.message}</span>
+            <span className="font-medium text-xs sm:text-sm flex-1">{toast.message}</span>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-3 md:p-4 lg:p-6 mb-3 sm:mb-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-gray-800">Library Management</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <h1 className="text-lg sm:text-xl font-bold text-gray-800">Library Management</h1>
+          <div className="flex flex-wrap gap-1 sm:gap-2 md:gap-3">
             <button
               onClick={() => setActiveTab('books')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-lg flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'books'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <BookOpen className="w-4 h-4" />
-              Books
+              <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              <span>Books</span>
             </button>
             <button
               onClick={() => setActiveTab('issue')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-lg flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'issue'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <BookCopy className="w-4 h-4" />
-              Issue Book
+              <BookCopy className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline">Issue Book</span>
+              <span className="sm:hidden">Issue</span>
             </button>
             <button
               onClick={() => setActiveTab('return')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-lg flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'return'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <RotateCcw className="w-4 h-4" />
-              Return Book
+              <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline">Return Book</span>
+              <span className="sm:hidden">Return</span>
             </button>
             <button
               onClick={() => setActiveTab('members')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-lg flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'members'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <Users className="w-4 h-4" />
-              Members
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              <span>Members</span>
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-lg flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'history'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <History className="w-4 h-4" />
-              History
+              <History className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              <span>History</span>
             </button>
           </div>
         </div>
@@ -772,66 +776,73 @@ function LibraryPageContent() {
         {activeTab === 'books' && (
           <div>
             {/* Filters and Add Button */}
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex gap-2 flex-1">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search books by title, author, or book number..."
+                    placeholder="Search books..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg text-xs sm:text-sm"
                   />
                 </div>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+                <div className="flex gap-2 sm:gap-3">
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-1 sm:flex-none"
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-1 sm:flex-none"
+                  >
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
               <button
                 onClick={() => {
                   resetBookForm()
                   setShowBookModal(true)
                 }}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
               >
-                <Plus className="w-4 h-4" />
-                Add Book
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Add Book</span>
+                <span className="sm:hidden">Add</span>
               </button>
             </div>
 
             {/* Books Table */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
+            <ResponsiveTableWrapper
+              loading={loading}
+              empty={filteredBooks.length === 0}
+              emptyMessage="No books found"
+              emptyIcon={<BookOpen className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />}
+              tableView={
+                <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
                   <thead>
                     <tr className="bg-blue-900 text-white">
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Book #</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Title</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Author</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">ISBN</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Category</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Rack</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Available</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Actions</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Book #</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Title</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden md:table-cell">Author</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden lg:table-cell">ISBN</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Category</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden lg:table-cell">Rack</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Total</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Avail.</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Status</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -842,26 +853,26 @@ function LibraryPageContent() {
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                         } hover:bg-blue-50 transition`}
                       >
-                        <td className="px-3 py-2.5 border border-gray-200 font-medium">{book.book_number}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{book.book_title}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{book.author || 'N/A'}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{book.isbn || 'N/A'}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{book.category || 'N/A'}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{book.rack_number || 'N/A'}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{book.total_copies}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 font-medium whitespace-nowrap">{book.book_number}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 max-w-[120px] sm:max-w-none truncate">{book.book_title}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden md:table-cell whitespace-nowrap">{book.author || 'N/A'}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden lg:table-cell whitespace-nowrap">{book.isbn || 'N/A'}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden sm:table-cell whitespace-nowrap">{book.category || 'N/A'}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden lg:table-cell whitespace-nowrap">{book.rack_number || 'N/A'}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden sm:table-cell whitespace-nowrap">{book.total_copies}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
                           <span className={`font-medium ${book.available_copies > 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {book.available_copies}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
+                          <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${
                             book.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                           }`}>
                             {book.status}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 border border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => {
@@ -869,17 +880,17 @@ function LibraryPageContent() {
                                 setEditMode(true)
                                 setShowBookModal(true)
                               }}
-                              className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                               title="Edit"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteBook(book)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                               title="Delete"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </button>
                           </div>
                         </td>
@@ -887,30 +898,75 @@ function LibraryPageContent() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-
-            {filteredBooks.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No books found</p>
-              </div>
-            )}
+              }
+              cardView={
+                <CardGrid>
+                  {filteredBooks.map((book, index) => (
+                    <DataCard key={book.id}>
+                      <CardHeader
+                        srNumber={index + 1}
+                        name={book.book_title}
+                        subtitle={`${book.book_number} • ${book.author || 'N/A'}`}
+                        badge={
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            book.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {book.status}
+                          </span>
+                        }
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="ISBN" value={book.isbn || 'N/A'} />
+                        <CardRow label="Category" value={book.category || 'N/A'} />
+                        <CardRow label="Rack" value={book.rack_number || 'N/A'} />
+                        <CardRow label="Publisher" value={book.publisher || 'N/A'} />
+                        <CardRow label="Total Copies" value={book.total_copies} />
+                        <CardRow
+                          label="Available"
+                          value={book.available_copies}
+                          valueClassName={book.available_copies > 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}
+                        />
+                      </CardInfoGrid>
+                      <CardActions>
+                        <button
+                          onClick={() => {
+                            setCurrentBook(book)
+                            setEditMode(true)
+                            setShowBookModal(true)
+                          }}
+                          className="bg-teal-600 hover:bg-teal-700 text-white p-1 rounded transition"
+                          title="Edit Book"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBook(book)}
+                          className="bg-red-600 hover:bg-red-700 text-white p-1 rounded transition"
+                          title="Delete Book"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </CardActions>
+                    </DataCard>
+                  ))}
+                </CardGrid>
+              }
+            />
           </div>
         )}
 
         {/* Issue Book Tab */}
         {activeTab === 'issue' && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Select Book <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={issueForm.book_id}
                   onChange={(e) => setIssueForm({...issueForm, book_id: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                 >
                   <option value="">Select Book</option>
                   {availableBooks.map(book => (
@@ -922,7 +978,7 @@ function LibraryPageContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Borrower Type <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -934,15 +990,15 @@ function LibraryPageContent() {
                     setShowStudentDropdown(false)
                     setShowStaffDropdown(false)
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                 >
                   <option value="student">Student</option>
                   <option value="staff">Staff</option>
                 </select>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="sm:col-span-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Select {issueForm.borrower_type === 'student' ? 'Student' : 'Staff'} <span className="text-red-500">*</span>
                 </label>
                 {issueForm.borrower_type === 'student' ? (
@@ -956,10 +1012,10 @@ function LibraryPageContent() {
                       }}
                       onFocus={() => setShowStudentDropdown(true)}
                       placeholder="Search by name or admission number..."
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                     />
                     {showStudentDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 sm:max-h-60 overflow-y-auto">
                         {students.filter(student => {
                           if (!studentSearchTerm.trim()) return true
                           const searchLower = studentSearchTerm.toLowerCase()
@@ -981,14 +1037,14 @@ function LibraryPageContent() {
                                 setStudentSearchTerm(`${student.first_name} ${student.last_name} - ${student.admission_number}`)
                                 setShowStudentDropdown(false)
                               }}
-                              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              className="px-2 sm:px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                             >
-                              <div className="font-medium text-sm">{student.first_name} {student.last_name}</div>
+                              <div className="font-medium text-xs sm:text-sm">{student.first_name} {student.last_name}</div>
                               <div className="text-xs text-gray-600">Admission No: {student.admission_number}</div>
                             </div>
                           ))
                         ) : (
-                          <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                          <div className="px-3 py-3 sm:py-4 text-center text-gray-500 text-xs sm:text-sm">
                             No students found
                           </div>
                         )}
@@ -1006,10 +1062,10 @@ function LibraryPageContent() {
                       }}
                       onFocus={() => setShowStaffDropdown(true)}
                       placeholder="Search by name or computer number..."
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                     />
                     {showStaffDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 sm:max-h-60 overflow-y-auto">
                         {staff.filter(staffMember => {
                           if (!staffSearchTerm.trim()) return true
                           const searchLower = staffSearchTerm.toLowerCase()
@@ -1033,9 +1089,9 @@ function LibraryPageContent() {
                                 setStaffSearchTerm(`${staffMember.first_name} ${staffMember.last_name} - ${staffMember.computer_no}`)
                                 setShowStaffDropdown(false)
                               }}
-                              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              className="px-2 sm:px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                             >
-                              <div className="font-medium text-sm">{staffMember.first_name} {staffMember.last_name}</div>
+                              <div className="font-medium text-xs sm:text-sm">{staffMember.first_name} {staffMember.last_name}</div>
                               <div className="text-xs text-gray-600">
                                 Computer No: {staffMember.computer_no}
                                 {staffMember.designation && ` • ${staffMember.designation}`}
@@ -1043,7 +1099,7 @@ function LibraryPageContent() {
                             </div>
                           ))
                         ) : (
-                          <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                          <div className="px-3 py-3 sm:py-4 text-center text-gray-500 text-xs sm:text-sm">
                             No staff found
                           </div>
                         )}
@@ -1054,19 +1110,19 @@ function LibraryPageContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Issue Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
                   value={issueForm.issue_date}
                   onChange={(e) => setIssueForm({...issueForm, issue_date: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Due Date <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1074,17 +1130,17 @@ function LibraryPageContent() {
                   value={issueForm.due_date}
                   onChange={(e) => setIssueForm({...issueForm, due_date: e.target.value})}
                   min={issueForm.issue_date}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Remarks</label>
                 <textarea
                   value={issueForm.remarks}
                   onChange={(e) => setIssueForm({...issueForm, remarks: e.target.value})}
                   rows="1"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                   placeholder="Optional remarks"
                 />
               </div>
@@ -1094,9 +1150,9 @@ function LibraryPageContent() {
               <button
                 onClick={handleIssueBook}
                 disabled={loading}
-                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-4 sm:px-5 md:px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium w-full sm:w-auto justify-center"
               >
-                <BookCopy className="w-4 h-4" />
+                <BookCopy className="w-4 h-4 sm:w-5 sm:h-5" />
                 {loading ? 'Issuing...' : 'Issue Book'}
               </button>
             </div>
@@ -1106,19 +1162,23 @@ function LibraryPageContent() {
         {/* Return Book Tab */}
         {activeTab === 'return' && (
           <div>
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
+            <ResponsiveTableWrapper
+              loading={loading}
+              empty={issuedBooks.length === 0}
+              emptyMessage="No books currently issued"
+              emptyIcon={<RotateCcw className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />}
+              tableView={
+                <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
                   <thead>
                     <tr className="bg-blue-900 text-white">
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Book #</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Title</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Borrower</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Issue Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Due Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Days Late</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Action</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Book #</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Title</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Borrower</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden md:table-cell">Issue Date</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Due Date</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden lg:table-cell">Days Late</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Status</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1133,30 +1193,30 @@ function LibraryPageContent() {
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                           } hover:bg-blue-50 transition`}
                         >
-                          <td className="px-3 py-2.5 border border-gray-200 font-medium">{issue.books?.book_number}</td>
-                          <td className="px-3 py-2.5 border border-gray-200">{issue.books?.book_title}</td>
-                          <td className="px-3 py-2.5 border border-gray-200">{issue.borrower_type}</td>
-                          <td className="px-3 py-2.5 border border-gray-200">
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 font-medium whitespace-nowrap">{issue.books?.book_number}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 max-w-[100px] sm:max-w-none truncate">{issue.books?.book_title}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap hidden sm:table-cell">{issue.borrower_type}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap hidden md:table-cell">
                             {new Date(issue.issue_date).toLocaleDateString('en-GB')}
                           </td>
-                          <td className="px-3 py-2.5 border border-gray-200">
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
                             {new Date(issue.due_date).toLocaleDateString('en-GB')}
                           </td>
-                          <td className="px-3 py-2.5 border border-gray-200">
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap hidden lg:table-cell">
                             {isOverdue ? (
                               <span className="text-red-600 font-medium">{daysLate} days</span>
                             ) : (
                               <span className="text-green-600">-</span>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 border border-gray-200">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
+                            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${
                               isOverdue ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                             }`}>
                               {isOverdue ? 'Overdue' : 'Issued'}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 border border-gray-200">
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">
                             <button
                               onClick={() => {
                                 setSelectedIssue(issue)
@@ -1165,7 +1225,7 @@ function LibraryPageContent() {
                                   fine_amount: calculateFine(issue.due_date)
                                 })
                               }}
-                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition"
+                              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1 rounded text-xs transition"
                             >
                               Return
                             </button>
@@ -1175,42 +1235,87 @@ function LibraryPageContent() {
                     })}
                   </tbody>
                 </table>
-              </div>
-            </div>
+              }
+              cardView={
+                <CardGrid>
+                  {issuedBooks.map((issue, index) => {
+                    const daysLate = Math.ceil((new Date() - new Date(issue.due_date)) / (1000 * 60 * 60 * 24))
+                    const isOverdue = daysLate > 0
 
-            {issuedBooks.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <RotateCcw className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No books currently issued</p>
-              </div>
-            )}
+                    return (
+                      <DataCard key={issue.id}>
+                        <CardHeader
+                          srNumber={index + 1}
+                          name={issue.books?.book_title}
+                          subtitle={`${issue.books?.book_number} • ${issue.borrower_type}`}
+                          badge={
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              isOverdue ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                            }`}>
+                              {isOverdue ? 'Overdue' : 'Issued'}
+                            </span>
+                          }
+                        />
+                        <CardInfoGrid>
+                          <CardRow label="Issue Date" value={new Date(issue.issue_date).toLocaleDateString('en-GB')} />
+                          <CardRow label="Due Date" value={new Date(issue.due_date).toLocaleDateString('en-GB')} />
+                          <CardRow
+                            label="Days Late"
+                            value={isOverdue ? `${daysLate} days` : '-'}
+                            valueClassName={isOverdue ? 'text-red-600 font-semibold' : 'text-green-600'}
+                          />
+                        </CardInfoGrid>
+                        <CardActions>
+                          <button
+                            onClick={() => {
+                              setSelectedIssue(issue)
+                              setReturnForm({
+                                ...returnForm,
+                                fine_amount: calculateFine(issue.due_date)
+                              })
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs transition w-full"
+                          >
+                            Return Book
+                          </button>
+                        </CardActions>
+                      </DataCard>
+                    )
+                  })}
+                </CardGrid>
+              }
+            />
           </div>
         )}
 
         {/* Members Tab */}
         {activeTab === 'members' && (
           <div>
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-end mb-3 sm:mb-4">
               <button
                 onClick={() => setShowMemberModal(true)}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                 Add Member
               </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
+            <ResponsiveTableWrapper
+              loading={loading}
+              empty={members.length === 0}
+              emptyMessage="No library members found"
+              emptyIcon={<Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />}
+              tableView={
+                <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
                   <thead>
                     <tr className="bg-blue-900 text-white">
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Membership #</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Name</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Type</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Join Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Expiry Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Membership #</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Name</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Type</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden md:table-cell">Join Date</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden lg:table-cell">Expiry Date</th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1230,20 +1335,20 @@ function LibraryPageContent() {
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                           } hover:bg-blue-50 transition`}
                         >
-                          <td className="px-3 py-2.5 border border-gray-200 font-medium">{member.membership_number}</td>
-                          <td className="px-3 py-2.5 border border-gray-200">
-                            <div className="font-medium">{memberName}</div>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 font-medium whitespace-nowrap">{member.membership_number}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">
+                            <div className="font-medium text-xs sm:text-sm">{memberName}</div>
                             <div className="text-xs text-gray-500">{memberId}</div>
                           </td>
-                          <td className="px-3 py-2.5 border border-gray-200 capitalize">{member.member_type}</td>
-                          <td className="px-3 py-2.5 border border-gray-200">
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 capitalize whitespace-nowrap hidden sm:table-cell">{member.member_type}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap hidden md:table-cell">
                             {new Date(member.membership_date).toLocaleDateString('en-GB')}
                           </td>
-                          <td className="px-3 py-2.5 border border-gray-200">
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap hidden lg:table-cell">
                             {member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-GB') : 'N/A'}
                           </td>
-                          <td className="px-3 py-2.5 border border-gray-200">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
+                            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${
                               member.status === 'active' ? 'bg-green-100 text-green-700' :
                               member.status === 'suspended' ? 'bg-red-100 text-red-700' :
                               'bg-gray-100 text-gray-700'
@@ -1256,15 +1361,46 @@ function LibraryPageContent() {
                     })}
                   </tbody>
                 </table>
-              </div>
-            </div>
+              }
+              cardView={
+                <CardGrid>
+                  {members.map((member, index) => {
+                    const memberName = member.member_type === 'student'
+                      ? `${member.students?.first_name || ''} ${member.students?.last_name || ''}`
+                      : `${member.staff?.first_name || ''} ${member.staff?.last_name || ''}`
 
-            {members.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No library members found</p>
-              </div>
-            )}
+                    const memberId = member.member_type === 'student'
+                      ? member.students?.admission_number
+                      : member.staff?.computer_no
+
+                    return (
+                      <DataCard key={member.id}>
+                        <CardHeader
+                          srNumber={index + 1}
+                          name={memberName}
+                          subtitle={`${member.membership_number} • ${member.member_type}`}
+                          badge={
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              member.status === 'active' ? 'bg-green-100 text-green-800' :
+                              member.status === 'suspended' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {member.status}
+                            </span>
+                          }
+                        />
+                        <CardInfoGrid>
+                          <CardRow label="Member ID" value={memberId} />
+                          <CardRow label="Type" value={member.member_type} />
+                          <CardRow label="Join Date" value={new Date(member.membership_date).toLocaleDateString('en-GB')} />
+                          <CardRow label="Expiry" value={member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-GB') : 'N/A'} />
+                        </CardInfoGrid>
+                      </DataCard>
+                    )
+                  })}
+                </CardGrid>
+              }
+            />
           </div>
         )}
 
@@ -1272,40 +1408,40 @@ function LibraryPageContent() {
         {activeTab === 'history' && (
           <div>
             {/* Filter buttons */}
-            <div className="flex gap-2 mb-4 flex-wrap">
+            <div className="flex gap-1 sm:gap-2 mb-3 sm:mb-4 flex-wrap">
               <button
                 onClick={() => setHistoryFilter('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                   historyFilter === 'all'
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                All Records
+                All
               </button>
               <button
                 onClick={() => setHistoryFilter('issued')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                   historyFilter === 'issued'
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                Currently Issued
+                Issued
               </button>
               <button
                 onClick={() => setHistoryFilter('returned')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                   historyFilter === 'returned'
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                Returned Books
+                Returned
               </button>
               <button
                 onClick={() => setHistoryFilter('paid')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                   historyFilter === 'paid'
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -1315,61 +1451,129 @@ function LibraryPageContent() {
               </button>
               <button
                 onClick={() => setHistoryFilter('unpaid')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                   historyFilter === 'unpaid'
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                Fine Unpaid
+                Unpaid
               </button>
             </div>
 
             {/* History Table */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-blue-900 text-white">
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Book</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Borrower</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Type</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Issue Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Due Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Return Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fine</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
-                          Loading history...
-                        </td>
-                      </tr>
-                    ) : historyRecords.filter(record => {
-                      if (historyFilter === 'all') return true
-                      if (historyFilter === 'issued') return record.status === 'issued' || record.status === 'overdue'
-                      if (historyFilter === 'returned') return record.status === 'returned'
-                      if (historyFilter === 'paid') return record.fine_paid === true && record.fine_amount > 0
-                      if (historyFilter === 'unpaid') return record.fine_paid === false && record.fine_amount > 0
-                      return true
-                    }).length === 0 ? (
-                      <tr>
-                        <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
-                          No records found
-                        </td>
-                      </tr>
-                    ) : (
-                      historyRecords.filter(record => {
-                        if (historyFilter === 'all') return true
-                        if (historyFilter === 'issued') return record.status === 'issued' || record.status === 'overdue'
-                        if (historyFilter === 'returned') return record.status === 'returned'
-                        if (historyFilter === 'paid') return record.fine_paid === true && record.fine_amount > 0
-                        if (historyFilter === 'unpaid') return record.fine_paid === false && record.fine_amount > 0
-                        return true
-                      }).map((record, index) => {
+            {(() => {
+              const filteredHistoryRecords = historyRecords.filter(record => {
+                if (historyFilter === 'all') return true
+                if (historyFilter === 'issued') return record.status === 'issued' || record.status === 'overdue'
+                if (historyFilter === 'returned') return record.status === 'returned'
+                if (historyFilter === 'paid') return record.fine_paid === true && record.fine_amount > 0
+                if (historyFilter === 'unpaid') return record.fine_paid === false && record.fine_amount > 0
+                return true
+              })
+
+              return (
+                <ResponsiveTableWrapper
+                  loading={loading}
+                  empty={filteredHistoryRecords.length === 0}
+                  emptyMessage="No library history found"
+                  emptyIcon={<FileText className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />}
+                  tableView={
+                    <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
+                      <thead>
+                        <tr className="bg-blue-900 text-white">
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Book</th>
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Borrower</th>
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden md:table-cell">Type</th>
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden lg:table-cell">Issue Date</th>
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Due Date</th>
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden md:table-cell">Return Date</th>
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Fine</th>
+                          <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredHistoryRecords.map((record, index) => {
+                          const borrowerName = record.borrower_type === 'student'
+                            ? `${record.students?.first_name || ''} ${record.students?.last_name || ''}`
+                            : `${record.staff?.first_name || ''} ${record.staff?.last_name || ''}`
+
+                          const borrowerId = record.borrower_type === 'student'
+                            ? record.students?.admission_number
+                            : record.staff?.computer_no
+
+                          return (
+                            <tr
+                              key={record.id}
+                              className={`${
+                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                              } hover:bg-blue-50 transition`}
+                            >
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">
+                                <div className="font-medium text-xs sm:text-sm max-w-[100px] sm:max-w-none truncate">{record.books?.book_title}</div>
+                                <div className="text-xs text-gray-500">{record.books?.book_number}</div>
+                              </td>
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden sm:table-cell">
+                                <div className="font-medium text-xs sm:text-sm">{borrowerName}</div>
+                                <div className="text-xs text-gray-500">{borrowerId}</div>
+                              </td>
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden md:table-cell">
+                                <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                  record.borrower_type === 'student'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  {record.borrower_type}
+                                </span>
+                              </td>
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap hidden lg:table-cell">
+                                {new Date(record.issue_date).toLocaleDateString('en-GB')}
+                              </td>
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
+                                {new Date(record.due_date).toLocaleDateString('en-GB')}
+                              </td>
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap hidden md:table-cell">
+                                {record.return_date ? new Date(record.return_date).toLocaleDateString('en-GB') : '-'}
+                              </td>
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden sm:table-cell">
+                                {record.fine_amount > 0 ? (
+                                  <div>
+                                    <div className="font-medium text-xs sm:text-sm">Rs. {record.fine_amount}</div>
+                                    <div className="flex items-center gap-1 sm:gap-2 mt-1">
+                                      <div className={`text-xs ${record.fine_paid ? 'text-green-600' : 'text-red-600'}`}>
+                                        {record.fine_paid ? 'Paid' : 'Unpaid'}
+                                      </div>
+                                      {!record.fine_paid && (
+                                        <button
+                                          onClick={() => handleMarkFinePaid(record.id)}
+                                          disabled={loading}
+                                          className="px-1.5 sm:px-2 py-0.5 bg-green-500 hover:bg-green-600 text-white text-xs rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                          Pay
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : '-'}
+                              </td>
+                              <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
+                                <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                  record.status === 'returned' ? 'bg-green-100 text-green-700' :
+                                  record.status === 'overdue' ? 'bg-red-100 text-red-700' :
+                                  'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {record.status}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  }
+                  cardView={
+                    <CardGrid>
+                      {filteredHistoryRecords.map((record, index) => {
                         const borrowerName = record.borrower_type === 'student'
                           ? `${record.students?.first_name || ''} ${record.students?.last_name || ''}`
                           : `${record.staff?.first_name || ''} ${record.staff?.last_name || ''}`
@@ -1379,83 +1583,54 @@ function LibraryPageContent() {
                           : record.staff?.computer_no
 
                         return (
-                          <tr
-                            key={record.id}
-                            className={`${
-                              index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                            } hover:bg-blue-50 transition`}
-                          >
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              <div className="font-medium">{record.books?.book_title}</div>
-                              <div className="text-xs text-gray-500">{record.books?.book_number}</div>
-                            </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              <div className="font-medium">{borrowerName}</div>
-                              <div className="text-xs text-gray-500">{borrowerId}</div>
-                            </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                record.borrower_type === 'student'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-purple-100 text-purple-700'
-                              }`}>
-                                {record.borrower_type}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              {new Date(record.issue_date).toLocaleDateString('en-GB')}
-                            </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              {new Date(record.due_date).toLocaleDateString('en-GB')}
-                            </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              {record.return_date ? new Date(record.return_date).toLocaleDateString('en-GB') : '-'}
-                            </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              {record.fine_amount > 0 ? (
-                                <div>
-                                  <div className="font-medium">Rs. {record.fine_amount}</div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <div className={`text-xs ${record.fine_paid ? 'text-green-600' : 'text-red-600'}`}>
-                                      {record.fine_paid ? 'Paid' : 'Unpaid'}
-                                    </div>
-                                    {!record.fine_paid && (
-                                      <button
-                                        onClick={() => handleMarkFinePaid(record.id)}
-                                        disabled={loading}
-                                        className="px-2 py-0.5 bg-green-500 hover:bg-green-600 text-white text-xs rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                      >
-                                        Mark Paid
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : '-'}
-                            </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                record.status === 'returned' ? 'bg-green-100 text-green-700' :
-                                record.status === 'overdue' ? 'bg-red-100 text-red-700' :
-                                'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {record.status}
-                              </span>
-                            </td>
-                          </tr>
+                          <DataCard key={record.id}>
+                            <CardHeader
+                              srNumber={index + 1}
+                              name={record.books?.book_title}
+                              subtitle={`${record.books?.book_number} • ${borrowerName}`}
+                              badge={
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                  record.status === 'returned' ? 'bg-green-100 text-green-800' :
+                                  record.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {record.status}
+                                </span>
+                              }
+                            />
+                            <CardInfoGrid>
+                              <CardRow label="Borrower" value={borrowerName} />
+                              <CardRow label="Type" value={record.borrower_type} />
+                              <CardRow label="Issue Date" value={new Date(record.issue_date).toLocaleDateString('en-GB')} />
+                              <CardRow label="Due Date" value={new Date(record.due_date).toLocaleDateString('en-GB')} />
+                              <CardRow label="Return Date" value={record.return_date ? new Date(record.return_date).toLocaleDateString('en-GB') : '-'} />
+                              {record.fine_amount > 0 && (
+                                <CardRow
+                                  label="Fine"
+                                  value={`Rs. ${record.fine_amount} (${record.fine_paid ? 'Paid' : 'Unpaid'})`}
+                                  valueClassName={record.fine_paid ? 'text-green-600' : 'text-red-600'}
+                                />
+                              )}
+                            </CardInfoGrid>
+                            {record.fine_amount > 0 && !record.fine_paid && (
+                              <CardActions>
+                                <button
+                                  onClick={() => handleMarkFinePaid(record.id)}
+                                  disabled={loading}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs transition w-full disabled:opacity-50"
+                                >
+                                  Mark Fine as Paid
+                                </button>
+                              </CardActions>
+                            )}
+                          </DataCard>
                         )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {historyRecords.length === 0 && !loading && (
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No library history found</p>
-              </div>
-            )}
+                      })}
+                    </CardGrid>
+                  }
+                />
+              )
+            })()}
           </div>
         )}
       </div>
@@ -1464,77 +1639,77 @@ function LibraryPageContent() {
       {showBookModal && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowBookModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-800">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg xl:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                     {editMode ? 'Edit Book' : 'Add New Book'}
                   </h2>
                   <button
                     onClick={() => setShowBookModal(false)}
                     className="text-gray-500 hover:text-gray-700"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Book Title <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={currentBook.book_title}
                       onChange={(e) => setCurrentBook({...currentBook, book_title: e.target.value})}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                       placeholder="Enter book title"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Book Number <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={currentBook.book_number}
                       onChange={(e) => setCurrentBook({...currentBook, book_number: e.target.value})}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                       placeholder="Enter book number"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ISBN</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">ISBN</label>
                     <input
                       type="text"
                       value={currentBook.isbn}
                       onChange={(e) => setCurrentBook({...currentBook, isbn: e.target.value})}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                       placeholder="Enter ISBN"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Author</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Author</label>
                     <input
                       type="text"
                       value={currentBook.author}
                       onChange={(e) => setCurrentBook({...currentBook, author: e.target.value})}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                       placeholder="Enter author name"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Publisher</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Publisher</label>
                     <input
                       type="text"
                       value={currentBook.publisher}
                       onChange={(e) => setCurrentBook({...currentBook, publisher: e.target.value})}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
                       placeholder="Enter publisher"
                     />
                   </div>
@@ -1628,7 +1803,7 @@ function LibraryPageContent() {
                   <button
                     onClick={handleSaveBook}
                     disabled={loading}
-                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
                   >
                     <Save className="w-4 h-4" />
                     {loading ? 'Saving...' : (editMode ? 'Update Book' : 'Add Book')}
@@ -1644,9 +1819,9 @@ function LibraryPageContent() {
       {selectedIssue && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setSelectedIssue(null)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-              <div className="p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-gray-800">Return Book</h2>
                   <button
@@ -1724,7 +1899,7 @@ function LibraryPageContent() {
                   <button
                     onClick={handleReturnBook}
                     disabled={loading}
-                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
                   >
                     <RotateCcw className="w-4 h-4" />
                     {loading ? 'Processing...' : 'Return Book'}
@@ -1740,9 +1915,9 @@ function LibraryPageContent() {
       {showMemberModal && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowMemberModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-              <div className="p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-gray-800">Add Library Member</h2>
                   <button
@@ -1869,7 +2044,7 @@ function LibraryPageContent() {
                       }
                     }}
                     disabled={loading}
-                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
                   >
                     <Save className="w-4 h-4" />
                     {loading ? 'Saving...' : 'Add Member'}

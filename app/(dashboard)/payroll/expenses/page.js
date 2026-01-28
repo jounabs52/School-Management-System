@@ -20,6 +20,8 @@ import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardInfoGrid } from '@/components/DataCard'
 
 function ExpensesPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -766,7 +768,7 @@ function ExpensesPageContent() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -798,10 +800,10 @@ function ExpensesPageContent() {
 
       {/* Tabs */}
       <div className="mb-2 bg-white rounded-lg shadow-sm">
-        <div className="flex gap-2 p-2">
+        <div className="flex flex-col sm:flex-row gap-2 p-2 sm:p-4">
           <button
             onClick={() => setActiveTab('expenses')}
-            className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            className={`px-2 sm:px-3 py-1.5 sm:py-2 text-sm font-medium rounded-lg transition-all ${
               activeTab === 'expenses'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -811,7 +813,7 @@ function ExpensesPageContent() {
           </button>
           <button
             onClick={() => setActiveTab('categories')}
-            className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            className={`px-2 sm:px-3 py-1.5 sm:py-2 text-sm font-medium rounded-lg transition-all ${
               activeTab === 'categories'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -826,7 +828,7 @@ function ExpensesPageContent() {
       {activeTab === 'expenses' && (
         <>
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-2">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div>
@@ -869,8 +871,8 @@ function ExpensesPageContent() {
       </div>
 
       {/* Search and Actions */}
-      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
-        <div className="flex flex-col md:flex-row gap-2 items-center justify-between">
+      <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 lg:p-4 mb-2">
+        <div className="flex flex-col lg:flex-row gap-2 sm:gap-4 items-stretch lg:items-center justify-between">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
@@ -878,51 +880,51 @@ function ExpensesPageContent() {
               placeholder="Search by vendor, invoice, or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-gray-600 hover:bg-gray-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
             >
               <Filter size={16} />
-              Filters
+              <span className="sm:inline">Filters</span>
             </button>
             <button
               onClick={handlePrint}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
             >
               <Printer size={16} />
-              Print
+              <span className="sm:inline">Print</span>
             </button>
             <button
               onClick={handleExport}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
             >
               <Download size={16} />
-              Export
+              <span className="sm:inline">Export</span>
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
             >
               <Plus size={16} />
-              Add Expense
+              <span className="sm:inline">Add Expense</span>
             </button>
           </div>
         </div>
 
         {/* Filters */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Categories</option>
                 {categories.map(cat => (
@@ -936,7 +938,7 @@ function ExpensesPageContent() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -950,7 +952,7 @@ function ExpensesPageContent() {
               <select
                 value={paymentMethodFilter}
                 onChange={(e) => setPaymentMethodFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Methods</option>
                 <option value="cash">Cash</option>
@@ -966,7 +968,7 @@ function ExpensesPageContent() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
@@ -976,7 +978,7 @@ function ExpensesPageContent() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -988,7 +990,11 @@ function ExpensesPageContent() {
         {loading ? (
           <div className="text-center py-12 text-gray-500">Loading expenses...</div>
         ) : filteredExpenses.length > 0 ? (
-          <div className="overflow-x-auto">
+          <ResponsiveTableWrapper
+            loading={loading}
+            empty={filteredExpenses.length === 0}
+            emptyMessage="No expenses found"
+            tableView={
             <table className="w-full border-collapse text-sm">
               <thead className="bg-blue-900 text-white">
                 <tr>
@@ -1068,7 +1074,37 @@ function ExpensesPageContent() {
                 ))}
               </tbody>
             </table>
-          </div>
+            }
+            cardView={
+              <div className="space-y-2">
+                {filteredExpenses.map((expense) => (
+                  <DataCard key={expense.id}>
+                    <CardHeader
+                      name={expense.vendor_name || 'N/A'}
+                      subtitle={`${new Date(expense.expense_date).toLocaleDateString('en-GB')} • Invoice: ${expense.invoice_number || 'N/A'}`}
+                      badge={
+                        <div className="flex gap-1">
+                          <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-medium">{expense.category?.category_name || 'N/A'}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${expense.status === 'paid' ? 'bg-green-100 text-green-700' : expense.status === 'approved' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>{expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}</span>
+                        </div>
+                      }
+                    />
+                    <CardInfoGrid>
+                      <CardRow label="Amount" value={`Rs ${parseFloat(expense.amount || 0).toLocaleString()}`} />
+                      <CardRow label="Payment" value={expense.payment_method?.toUpperCase() || 'N/A'} />
+                    </CardInfoGrid>
+                    <CardActions>
+                      {expense.status === 'pending' && (
+                        <button onClick={() => handleApproveExpense(expense.id)} className="text-green-600 hover:text-green-800 p-1" title="Approve"><CheckCircle size={14} /></button>
+                      )}
+                      <button onClick={() => openEditModal(expense)} className="text-blue-900 hover:text-blue-700 p-1" title="Edit"><Edit size={14} /></button>
+                      <button onClick={() => { setSelectedExpense(expense); setShowDeleteModal(true); }} className="text-red-600 hover:text-red-800 p-1" title="Delete"><Trash2 size={14} /></button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </div>
+            }
+          />
         ) : (
           <div className="text-center py-12 text-gray-500">
             <p>No expenses found</p>
@@ -1100,7 +1136,11 @@ function ExpensesPageContent() {
             {loading ? (
               <div className="text-center py-12 text-gray-500">Loading categories...</div>
             ) : categories.length > 0 ? (
-              <div className="overflow-x-auto">
+              <ResponsiveTableWrapper
+                loading={loading}
+                empty={categories.length === 0}
+                emptyMessage="No categories found"
+                tableView={
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="bg-blue-900 text-white">
@@ -1148,7 +1188,27 @@ function ExpensesPageContent() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+                }
+                cardView={
+                  <div className="space-y-2">
+                    {categories.map((category) => (
+                      <DataCard key={category.id}>
+                        <CardHeader
+                          name={category.category_name}
+                          subtitle={category.description || '-'}
+                          badge={
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${category.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{category.status}</span>
+                          }
+                        />
+                        <CardActions>
+                          <button onClick={() => openEditCategoryModal(category)} className="text-blue-600 hover:text-blue-800 p-1" title="Edit category"><Edit size={14} /></button>
+                          <button onClick={() => openDeleteCategoryModal(category)} className="text-red-600 hover:text-red-800 p-1" title="Delete category"><Trash2 size={14} /></button>
+                        </CardActions>
+                      </DataCard>
+                    ))}
+                  </div>
+                }
+              />
             ) : (
               <div className="text-center py-12 text-gray-500">
                 <p>No categories found</p>
@@ -1160,23 +1220,23 @@ function ExpensesPageContent() {
 
       {/* Add Expense Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full h-[95vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
-              <h2 className="text-base font-bold text-gray-800">Add New Expense</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full sm:max-w-lg lg:max-w-2xl h-[95vh] sm:h-auto sm:max-h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b flex-shrink-0">
+              <h2 className="text-sm sm:text-base font-bold text-gray-800">Add New Expense</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
                   <select
                     value={formData.expense_category_id}
                     onChange={(e) => setFormData({ ...formData, expense_category_id: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                   >
                     <option value="">Select Category</option>
@@ -1192,7 +1252,7 @@ function ExpensesPageContent() {
                     type="date"
                     value={formData.expense_date}
                     onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -1203,7 +1263,7 @@ function ExpensesPageContent() {
                     type="number"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="0.00"
                     required
                   />
@@ -1214,7 +1274,7 @@ function ExpensesPageContent() {
                   <select
                     value={formData.payment_method}
                     onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="cash">Cash</option>
                     <option value="cheque">Cheque</option>
@@ -1229,28 +1289,28 @@ function ExpensesPageContent() {
                     type="text"
                     value={formData.invoice_number}
                     onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="INV-001"
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Vendor Name</label>
                   <input
                     type="text"
                     value={formData.vendor_name}
                     onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="Enter vendor name"
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     rows="3"
                     placeholder="Enter expense details..."
                   />
@@ -1258,19 +1318,19 @@ function ExpensesPageContent() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t bg-gray-50 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowAddModal(false)
                   resetForm()
                 }}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddExpense}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
               >
                 Add Expense
               </button>
@@ -1281,23 +1341,23 @@ function ExpensesPageContent() {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full h-[95vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
-              <h2 className="text-base font-bold text-gray-800">Edit Expense</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full sm:max-w-lg lg:max-w-2xl h-[95vh] sm:h-auto sm:max-h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b flex-shrink-0">
+              <h2 className="text-sm sm:text-base font-bold text-gray-800">Edit Expense</h2>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
                   <select
                     value={formData.expense_category_id}
                     onChange={(e) => setFormData({ ...formData, expense_category_id: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                   >
                     <option value="">Select Category</option>
@@ -1313,7 +1373,7 @@ function ExpensesPageContent() {
                     type="date"
                     value={formData.expense_date}
                     onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -1324,7 +1384,7 @@ function ExpensesPageContent() {
                     type="number"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="0.00"
                     required
                   />
@@ -1335,7 +1395,7 @@ function ExpensesPageContent() {
                   <select
                     value={formData.payment_method}
                     onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="cash">Cash</option>
                     <option value="cheque">Cheque</option>
@@ -1349,7 +1409,7 @@ function ExpensesPageContent() {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
@@ -1363,28 +1423,28 @@ function ExpensesPageContent() {
                     type="text"
                     value={formData.invoice_number}
                     onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="INV-001"
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Vendor Name</label>
                   <input
                     type="text"
                     value={formData.vendor_name}
                     onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="Enter vendor name"
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     rows="3"
                     placeholder="Enter expense details..."
                   />
@@ -1392,20 +1452,20 @@ function ExpensesPageContent() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t bg-gray-50 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowEditModal(false)
                   setSelectedExpense(null)
                   resetForm()
                 }}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditExpense}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
               >
                 Update Expense
               </button>
@@ -1424,16 +1484,16 @@ function ExpensesPageContent() {
               setSelectedExpense(null)
             }}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
+              <div className="p-4 sm:p-6">
+                <p className="text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">
                   Are you sure you want to delete this expense? This action cannot be undone.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
@@ -1458,23 +1518,23 @@ function ExpensesPageContent() {
 
       {/* Add Category Modal */}
       {showAddCategoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-base font-bold text-gray-800">Add New Category</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
+              <h2 className="text-sm sm:text-base font-bold text-gray-800">Add New Category</h2>
               <button onClick={() => { setShowAddCategoryModal(false); resetCategoryForm(); }} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category Name *</label>
                 <input
                   type="text"
                   value={categoryFormData.category_name}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, category_name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="e.g. Utilities, Salaries, etc."
                   required
                 />
@@ -1485,7 +1545,7 @@ function ExpensesPageContent() {
                 <textarea
                   value={categoryFormData.description}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   rows="3"
                   placeholder="Enter category description..."
                 />
@@ -1496,7 +1556,7 @@ function ExpensesPageContent() {
                 <select
                   value={categoryFormData.status}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -1504,16 +1564,16 @@ function ExpensesPageContent() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t bg-gray-50">
               <button
                 onClick={() => { setShowAddCategoryModal(false); resetCategoryForm(); }}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddCategory}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
               >
                 Add Category
               </button>
@@ -1524,23 +1584,23 @@ function ExpensesPageContent() {
 
       {/* Edit Category Modal */}
       {showEditCategoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-base font-bold text-gray-800">Edit Category</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
+              <h2 className="text-sm sm:text-base font-bold text-gray-800">Edit Category</h2>
               <button onClick={() => { setShowEditCategoryModal(false); setSelectedCategory(null); resetCategoryForm(); }} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category Name *</label>
                 <input
                   type="text"
                   value={categoryFormData.category_name}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, category_name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="e.g. Utilities, Salaries, etc."
                   required
                 />
@@ -1551,7 +1611,7 @@ function ExpensesPageContent() {
                 <textarea
                   value={categoryFormData.description}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   rows="3"
                   placeholder="Enter category description..."
                 />
@@ -1562,7 +1622,7 @@ function ExpensesPageContent() {
                 <select
                   value={categoryFormData.status}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -1570,16 +1630,16 @@ function ExpensesPageContent() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t bg-gray-50">
               <button
                 onClick={() => { setShowEditCategoryModal(false); setSelectedCategory(null); resetCategoryForm(); }}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditCategory}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
               >
                 Update Category
               </button>
@@ -1590,25 +1650,25 @@ function ExpensesPageContent() {
 
       {/* Delete Category Modal */}
       {showDeleteCategoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
               <h3 className="text-lg font-bold">Confirm Delete</h3>
             </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-6">
+            <div className="p-4 sm:p-6">
+              <p className="text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">
                 Are you sure you want to delete the category "<strong>{selectedCategory?.category_name}</strong>"? This action cannot be undone.
               </p>
-              <div className="flex justify-end gap-3">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                 <button
                   onClick={() => { setShowDeleteCategoryModal(false); setSelectedCategory(null); }}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteCategory}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                 >
                   Delete
                 </button>

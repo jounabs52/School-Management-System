@@ -1783,7 +1783,7 @@ function ReportsPageContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="p-2 md:p-4 lg:p-4 max-w-[1800px] mx-auto">
+      <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 max-w-[1800px] mx-auto">
         {/* Enhanced Header */}
         <div className="mb-3">
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-3">
@@ -1800,7 +1800,7 @@ function ReportsPageContent() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                 <button
                   onClick={async () => {
                     try {
@@ -1814,10 +1814,10 @@ function ReportsPageContent() {
                       alert('Failed to generate PDF. Please try again.')
                     }
                   }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm bg-[#DC2626] text-white hover:bg-red-700"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm bg-[#DC2626] text-white hover:bg-red-700"
                 >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline text-xs">Download PDF</span>
+                  <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline text-xs">PDF</span>
                 </button>
                 <button
                   onClick={() => {
@@ -1832,24 +1832,24 @@ function ReportsPageContent() {
                       alert('Failed to generate CSV. Please try again.')
                     }
                   }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm bg-[#DC2626] text-white hover:bg-red-700"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm bg-[#DC2626] text-white hover:bg-red-700"
                 >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline text-xs">Download CSV</span>
+                  <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline text-xs">CSV</span>
                 </button>
                 <button
                   onClick={handleManualRefresh}
                   disabled={isRealTimeActive}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm ${
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm ${
                     isRealTimeActive
                       ? 'bg-blue-50 text-blue-600 cursor-not-allowed'
                       : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700'
                   }`}
                 >
-                  <RefreshCw className={`w-4 h-4 ${isRealTimeActive ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${isRealTimeActive ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline text-xs">{isRealTimeActive ? 'Updating...' : 'Refresh'}</span>
                 </button>
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="hidden sm:flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-50 border border-gray-200 rounded-lg">
                   <div className={`w-2 h-2 rounded-full ${isRealTimeActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
                   <span className="text-xs font-medium text-gray-700">
                     {lastUpdated.toLocaleTimeString()}

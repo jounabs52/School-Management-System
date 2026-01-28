@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx'
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -409,7 +411,7 @@ function VehiclesContent() {
   }, [searchTerm])
 
   return (
-    <div className="p-2 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast notification */}
       {toast && (
         <Toast
@@ -420,22 +422,24 @@ function VehiclesContent() {
       )}
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow p-2 mb-2">
-        <div className="flex flex-col md:flex-row gap-1.5 items-center">
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
-          >
-            <Plus size={12} />
-            Add Vehicle
-          </button>
-          <button
-            onClick={exportToCSV}
-            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-[#DC2626] text-white hover:bg-red-700"
-          >
-            <Download size={12} />
-            Export to Excel
-          </button>
+      <div className="bg-white rounded-lg shadow p-2 sm:p-4 mb-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-2.5 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 text-xs sm:text-sm whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
+            >
+              <Plus size={12} />
+              Add Vehicle
+            </button>
+            <button
+              onClick={exportToCSV}
+              className="px-2.5 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 text-xs sm:text-sm whitespace-nowrap bg-[#DC2626] text-white hover:bg-red-700"
+            >
+              <Download size={12} />
+              Export to Excel
+            </button>
+          </div>
           <div className="flex-1 relative w-full">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={12} />
             <input
@@ -443,15 +447,15 @@ function VehiclesContent() {
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+      <ResponsiveTableWrapper
+        tableView={
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-blue-900 text-white">
@@ -528,25 +532,65 @@ function VehiclesContent() {
               )}
             </tbody>
           </table>
-        </div>
+        }
+        cardView={
+          <CardGrid>
+            {currentVehicles.map((vehicle, index) => (
+              <DataCard key={vehicle.id}>
+                <CardHeader
+                  srNumber={startIndex + index + 1}
+                  photo={vehicle.registration_number.charAt(0)}
+                  name={vehicle.registration_number}
+                  subtitle={vehicle.routes?.route_name || 'No route'}
+                />
+                <CardInfoGrid>
+                  <CardRow label="Driver" value={vehicle.driver_name || '-'} />
+                  <CardRow label="Mobile" value={vehicle.driver_mobile || '-'} />
+                  <CardRow label="Capacity" value={vehicle.seating_capacity || 0} />
+                  <CardRow label="Route" value={vehicle.routes?.route_name || '-'} />
+                </CardInfoGrid>
+                <CardActions>
+                  <button
+                    onClick={() => handleEdit(vehicle)}
+                    className="p-1 text-teal-600 rounded"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(vehicle)}
+                    className="p-1 text-red-600 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </CardActions>
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={currentVehicles.length === 0}
+        emptyMessage="No vehicles found"
+      />
 
-        {/* Pagination Controls */}
+      {/* Pagination Controls */}
         {!loading && filteredVehicles.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between px-2 sm:px-6 py-3 sm:py-4 gap-2 sm:gap-4 border-t border-gray-200 bg-white">
+            <div className="text-xs sm:text-sm text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredVehicles.length)} of {filteredVehicles.length} entries
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Previous
               </button>
-              
+
               {/* Page numbers */}
-              <div className="flex items-center gap-1">
+              <div className="hidden sm:flex items-center gap-1">
                 {[...Array(totalPages)].map((_, i) => {
                   const pageNum = i + 1
                   // Show first page, last page, current page, and pages around current
@@ -574,18 +618,18 @@ function VehiclesContent() {
                   return null
                 })}
               </div>
+              <span className="sm:hidden text-xs text-gray-600">{currentPage}/{totalPages}</span>
 
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Next
               </button>
             </div>
           </div>
         )}
-      </div>
 
       {/* Add New Vehicle Sidebar */}
       {showModal && (
@@ -595,12 +639,12 @@ function VehiclesContent() {
             onClick={() => setShowModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Add New Vehicle</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the vehicle details</p>
+                  <h3 className="text-base sm:text-xl font-bold">Add New Vehicle</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Fill in the vehicle details</p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
@@ -610,10 +654,10 @@ function VehiclesContent() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 bg-gray-50">
+              <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Registration Number <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -621,11 +665,11 @@ function VehiclesContent() {
                     placeholder="Vehicle Registration Number"
                     value={formData.registrationNo}
                     onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Seating Capacity
                   </label>
                   <input
@@ -633,11 +677,11 @@ function VehiclesContent() {
                     placeholder="Seating Capacity"
                     value={formData.capacity}
                     onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Driver Name
                   </label>
                   <input
@@ -645,11 +689,11 @@ function VehiclesContent() {
                     placeholder="Driver Name"
                     value={formData.driverName}
                     onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Driver Mobile
                   </label>
                   <input
@@ -657,17 +701,17 @@ function VehiclesContent() {
                     placeholder="Driver Mobile"
                     value={formData.driverMobile}
                     onChange={(e) => setFormData({ ...formData, driverMobile: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Select Route (Optional)
                   </label>
                   <select
                     value={formData.route}
                     onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">No Route Assigned</option>
                     {routes.map((route) => (
@@ -679,19 +723,19 @@ function VehiclesContent() {
                 </div>
               </div>
             </div>
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
-              <div className="flex gap-2 justify-end">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-white">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 justify-end">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-xs sm:text-sm order-2 sm:order-1"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-xs sm:text-sm order-1 sm:order-2"
                 >
-                  <Plus size={14} />
+                  <Plus size={14} className="w-3 h-3 sm:w-4 sm:h-4" />
                   Save Vehicle
                 </button>
               </div>
@@ -708,25 +752,25 @@ function VehiclesContent() {
             onClick={() => setShowEditModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Edit Vehicle</h3>
-                  <p className="text-blue-200 text-sm mt-1">Update vehicle details</p>
+                  <h3 className="text-base sm:text-xl font-bold">Edit Vehicle</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Update vehicle details</p>
                 </div>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} className="sm:w-[22px] sm:h-[22px]" />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 bg-gray-50">
+              <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Registration Number <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -734,11 +778,11 @@ function VehiclesContent() {
                     placeholder="Vehicle Registration Number"
                     value={formData.registrationNo}
                     onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Seating Capacity
                   </label>
                   <input
@@ -746,11 +790,11 @@ function VehiclesContent() {
                     placeholder="Seating Capacity"
                     value={formData.capacity}
                     onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Driver Name
                   </label>
                   <input
@@ -758,11 +802,11 @@ function VehiclesContent() {
                     placeholder="Driver Name"
                     value={formData.driverName}
                     onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Driver Mobile
                   </label>
                   <input
@@ -770,17 +814,17 @@ function VehiclesContent() {
                     placeholder="Driver Mobile"
                     value={formData.driverMobile}
                     onChange={(e) => setFormData({ ...formData, driverMobile: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Select Route (Optional)
                   </label>
                   <select
                     value={formData.route}
                     onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">No Route Assigned</option>
                     {routes.map((route) => (
@@ -792,19 +836,19 @@ function VehiclesContent() {
                 </div>
               </div>
             </div>
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
-              <div className="flex gap-2 justify-end">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-white">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 justify-end">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-xs sm:text-sm order-2 sm:order-1"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-xs sm:text-sm order-1 sm:order-2"
                 >
-                  <Plus size={14} />
+                  <Plus size={14} className="w-3 h-3 sm:w-4 sm:h-4" />
                   Update Vehicle
                 </button>
               </div>
@@ -821,25 +865,25 @@ function VehiclesContent() {
             onClick={() => setShowDeleteModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-base sm:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
+              <div className="p-4 sm:p-6">
+                <p className="text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">
                   Are you sure you want to delete vehicle <span className="font-bold text-red-600">{vehicleToDelete.registration_number}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
                   >
                     <Trash2 size={18} />
                     Delete

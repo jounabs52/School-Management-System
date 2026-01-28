@@ -1542,7 +1542,7 @@ function StudentIDCardsContent() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -1552,41 +1552,42 @@ function StudentIDCardsContent() {
         }}
       />
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-red-600 rounded-lg">
-            <CreditCard className="w-6 h-6 text-white" />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-4 md:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 md:p-3 bg-red-600 rounded-lg">
+            <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Identity Cards</h1>
+          <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800">Identity Cards</h1>
         </div>
         <button
           onClick={() => setShowCardSettings(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition"
+          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm md:text-base"
         >
-          <Settings className="w-4 h-4" />
-          Card Settings
+          <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Card Settings</span>
+          <span className="sm:hidden">Settings</span>
         </button>
       </div>
 
       {/* Card Settings Modal */}
       {showCardSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">ID Card Settings</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2 md:p-4">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-xl w-[98%] sm:max-w-xl lg:max-w-2xl max-h-[98vh] sm:max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 flex items-center justify-between">
+              <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-800">ID Card Settings</h2>
               <button
                 onClick={() => setShowCardSettings(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
+                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-2 sm:p-3 md:p-4 lg:p-6 space-y-3 sm:space-y-4 md:space-y-6">
               {/* Header & Branding */}
               <div>
-                <h3 className="text-sm font-semibold mb-3 text-gray-700">HEADER & BRANDING</h3>
-                <div className="space-y-4">
+                <h3 className="text-sm font-semibold mb-2 sm:mb-3 text-gray-700">HEADER & BRANDING</h3>
+                <div className="space-y-3 sm:space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
                       Institute Name (Main Header)
@@ -1611,8 +1612,8 @@ function StudentIDCardsContent() {
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="flex items-center gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <input
                         type="checkbox"
                         id="showSchoolLogo"
@@ -2202,9 +2203,9 @@ function StudentIDCardsContent() {
       )}
 
       {/* Main Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
         {/* ID Card Configuration */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {/* Class Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2244,7 +2245,7 @@ function StudentIDCardsContent() {
 
         {/* Section Selection - shown after class is selected */}
         {selectedClass && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Section <span className="text-red-500">*</span>
@@ -2295,7 +2296,7 @@ function StudentIDCardsContent() {
 
         {/* Search Student - shown after section is selected */}
         {(selectedSection || (selectedClass && sections.length === 0)) && (
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Search Student (Optional)
             </label>
@@ -2311,8 +2312,8 @@ function StudentIDCardsContent() {
 
         {/* Students List */}
         {(selectedSection || (selectedClass && sections.length === 0)) && (
-          <div className="border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          <div className="border-t border-gray-200 pt-4 sm:pt-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">
               {printFor === 'individual'
                 ? 'Select Student'
                 : sections.length === 0

@@ -575,236 +575,236 @@ function DashboardContent() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading dashboard...</p>
+          <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 animate-spin text-blue-600 mx-auto mb-2 sm:mb-3 md:mb-4" />
+          <p className="text-gray-600 text-xs sm:text-sm md:text-base">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5 xl:gap-6">
         {/* LEFT SIDE - 15 CARDS + CHARTS */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 xl:space-y-6">
           {/* Row 1 - Student, Staff, Fee Posted */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white shadow-xl">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.students.active}</p>
-                  <p className="text-sm mt-1">Active Students</p>
-                  <p className="text-xs opacity-80">Total Students: {dashboardData.students.total}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.students.active}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Active Students</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Total: {dashboardData.students.total}</p>
                 </div>
-                <Users className="w-10 h-10 opacity-80" />
+                <Users className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.staff.active}</p>
-                  <p className="text-sm mt-1">Active Staff</p>
-                  <p className="text-xs opacity-80">Total Staff: {dashboardData.staff.total}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.staff.active}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Active Staff</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Total: {dashboardData.staff.total}</p>
                 </div>
-                <UserCheck className="w-10 h-10 opacity-80" />
+                <UserCheck className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-red-700 to-red-900 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-red-700 to-red-900 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.fee.currentMonth.posted.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Fee {dashboardData.currentMonth}-2025</p>
-                  <p className="text-xs opacity-80">Fee Posted: {dashboardData.fee.currentMonth.posted.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.fee.currentMonth.posted.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Fee {dashboardData.currentMonth}-2025</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Fee Posted: {dashboardData.fee.currentMonth.posted.toLocaleString()}</p>
                 </div>
-                <DollarSign className="w-10 h-10 opacity-80" />
+                <DollarSign className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
           </div>
 
           {/* Row 2 - Fee Received, Fee Receivable, Salary Total */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-xl relative">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+            <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl relative">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.fee.currentMonth.received.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Received ({dashboardData.currentMonth}-2025)</p>
-                  <p className="text-xs opacity-80">Total Fee Posted: {dashboardData.fee.currentMonth.posted.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.fee.currentMonth.received.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Received ({dashboardData.currentMonth}-2025)</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Fee Posted: {dashboardData.fee.currentMonth.posted.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/20 rounded-full px-3 py-1 text-sm font-bold">{dashboardData.fee.currentMonth.percentage}%</div>
+                <div className="bg-white/20 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-0.5 md:px-3 md:py-1 text-[10px] sm:text-xs md:text-sm font-bold">{dashboardData.fee.currentMonth.percentage}%</div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-pink-600 to-purple-700 rounded-2xl p-6 text-white shadow-xl relative">
+            <div className="bg-gradient-to-r from-pink-600 to-purple-700 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl relative">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.fee.currentMonth.receivable.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Receivable {dashboardData.currentMonth}-2025</p>
-                  <p className="text-xs opacity-80">Total Receivable: {dashboardData.fee.totalReceivable.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.fee.currentMonth.receivable.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Receivable {dashboardData.currentMonth}-2025</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Total: {dashboardData.fee.totalReceivable.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/20 rounded-full px-3 py-1 text-sm font-bold">{100 - dashboardData.fee.currentMonth.percentage}%</div>
+                <div className="bg-white/20 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-0.5 md:px-3 md:py-1 text-[10px] sm:text-xs md:text-sm font-bold">{100 - dashboardData.fee.currentMonth.percentage}%</div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-teal-600 to-cyan-700 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-teal-600 to-cyan-700 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.salary.currentMonth.total.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Salary {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
-                  <p className="text-xs opacity-80">Total salary of {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.salary.currentMonth.total.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Salary {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Total salary</p>
                 </div>
-                <DollarSign className="w-10 h-10 opacity-80" />
+                <DollarSign className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
           </div>
 
           {/* Row 3 - Salary Paid, Salary Payable, Today Collection */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-gradient-to-r from-indigo-700 to-blue-800 rounded-2xl p-6 text-white shadow-xl">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+            <div className="bg-gradient-to-r from-indigo-700 to-blue-800 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.salary.currentMonth.paid.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Paid ({dashboardData.currentMonth}-{new Date().getFullYear()})</p>
-                  <p className="text-xs opacity-80">Total paid in month: {dashboardData.salary.currentMonth.paid.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.salary.currentMonth.paid.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Paid ({dashboardData.currentMonth}-{new Date().getFullYear()})</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Total paid in month</p>
                 </div>
-                <DollarSign className="w-10 h-10 opacity-80" />
+                <DollarSign className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-gray-800 to-black rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-gray-800 to-black rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.salary.currentMonth.payable.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Payable {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
-                  <p className="text-xs opacity-80">Total Payables: {dashboardData.salary.totalPayables.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.salary.currentMonth.payable.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Payable {dashboardData.currentMonth}-{new Date().getFullYear()}</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Total: {dashboardData.salary.totalPayables.toLocaleString()}</p>
                 </div>
-                <AlertCircle className="w-10 h-10 opacity-80" />
+                <AlertCircle className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-pink-600 to-red-600 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-pink-600 to-red-600 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold text-yellow-300">{dashboardData.fee.todayCollection.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Today Collection</p>
-                  <p className="text-xs opacity-80">Today Fee Postings: {dashboardData.fee.todayCollection.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-yellow-300">{dashboardData.fee.todayCollection.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Today Collection</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Today Fee Postings</p>
                 </div>
-                <Calendar className="w-10 h-10 opacity-80" />
+                <Calendar className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
           </div>
 
           {/* Row 4 - Today Expenses, Classes, Library */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-gradient-to-r from-red-600 to-pink-700 rounded-2xl p-6 text-white shadow-xl">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+            <div className="bg-gradient-to-r from-red-600 to-pink-700 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold text-yellow-300">{dashboardData.expenses.today.toLocaleString()}</p>
-                  <p className="text-sm mt-1">Today Expenses</p>
-                  <p className="text-xs opacity-80">Expenses {dashboardData.currentMonth}-2025: {dashboardData.expenses.currentMonth.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-yellow-300">{dashboardData.expenses.today.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Today Expenses</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Month: {dashboardData.expenses.currentMonth.toLocaleString()}</p>
                 </div>
-                <TrendingUp className="w-10 h-10 opacity-80" />
+                <TrendingUp className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-purple-700 to-indigo-800 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-purple-700 to-indigo-800 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.classes}</p>
-                  <p className="text-sm mt-1">Total Classes</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.classes}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Total Classes</p>
                 </div>
-                <School className="w-10 h-10 opacity-80" />
+                <School className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-blue-800 to-cyan-900 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-blue-800 to-cyan-900 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.library.totalBooks}</p>
-                  <p className="text-sm mt-1">Library Books</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.library.totalBooks}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Library Books</p>
                 </div>
-                <BookOpen className="w-10 h-10 opacity-80" />
+                <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
           </div>
 
           {/* Row 5 - Transport, Contacts, Visitors */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-gradient-to-r from-orange-600 to-yellow-600 rounded-2xl p-6 text-white shadow-xl">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+            <div className="bg-gradient-to-r from-orange-600 to-yellow-600 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.transport.totalStudents}</p>
-                  <p className="text-sm mt-1">Transportee</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.transport.totalStudents}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Transportee</p>
                 </div>
-                <Bus className="w-10 h-10 opacity-80" />
+                <Bus className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.frontdesk.contacts.total}</p>
-                  <p className="text-sm mt-1">Total Contacts</p>
-                  <p className="text-xs opacity-80">Added Today: {dashboardData.frontdesk.contacts.today}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.frontdesk.contacts.total}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Total Contacts</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Today: {dashboardData.frontdesk.contacts.today}</p>
                 </div>
-                <Phone className="w-10 h-10 opacity-80" />
+                <Phone className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-teal-700 to-green-800 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-teal-700 to-green-800 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.frontdesk.visitors.total}</p>
-                  <p className="text-sm mt-1">Total Visitors</p>
-                  <p className="text-xs opacity-80">Today: {dashboardData.frontdesk.visitors.today}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.frontdesk.visitors.total}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Total Visitors</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Today: {dashboardData.frontdesk.visitors.today}</p>
                 </div>
-                <Users className="w-10 h-10 opacity-80" />
+                <Users className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
           </div>
 
           {/* Row 6 - Inquiries, Datesheets */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-gradient-to-r from-violet-700 to-purple-800 rounded-2xl p-6 text-white shadow-xl">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+            <div className="bg-gradient-to-r from-violet-700 to-purple-800 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.frontdesk.inquiries.total}</p>
-                  <p className="text-sm mt-1">Admission Inquiries</p>
-                  <p className="text-xs opacity-80">Pending: {dashboardData.frontdesk.inquiries.pending}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.frontdesk.inquiries.total}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Admission Inquiries</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Pending: {dashboardData.frontdesk.inquiries.pending}</p>
                 </div>
-                <MessageSquare className="w-10 h-10 opacity-80" />
+                <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-rose-600 to-pink-700 rounded-2xl p-6 text-white shadow-xl">
+            <div className="bg-gradient-to-r from-rose-600 to-pink-700 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-4xl font-bold">{dashboardData.datesheets.total}</p>
-                  <p className="text-sm mt-1">Total Datesheets</p>
-                  <p className="text-xs opacity-80">Upcoming: {dashboardData.datesheets.upcoming}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">{dashboardData.datesheets.total}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">Total Datesheets</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80">Upcoming: {dashboardData.datesheets.upcoming}</p>
                 </div>
-                <Calendar className="w-10 h-10 opacity-80" />
+                <Calendar className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 opacity-80" />
               </div>
             </div>
           </div>
 
           {/* CHARTS SECTION */}
-          <div className="space-y-6">
+          <div className="space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 xl:space-y-6">
             {/* Cash In/Out Summary Chart */}
-            <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-2xl border-2 border-gray-100">
-              <div className="flex justify-between items-center mb-4">
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6 shadow-lg sm:shadow-xl md:shadow-2xl border border-gray-100 sm:border-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3 mb-2 sm:mb-3 md:mb-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2">
                     <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">Cash In / Out Summary</span>
                   </h2>
-                  <p className="text-gray-600 text-sm mt-1">For Month {dashboardData.currentMonth}, {new Date().getFullYear()}</p>
+                  <p className="text-gray-600 text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">For Month {dashboardData.currentMonth}, {new Date().getFullYear()}</p>
                 </div>
                 <button
                   onClick={() => setShowCashInOutChart(!showCashInOutChart)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  className={`px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 rounded-md sm:rounded-lg font-medium text-[10px] sm:text-xs md:text-sm transition-all duration-200 ${
                     showCashInOutChart
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg hover:shadow-xl'
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md sm:shadow-lg hover:shadow-lg sm:hover:shadow-xl'
                       : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                   }`}
                 >
@@ -814,92 +814,93 @@ function DashboardContent() {
 
               {showCashInOutChart && (
                 <>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={dashboardData.charts.cashInOut} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                      <defs>
-                        <linearGradient id="cashInGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
-                          <stop offset="100%" stopColor="#059669" stopOpacity={0.9}/>
-                        </linearGradient>
-                        <linearGradient id="cashOutGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
-                          <stop offset="100%" stopColor="#dc2626" stopOpacity={0.9}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                      <XAxis
-                        dataKey="day"
-                        tick={{ fontSize: 11, fill: '#6b7280' }}
-                        axisLine={{ stroke: '#d1d5db' }}
-                        label={{ value: 'Day of Month', position: 'insideBottom', offset: -10, style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
-                      />
-                      <YAxis
-                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                        tick={{ fontSize: 11, fill: '#6b7280' }}
-                        axisLine={{ stroke: '#d1d5db' }}
-                        label={{ value: 'Amount (PKR)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
-                      />
-                      <Tooltip
-                        formatter={(value) => [`PKR ${value.toLocaleString()}`, '']}
-                        contentStyle={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                          borderRadius: '12px',
-                          border: '2px solid #e5e7eb',
-                          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                          padding: '12px'
-                        }}
-                        labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}
-                      />
-                      <Legend
-                        wrapperStyle={{ paddingTop: '30px' }}
-                        iconType="circle"
-                        iconSize={12}
-                      />
-                      <Bar dataKey="cashIn" fill="url(#cashInGradient)" name="Cash IN" radius={[8, 8, 0, 0]} barSize={16} />
-                      <Bar dataKey="cashOut" fill="url(#cashOutGradient)" name="Cash Out" radius={[8, 8, 0, 0]} barSize={16} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                    <div className="flex items-center justify-around text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-500 to-green-600"></div>
-                        <span className="text-gray-700 font-semibold">Total Cash In:</span>
-                        <span className="text-green-700 font-bold text-lg">PKR {dashboardData.charts.totalCashIn.toLocaleString()}</span>
+                  <div className="w-full">
+                    <ResponsiveContainer width="100%" height={250} className="sm:h-[300px] md:h-[350px] lg:h-[400px]">
+                        <BarChart data={dashboardData.charts.cashInOut} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
+                          <defs>
+                            <linearGradient id="cashInGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
+                              <stop offset="100%" stopColor="#059669" stopOpacity={0.9}/>
+                            </linearGradient>
+                            <linearGradient id="cashOutGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
+                              <stop offset="100%" stopColor="#dc2626" stopOpacity={0.9}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                          <XAxis
+                            dataKey="day"
+                            tick={{ fontSize: 10, fill: '#6b7280' }}
+                            axisLine={{ stroke: '#d1d5db' }}
+                          />
+                          <YAxis
+                            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                            tick={{ fontSize: 10, fill: '#6b7280' }}
+                            axisLine={{ stroke: '#d1d5db' }}
+                            width={40}
+                          />
+                          <Tooltip
+                            formatter={(value) => [`PKR ${value.toLocaleString()}`, '']}
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              borderRadius: '12px',
+                              border: '2px solid #e5e7eb',
+                              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                              padding: '8px'
+                            }}
+                            labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}
+                          />
+                          <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="circle"
+                            iconSize={10}
+                          />
+                          <Bar dataKey="cashIn" fill="url(#cashInGradient)" name="Cash IN" radius={[4, 4, 0, 0]} barSize={12} />
+                          <Bar dataKey="cashOut" fill="url(#cashOutGradient)" name="Cash Out" radius={[4, 4, 0, 0]} barSize={12} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                  </div>
+                  <div className="mt-2 sm:mt-3 md:mt-4 lg:mt-5 xl:mt-6 p-2 sm:p-3 md:p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md sm:rounded-lg md:rounded-xl border border-gray-200">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-around gap-2 sm:gap-3 md:gap-0 text-[10px] sm:text-xs md:text-sm">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full bg-gradient-to-r from-green-500 to-green-600"></div>
+                        <span className="text-gray-700 font-semibold">Cash In:</span>
+                        <span className="text-green-700 font-bold text-xs sm:text-sm md:text-base lg:text-lg">PKR {dashboardData.charts.totalCashIn.toLocaleString()}</span>
                       </div>
-                      <div className="w-px h-8 bg-gray-300"></div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-500 to-red-600"></div>
-                        <span className="text-gray-700 font-semibold">Total Cash Out:</span>
-                        <span className="text-red-700 font-bold text-lg">PKR {dashboardData.charts.totalCashOut.toLocaleString()}</span>
+                      <div className="hidden md:block w-px h-6 sm:h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full bg-gradient-to-r from-red-500 to-red-600"></div>
+                        <span className="text-gray-700 font-semibold">Cash Out:</span>
+                        <span className="text-red-700 font-bold text-xs sm:text-sm md:text-base lg:text-lg">PKR {dashboardData.charts.totalCashOut.toLocaleString()}</span>
                       </div>
-                      <div className="w-px h-8 bg-gray-300"></div>
-                      <div className="flex items-center gap-2">
+                      <div className="hidden md:block w-px h-6 sm:h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-1 sm:gap-2">
                         <span className="text-gray-700 font-semibold">Net:</span>
-                        <span className={`font-bold text-lg ${dashboardData.charts.totalCashIn - dashboardData.charts.totalCashOut >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        <span className={`font-bold text-xs sm:text-sm md:text-base lg:text-lg ${dashboardData.charts.totalCashIn - dashboardData.charts.totalCashOut >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                           PKR {(dashboardData.charts.totalCashIn - dashboardData.charts.totalCashOut).toLocaleString()}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-3 text-center italic">Note: Including bank transactions</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-500 mt-1.5 sm:mt-2 md:mt-3 text-center italic">Note: Including bank transactions</p>
                 </>
               )}
             </div>
 
             {/* Students Admission/Withdrawal Summary Chart */}
-            <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-2xl border-2 border-gray-100">
-              <div className="flex justify-between items-center mb-4">
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6 shadow-lg sm:shadow-xl md:shadow-2xl border border-gray-100 sm:border-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3 mb-2 sm:mb-3 md:mb-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                    <span className="bg-gradient-to-r from-cyan-600 to-blue-600 text-transparent bg-clip-text">Students Admission/Withdrawal Summary</span>
+                  <h2 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2">
+                    <span className="bg-gradient-to-r from-cyan-600 to-blue-600 text-transparent bg-clip-text">Admission/Withdrawal</span>
                   </h2>
-                  <p className="text-gray-600 text-sm mt-1">For Month {dashboardData.currentMonth}, {new Date().getFullYear()}</p>
+                  <p className="text-gray-600 text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">For Month {dashboardData.currentMonth}, {new Date().getFullYear()}</p>
                 </div>
                 <button
                   onClick={() => setShowAdmissionChart(!showAdmissionChart)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  className={`px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 rounded-md sm:rounded-lg font-medium text-[10px] sm:text-xs md:text-sm transition-all duration-200 ${
                     showAdmissionChart
-                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg hover:shadow-xl'
+                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md sm:shadow-lg hover:shadow-lg sm:hover:shadow-xl'
                       : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                   }`}
                 >
@@ -909,69 +910,70 @@ function DashboardContent() {
 
               {showAdmissionChart && (
                 <>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={dashboardData.charts.admissions} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                      <defs>
-                        <linearGradient id="admissionsGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8}/>
-                          <stop offset="100%" stopColor="#0891b2" stopOpacity={0.9}/>
-                        </linearGradient>
-                        <linearGradient id="withdrawalsGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
-                          <stop offset="100%" stopColor="#d97706" stopOpacity={0.9}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                      <XAxis
-                        dataKey="day"
-                        tick={{ fontSize: 11, fill: '#6b7280' }}
-                        axisLine={{ stroke: '#d1d5db' }}
-                        label={{ value: 'Day of Month', position: 'insideBottom', offset: -10, style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
-                      />
-                      <YAxis
-                        domain={[0, Math.max(5, Math.ceil(Math.max(...dashboardData.charts.admissions.map(d => Math.max(d.admissions, d.withdrawals))) * 1.25))]}
-                        tick={{ fontSize: 11, fill: '#6b7280' }}
-                        axisLine={{ stroke: '#d1d5db' }}
-                        label={{ value: 'Number of Students', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6b7280', fontWeight: 600 } }}
-                        allowDecimals={false}
-                      />
-                      <Tooltip
-                        formatter={(value, name) => [value, name === 'admissions' ? 'Admissions' : 'Withdrawals']}
-                        contentStyle={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                          borderRadius: '12px',
-                          border: '2px solid #e5e7eb',
-                          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                          padding: '12px'
-                        }}
-                        labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}
-                      />
-                      <Legend
-                        wrapperStyle={{ paddingTop: '30px' }}
-                        iconType="circle"
-                        iconSize={12}
-                      />
-                      <Bar dataKey="admissions" fill="url(#admissionsGradient)" name="Admissions" radius={[8, 8, 0, 0]} barSize={16} />
-                      <Bar dataKey="withdrawals" fill="url(#withdrawalsGradient)" name="Withdrawals" radius={[8, 8, 0, 0]} barSize={16} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                    <div className="flex items-center justify-around text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600"></div>
-                        <span className="text-gray-700 font-semibold">Total Admissions:</span>
-                        <span className="text-cyan-700 font-bold text-lg">{dashboardData.charts.totalAdmissions}</span>
+                  <div className="w-full">
+                      <ResponsiveContainer width="100%" height={250} className="sm:h-[300px] md:h-[350px] lg:h-[400px]">
+                        <BarChart data={dashboardData.charts.admissions} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
+                          <defs>
+                            <linearGradient id="admissionsGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                              <stop offset="100%" stopColor="#0891b2" stopOpacity={0.9}/>
+                            </linearGradient>
+                            <linearGradient id="withdrawalsGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                              <stop offset="100%" stopColor="#d97706" stopOpacity={0.9}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                          <XAxis
+                            dataKey="day"
+                            tick={{ fontSize: 10, fill: '#6b7280' }}
+                            axisLine={{ stroke: '#d1d5db' }}
+                          />
+                          <YAxis
+                            domain={[0, Math.max(5, Math.ceil(Math.max(...dashboardData.charts.admissions.map(d => Math.max(d.admissions, d.withdrawals))) * 1.25))]}
+                            tick={{ fontSize: 10, fill: '#6b7280' }}
+                            axisLine={{ stroke: '#d1d5db' }}
+                            allowDecimals={false}
+                            width={30}
+                          />
+                          <Tooltip
+                            formatter={(value, name) => [value, name === 'admissions' ? 'Admissions' : 'Withdrawals']}
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              borderRadius: '12px',
+                              border: '2px solid #e5e7eb',
+                              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                              padding: '8px'
+                            }}
+                            labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}
+                          />
+                          <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="circle"
+                            iconSize={10}
+                          />
+                          <Bar dataKey="admissions" fill="url(#admissionsGradient)" name="Admissions" radius={[4, 4, 0, 0]} barSize={12} />
+                          <Bar dataKey="withdrawals" fill="url(#withdrawalsGradient)" name="Withdrawals" radius={[4, 4, 0, 0]} barSize={12} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                  </div>
+                  <div className="mt-2 sm:mt-3 md:mt-4 lg:mt-5 xl:mt-6 p-2 sm:p-3 md:p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md sm:rounded-lg md:rounded-xl border border-gray-200">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-around gap-2 sm:gap-3 md:gap-0 text-[10px] sm:text-xs md:text-sm">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600"></div>
+                        <span className="text-gray-700 font-semibold">Admissions:</span>
+                        <span className="text-cyan-700 font-bold text-xs sm:text-sm md:text-base lg:text-lg">{dashboardData.charts.totalAdmissions}</span>
                       </div>
-                      <div className="w-px h-8 bg-gray-300"></div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-600"></div>
-                        <span className="text-gray-700 font-semibold">Total Withdrawals:</span>
-                        <span className="text-amber-700 font-bold text-lg">{dashboardData.charts.totalWithdrawals}</span>
+                      <div className="hidden md:block w-px h-6 sm:h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-600"></div>
+                        <span className="text-gray-700 font-semibold">Withdrawals:</span>
+                        <span className="text-amber-700 font-bold text-xs sm:text-sm md:text-base lg:text-lg">{dashboardData.charts.totalWithdrawals}</span>
                       </div>
-                      <div className="w-px h-8 bg-gray-300"></div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-700 font-semibold">Net Change:</span>
-                        <span className={`font-bold text-lg ${dashboardData.charts.totalAdmissions - dashboardData.charts.totalWithdrawals >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      <div className="hidden md:block w-px h-6 sm:h-8 bg-gray-300"></div>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <span className="text-gray-700 font-semibold">Net:</span>
+                        <span className={`font-bold text-xs sm:text-sm md:text-base lg:text-lg ${dashboardData.charts.totalAdmissions - dashboardData.charts.totalWithdrawals >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                           {dashboardData.charts.totalAdmissions - dashboardData.charts.totalWithdrawals >= 0 ? '+' : ''}{dashboardData.charts.totalAdmissions - dashboardData.charts.totalWithdrawals}
                         </span>
                       </div>
@@ -984,100 +986,100 @@ function DashboardContent() {
         </div>
 
         {/* RIGHT SIDE - Reports */}
-        <div className="space-y-6">
+        <div className="space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 xl:space-y-6">
 
           {/* Fee Receivable Report */}
-          <div className="bg-gradient-to-b from-indigo-900 to-purple-900 rounded-2xl p-6 text-white shadow-2xl">
-            <div className="text-center mb-4">
-              <span className="bg-blue-600 px-6 py-2 rounded-full text-sm font-bold">Fee Receivable Report</span>
+          <div className="bg-gradient-to-b from-indigo-900 to-purple-900 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl md:shadow-2xl">
+            <div className="text-center mb-2 sm:mb-3 md:mb-4">
+              <span className="bg-blue-600 px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-1.5 md:py-2 rounded-full text-[10px] sm:text-xs md:text-sm font-bold">Fee Receivable Report</span>
             </div>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-1 sm:space-y-1.5 md:space-y-2 text-[10px] sm:text-xs md:text-sm">
               {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((month, index) => {
                 const amount = dashboardData.fee.byMonth[month] || 0
                 const isCurrentMonth = month === dashboardData.currentMonth
                 return (
-                  <div key={month} className={`flex justify-between py-1 ${isCurrentMonth ? 'border-t border-white/30 pt-2 font-bold' : ''}`}>
+                  <div key={month} className={`flex justify-between py-0.5 sm:py-1 ${isCurrentMonth ? 'border-t border-white/30 pt-1 sm:pt-1.5 md:pt-2 font-bold' : ''}`}>
                     <span className={isCurrentMonth ? 'font-bold' : ''}>{month}</span>
                     <span className={isCurrentMonth ? 'font-bold' : 'font-medium'}>{amount.toLocaleString()}</span>
                   </div>
                 )
               })}
-              <div className="flex justify-between border-t-2 border-white pt-3 mt-2">
-                <span className="font-bold">Total Receivable</span>
-                <span className="text-xl font-bold">{dashboardData.fee.totalReceivable.toLocaleString()}</span>
+              <div className="flex justify-between border-t-2 border-white pt-1.5 sm:pt-2 md:pt-3 mt-1 sm:mt-1.5 md:mt-2">
+                <span className="font-bold text-[10px] sm:text-xs md:text-sm lg:text-base">Total Receivable</span>
+                <span className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold">{dashboardData.fee.totalReceivable.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
           {/* Student Attendance Report */}
-          <div className="bg-gradient-to-b from-green-600 to-green-800 rounded-2xl p-6 text-white shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg">Student Attendance Report</h3>
-              <div className="bg-white/20 rounded-full p-2">
-                <Users className="w-6 h-6" />
+          <div className="bg-gradient-to-b from-green-600 to-green-800 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl md:shadow-2xl">
+            <div className="flex justify-between items-center mb-2 sm:mb-3 md:mb-4">
+              <h3 className="font-bold text-xs sm:text-sm md:text-base lg:text-lg">Student Attendance Report</h3>
+              <div className="bg-white/20 rounded-full p-1 sm:p-1.5 md:p-2">
+                <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6" />
               </div>
             </div>
-            <p className="text-center text-sm opacity-90 mb-4">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-1">
+            <p className="text-center text-[10px] sm:text-xs md:text-sm opacity-90 mb-2 sm:mb-3 md:mb-4">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+            <div className="space-y-1.5 sm:space-y-2 md:space-y-3 text-[10px] sm:text-xs md:text-sm">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>Present - {dashboardData.attendance.students.present}</span>
                 <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.present / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-white/20 pb-3">
+              <div className="flex justify-between py-0.5 sm:py-1 border-b border-white/20 pb-1.5 sm:pb-2 md:pb-3">
                 <span>Absent - {dashboardData.attendance.students.absent}</span>
                 <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.absent / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>Late Arrival - {dashboardData.attendance.students.late}</span>
                 <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.late / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>Half Day - {dashboardData.attendance.students.halfDay}</span>
                 <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.halfDay / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>On Leave - {dashboardData.attendance.students.onLeave}</span>
                 <span className="font-medium">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.onLeave / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between border-t-2 border-white/40 pt-3 mt-3">
-                <span className="font-bold text-yellow-300">Without Attendance - {dashboardData.attendance.students.withoutAttendance}</span>
+              <div className="flex justify-between border-t-2 border-white/40 pt-1.5 sm:pt-2 md:pt-3 mt-1.5 sm:mt-2 md:mt-3">
+                <span className="font-bold text-yellow-300 text-[10px] sm:text-xs md:text-sm">Without Attendance - {dashboardData.attendance.students.withoutAttendance}</span>
                 <span className="font-bold">{dashboardData.attendance.students.total > 0 ? Math.round((dashboardData.attendance.students.withoutAttendance / dashboardData.attendance.students.total) * 100) : 0}%</span>
               </div>
             </div>
           </div>
 
           {/* Staff Attendance Report */}
-          <div className="bg-gradient-to-b from-blue-700 to-blue-900 rounded-2xl p-6 text-white shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg">Staff Attendance Report</h3>
-              <div className="bg-white/20 rounded-full p-2">
-                <UserCheck className="w-6 h-6" />
+          <div className="bg-gradient-to-b from-blue-700 to-blue-900 rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 text-white shadow-lg sm:shadow-xl md:shadow-2xl">
+            <div className="flex justify-between items-center mb-2 sm:mb-3 md:mb-4">
+              <h3 className="font-bold text-xs sm:text-sm md:text-base lg:text-lg">Staff Attendance Report</h3>
+              <div className="bg-white/20 rounded-full p-1 sm:p-1.5 md:p-2">
+                <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6" />
               </div>
             </div>
-            <p className="text-center text-sm opacity-90 mb-4">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-1">
+            <p className="text-center text-[10px] sm:text-xs md:text-sm opacity-90 mb-2 sm:mb-3 md:mb-4">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+            <div className="space-y-1.5 sm:space-y-2 md:space-y-3 text-[10px] sm:text-xs md:text-sm">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>Present - {dashboardData.attendance.staff.present}</span>
                 <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.present / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-white/20 pb-3">
+              <div className="flex justify-between py-0.5 sm:py-1 border-b border-white/20 pb-1.5 sm:pb-2 md:pb-3">
                 <span>Absent - {dashboardData.attendance.staff.absent}</span>
                 <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.absent / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>Late Arrival - {dashboardData.attendance.staff.late}</span>
                 <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.late / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>Half Day - {dashboardData.attendance.staff.halfDay}</span>
                 <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.halfDay / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-0.5 sm:py-1">
                 <span>On Leave - {dashboardData.attendance.staff.onLeave}</span>
                 <span className="font-medium">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.onLeave / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
-              <div className="flex justify-between border-t-2 border-white/40 pt-3 mt-3">
-                <span className="font-bold text-yellow-300">Without Attendance - {dashboardData.attendance.staff.withoutAttendance}</span>
+              <div className="flex justify-between border-t-2 border-white/40 pt-1.5 sm:pt-2 md:pt-3 mt-1.5 sm:mt-2 md:mt-3">
+                <span className="font-bold text-yellow-300 text-[10px] sm:text-xs md:text-sm">Without Attendance - {dashboardData.attendance.staff.withoutAttendance}</span>
                 <span className="font-bold">{dashboardData.attendance.staff.total > 0 ? Math.round((dashboardData.attendance.staff.withoutAttendance / dashboardData.attendance.staff.total) * 100) : 0}%</span>
               </div>
             </div>
@@ -1101,7 +1103,7 @@ export default function Dashboard() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-2 sm:border-3 md:border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

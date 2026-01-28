@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { X } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardInfoGrid, CardGrid } from '@/components/DataCard'
 
 function StaffAttendanceContent() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -242,27 +244,27 @@ function StaffAttendanceContent() {
   const departments = ['all', ...new Set(staffList.map(s => s.department).filter(d => d))]
 
   return (
-    <div className="p-1">
-      <h1 className="text-2xl font-bold mb-4">Staff Attendance</h1>
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4">
+      <h1 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3">Staff Attendance</h1>
 
       {/* Date Picker and Load Button */}
-      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
-        <div className="flex items-center gap-3">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-2 sm:mb-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
               Fetch Staff List for Attendance
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-auto"
               />
               <button
                 onClick={handleLoadAttendance}
                 disabled={loading}
-                className="bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+                className="bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-red-700 disabled:bg-gray-400 transition-colors w-full sm:w-auto"
               >
                 {loading ? 'Loading...' : 'Load Attendance'}
               </button>
@@ -273,13 +275,13 @@ function StaffAttendanceContent() {
 
       {/* Filters and Search */}
       {staffList.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
+        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-2 sm:mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+            <div>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Members</option>
                 {departments.filter(d => d !== 'all').map(dept => (
@@ -287,21 +289,21 @@ function StaffAttendanceContent() {
                 ))}
               </select>
             </div>
-            <div className="flex-1">
+            <div>
               <input
                 type="text"
                 placeholder="Search by name, father name, or employee number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <div className="flex-1">
+            <div className="sm:col-span-2 md:col-span-1">
               <select
                 onChange={(e) => handleMarkAll(e.target.value)}
                 value=""
                 disabled={saving}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Mark All Attendance</option>
                 <option value="present">Present</option>
@@ -317,16 +319,16 @@ function StaffAttendanceContent() {
 
       {/* Staff Attendance Table */}
       {staffList.length > 0 ? (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+        <ResponsiveTableWrapper
+          tableView={
+            <table className="w-full border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Father Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Comp.</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Status</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Sr.</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Name</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden sm:table-cell whitespace-nowrap">Father Name</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden md:table-cell whitespace-nowrap">Comp.</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -335,36 +337,36 @@ function StaffAttendanceContent() {
                     const currentStatus = attendanceRecords[staff.id]
                     return (
                       <tr key={staff.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
-                        <td className="border border-gray-200 px-3 py-2.5">
-                          <div className="flex items-center gap-2">
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 whitespace-nowrap">{index + 1}</td>
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
+                          <div className="flex items-center gap-2 sm:gap-3">
                             {staff.photo_url ? (
                               <img
                                 src={staff.photo_url}
                                 alt={staff.first_name}
-                                className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full object-cover border border-gray-200 flex-shrink-0"
                               />
                             ) : (
-                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-semibold flex-shrink-0">
                                 {staff.first_name?.charAt(0)}{staff.last_name?.charAt(0)}
                               </div>
                             )}
-                            <div>
-                              <div className="font-medium text-gray-900">
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 text-xs sm:text-sm truncate">
                                 {staff.first_name} {staff.last_name}
                               </div>
-                              <div className="text-xs text-gray-500">{staff.employee_number}</div>
+                              <div className="text-xs sm:text-xs md:text-sm text-gray-500 truncate">{staff.employee_number}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{staff.father_name || '-'}</td>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{staff.department || '-'}</td>
-                        <td className="border border-gray-200 px-3 py-2.5">
-                          <div className="flex justify-center gap-1 flex-wrap">
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 hidden sm:table-cell whitespace-nowrap">{staff.father_name || '-'}</td>
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 hidden md:table-cell whitespace-nowrap">{staff.department || '-'}</td>
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">
+                          <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-2 flex-wrap">
                             <button
                               onClick={() => markAttendance(staff.id, 'present')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'present'
                                   ? 'bg-green-600 text-white'
                                   : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
@@ -375,7 +377,7 @@ function StaffAttendanceContent() {
                             <button
                               onClick={() => markAttendance(staff.id, 'absent')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'absent'
                                   ? 'bg-red-600 text-white'
                                   : 'bg-white text-red-600 border border-red-600 hover:bg-red-50'
@@ -386,7 +388,7 @@ function StaffAttendanceContent() {
                             <button
                               onClick={() => markAttendance(staff.id, 'half-day')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors hidden sm:inline-block ${
                                 currentStatus === 'half-day'
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
@@ -397,7 +399,7 @@ function StaffAttendanceContent() {
                             <button
                               onClick={() => markAttendance(staff.id, 'on-leave')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'on-leave'
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
@@ -408,13 +410,24 @@ function StaffAttendanceContent() {
                             <button
                               onClick={() => markAttendance(staff.id, 'late')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'late'
                                   ? 'bg-orange-600 text-white'
                                   : 'bg-white text-orange-600 border border-orange-600 hover:bg-orange-50'
                               }`}
                             >
                               Late
+                            </button>
+                            <button
+                              onClick={() => markAttendance(staff.id, 'half-day')}
+                              disabled={saving}
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors sm:hidden ${
+                                currentStatus === 'half-day'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                              }`}
+                            >
+                              S.L.
                             </button>
                           </div>
                         </td>
@@ -423,17 +436,93 @@ function StaffAttendanceContent() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="5" className="border border-gray-200 px-3 py-6 text-center text-gray-500">
+                    <td colSpan="5" className="border border-gray-200 px-2 sm:px-3 md:px-4 py-4 sm:py-6 md:py-8 text-center text-gray-500 text-xs sm:text-sm">
                       No staff members found matching your search criteria
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
+          }
+          cardView={
+            <CardGrid>
+              {filteredStaff.length > 0 ? (
+                filteredStaff.map((staff, index) => {
+                  const currentStatus = attendanceRecords[staff.id]
+                  return (
+                    <DataCard key={staff.id}>
+                      <CardHeader
+                        srNumber={index + 1}
+                        photo={staff.photo_url || `${staff.first_name?.charAt(0)}${staff.last_name?.charAt(0)}`}
+                        name={`${staff.first_name} ${staff.last_name}`}
+                        subtitle={staff.employee_number || 'N/A'}
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="Father" value={staff.father_name || 'N/A'} />
+                        <CardRow label="Comp." value={staff.employee_number || 'N/A'} />
+                      </CardInfoGrid>
+                      <div className="grid grid-cols-2 gap-1 pt-1.5 mt-1.5 border-t border-gray-100">
+                        <button
+                          onClick={() => markAttendance(staff, 'present')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'present'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-white text-green-600 border border-green-600'
+                          }`}
+                        >
+                          Present
+                        </button>
+                        <button
+                          onClick={() => markAttendance(staff, 'absent')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'absent'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-white text-red-600 border border-red-600'
+                          }`}
+                        >
+                          Absent
+                        </button>
+                        <button
+                          onClick={() => markAttendance(staff, 'half-day')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'half-day'
+                              ? 'bg-orange-600 text-white'
+                              : 'bg-white text-orange-600 border border-orange-600'
+                          }`}
+                        >
+                          Short
+                        </button>
+                        <button
+                          onClick={() => markAttendance(staff, 'late')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'late'
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-white text-purple-600 border border-purple-600'
+                          }`}
+                        >
+                          Late
+                        </button>
+                      </div>
+                    </DataCard>
+                  )
+                })
+              ) : (
+                <div className="p-4 text-center text-gray-500 text-xs">
+                  No staff members found matching your search criteria
+                </div>
+              )}
+            </CardGrid>
+          }
+          loading={loading}
+          empty={filteredStaff.length === 0}
+          emptyMessage="No staff members found matching your search criteria"
+        />
       ) : (
-        <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
+        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 md:p-5 lg:p-6 text-center text-gray-500 text-xs sm:text-sm">
           Please select a date and click "Load Attendance" to view staff list
         </div>
       )}
@@ -441,30 +530,30 @@ function StaffAttendanceContent() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancel}>
+          <div className="fixed inset-0 bg-black/80 sm:bg-black/50 z-[9998] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={handleCancel}>
             <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              className="w-full sm:w-auto sm:max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 bg-red-600 text-white rounded-t-lg">
-                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              <div className="flex items-center justify-between p-3 sm:p-4 md:p-5 bg-red-600 text-white rounded-t-lg">
+                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
                 <button onClick={handleCancel} className="text-white hover:text-gray-200">
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-              <div className="p-4">
-                <p className="text-gray-600">{confirmDialog.message}</p>
+              <div className="p-3 sm:p-4 md:p-5">
+                <p className="text-gray-600 text-xs sm:text-sm">{confirmDialog.message}</p>
               </div>
-              <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-3 sm:p-4 md:p-5 border-t bg-gray-50">
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 text-white bg-red-600 rounded hover:bg-red-700 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   Confirm
                 </button>
@@ -475,11 +564,11 @@ function StaffAttendanceContent() {
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-2 sm:top-4 right-2 sm:right-4 z-[9999] space-y-2 max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)] md:max-w-sm lg:max-w-md">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[300px] ${
+            className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-lg min-w-[180px] sm:min-w-[250px] md:min-w-[300px] text-xs sm:text-sm ${
               toast.type === 'success' ? 'bg-green-500 text-white' :
               toast.type === 'error' ? 'bg-red-500 text-white' :
               toast.type === 'warning' ? 'bg-yellow-500 text-white' :
@@ -489,16 +578,16 @@ function StaffAttendanceContent() {
             <span className="flex-1">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
-              className="text-white hover:text-gray-200"
+              className="text-white hover:text-gray-200 flex-shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         ))}
       </div>
 
       {saving && (
-        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50">
+        <div className="fixed bottom-2 sm:bottom-4 right-2 sm:right-4 bg-blue-600 text-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded shadow-lg z-50 text-xs sm:text-sm">
           Saving attendance...
         </div>
       )}
@@ -518,8 +607,8 @@ export default function StaffAttendancePage() {
 
   if (!currentUser) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

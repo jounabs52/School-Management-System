@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Briefcase, Plus, Edit, Trash2, Search, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
 
@@ -899,26 +901,26 @@ function RecruitmentContent() {
   )
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4">
       {/* Main Content */}
       <div id="main-content">
         {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9997] flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-700 font-medium">Loading...</p>
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9997] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-8 flex flex-col items-center gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-700 font-medium text-sm sm:text-base">Loading...</p>
           </div>
         </div>
       )}
 
       {/* Tabs - Compact */}
-      <div className="flex gap-1 mb-1">
+      <div className="flex flex-wrap gap-1 mb-1">
         {['jobs', 'applications', 'interviews'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition-all capitalize rounded-lg ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all capitalize rounded-lg ${
               activeTab === tab
                 ? 'bg-red-500 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -932,55 +934,56 @@ function RecruitmentContent() {
       {/* JOBS TAB */}
       {activeTab === 'jobs' && (
         <div>
-          <div className="flex justify-end items-center gap-2 mb-2">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 mb-2">
+            <div className="relative w-full sm:w-auto">
               <input
                 type="text"
                 placeholder="Search jobs..."
                 value={jobSearchQuery}
                 onChange={(e) => setJobSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px text-sm-3 py-1.5 pr-9 w-56"
+                className="border border-gray-300 rounded-lg px-3 text-sm py-1.5 pr-9 w-full sm:w-56"
               />
               <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
             <button
               onClick={() => setShowJobModal(true)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition text-sm"
+              className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition text-sm w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               Add New Job
             </button>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="px-3 py-2 text-left text-sm">Sr.</th>
-                  <th className="px-3 py-2 text-left text-sm">Department</th>
-                  <th className="px-3 py-2 text-left text-sm">Job Title</th>
-                  <th className="px-3 py-2 text-left text-sm">Salary</th>
-                  <th className="px-3 py-2 text-left text-sm">Deadline</th>
-                  <th className="px-3 py-2 text-center text-sm">Applicants</th>
-                  <th className="px-3 py-2 text-center text-sm">Options</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredJobs.map((job, index) => (
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Sr.</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Department</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Job Title</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Salary</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Deadline</th>
+                    <th className="border border-blue-800 px-3 py-2 text-center text-sm">Applicants</th>
+                    <th className="border border-blue-800 px-3 py-2 text-center text-sm">Options</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredJobs.map((job, index) => (
                   <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-3 py-2 text-sm">{index + 1}</td>
-                    <td className="px-3 py-2 text-sm">{job.department?.department_name || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm">{job.title}</td>
-                    <td className="px-3 py-2 text-sm">{job.salary ? `${job.salary}` : 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm">
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{index + 1}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{job.department?.department_name || 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{job.title}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{job.salary ? `${job.salary}` : 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">
                       {job.deadline ? new Date(job.deadline).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric'
                       }) : 'N/A'}
                     </td>
-                    <td className="px-3 py-2 text-center text-sm">{job.applicant_count || 0}</td>
-                    <td className="px-3 py-2 text-sm">
+                    <td className="border border-gray-200 px-3 py-2 text-center text-sm">{job.applicant_count || 0}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => handleEditJob(job)}
@@ -1002,63 +1005,108 @@ function RecruitmentContent() {
                 ))}
               </tbody>
             </table>
-          </div>
+            }
+            cardView={
+              <CardGrid>
+                {filteredJobs.map((job, index) => (
+                  <DataCard key={job.id}>
+                    <CardHeader
+                      srNumber={index + 1}
+                      name={job.title}
+                      subtitle={job.department?.department_name || 'N/A'}
+                      badge={
+                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-medium">
+                          {job.applicant_count || 0} Apps
+                        </span>
+                      }
+                    />
+                    <CardInfoGrid>
+                      <CardRow label="Dept" value={job.department?.department_name || 'N/A'} />
+                      <CardRow label="Salary" value={job.salary ? `${job.salary}` : 'N/A'} />
+                      <CardRow label="Deadline" value={job.deadline ? new Date(job.deadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'} />
+                      <CardRow label="Apps" value={`${job.applicant_count || 0}`} />
+                    </CardInfoGrid>
+                    <CardActions>
+                      <button
+                        onClick={() => handleEditJob(job)}
+                        className="p-1 text-blue-500 rounded"
+                        title="Edit"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteJob(job.id)}
+                        className="p-1 text-red-500 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+            loading={false}
+            empty={filteredJobs.length === 0}
+            emptyMessage="No jobs found"
+          />
         </div>
       )}
 
       {/* APPLICATIONS TAB */}
       {activeTab === 'applications' && (
         <div>
-          <div className="flex justify-end items-center gap-2 mb-2">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 mb-2">
+            <div className="relative w-full sm:w-auto">
               <input
                 type="text"
                 placeholder="Search applications..."
                 value={appSearchQuery}
                 onChange={(e) => setAppSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px text-sm-3 py-1.5 pr-9 w-56"
+                className="border border-gray-300 rounded-lg px-3 text-sm py-1.5 pr-9 w-full sm:w-56"
               />
               <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
             <button
               onClick={() => setShowApplicationModal(true)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition text-sm"
+              className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition text-sm w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               Add New Application
             </button>
           </div>
 
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 mb-4 text-xs sm:text-sm">
             There are <span className="text-red-600 font-semibold">{filteredApplications.length}</span> records found in data bank
           </p>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-900 text-white text-sm">
-                  <th className="px-3 py-2 text-left text-sm">Sr.</th>
-                  <th className="px-3 py-2 text-left text-sm">Department</th>
-                  <th className="px-3 py-2 text-left text-sm">Job</th>
-                  <th className="px-3 py-2 text-left text-sm">Applicant</th>
-                  <th className="px-3 py-2 text-left text-sm">Status</th>
-                  <th className="px-3 py-2 text-left text-sm">Date</th>
-                  <th className="px-3 py-2 text-center text-sm">Options</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredApplications.map((app, index) => (
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="bg-blue-900 text-white text-sm">
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Sr.</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Department</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Job</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Applicant</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Status</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Date</th>
+                    <th className="border border-blue-800 px-3 py-2 text-center text-sm">Options</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredApplications.map((app, index) => (
                   <tr key={app.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-3 py-2 text-sm">{index + 1}</td>
-                    <td className="px-3 py-2 text-sm">{app.job?.department?.department_name || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm">{app.job?.title || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm">{app.applicant_name}</td>
-                    <td className="px-3 py-2 text-sm">
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{index + 1}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{app.job?.department?.department_name || 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{app.job?.title || 'N/A'}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">{app.applicant_name}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-sm">
                       <select
                         value={app.status === 'pending' || app.status === 'short-listed' ? 'pending' : app.status}
                         onChange={(e) => handleStatusChange(app.id, e.target.value)}
                         className={`px-3 py-1 rounded text-xs font-medium text-white ${
-                          app.status === 'scheduled' ? 'bg-blue-500' :
+                          app.status === 'scheduled' ? 'bg-gray-500' :
                           app.status === 'rejected' ? 'bg-red-500' :
                           'bg-orange-500'
                         }`}
@@ -1068,14 +1116,14 @@ function RecruitmentContent() {
                         <option value="rejected">Reject</option>
                       </select>
                     </td>
-                    <td className="px-3 py-2 text-sm">
+                    <td className="border border-gray-200 px-3 py-2 text-sm">
                       {new Date(app.application_date).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric'
                       })}
                     </td>
-                    <td className="px-3 py-2 text-sm">
+                    <td className="border border-gray-200 px-3 py-2 text-sm">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => handleEditApplication(app)}
@@ -1097,71 +1145,137 @@ function RecruitmentContent() {
                 ))}
               </tbody>
             </table>
-          </div>
+            }
+            cardView={
+              <CardGrid>
+                {filteredApplications.map((app, index) => (
+                  <DataCard key={app.id}>
+                    <CardHeader
+                      srNumber={index + 1}
+                      name={app.applicant_name}
+                      subtitle={app.job?.title || 'N/A'}
+                      badge={
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          app.status === 'scheduled' ? 'bg-gray-100 text-gray-700' :
+                          app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          'bg-orange-100 text-orange-700'
+                        }`}>
+                          {app.status === 'pending' || app.status === 'short-listed' ? 'Pending' : app.status}
+                        </span>
+                      }
+                    />
+                    <CardInfoGrid>
+                      <CardRow label="Dept" value={app.job?.department?.department_name || 'N/A'} />
+                      <CardRow label="Job" value={app.job?.title || 'N/A'} />
+                      <CardRow label="Date" value={new Date(app.application_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                      <CardRow
+                        label="Status"
+                        value={
+                          <select
+                            value={app.status === 'pending' || app.status === 'short-listed' ? 'pending' : app.status}
+                            onChange={(e) => handleStatusChange(app.id, e.target.value)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-medium text-white border-0 ${
+                              app.status === 'scheduled' ? 'bg-gray-500' :
+                              app.status === 'rejected' ? 'bg-red-500' :
+                              'bg-orange-500'
+                            }`}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="scheduled">Ready</option>
+                            <option value="rejected">Reject</option>
+                          </select>
+                        }
+                      />
+                    </CardInfoGrid>
+                    <CardActions>
+                      <button
+                        onClick={() => handleEditApplication(app)}
+                        className="p-1 text-blue-500 rounded"
+                        title="Edit"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteApplication(app.id)}
+                        className="p-1 text-red-500 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+            loading={false}
+            empty={filteredApplications.length === 0}
+            emptyMessage="No applications found"
+          />
         </div>
       )}
 
       {/* INTERVIEWS TAB */}
       {activeTab === 'interviews' && (
         <div>
-          <div className="flex justify-end items-center gap-2 mb-2">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 mb-2">
+            <div className="relative w-full sm:w-auto">
               <input
                 type="text"
                 placeholder="Search interviews..."
                 value={interviewSearchQuery}
                 onChange={(e) => setInterviewSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-lg px text-sm-3 py-1.5 pr-9 w-56"
+                className="border border-gray-300 rounded-lg px-3 text-sm py-1.5 pr-9 w-full sm:w-56"
               />
               <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
             <button
               onClick={() => setShowInterviewModal(true)}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition text-sm"
+              className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition text-sm w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               Schedule Interview
             </button>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="px-3 py-2 text-left text-sm">Sr.</th>
-                  <th className="px-3 py-2 text-left text-sm">Candidate</th>
-                  <th className="px-3 py-2 text-left text-sm">Job</th>
-                  <th className="px-3 py-2 text-left text-sm">Date</th>
-                  <th className="px-3 py-2 text-left text-sm">Time</th>
-                  <th className="px-3 py-2 text-left text-sm">Type</th>
-                  <th className="px-3 py-2 text-left text-sm">Status</th>
-                  <th className="px-3 py-2 text-center text-sm">Options</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInterviews.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
-                      No interviews scheduled yet
-                    </td>
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Sr.</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Candidate</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Job</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Date</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Time</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Type</th>
+                    <th className="border border-blue-800 px-3 py-2 text-left text-sm">Status</th>
+                    <th className="border border-blue-800 px-3 py-2 text-center text-sm">Options</th>
                   </tr>
-                ) : (
-                  filteredInterviews.map((interview, index) => (
+                </thead>
+                <tbody>
+                  {filteredInterviews.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                        No interviews scheduled yet
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredInterviews.map((interview, index) => (
                     <tr key={interview.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="px-3 py-2 text-sm">{index + 1}</td>
-                      <td className="px-3 py-2 text-sm">{interview.application?.applicant_name || 'N/A'}</td>
-                      <td className="px-3 py-2 text-sm">{interview.application?.job?.title || 'N/A'}</td>
-                      <td className="px-3 py-2 text-sm">
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{index + 1}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{interview.application?.applicant_name || 'N/A'}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{interview.application?.job?.title || 'N/A'}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">
                         {new Date(interview.interview_date).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: 'short',
                           year: 'numeric'
                         })}
                       </td>
-                      <td className="px-3 py-2 text-sm">{interview.interview_time}</td>
-                      <td className="px-3 py-2 capitalize">{interview.interview_type || 'N/A'}</td>
-                      <td className="px-3 py-2 capitalize">{interview.status}</td>
-                      <td className="px-3 py-2 text-sm">
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{interview.interview_time}</td>
+                      <td className="border border-gray-200 px-3 py-2 capitalize">{interview.interview_type || 'N/A'}</td>
+                      <td className="border border-gray-200 px-3 py-2 capitalize">{interview.status}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">
                         <div className="flex justify-center gap-2">
                           {interview.status === 'scheduled' && (
                             <button
@@ -1193,7 +1307,64 @@ function RecruitmentContent() {
                 )}
               </tbody>
             </table>
-          </div>
+            }
+            cardView={
+              <CardGrid>
+                {filteredInterviews.map((interview, index) => (
+                  <DataCard key={interview.id}>
+                    <CardHeader
+                      srNumber={index + 1}
+                      name={interview.application?.applicant_name || 'N/A'}
+                      subtitle={interview.application?.job?.title || 'N/A'}
+                      badge={
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          interview.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          interview.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {interview.status}
+                        </span>
+                      }
+                    />
+                    <CardInfoGrid>
+                      <CardRow label="Date" value={new Date(interview.interview_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                      <CardRow label="Time" value={interview.interview_time} />
+                      <CardRow label="Type" value={interview.interview_type || 'N/A'} />
+                      <CardRow label="Status" value={interview.status} />
+                    </CardInfoGrid>
+                    <CardActions>
+                      {interview.status === 'scheduled' && (
+                        <button
+                          onClick={() => handleHireFromInterview(interview.id)}
+                          className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-[10px] font-medium"
+                          title="Hire"
+                        >
+                          Hire
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleEditInterview(interview)}
+                        className="p-1 text-blue-500 rounded"
+                        title="Edit"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteInterview(interview.id)}
+                        className="p-1 text-red-500 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+            loading={false}
+            empty={filteredInterviews.length === 0}
+            emptyMessage="No interviews scheduled yet"
+          />
         </div>
       )}
       </div>
@@ -1207,9 +1378,9 @@ function RecruitmentContent() {
             setEditingSubject(null)
             setSubjectName('')
           }} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">{editingSubject ? 'Edit Subject' : 'Add New Subject'}</h2>
+          <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-md bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-lg sm:text-xl font-semibold">{editingSubject ? 'Edit Subject' : 'Add New Subject'}</h2>
               <button onClick={() => {
                 setShowSubjectModal(false)
                 setEditingSubject(null)
@@ -1218,9 +1389,9 @@ function RecruitmentContent() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-2">
-              <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="p-2 sm:p-4">
+              <h3 className="text-xs sm:text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Subject Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -1228,23 +1399,23 @@ function RecruitmentContent() {
                 placeholder="Subject Name"
                 value={subjectName}
                 onChange={(e) => setSubjectName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
-            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-200 pt-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => {
                   setShowSubjectModal(false)
                   setEditingSubject(null)
                   setSubjectName('')
                 }}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium w-full sm:w-auto"
               >
                 Close
               </button>
               <button
                 onClick={handleAddSubject}
-                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition w-full sm:w-auto"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1263,9 +1434,9 @@ function RecruitmentContent() {
             setEditingJob(null)
             setJobForm({ departmentId: '', title: '', salary: '', deadline: '', description: '' })
           }} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">{editingJob ? 'Edit Job' : 'Add New Job'}</h2>
+          <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-lg sm:text-xl font-semibold">{editingJob ? 'Edit Job' : 'Add New Job'}</h2>
               <button onClick={() => {
                 setShowJobModal(false)
                 setShowCustomDepartment(false)
@@ -1276,9 +1447,9 @@ function RecruitmentContent() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-2">
-              <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+            <div className="p-2 sm:p-4">
+              <h3 className="text-xs sm:text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
+              <div className="grid grid-cols-1 gap-2 sm:gap-4 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select department <span className="text-red-500">*</span>
@@ -1327,39 +1498,39 @@ function RecruitmentContent() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+              <div className="grid grid-cols-1 gap-2 sm:gap-4 mb-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Salary</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Salary</label>
                   <input
                     type="number"
                     placeholder="Salary"
                     value={jobForm.salary}
                     onChange={(e) => setJobForm({...jobForm, salary: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Deadline</label>
                   <input
                     type="date"
                     value={jobForm.deadline}
                     onChange={(e) => setJobForm({...jobForm, deadline: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
                   placeholder="Write job detail..."
                   value={jobForm.description}
                   onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
                   rows={4}
-                  className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
             </div>
-            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-200 pt-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => {
                   setShowJobModal(false)
@@ -1368,13 +1539,13 @@ function RecruitmentContent() {
                   setEditingJob(null)
                   setJobForm({ departmentId: '', title: '', salary: '', deadline: '', description: '' })
                 }}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium w-full sm:w-auto"
               >
                 Close
               </button>
               <button
                 onClick={handleAddJob}
-                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition w-full sm:w-auto"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1391,9 +1562,9 @@ function RecruitmentContent() {
             setEditingApplication(null)
             setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', department: '', photo_url: '', experienceLevel: '' })
           }} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">{editingApplication ? 'Edit Application' : 'Add New Application'}</h2>
+          <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-lg sm:text-xl font-semibold">{editingApplication ? 'Edit Application' : 'Add New Application'}</h2>
               <button onClick={() => {
                 setShowApplicationModal(false)
                 setEditingApplication(null)
@@ -1402,9 +1573,9 @@ function RecruitmentContent() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-2">
-              <h3 className="text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+            <div className="p-2 sm:p-4">
+              <h3 className="text-xs sm:text-sm font-semibold mb-4 text-gray-700">GENERAL INFORMATION</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Job <span className="text-red-500">*</span>
@@ -1527,20 +1698,20 @@ function RecruitmentContent() {
                 </div>
               </div>
             </div>
-            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-200 pt-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => {
                   setShowApplicationModal(false)
                   setEditingApplication(null)
                   setApplicationForm({ jobId: '', candidateName: '', cnicNumber: '', fatherName: '', email: '', mobileNumber: '', department: '', photo_url: '', experienceLevel: '' })
                 }}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium w-full sm:w-auto"
               >
                 Close
               </button>
               <button
                 onClick={handleAddApplication}
-                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition w-full sm:w-auto"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1557,9 +1728,9 @@ function RecruitmentContent() {
             setEditingInterview(null)
             setInterviewForm({ applicationId: '', interviewDate: '', interviewTime: '', interviewType: '', location: '', notes: '' })
           }} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-xl font-semibold">{editingInterview ? 'Edit Interview' : 'Schedule Interview'}</h2>
+          <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-lg sm:text-xl font-semibold">{editingInterview ? 'Edit Interview' : 'Schedule Interview'}</h2>
               <button onClick={() => {
                 setShowInterviewModal(false)
                 setEditingInterview(null)
@@ -1568,9 +1739,9 @@ function RecruitmentContent() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-2">
-              <h3 className="text-sm font-semibold mb-4 text-gray-700">INTERVIEW DETAILS</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+            <div className="p-2 sm:p-4">
+              <h3 className="text-xs sm:text-sm font-semibold mb-4 text-gray-700">INTERVIEW DETAILS</h3>
+              <div className="grid grid-cols-1 gap-2 sm:gap-4 mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Application <span className="text-red-500">*</span>
@@ -1606,65 +1777,65 @@ function RecruitmentContent() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+              <div className="grid grid-cols-1 gap-2 sm:gap-4 mb-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     Interview Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={interviewForm.interviewDate}
                     onChange={(e) => setInterviewForm({...interviewForm, interviewDate: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     Interview Time <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="time"
                     value={interviewForm.interviewTime}
                     onChange={(e) => setInterviewForm({...interviewForm, interviewTime: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Location</label>
                 <input
                   type="text"
                   placeholder="Interview location"
                   value={interviewForm.location}
                   onChange={(e) => setInterviewForm({...interviewForm, location: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Notes</label>
                 <textarea
                   placeholder="Additional notes..."
                   value={interviewForm.notes}
                   onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px text-sm-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-4 text-sm py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
             </div>
-            <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-200 pt-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => {
                   setShowInterviewModal(false)
                   setEditingInterview(null)
                   setInterviewForm({ applicationId: '', interviewDate: '', interviewTime: '', interviewType: '', location: '', notes: '' })
                 }}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium w-full sm:w-auto"
               >
                 Close
               </button>
               <button
                 onClick={handleAddInterview}
-                className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition w-full sm:w-auto"
               >
                 Save <span className="text-xl">→</span>
               </button>
@@ -1676,27 +1847,27 @@ function RecruitmentContent() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancel}>
+          <div className="fixed inset-0 bg-black/80 sm:bg-black/50 sm:backdrop-blur-sm z-[9998] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={handleCancel}>
             <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              className="w-full sm:w-auto sm:max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-lg">
-                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg">
+                <h3 className="text-base sm:text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-2">
-                <p className="text-gray-700">{confirmDialog.message}</p>
+              <div className="p-3 sm:p-4">
+                <p className="text-sm sm:text-base text-gray-700">{confirmDialog.message}</p>
               </div>
-              <div className="px-6 pb-6 flex justify-end gap-3">
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                 <button
                   onClick={handleCancel}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                  className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
+                  className="px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition w-full sm:w-auto"
                 >
                   Confirm
                 </button>
@@ -1707,15 +1878,15 @@ function RecruitmentContent() {
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-4 right-4 z-[9999] space-y-2 w-[calc(100%-2rem)] sm:w-auto">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[320px] max-w-md px-3 py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-blue-500' :
+            className={`flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[320px] max-w-full sm:max-w-md px-2 sm:px-3 py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+              toast.type === 'success' ? 'bg-green-500' :
               toast.type === 'error' ? 'bg-red-600' :
-              toast.type === 'warning' ? 'bg-blue-500' :
-              'bg-blue-500'
+              toast.type === 'warning' ? 'bg-yellow-500' :
+              'bg-gray-500'
             }`}
           >
             {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}

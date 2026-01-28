@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx'
 import { createClient } from '@supabase/supabase-js'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -830,7 +832,7 @@ function RoutesContent() {
   }, [searchTerm])
 
   return (
-    <div className="p-2 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast notification */}
       {toast && (
         <Toast
@@ -841,22 +843,24 @@ function RoutesContent() {
       )}
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow p-2 mb-2">
-        <div className="flex flex-col md:flex-row gap-1.5 items-center">
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
-          >
-            <Plus size={12} />
-            Add Route
-          </button>
-          <button
-            onClick={exportToCSV}
-            className="px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 text-xs whitespace-nowrap bg-[#DC2626] text-white hover:bg-red-700"
-          >
-            <Download size={12} />
-            Export to Excel
-          </button>
+      <div className="bg-white rounded-lg shadow p-2 sm:p-4 mb-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-2.5 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 text-xs sm:text-sm whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
+            >
+              <Plus size={12} />
+              Add Route
+            </button>
+            <button
+              onClick={exportToCSV}
+              className="px-2.5 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 text-xs sm:text-sm whitespace-nowrap bg-[#DC2626] text-white hover:bg-red-700"
+            >
+              <Download size={12} />
+              Export to Excel
+            </button>
+          </div>
           <div className="flex-1 relative w-full">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={12} />
             <input
@@ -864,15 +868,15 @@ function RoutesContent() {
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+      <ResponsiveTableWrapper
+        tableView={
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-blue-900 text-white">
@@ -954,25 +958,72 @@ function RoutesContent() {
               )}
             </tbody>
           </table>
-        </div>
+        }
+        cardView={
+          <CardGrid>
+            {currentRoutes.map((route, index) => (
+              <DataCard key={route.id}>
+                <CardHeader
+                  srNumber={startIndex + index + 1}
+                  photo={route.route_name.charAt(0)}
+                  name={route.route_name}
+                  subtitle={`PKR ${route.fare ? route.fare.toLocaleString() : '0'}`}
+                />
+                <CardInfoGrid>
+                  <CardRow label="Fare" value={`PKR ${route.fare ? route.fare.toLocaleString() : '0'}`} />
+                  <CardRow label="Stations" value={route.stations_count || 0} />
+                  <CardRow label="Vehicles" value={route.vehicles_count || 0} />
+                  <CardRow label="Passengers" value={route.passengers_count || 0} />
+                </CardInfoGrid>
+                <CardActions>
+                  <button
+                    onClick={() => handleManageStations(route)}
+                    className="p-1 text-blue-600 rounded"
+                    title="Manage Stations"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleEdit(route)}
+                    className="p-1 text-teal-600 rounded"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(route)}
+                    className="p-1 text-red-600 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </CardActions>
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={currentRoutes.length === 0}
+        emptyMessage="No routes found"
+      />
 
-        {/* Pagination Controls */}
+      {/* Pagination Controls */}
         {!loading && filteredRoutes.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between px-2 sm:px-6 py-3 sm:py-4 gap-2 sm:gap-4 border-t border-gray-200 bg-white">
+            <div className="text-xs sm:text-sm text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredRoutes.length)} of {filteredRoutes.length} entries
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Previous
               </button>
-              
+
               {/* Page numbers */}
-              <div className="flex items-center gap-1">
+              <div className="hidden sm:flex items-center gap-1">
                 {[...Array(totalPages)].map((_, i) => {
                   const pageNum = i + 1
                   // Show first page, last page, current page, and pages around current
@@ -1000,18 +1051,18 @@ function RoutesContent() {
                   return null
                 })}
               </div>
+              <span className="sm:hidden text-xs text-gray-600">{currentPage}/{totalPages}</span>
 
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white bg-blue-800 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Next
               </button>
             </div>
           </div>
         )}
-      </div>
 
       {/* Add New Route Sidebar */}
       {showModal && (
@@ -1025,12 +1076,12 @@ function RoutesContent() {
             }}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-lg lg:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Add New Route</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the route details</p>
+                  <h3 className="text-base sm:text-xl font-bold">Add New Route</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Fill in the route details</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1044,10 +1095,10 @@ function RoutesContent() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 bg-gray-50">
+              <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Route Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1055,24 +1106,24 @@ function RoutesContent() {
                     placeholder="e.g., Main Street Route"
                     value={formData.routeName}
                     onChange={(e) => setFormData({ ...formData, routeName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
 
                 {/* Stations Section */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Add Stations with Fares
                   </label>
-                  <p className="text-xs text-gray-500 mb-4">Add intermediate stations and final destination with their respective fares</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <p className="text-xs text-gray-500 mb-3 sm:mb-4">Add intermediate stations and final destination with their respective fares</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3">
                     <input
                       type="text"
                       placeholder="Station name (e.g., Station 1)"
                       value={tempStation.name}
                       onChange={(e) => setTempStation({ ...tempStation, name: e.target.value })}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
-                      className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                      className="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                     <div className="flex gap-2">
                       <input
@@ -1081,15 +1132,15 @@ function RoutesContent() {
                         value={tempStation.fare}
                         onChange={(e) => setTempStation({ ...tempStation, fare: e.target.value })}
                         onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
-                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                        className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                         min="0"
                       />
                       <button
                         type="button"
                         onClick={handleAddStationToForm}
-                        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-sm font-medium"
+                        className="px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-xs sm:text-sm font-medium"
                       >
-                        <Plus size={16} />
+                        <Plus size={14} className="sm:w-4 sm:h-4" />
                         Add
                       </button>
                     </div>
@@ -1133,23 +1184,23 @@ function RoutesContent() {
                 </div>
               </div>
             </div>
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
-              <div className="flex gap-2 justify-end">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-white">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 justify-end">
                 <button
                   onClick={() => {
                     setShowModal(false)
                     setFormData({ routeName: '', stationsList: [], vehicles: '', passengers: '' })
                     setTempStation({ name: '', fare: '' })
                   }}
-                  className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-xs sm:text-sm order-2 sm:order-1"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-xs sm:text-sm order-1 sm:order-2"
                 >
-                  <Plus size={14} />
+                  <Plus size={14} className="w-3 h-3 sm:w-4 sm:h-4" />
                   Save Route
                 </button>
               </div>
@@ -1171,12 +1222,12 @@ function RoutesContent() {
             }}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-lg lg:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Edit Route</h3>
-                  <p className="text-blue-200 text-sm mt-1">Update route details</p>
+                  <h3 className="text-base sm:text-xl font-bold">Edit Route</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Update route details</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1191,10 +1242,10 @@ function RoutesContent() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 bg-gray-50">
+              <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Route Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1202,14 +1253,14 @@ function RoutesContent() {
                     placeholder="e.g., Main Street Route"
                     value={formData.routeName}
                     onChange={(e) => setFormData({ ...formData, routeName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
 
                 {/* Existing Stations */}
                 {stations.length > 0 && (
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                  <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                       Existing Stations ({stations.length})
                     </label>
                     <div className="space-y-2">
@@ -1221,7 +1272,7 @@ function RoutesContent() {
                           {editingStationId === station.id ? (
                             // Edit mode
                             <div className="space-y-3">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                                 <div>
                                   <label className="block text-xs font-medium text-gray-600 mb-1">
                                     STATION NAME
@@ -1311,19 +1362,19 @@ function RoutesContent() {
                 )}
 
                 {/* Stations Section */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Add More Stations with Fares
                   </label>
-                  <p className="text-xs text-gray-500 mb-4">Add intermediate stations and final destination with their respective fares</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <p className="text-xs text-gray-500 mb-3 sm:mb-4">Add intermediate stations and final destination with their respective fares</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3">
                     <input
                       type="text"
                       placeholder="Station name (e.g., Station 1)"
                       value={tempStation.name}
                       onChange={(e) => setTempStation({ ...tempStation, name: e.target.value })}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
-                      className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                      className="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                     <div className="flex gap-2">
                       <input
@@ -1332,15 +1383,15 @@ function RoutesContent() {
                         value={tempStation.fare}
                         onChange={(e) => setTempStation({ ...tempStation, fare: e.target.value })}
                         onKeyPress={(e) => e.key === 'Enter' && handleAddStationToForm()}
-                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 text-sm"
+                        className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                         min="0"
                       />
                       <button
                         type="button"
                         onClick={handleAddStationToForm}
-                        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-sm font-medium"
+                        className="px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1 text-xs sm:text-sm font-medium"
                       >
-                        <Plus size={16} />
+                        <Plus size={14} className="sm:w-4 sm:h-4" />
                         Add
                       </button>
                     </div>
@@ -1384,8 +1435,8 @@ function RoutesContent() {
                 </div>
               </div>
             </div>
-            <div className="border-t border-gray-200 px-6 py-3 bg-white">
-              <div className="flex gap-2 justify-end">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-white">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 justify-end">
                 <button
                   onClick={() => {
                     setShowEditModal(false)
@@ -1393,15 +1444,15 @@ function RoutesContent() {
                     setTempStation({ name: '', fare: '' })
                     setSelectedRoute(null)
                   }}
-                  className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-xs sm:text-sm order-2 sm:order-1"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="px-4 py-1.5 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center gap-1.5 text-sm"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 bg-red-600 text-white font-normal rounded hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-xs sm:text-sm order-1 sm:order-2"
                 >
-                  <Plus size={14} />
+                  <Plus size={14} className="w-3 h-3 sm:w-4 sm:h-4" />
                   Update Route
                 </button>
               </div>
@@ -1418,25 +1469,25 @@ function RoutesContent() {
             onClick={() => setShowDeleteModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-base sm:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
+              <div className="p-4 sm:p-6">
+                <p className="text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">
                   Are you sure you want to delete route <span className="font-bold text-red-600">{routeToDelete.route_name}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
                   >
                     <Trash2 size={18} />
                     Delete
@@ -1463,12 +1514,12 @@ function RoutesContent() {
             }}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-lg lg:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Manage Stations</h3>
-                  <p className="text-blue-200 text-sm mt-1">{selectedRoute.route_name}</p>
+                  <h3 className="text-base sm:text-xl font-bold">Manage Stations</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">{selectedRoute.route_name}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1486,17 +1537,17 @@ function RoutesContent() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 bg-gray-50">
               {/* Add Multiple Stations */}
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <label className="text-gray-800 font-semibold text-sm uppercase tracking-wide flex items-center gap-2">
+              <div className="bg-white p-3 sm:p-5 rounded-xl shadow-sm border border-gray-100 mb-4 sm:mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+                  <label className="text-gray-800 font-semibold text-xs sm:text-sm uppercase tracking-wide flex items-center gap-2">
                     <MapPin size={16} className="text-blue-600" />
                     Add New Station
                   </label>
                   <button
                     onClick={handleAddStationRow}
-                    className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1"
+                    className="text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm flex items-center gap-1"
                   >
                     <Plus size={16} />
                     Add More
@@ -1504,11 +1555,11 @@ function RoutesContent() {
                 </div>
 
                 {/* Multiple Station Rows */}
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                <div className="space-y-2 sm:space-y-3 max-h-[400px] overflow-y-auto">
                   {multipleStations.map((station, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div key={index} className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-2">
                               STATION NAME <span className="text-red-500">*</span>
@@ -1569,8 +1620,8 @@ function RoutesContent() {
 
               {/* Stations List */}
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-gray-800 font-bold text-sm uppercase tracking-wide flex items-center gap-2">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h4 className="text-gray-800 font-bold text-xs sm:text-sm uppercase tracking-wide flex items-center gap-2">
                     <MapPin size={16} className="text-blue-600" />
                     All Stations
                     <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
@@ -1580,31 +1631,31 @@ function RoutesContent() {
                 </div>
 
                 {stations.length === 0 ? (
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-12 rounded-xl border-2 border-dashed border-gray-300 text-center">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MapPin className="text-gray-400" size={32} />
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 sm:p-12 rounded-xl border-2 border-dashed border-gray-300 text-center">
+                    <div className="w-12 sm:w-16 h-12 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <MapPin className="text-gray-400" size={24} />
                     </div>
-                    <p className="text-gray-600 font-semibold mb-1">No stations added yet</p>
-                    <p className="text-gray-400 text-sm">Add your first station using the form above</p>
+                    <p className="text-gray-600 font-semibold mb-1 text-sm sm:text-base">No stations added yet</p>
+                    <p className="text-gray-400 text-xs sm:text-sm">Add your first station using the form above</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {stations.map((station, index) => (
                       <div
                         key={station.id}
-                        className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group"
+                        className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center font-bold shadow-md">
+                          <div className="flex items-center gap-2 sm:gap-4 flex-1">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center font-bold shadow-md text-sm sm:text-base">
                               {index + 1}
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-1">
-                                <h5 className="text-gray-900 font-semibold text-base">{station.station_name}</h5>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
+                                <h5 className="text-gray-900 font-semibold text-sm sm:text-base">{station.station_name}</h5>
                                 {station.fare > 0 && (
-                                  <div className="px-3 py-1 bg-green-50 border border-green-200 rounded-lg">
-                                    <span className="text-green-700 font-bold text-sm">
+                                  <div className="px-2 sm:px-3 py-0.5 sm:py-1 bg-green-50 border border-green-200 rounded-lg inline-block">
+                                    <span className="text-green-700 font-bold text-xs sm:text-sm">
                                       PKR {station.fare.toLocaleString()}
                                     </span>
                                   </div>
@@ -1618,7 +1669,7 @@ function RoutesContent() {
                           </div>
                           <button
                             onClick={() => handleDeleteStation(station.id)}
-                            className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
+                            className="p-2 sm:p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110"
                             title="Delete Station"
                           >
                             <Trash2 size={18} />
@@ -1631,7 +1682,7 @@ function RoutesContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-4 bg-gradient-to-r from-gray-50 to-white">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-gray-50 to-white">
               <button
                 onClick={() => {
                   setShowStationsModal(false)
@@ -1641,7 +1692,7 @@ function RoutesContent() {
                   setNewStationFare('')
                   setMultipleStations([{ name: '', fare: '' }])
                 }}
-                className="w-full px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <X size={18} />
                 Close

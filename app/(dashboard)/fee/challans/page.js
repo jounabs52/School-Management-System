@@ -8,6 +8,8 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { getPdfSettings, hexToRgb, getMarginValues, formatCurrency, getLogoSize, applyPdfSettings } from '@/lib/pdfSettings'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions } from '@/components/DataCard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -56,6 +58,9 @@ function FeeChallanContent() {
   // Toast state
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
+
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
   }
@@ -80,11 +85,20 @@ function FeeChallanContent() {
     }
   }, [showViewModal])
 
+  // Load user on mount
   useEffect(() => {
-    fetchChallans()
-    fetchSchoolName()
-    fetchAllClasses()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
+
+  // Fetch data when user is available
+  useEffect(() => {
+    if (currentUser) {
+      fetchChallans()
+      fetchSchoolName()
+      fetchAllClasses()
+    }
+  }, [currentUser])
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -93,7 +107,7 @@ function FeeChallanContent() {
 
   const fetchSchoolName = async () => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data, error } = await supabase
@@ -112,7 +126,7 @@ function FeeChallanContent() {
 
   const fetchAllClasses = async () => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       // First, get all challans to find which classes have challans
@@ -169,7 +183,7 @@ function FeeChallanContent() {
   const fetchChallans = async () => {
     try {
       setLoading(true)
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         console.error('No user found')
         setLoading(false)
@@ -285,7 +299,7 @@ function FeeChallanContent() {
 
   const fetchChallanItems = async (challanId) => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data, error } = await supabase
@@ -322,7 +336,7 @@ function FeeChallanContent() {
 
   const handleDirectDownloadPDF = async (challan) => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data, error } = await supabase
@@ -873,7 +887,7 @@ function FeeChallanContent() {
 
     try {
 
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       // Fetch school data once
@@ -1363,19 +1377,20 @@ function FeeChallanContent() {
   }
 
   return (
-    <div className="p-2 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
       {/* Header */}
-      <div className="mb-3">
-        <h1 className="text-xl font-bold text-gray-800">View Challans</h1>
+      <div className="mb-2 sm:mb-3">
+        <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">View Challans</h1>
+        <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">View and manage all fee challans</p>
       </div>
 
       {/* Search & Filter Section - Compact */}
-      <div className="bg-white rounded-lg shadow p-3 mb-3">
+      <div className="bg-white rounded-lg shadow p-2 sm:p-3 mb-2 sm:mb-3">
         <div className="flex flex-col md:flex-row gap-2 mb-2">
           <div className="md:w-40">
             <select
@@ -1446,7 +1461,7 @@ function FeeChallanContent() {
           </button>
         </div>
 
-        <div className="flex gap-3 text-xs">
+        <div className="flex flex-wrap gap-2 sm:gap-3 text-xs">
           <p className="text-gray-600">
             Total: <span className="font-bold text-blue-600">{filteredChallans.length}</span>
           </p>
@@ -1462,167 +1477,84 @@ function FeeChallanContent() {
         </div>
       </div>
 
-      {/* Table - Desktop View */}
-      <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+      {/* Table with Mobile Cards */}
+      <ResponsiveTableWrapper
+        tableView={
+          <table className="w-full text-sm">
             <thead className="bg-blue-900 text-white">
               <tr>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Sr.</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Student Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Admission No.</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Class</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Issue Date</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Due Date</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Total Amount</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Already Paid</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Balance Due</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Status</th>
-                <th className="px-3 py-2.5 text-center font-semibold text-xs border border-blue-800">Options</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Admission No.</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Issue Date</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Due Date</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Total Amount</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Already Paid</th>
+                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Balance Due</th>
+                <th className="px-4 py-3 text-center font-semibold border border-blue-800">Status</th>
+                <th className="px-4 py-3 text-center font-semibold border border-blue-800">Options</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="11" className="px-3 py-8 text-center text-gray-500 text-xs">
-                    Loading...
-                  </td>
-                </tr>
-              ) : paginatedChallans.length === 0 ? (
-                <tr>
-                  <td colSpan="11" className="px-3 py-8 text-center text-gray-500 text-xs">
-                    No challans found
-                  </td>
-                </tr>
-              ) : (
-                paginatedChallans.map((challan, index) => {
-                  const student = challan.students
-                  const totalAmount = parseFloat(challan.total_amount)
-                  const paidAmount = parseFloat(challan.paid_amount || 0)
-                  const balanceDue = totalAmount - paidAmount
+              {paginatedChallans.map((challan, index) => {
+                const student = challan.students
+                const totalAmount = parseFloat(challan.total_amount)
+                const paidAmount = parseFloat(challan.paid_amount || 0)
+                const balanceDue = totalAmount - paidAmount
 
-                  return (
-                    <tr key={challan.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition ${challan.status === 'paid' ? 'bg-green-50' : ''}`}>
-                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-3 py-2.5 text-blue-600 font-medium text-xs border border-gray-200">
-                        {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'N/A'}
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">{student?.admission_number || 'N/A'}</td>
-                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
-                        {student?.classes?.class_name || 'N/A'}{student?.sections?.section_name ? ` - ${student.sections.section_name}` : ''}
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
-                        {new Date(challan.issue_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
-                        {new Date(challan.due_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-900 font-bold text-xs border border-gray-200">
-                        Rs. {totalAmount.toLocaleString()}
-                      </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <span className="text-green-600 font-semibold text-xs">
-                          Rs. {paidAmount.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <span className={`font-bold text-xs ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          Rs. {balanceDue.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
-                          {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleViewChallan(challan)}
-                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
-                            title="View Details"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDirectDownloadPDF(challan)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
-                            title="Print Challan"
-                          >
-                            <Printer size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
+                return (
+                  <tr key={challan.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+                    <td className="px-4 py-3 border border-gray-200">
+                      <span className="text-blue-600 font-medium">{student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'N/A'}</span>
+                    </td>
+                    <td className="px-4 py-3 border border-gray-200">{student?.admission_number || 'N/A'}</td>
+                    <td className="px-4 py-3 border border-gray-200">
+                      {`${student?.classes?.class_name || 'N/A'}${student?.sections?.section_name ? ` - ${student.sections.section_name}` : ''}`}
+                    </td>
+                    <td className="px-4 py-3 border border-gray-200">{new Date(challan.issue_date).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 border border-gray-200">{new Date(challan.due_date).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 border border-gray-200">
+                      <span className="font-bold">Rs. {totalAmount.toLocaleString()}</span>
+                    </td>
+                    <td className="px-4 py-3 border border-gray-200">
+                      <span className="text-green-600 font-semibold">Rs. {paidAmount.toLocaleString()}</span>
+                    </td>
+                    <td className="px-4 py-3 border border-gray-200">
+                      <span className={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>Rs. {balanceDue.toLocaleString()}</span>
+                    </td>
+                    <td className="px-4 py-3 border border-gray-200 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
+                        {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 border border-gray-200">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleViewChallan(challan)}
+                          className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
+                          title="View Details"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDirectDownloadPDF(challan)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
+                          title="Print Challan"
+                        >
+                          <Printer size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        {!loading && filteredChallans.length > 0 && (
-          <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="text-xs text-gray-500">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length}
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 py-2 rounded text-xs font-medium transition ${
-                  currentPage === 1
-                    ? 'bg-blue-300 text-white cursor-not-allowed'
-                    : 'bg-blue-900 text-white hover:bg-blue-800'
-                }`}
-              >
-                Previous
-              </button>
-
-              {getPageNumbers().map((page, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => typeof page === 'number' && goToPage(page)}
-                  className={`w-8 h-8 rounded text-xs font-medium transition ${
-                    page === currentPage
-                      ? 'bg-blue-900 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-2 rounded text-xs font-medium transition ${
-                  currentPage === totalPages
-                    ? 'bg-blue-300 text-white cursor-not-allowed'
-                    : 'bg-blue-900 text-white hover:bg-blue-800'
-                }`}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Mobile/Tablet Card View */}
-      <div className="lg:hidden space-y-2">
-        {loading ? (
-          <div className="bg-white rounded-lg shadow p-4 text-center text-gray-500 text-xs">
-            Loading...
-          </div>
-        ) : paginatedChallans.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-4 text-center text-gray-500 text-xs">
-            No challans found
-          </div>
-        ) : (
-          <>
+        }
+        cardView={
+          <div className="space-y-2">
             {paginatedChallans.map((challan, index) => {
               const student = challan.students
               const totalAmount = parseFloat(challan.total_amount)
@@ -1630,117 +1562,90 @@ function FeeChallanContent() {
               const balanceDue = totalAmount - paidAmount
 
               return (
-                <div key={challan.id} className={`bg-white rounded-lg shadow p-3 border border-gray-200 ${challan.status === 'paid' ? 'bg-green-50' : ''}`}>
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="text-xs text-gray-500 mb-0.5">Challan #{startIndex + index + 1}</div>
-                      <div className="font-bold text-blue-600 text-xs">
-                        {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'Student Info Not Available'}
+                <DataCard key={challan.id} className={challan.status === 'paid' ? 'bg-green-50' : ''}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full">
+                      <div>
+                        <span className="text-[10px] text-gray-500">Challan #{startIndex + index + 1}</span>
+                        <div className="font-bold text-blue-600 text-xs mt-0.5">
+                          {student ? `${student.first_name} ${student.last_name || ''}`.trim() : 'N/A'}
+                        </div>
                       </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(challan.status)}`}>
-                      {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Admission No:</span>
-                      <span className="font-semibold text-gray-900">{student?.admission_number || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Class:</span>
-                      <span className="font-semibold text-gray-900">
-                        {student?.classes?.class_name || 'N/A'} {student?.sections?.section_name ? `- ${student.sections.section_name}` : ''}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusBadge(challan.status)}`}>
+                        {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Issue Date:</span>
-                      <span className="text-gray-900">{new Date(challan.issue_date).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Due Date:</span>
-                      <span className="text-gray-900">{new Date(challan.due_date).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-1.5 border-t border-gray-200">
-                      <span className="text-gray-600 font-semibold">Total Amount:</span>
-                      <span className="text-gray-900 font-bold text-sm">
-                        Rs. {totalAmount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 font-semibold">Already Paid:</span>
-                      <span className="text-green-600 font-semibold text-sm">
-                        Rs. {paidAmount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 font-semibold">Balance Due:</span>
-                      <span className={`font-bold text-sm ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        Rs. {balanceDue.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-2.5 pt-2.5 border-t border-gray-200">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleViewChallan(challan)}
-                        className="flex-1 bg-blue-600 text-white py-1.5 rounded font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-1.5 text-xs"
-                      >
-                        <Eye size={14} />
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleDirectDownloadPDF(challan)}
-                        className="flex-1 bg-red-600 text-white py-1.5 rounded font-semibold hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-xs"
-                      >
-                        <Printer size={14} />
-                        Print
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  </CardHeader>
+                  <CardRow label="Admission No" value={student?.admission_number || 'N/A'} />
+                  <CardRow label="Class" value={`${student?.classes?.class_name || 'N/A'}${student?.sections?.section_name ? ` - ${student.sections.section_name}` : ''}`} />
+                  <CardRow label="Issue Date" value={new Date(challan.issue_date).toLocaleDateString()} />
+                  <CardRow label="Due Date" value={new Date(challan.due_date).toLocaleDateString()} />
+                  <CardRow label="Total Amount" value={`Rs. ${totalAmount.toLocaleString()}`} valueClassName="font-bold text-gray-900" />
+                  <CardRow label="Already Paid" value={`Rs. ${paidAmount.toLocaleString()}`} valueClassName="font-semibold text-green-600" />
+                  <CardRow label="Balance Due" value={`Rs. ${balanceDue.toLocaleString()}`} valueClassName={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`} />
+                  <CardActions>
+                    <button
+                      onClick={() => handleViewChallan(challan)}
+                      className="flex-1 bg-blue-600 text-white py-1.5 rounded text-xs font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1"
+                    >
+                      <Eye size={12} />
+                      View
+                    </button>
+                    <button
+                      onClick={() => handleDirectDownloadPDF(challan)}
+                      className="flex-1 bg-red-600 text-white py-1.5 rounded text-xs font-medium hover:bg-red-700 transition flex items-center justify-center gap-1"
+                    >
+                      <Printer size={12} />
+                      Print
+                    </button>
+                  </CardActions>
+                </DataCard>
               )
             })}
+          </div>
+        }
+        loading={loading}
+        empty={filteredChallans.length === 0}
+        emptyMessage="No challans found"
+      />
 
-            {/* Mobile Pagination */}
-            {filteredChallans.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-3 flex items-center justify-between">
-                <div className="text-xs text-gray-500">
-                  {startIndex + 1}-{Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length}
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-2 rounded text-xs font-medium transition ${
-                      currentPage === 1
-                        ? 'bg-blue-300 text-white cursor-not-allowed'
-                        : 'bg-blue-900 text-white hover:bg-blue-800'
-                    }`}
-                  >
-                    Previous
-                  </button>
-
-                  <button
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className={`px-3 py-2 rounded text-xs font-medium transition ${
-                      currentPage === totalPages
-                        ? 'bg-blue-300 text-white cursor-not-allowed'
-                        : 'bg-blue-900 text-white hover:bg-blue-800'
-                    }`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {/* Pagination */}
+      {filteredChallans.length > rowsPerPage && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 mt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs sm:text-sm text-gray-600">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} {filteredChallans.length === 1 ? 'challan' : 'challans'}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Previous
+            </button>
+            {getPageNumbers().map(page => (
+              <button
+                key={page}
+                onClick={() => goToPage(page)}
+                className={`px-3 py-1.5 text-xs sm:text-sm border rounded transition ${
+                  currentPage === page
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* View Challan Modal */}
       {showViewModal && selectedChallan && (
@@ -1750,7 +1655,7 @@ function FeeChallanContent() {
             onClick={() => setShowViewModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-lg bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
             <div className="bg-[#2B5AA8] text-white px-4 py-3">
               <div className="flex justify-between items-center">
                 <div>

@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { X } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardInfoGrid, CardGrid } from '@/components/DataCard'
 
 function StudentAttendanceContent() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -342,15 +344,15 @@ function StudentAttendanceContent() {
   }
 
   return (
-    <div className="p-1">
-      <h1 className="text-2xl font-bold mb-4">Student Attendance</h1>
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4">
+      <h1 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3">Student Attendance</h1>
 
       {/* Fetch Students Section */}
-      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
-        <h2 className="text-lg font-semibold mb-3">Fetch Students for Attendance</h2>
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-2 sm:mb-3">
+        <h2 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3">Fetch Students for Attendance</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Class</label>
             <select
               value={selectedClass}
               onChange={(e) => {
@@ -359,7 +361,7 @@ function StudentAttendanceContent() {
                 setFilteredStudents([])
                 setAttendanceRecords({})
               }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
             >
               <option value="">All Classes</option>
               {classes.map(cls => (
@@ -369,8 +371,8 @@ function StudentAttendanceContent() {
           </div>
 
           {sections.length > 0 && (
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Section</label>
               <select
                 value={selectedSection}
                 onChange={(e) => {
@@ -379,7 +381,7 @@ function StudentAttendanceContent() {
                   setFilteredStudents([])
                   setAttendanceRecords({})
                 }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               >
                 <option value="">All Sections</option>
                 {sections.map(section => (
@@ -389,35 +391,37 @@ function StudentAttendanceContent() {
             </div>
           )}
 
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Date</label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
             />
           </div>
 
-          <button
-            onClick={handleLoadAttendance}
-            disabled={loading}
-            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 font-medium transition-colors"
-          >
-            {loading ? 'Loading...' : 'Load'}
-          </button>
+          <div className="flex items-end">
+            <button
+              onClick={handleLoadAttendance}
+              disabled={loading}
+              className="w-full bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 font-medium transition-colors text-xs sm:text-sm"
+            >
+              {loading ? 'Loading...' : 'Load'}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Search and Filters */}
       {studentList.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
+        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-2 sm:mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            <div>
               <select
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               >
                 <option value="default">Default Search</option>
                 <option value="name">By Name</option>
@@ -426,32 +430,32 @@ function StudentAttendanceContent() {
               </select>
             </div>
 
-            <div className="flex-1">
+            <div>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               >
                 <option value="all">All Members</option>
               </select>
             </div>
 
-            <div className="flex-1">
+            <div>
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               />
             </div>
 
-            <div className="flex-1">
+            <div>
               <select
                 onChange={(e) => handleMarkAll(e.target.value)}
                 value=""
                 disabled={saving}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               >
                 <option value="">Mark All Attendance</option>
                 <option value="present">Present</option>
@@ -467,18 +471,18 @@ function StudentAttendanceContent() {
 
       {/* Students Table */}
       {studentList.length > 0 ? (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+        <ResponsiveTableWrapper
+          tableView={
+            <table className="w-full border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Father Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">ADM</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Class</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Roll.No</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Status</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Sr.</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Name</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden sm:table-cell whitespace-nowrap">Father Name</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden md:table-cell whitespace-nowrap">ADM</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden lg:table-cell whitespace-nowrap">Class</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden md:table-cell whitespace-nowrap">Roll.No</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -487,40 +491,40 @@ function StudentAttendanceContent() {
                     const currentStatus = attendanceRecords[student.id]
                     return (
                       <tr key={student.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
-                        <td className="border border-gray-200 px-3 py-2.5">
-                          <div className="flex items-center gap-2">
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 whitespace-nowrap">{index + 1}</td>
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
+                          <div className="flex items-center gap-2 sm:gap-3">
                             {student.photo_url ? (
-                              <img 
-                                src={student.photo_url} 
+                              <img
+                                src={student.photo_url}
                                 alt={student.first_name}
-                                className="w-8 h-8 rounded-full object-cover"
+                                className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full object-cover flex-shrink-0"
                               />
                             ) : (
-                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-semibold flex-shrink-0">
                                 {student.first_name?.charAt(0)}{student.last_name?.charAt(0)}
                               </div>
                             )}
-                            <div>
-                              <div className="font-medium text-gray-900">
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 text-xs sm:text-sm truncate">
                                 {student.first_name} {student.last_name}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{student.father_name || '-'}</td>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{student.admission_number || '-'}</td>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 hidden sm:table-cell whitespace-nowrap">{student.father_name || '-'}</td>
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 hidden md:table-cell whitespace-nowrap">{student.admission_number || '-'}</td>
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 hidden lg:table-cell whitespace-nowrap">
                           {getClassName(student.current_class_id)}
                           {getSectionName(student.current_section_id) && `(${getSectionName(student.current_section_id)})`}
                         </td>
-                        <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{student.roll_number || '-'}</td>
-                        <td className="border border-gray-200 px-3 py-2.5">
-                          <div className="flex justify-center gap-1 flex-wrap">
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 hidden md:table-cell whitespace-nowrap">{student.roll_number || '-'}</td>
+                        <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">
+                          <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-2 flex-wrap">
                             <button
                               onClick={() => markAttendance(student, 'present')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'present'
                                   ? 'bg-green-600 text-white'
                                   : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
@@ -531,7 +535,7 @@ function StudentAttendanceContent() {
                             <button
                               onClick={() => markAttendance(student, 'absent')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'absent'
                                   ? 'bg-red-600 text-white'
                                   : 'bg-white text-red-600 border border-red-600 hover:bg-red-50'
@@ -542,7 +546,7 @@ function StudentAttendanceContent() {
                             <button
                               onClick={() => markAttendance(student, 'half-day')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors hidden sm:inline-block ${
                                 currentStatus === 'half-day'
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
@@ -553,7 +557,7 @@ function StudentAttendanceContent() {
                             <button
                               onClick={() => markAttendance(student, 'on-leave')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'on-leave'
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
@@ -564,13 +568,24 @@ function StudentAttendanceContent() {
                             <button
                               onClick={() => markAttendance(student, 'late')}
                               disabled={saving}
-                              className={`px-2 py-1 text-xs rounded ${
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors ${
                                 currentStatus === 'late'
                                   ? 'bg-orange-600 text-white'
                                   : 'bg-white text-orange-600 border border-orange-600 hover:bg-orange-50'
                               }`}
                             >
                               Late
+                            </button>
+                            <button
+                              onClick={() => markAttendance(student, 'half-day')}
+                              disabled={saving}
+                              className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 text-xs sm:text-xs md:text-sm rounded transition-colors sm:hidden ${
+                                currentStatus === 'half-day'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                              }`}
+                            >
+                              S.L.
                             </button>
                           </div>
                         </td>
@@ -579,17 +594,93 @@ function StudentAttendanceContent() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="7" className="border border-gray-200 px-3 py-6 text-center text-gray-500">
+                    <td colSpan="7" className="border border-gray-200 px-2 sm:px-3 md:px-4 py-4 sm:py-6 md:py-8 text-center text-gray-500 text-xs sm:text-sm">
                       No students found matching your search criteria
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
+          }
+          cardView={
+            <CardGrid>
+              {filteredStudents.length > 0 ? (
+                filteredStudents.map((student, index) => {
+                  const currentStatus = attendanceRecords[student.id]
+                  return (
+                    <DataCard key={student.id}>
+                      <CardHeader
+                        srNumber={index + 1}
+                        photo={student.photo_url || `${student.first_name?.charAt(0)}${student.last_name?.charAt(0)}`}
+                        name={`${student.first_name} ${student.last_name}`}
+                        subtitle={`${getClassName(student.current_class_id)} • Roll: ${student.roll_number || 'N/A'}`}
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="ADM#" value={student.admission_number || 'N/A'} />
+                        <CardRow label="Father" value={student.father_name || 'N/A'} />
+                      </CardInfoGrid>
+                      <div className="grid grid-cols-2 gap-1 pt-1.5 mt-1.5 border-t border-gray-100">
+                        <button
+                          onClick={() => markAttendance(student, 'present')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'present'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-white text-green-600 border border-green-600'
+                          }`}
+                        >
+                          Present
+                        </button>
+                        <button
+                          onClick={() => markAttendance(student, 'absent')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'absent'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-white text-red-600 border border-red-600'
+                          }`}
+                        >
+                          Absent
+                        </button>
+                        <button
+                          onClick={() => markAttendance(student, 'half-day')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'half-day'
+                              ? 'bg-orange-600 text-white'
+                              : 'bg-white text-orange-600 border border-orange-600'
+                          }`}
+                        >
+                          Short
+                        </button>
+                        <button
+                          onClick={() => markAttendance(student, 'late')}
+                          disabled={saving}
+                          className={`px-2 py-1.5 text-[10px] font-medium rounded transition-colors ${
+                            currentStatus === 'late'
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-white text-purple-600 border border-purple-600'
+                          }`}
+                        >
+                          Late
+                        </button>
+                      </div>
+                    </DataCard>
+                  )
+                })
+              ) : (
+                <div className="p-4 text-center text-gray-500 text-xs">
+                  No students found matching your search criteria
+                </div>
+              )}
+            </CardGrid>
+          }
+          loading={loading}
+          empty={filteredStudents.length === 0}
+          emptyMessage="No students found matching your search criteria"
+        />
       ) : (
-        <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
+        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 md:p-5 lg:p-6 xl:p-8 text-center text-gray-500 text-xs sm:text-sm">
           Please select a class and click "Load" to view students
         </div>
       )}
@@ -597,30 +688,30 @@ function StudentAttendanceContent() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center" onClick={handleCancel}>
+          <div className="fixed inset-0 bg-black/80 sm:bg-black/50 z-[9998] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={handleCancel}>
             <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              className="w-full sm:w-auto sm:max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 bg-red-600 text-white rounded-t-lg">
-                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              <div className="flex items-center justify-between p-3 sm:p-4 md:p-5 bg-red-600 text-white rounded-t-lg">
+                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
                 <button onClick={handleCancel} className="text-white hover:text-gray-200">
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-              <div className="p-4">
-                <p className="text-gray-600">{confirmDialog.message}</p>
+              <div className="p-3 sm:p-4 md:p-5">
+                <p className="text-gray-600 text-xs sm:text-sm">{confirmDialog.message}</p>
               </div>
-              <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-3 sm:p-4 md:p-5 border-t bg-gray-50">
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 text-white bg-red-600 rounded hover:bg-red-700 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   Confirm
                 </button>
@@ -631,11 +722,11 @@ function StudentAttendanceContent() {
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-2 sm:top-4 right-2 sm:right-4 z-[9999] space-y-2 max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)] md:max-w-sm lg:max-w-md">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[300px] ${
+            className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-lg min-w-[180px] sm:min-w-[250px] md:min-w-[300px] text-xs sm:text-sm ${
               toast.type === 'success' ? 'bg-green-500 text-white' :
               toast.type === 'error' ? 'bg-red-500 text-white' :
               toast.type === 'warning' ? 'bg-yellow-500 text-white' :
@@ -645,16 +736,16 @@ function StudentAttendanceContent() {
             <span className="flex-1">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
-              className="text-white hover:text-gray-200"
+              className="text-white hover:text-gray-200 flex-shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         ))}
       </div>
 
       {saving && (
-        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50">
+        <div className="fixed bottom-2 sm:bottom-4 right-2 sm:right-4 bg-blue-600 text-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded shadow-lg z-50 text-xs sm:text-sm">
           Saving attendance...
         </div>
       )}
@@ -674,8 +765,8 @@ export default function StudentAttendancePage() {
 
   if (!currentUser) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

@@ -633,25 +633,25 @@ function HRCertificatesContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 p-1.5 sm:p-2 md:p-3 lg:p-4">
       {/* Compact Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#1E3A8A] p-2 rounded-lg">
-              <FileText className="w-6 h-6 text-white" />
+      <div className="bg-white border-b border-gray-200 px-2 sm:px-2 sm:px-3 py-1.5 sm:py-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="bg-[#1E3A8A] p-1.5 sm:p-2 rounded-lg">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Staff Certificates</h1>
-              <p className="text-sm text-gray-500">Generate and manage staff certificates</p>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Staff Certificates</h1>
+              <p className="text-xs sm:text-sm text-gray-500">Generate and manage staff certificates</p>
             </div>
           </div>
 
           {/* Settings button (top-right) */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm w-full sm:w-auto"
               aria-label="Certificate Settings"
             >
               <Settings className="w-4 h-4" />
@@ -662,11 +662,11 @@ function HRCertificatesContent() {
       </div>
 
       {/* Main Content - Compact */}
-      <div className="p-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          
+      <div className="p-2 sm:p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4">
+
           {/* Certificate Selection Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4">
             
             {/* Certificate Type Dropdown with Add New */}
             <div>
@@ -781,12 +781,12 @@ function HRCertificatesContent() {
           {/* Certificate Information - Compact Grid */}
           {staffData && (
             <>
-              <div className="border-t border-gray-200 pt-4 mb-4">
-                <h2 className="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide">
+              <div className="border-t border-gray-200 pt-3 sm:pt-4 mb-4">
+                <h2 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3 uppercase tracking-wide">
                   Certificate Information
                 </h2>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3">
                   {/* Name */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -897,9 +897,9 @@ function HRCertificatesContent() {
                 <button
                   onClick={handleGenerateCertificate}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 bg-red-600 hover:bg-red-700 text-white px-4 sm:px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm w-full sm:w-auto text-sm sm:text-base"
                 >
-                  <FileText className="w-5 h-5" />
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                   {saving ? 'Generating...' : 'Generate Certificate PDF'}
                 </button>
               </div>
@@ -926,21 +926,21 @@ function HRCertificatesContent() {
 
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 sm:pt-16 px-2 sm:px-0">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSettingsModal(false)}></div>
-          <div className="relative w-[92%] sm:w-3/4 lg:w-2/3 xl:w-1/2 bg-white rounded-lg shadow-lg overflow-hidden z-50">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-              <h3 className="text-lg font-semibold">Certificate Settings</h3>
+          <div className="relative w-full sm:w-3/4 lg:w-2/3 xl:w-1/2 bg-white rounded-lg shadow-lg overflow-hidden z-50 max-h-[90vh] sm:max-h-auto">
+            <div className="flex items-center justify-between px-3 sm:px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200">
+              <h3 className="text-base sm:text-lg font-semibold">Certificate Settings</h3>
               <button onClick={() => setShowSettingsModal(false)} className="text-gray-500 hover:text-gray-700">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4">
+            <div className="p-3 sm:p-5 max-h-[60vh] sm:max-h-[70vh] overflow-y-auto space-y-4">
               {/* Header & Branding */}
               <div>
-                <h4 className="text-sm font-semibold mb-2">HEADER & BRANDING</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <h4 className="text-xs sm:text-sm font-semibold mb-2">HEADER & BRANDING</h4>
+                <div className="grid grid-cols-1 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Institute Name</label>
                     <input type="text" value={certificateSettings.instituteName} onChange={(e) => setCertificateSettings(prev => ({...prev, instituteName: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
@@ -969,8 +969,8 @@ function HRCertificatesContent() {
 
               {/* Color Settings */}
               <div>
-                <h4 className="text-sm font-semibold mb-2">COLOR SETTINGS</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <h4 className="text-xs sm:text-sm font-semibold mb-2">COLOR SETTINGS</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Border Color</label>
                     <div className="flex items-center gap-2">
@@ -1007,7 +1007,7 @@ function HRCertificatesContent() {
 
               {/* Signature Settings */}
               <div>
-                <h4 className="text-sm font-semibold mb-2">SIGNATURE SETTINGS</h4>
+                <h4 className="text-xs sm:text-sm font-semibold mb-2">SIGNATURE SETTINGS</h4>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Principal Signature Image</label>
@@ -1031,8 +1031,8 @@ function HRCertificatesContent() {
 
               {/* Border & Footer */}
               <div>
-                <h4 className="text-sm font-semibold mb-2">BORDER & DESIGN</h4>
-                <div className="grid grid-cols-2 gap-3 items-center">
+                <h4 className="text-xs sm:text-sm font-semibold mb-2">BORDER & DESIGN</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" id="showBorder" checked={certificateSettings.showBorder} onChange={(e) => setCertificateSettings(prev => ({...prev, showBorder: e.target.checked }))} />
                     <label htmlFor="showBorder" className="text-sm text-gray-600">Show Border</label>
@@ -1049,8 +1049,8 @@ function HRCertificatesContent() {
                 </div>
 
                 <div className="mt-4 border-t pt-4">
-                  <h4 className="text-sm font-semibold mb-2">FOOTER SETTINGS</h4>
-                  <div className="flex items-center gap-6">
+                  <h4 className="text-xs sm:text-sm font-semibold mb-2">FOOTER SETTINGS</h4>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
                     <div className="flex items-center gap-3">
                       <input type="checkbox" id="showIssueDate" checked={certificateSettings.showIssueDate} onChange={(e) => setCertificateSettings(prev => ({...prev, showIssueDate: e.target.checked }))} />
                       <label htmlFor="showIssueDate" className="text-sm text-gray-600">Show Issue Date</label>
@@ -1064,10 +1064,10 @@ function HRCertificatesContent() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50">
-              <button onClick={() => setShowSettingsModal(false)} className="px-4 py-2 rounded border border-gray-300 text-sm">Cancel</button>
-              <button onClick={() => setShowResetConfirm(true)} className="px-4 py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm">Reset</button> 
-              <button onClick={handleSaveSettings} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">Save Settings</button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-3 sm:px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 bg-gray-50">
+              <button onClick={() => setShowSettingsModal(false)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-gray-300 text-sm w-full sm:w-auto">Cancel</button>
+              <button onClick={() => setShowResetConfirm(true)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm w-full sm:w-auto">Reset</button>
+              <button onClick={handleSaveSettings} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm w-full sm:w-auto">Save Settings</button>
             </div>
           </div>
         </div>
@@ -1075,9 +1075,9 @@ function HRCertificatesContent() {
 
       {/* Reset Confirmation Modal (red) */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)}></div>
-          <div className="relative z-50 w-[92%] max-w-sm bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
+          <div className="relative z-50 w-full max-w-sm bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
             <div className="p-4 flex items-start gap-3">
               <div className="text-red-600 p-1 rounded bg-red-50">
                 <AlertCircle className="w-6 h-6" />
@@ -1087,20 +1087,20 @@ function HRCertificatesContent() {
                 <p className="text-sm text-gray-600 mt-1">This will remove the uploaded signature and restore defaults. Are you sure you want to continue?</p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 px-4 py-3 bg-red-50">
-              <button onClick={() => setShowResetConfirm(false)} className="px-3 py-2 rounded border border-gray-300 text-sm">Cancel</button>
-              <button onClick={performResetSettings} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm">Reset</button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-4 py-3 bg-red-50">
+              <button onClick={() => setShowResetConfirm(false)} className="px-3 py-2 rounded border border-gray-300 text-sm w-full sm:w-auto">Cancel</button>
+              <button onClick={performResetSettings} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm w-full sm:w-auto">Reset</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-4 right-4 z-[9999] space-y-2 w-[calc(100%-2rem)] sm:w-auto">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[300px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+            className={`flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[300px] max-w-full sm:max-w-md px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               toast.type === 'success' ? 'bg-green-600' :
               toast.type === 'error' ? 'bg-red-600' :
               toast.type === 'warning' ? 'bg-amber-600' :

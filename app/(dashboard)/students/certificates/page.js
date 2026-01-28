@@ -1437,7 +1437,7 @@ function StudentCertificatesContent() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -1447,40 +1447,41 @@ function StudentCertificatesContent() {
         }}
       />
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center">
-            <FileText className="text-white" size={24} />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-4 md:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-red-600 rounded-lg flex items-center justify-center">
+            <FileText className="text-white w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Certificates</h1>
+          <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800">Certificates</h1>
         </div>
         <button
           onClick={() => setShowCertificateSettings(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition"
+          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm md:text-base"
         >
-          <Settings className="w-4 h-4" />
-          Certificate Settings
+          <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Certificate Settings</span>
+          <span className="sm:hidden">Settings</span>
         </button>
       </div>
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <Check size={20} />
-          {success}
+        <div className="mb-2 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
+          <Check className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+          <span className="line-clamp-2">{success}</span>
         </div>
       )}
       {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <AlertCircle size={20} />
-          {error}
+        <div className="mb-2 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+          <span className="line-clamp-2">{error}</span>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
         {/* Selection Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4 lg:gap-6 mb-3 sm:mb-4 md:mb-6">
           {/* Certificate Type Selection */}
           <div>
             <label className="block text-gray-700 font-semibold text-sm mb-2">
@@ -1765,8 +1766,8 @@ function StudentCertificatesContent() {
             style={{ position: 'fixed', margin: 0 }}
             onClick={() => !saving && setShowPreview(false)}
           />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-full sm:max-w-xl lg:max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Certificate Details</h3>
@@ -1780,11 +1781,11 @@ function StudentCertificatesContent() {
                 </div>
               </div>
 
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-180px)]">
                 {/* Student Info */}
-                <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="p-3 sm:p-4 bg-blue-50 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-2">Student Information</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
                     <div>
                       <span className="text-gray-600">Name:</span>
                       <span className="ml-2 font-semibold">{selectedStudent.first_name} {selectedStudent.last_name}</span>
@@ -1806,7 +1807,7 @@ function StudentCertificatesContent() {
               </div>
 
               {/* Action Buttons */}
-              <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex gap-3">
+              <div className="border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4 bg-gray-50 flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowPreview(false)}
                   disabled={saving}
@@ -1846,8 +1847,8 @@ function StudentCertificatesContent() {
 
       {/* Certificate Settings Modal */}
       {showCertificateSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-full sm:max-w-xl lg:max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">Certificate Settings</h2>
               <button
@@ -1858,11 +1859,11 @@ function StudentCertificatesContent() {
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Header & Branding */}
               <div>
-                <h3 className="text-sm font-semibold mb-3 text-gray-700">HEADER & BRANDING</h3>
-                <div className="space-y-4">
+                <h3 className="text-sm font-semibold mb-2 sm:mb-3 text-gray-700">HEADER & BRANDING</h3>
+                <div className="space-y-3 sm:space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
                       Institute Name

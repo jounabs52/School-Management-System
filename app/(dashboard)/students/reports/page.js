@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 import { FileText, CreditCard, Calendar, User, Hash, Trash2, X, TrendingUp, Award, RefreshCw, Search, Download, CheckCircle, Printer } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
@@ -1511,25 +1513,25 @@ function StudentReportsContent() {
   return (
     <div className="p-4 lg:p-6 min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-[#D12323] rounded-lg flex items-center justify-center">
-              <Award className="text-white" size={24} />
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#D12323] rounded-lg flex items-center justify-center">
+              <Award className="text-white" size={20} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Student Reports</h1>
-              <p className="text-sm text-gray-600">Real-time certificates and ID cards management</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Student Reports</h1>
+              <p className="text-xs sm:text-sm text-gray-600">Real-time certificates and ID cards management</p>
             </div>
           </div>
 
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg shadow-md transition-all border border-gray-200 disabled:opacity-50"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg shadow-md transition-all border border-gray-200 disabled:opacity-50 text-sm sm:text-base"
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            <span className="font-medium">Refresh</span>
+            <span className="font-medium hidden sm:inline">Refresh</span>
           </button>
         </div>
 
@@ -1593,22 +1595,23 @@ function StudentReportsContent() {
       <div className="bg-white rounded-xl shadow-lg">
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <div className="flex flex-wrap gap-2 p-4">
+          <div className="flex flex-wrap gap-2 p-3 sm:p-4">
             {/* Character Certificate Button */}
             <button
               onClick={() => {
                 setActiveTab('certificates')
                 setCertificateType('character')
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'certificates' && certificateType === 'character'
                   ? 'bg-[#D12323] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <FileText size={18} />
-              <span>Character Certificate</span>
-              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+              <FileText size={16} />
+              <span className="hidden sm:inline">Character Certificate</span>
+              <span className="sm:hidden">Character</span>
+              <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-xs font-bold ${
                 activeTab === 'certificates' && certificateType === 'character' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
                 {certificates.filter(cert => cert.certificate_type === 'character').length}
@@ -1621,15 +1624,16 @@ function StudentReportsContent() {
                 setActiveTab('certificates')
                 setCertificateType('leaving')
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'certificates' && certificateType === 'leaving'
                   ? 'bg-[#D12323] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <FileText size={18} />
-              <span>Leaving Certificate</span>
-              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+              <FileText size={16} />
+              <span className="hidden sm:inline">Leaving Certificate</span>
+              <span className="sm:hidden">Leaving</span>
+              <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-xs font-bold ${
                 activeTab === 'certificates' && certificateType === 'leaving' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
                 {certificates.filter(cert => cert.certificate_type === 'leaving').length}
@@ -1642,15 +1646,15 @@ function StudentReportsContent() {
                 setActiveTab('cards')
                 setCertificateType('all')
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'cards'
                   ? 'bg-[#D12323] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <CreditCard size={18} />
+              <CreditCard size={16} />
               <span>ID Cards</span>
-              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+              <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-xs font-bold ${
                 activeTab === 'cards' ? 'bg-white/20' : 'bg-gray-300'
               }`}>
                 {idCards.length}
@@ -1660,15 +1664,15 @@ function StudentReportsContent() {
         </div>
 
         {/* Filters Section */}
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Search size={16} className="text-blue-600" />
+        <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Search size={14} className="text-blue-600" />
             </div>
-            <h3 className="font-bold text-gray-800">Search & Filter</h3>
+            <h3 className="font-bold text-gray-800 text-sm sm:text-base">Search & Filter</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             {/* Class Filter */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1738,10 +1742,10 @@ function StudentReportsContent() {
         </div>
 
         {/* Results Section */}
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
             <div>
-              <h3 className="text-lg font-bold text-gray-800">
+              <h3 className="text-base sm:text-lg font-bold text-gray-800">
                 {activeTab === 'certificates' ? 'Certificates List' : 'ID Cards List'}
               </h3>
               <p className="text-sm text-gray-500">
@@ -1780,8 +1784,9 @@ function StudentReportsContent() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-              <div className="overflow-x-auto">
+            <>
+            <ResponsiveTableWrapper
+              tableView={
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-blue-900 text-white">
@@ -1908,7 +1913,63 @@ function StudentReportsContent() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              }
+              cardView={
+                <CardGrid>
+                  {paginatedData.map((item, index) => (
+                    <DataCard key={item.id}>
+                      <CardHeader
+                        srNumber={startIndex + index + 1}
+                        photo={item.photo_url || item.student_first_name.charAt(0)}
+                        name={`${item.student_first_name} ${item.student_last_name}`}
+                        subtitle={item.class_name}
+                        badge={
+                          activeTab === 'certificates' ? (
+                            <span className="px-1.5 py-0.5 bg-green-500 text-white rounded text-[10px] font-medium capitalize">
+                              {item.certificate_type}
+                            </span>
+                          ) : (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold capitalize ${
+                              item.status === 'active' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                            }`}>
+                              {item.status}
+                            </span>
+                          )
+                        }
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="Father" value={item.father_name} />
+                        <CardRow label="Issue" value={new Date(item.issue_date).toLocaleDateString('en-GB')} />
+                        {activeTab === 'certificates' ? (
+                          <CardRow label="Remarks" value={item.remarks || '-'} className="col-span-2" />
+                        ) : (
+                          <CardRow label="Expiry" value={new Date(item.expiry_date).toLocaleDateString('en-GB')} />
+                        )}
+                      </CardInfoGrid>
+                      <CardActions>
+                        <button
+                          onClick={() => handlePrint(item)}
+                          className="p-1 text-red-600 rounded"
+                          title="Print"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(item)}
+                          className="p-1 text-red-600 rounded"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </CardActions>
+                    </DataCard>
+                  ))}
+                </CardGrid>
+              }
+              loading={loading}
+              empty={filteredData.length === 0}
+              emptyMessage={(selectedClass || searchName || searchAdmissionNo) ? 'No results found' : `No ${activeTab} issued yet`}
+            />
 
             {/* Pagination Controls */}
             {filteredData.length > 0 && (
@@ -1971,8 +2032,9 @@ function StudentReportsContent() {
                 </div>
               </div>
             )}
-          </div>
-          )}
+            </>
+          )
+          }
         </div>
       </div>
 

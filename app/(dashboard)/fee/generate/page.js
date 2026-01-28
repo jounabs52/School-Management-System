@@ -8,6 +8,8 @@ import {
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { supabase } from '@/lib/supabase'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -61,15 +63,27 @@ function FeeGenerateContent() {
   const [generatingChallans, setGeneratingChallans] = useState(false)
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 })
 
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
+
+  // Load user on mount
   useEffect(() => {
-    loadData()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
 
+  // Fetch data when user is available
   useEffect(() => {
-    if (challanForm.session_id && challanForm.class_id) {
+    if (currentUser) {
+      loadData()
+    }
+  }, [currentUser])
+
+  useEffect(() => {
+    if (challanForm.session_id && challanForm.class_id && currentUser) {
       loadStudents()
     }
-  }, [challanForm.session_id, challanForm.class_id])
+  }, [challanForm.session_id, challanForm.class_id, currentUser])
 
   useEffect(() => {
     if (periodForm.session_id) {
@@ -86,7 +100,7 @@ function FeeGenerateContent() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
 
       // Load sessions
       const { data: sessionsData, error: sessionsError } = await supabase
@@ -128,7 +142,7 @@ function FeeGenerateContent() {
 
   const loadFeePeriods = async (sessionId) => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { data, error } = await supabase
         .from('fee_periods')
         .select('*')
@@ -146,7 +160,7 @@ function FeeGenerateContent() {
 
   const loadStudents = async () => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { data, error } = await supabase
         .from('students')
         .select('*')
@@ -175,7 +189,7 @@ function FeeGenerateContent() {
 
     setGeneratingPeriods(true)
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
 
       // Call the generate_fee_periods function
       const { data, error } = await supabase.rpc('generate_fee_periods', {
@@ -229,7 +243,7 @@ function FeeGenerateContent() {
       setGenerationProgress({ current: i + 1, total: studentsToProcess.length })
 
       try {
-        const user = getUserFromCookie()
+        const user = currentUser
 
         // Call generate_student_challan function
         const { data, error } = await supabase.rpc('generate_student_challan', {
@@ -272,52 +286,52 @@ function FeeGenerateContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 lg:p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Fee Generation</h1>
-        <p className="text-gray-600">Generate fee periods and student challans</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Fee Generation</h1>
+        <p className="text-sm sm:text-base text-gray-600">Generate fee periods and student challans</p>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-        <div className="flex border-b">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row border-b">
           <button
             onClick={() => setActiveTab('periods')}
-            className={`flex-1 px-6 py-4 font-medium transition ${
+            className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 font-medium transition text-sm sm:text-base ${
               activeTab === 'periods'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <Calendar size={20} />
-              Generate Fee Periods
+              <Calendar size={18} className="sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline">Generate</span> Fee Periods
             </div>
           </button>
           <button
             onClick={() => setActiveTab('challans')}
-            className={`flex-1 px-6 py-4 font-medium transition ${
+            className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 font-medium transition text-sm sm:text-base ${
               activeTab === 'challans'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <FileText size={20} />
-              Generate Student Challans
+              <FileText size={18} className="sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline">Generate</span> Challans
             </div>
           </button>
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
           {activeTab === 'periods' && (
             <div className="max-w-4xl mx-auto">
-              <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Generate Fee Periods</h2>
+              <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Generate Fee Periods</h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                   {/* Session */}
                   <div>
                     <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
@@ -390,9 +404,9 @@ function FeeGenerateContent() {
 
               {/* Show Existing Periods */}
               {feePeriods.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Existing Fee Periods</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">Existing Fee Periods</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                     {feePeriods.map(period => (
                       <div key={period.id} className="border border-gray-200 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
@@ -417,11 +431,11 @@ function FeeGenerateContent() {
 
           {activeTab === 'challans' && (
             <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Left: Generation Form */}
                 <div className="lg:col-span-1">
-                  <div className="bg-white border border-gray-200 rounded-lg p-6 sticky top-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">Generate Challans</h2>
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6 lg:sticky lg:top-6">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Generate Challans</h2>
 
                     <div className="space-y-4">
                       {/* Session */}
@@ -533,9 +547,9 @@ function FeeGenerateContent() {
 
                 {/* Right: Student List */}
                 <div className="lg:col-span-2">
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-gray-900">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 sm:mb-4">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">
                         Students ({students.length})
                       </h3>
                       {challanForm.generate_for === 'selected' && students.length > 0 && (
@@ -554,82 +568,125 @@ function FeeGenerateContent() {
                       )}
                     </div>
 
-                    {students.length === 0 ? (
-                      <div className="text-center py-12 text-gray-500">
-                        <Users size={48} className="mx-auto mb-3 opacity-30" />
-                        <p>No students found</p>
-                        <p className="text-sm">Please select a class</p>
-                      </div>
-                    ) : (
-                      <div className="max-h-[600px] overflow-y-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-blue-900 text-white sticky top-0">
-                            <tr>
-                              {challanForm.generate_for === 'selected' && (
-                                <th className="px-4 py-3 text-left font-semibold border border-blue-800 w-12">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedStudents.length === students.length}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedStudents(students.map(s => s.id))
-                                      } else {
-                                        setSelectedStudents([])
-                                      }
-                                    }}
-                                    className="w-4 h-4"
-                                  />
-                                </th>
-                              )}
-                              <th className="px-4 py-3 text-left font-semibold border border-blue-800">Adm. No</th>
-                              <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                              <th className="px-4 py-3 text-left font-semibold border border-blue-800">Father Name</th>
-                              <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee Plan</th>
-                              <th className="px-4 py-3 text-left font-semibold border border-blue-800">Discount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {students.map((student, index) => (
-                              <tr key={student.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <ResponsiveTableWrapper
+                      tableView={
+                        <div className="max-h-[400px] sm:max-h-[600px] overflow-x-auto overflow-y-auto">
+                          <table className="w-full text-xs sm:text-sm">
+                            <thead className="bg-blue-900 text-white sticky top-0">
+                              <tr>
                                 {challanForm.generate_for === 'selected' && (
-                                  <td className="px-4 py-3 border border-gray-200">
+                                  <th className="px-4 py-3 text-left font-semibold border border-blue-800 w-12">
                                     <input
                                       type="checkbox"
-                                      checked={selectedStudents.includes(student.id)}
+                                      checked={selectedStudents.length === students.length && students.length > 0}
                                       onChange={(e) => {
                                         if (e.target.checked) {
-                                          setSelectedStudents([...selectedStudents, student.id])
+                                          setSelectedStudents(students.map(s => s.id))
                                         } else {
-                                          setSelectedStudents(selectedStudents.filter(id => id !== student.id))
+                                          setSelectedStudents([])
                                         }
                                       }}
                                       className="w-4 h-4"
                                     />
-                                  </td>
+                                  </th>
                                 )}
-                                <td className="px-4 py-3 border border-gray-200">{student.admission_number}</td>
-                                <td className="px-4 py-3 border border-gray-200 font-medium">
-                                  {student.first_name} {student.last_name}
-                                </td>
-                                <td className="px-4 py-3 border border-gray-200">{student.father_name}</td>
-                                <td className="px-4 py-3 border border-gray-200 capitalize">
-                                  {student.fee_plan || 'monthly'}
-                                </td>
-                                <td className="px-4 py-3 border border-gray-200">
-                                  {student.discount_value > 0 ? (
-                                    <span className="text-green-600 font-medium">
-                                      {student.discount_type === 'percentage' ? `${student.discount_value}%` : `Rs. ${student.discount_value}`}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-400">None</span>
-                                  )}
-                                </td>
+                                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Adm. No</th>
+                                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
+                                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Father Name</th>
+                                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee Plan</th>
+                                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Discount</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                            </thead>
+                            <tbody>
+                              {students.map((student, index) => (
+                                <tr key={student.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                  {challanForm.generate_for === 'selected' && (
+                                    <td className="px-4 py-3 border border-gray-200">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedStudents.includes(student.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedStudents([...selectedStudents, student.id])
+                                          } else {
+                                            setSelectedStudents(selectedStudents.filter(id => id !== student.id))
+                                          }
+                                        }}
+                                        className="w-4 h-4"
+                                      />
+                                    </td>
+                                  )}
+                                  <td className="px-4 py-3 border border-gray-200">{student.admission_number}</td>
+                                  <td className="px-4 py-3 border border-gray-200 font-medium">
+                                    {student.first_name} {student.last_name}
+                                  </td>
+                                  <td className="px-4 py-3 border border-gray-200">{student.father_name}</td>
+                                  <td className="px-4 py-3 border border-gray-200 capitalize">
+                                    {student.fee_plan || 'monthly'}
+                                  </td>
+                                  <td className="px-4 py-3 border border-gray-200">
+                                    {student.discount_value > 0 ? (
+                                      <span className="text-green-600 font-medium">
+                                        {student.discount_type === 'percentage' ? `${student.discount_value}%` : `Rs. ${student.discount_value}`}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400">None</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+                      cardView={students.map((student) => (
+                        <DataCard key={student.id}>
+                          {challanForm.generate_for === 'selected' && (
+                            <div className="flex items-center justify-between mb-2 pb-2 border-b">
+                              <span className="text-xs font-semibold text-gray-600 uppercase">Select</span>
+                              <input
+                                type="checkbox"
+                                checked={selectedStudents.includes(student.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedStudents([...selectedStudents, student.id])
+                                  } else {
+                                    setSelectedStudents(selectedStudents.filter(id => id !== student.id))
+                                  }
+                                }}
+                                className="w-4 h-4"
+                              />
+                            </div>
+                          )}
+                          <CardHeader>
+                            <div className="font-bold text-gray-900">{student.first_name} {student.last_name}</div>
+                            <div className="text-xs text-gray-500">Adm. #{student.admission_number}</div>
+                          </CardHeader>
+                          <CardInfoGrid>
+                            <CardRow label="Father Name" value={student.father_name} />
+                            <CardRow label="Fee Plan" value={student.fee_plan || 'monthly'} valueClassName="capitalize" />
+                            <CardRow
+                              label="Discount"
+                              value={
+                                student.discount_value > 0
+                                  ? (student.discount_type === 'percentage' ? `${student.discount_value}%` : `Rs. ${student.discount_value}`)
+                                  : 'None'
+                              }
+                              valueClassName={student.discount_value > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}
+                            />
+                          </CardInfoGrid>
+                        </DataCard>
+                      ))}
+                      loading={false}
+                      empty={students.length === 0}
+                      emptyMessage={
+                        <div className="text-center py-12 text-gray-500">
+                          <Users size={48} className="mx-auto mb-3 opacity-30" />
+                          <p>No students found</p>
+                          <p className="text-sm">Please select a class</p>
+                        </div>
+                      }
+                    />
                   </div>
                 </div>
               </div>

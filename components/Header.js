@@ -55,33 +55,35 @@ export default function Header({ user, setSidebarOpen }) {
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+        {/* Mobile menu button */}
         <button
           onClick={() => setSidebarOpen(prev => !prev)}
-          className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+          className="lg:hidden p-2 hover:bg-gray-100 rounded-lg flex-shrink-0"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
 
-        {/* Date in center - just like screenshot */}
-        <div className="hidden md:block text-center">
-          <p className="text-lg font-semibold text-gray-800">{today}</p>
+        {/* Date - hidden on small mobile, shown on medium+ */}
+        <div className="hidden sm:block text-center flex-1">
+          <p className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 truncate">{today}</p>
         </div>
 
-        <div className="flex items-center gap-4 ml-auto">
-          <button className="relative p-2 hover:bg-gray-100 rounded-lg">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+        <div className="flex items-center gap-2 sm:gap-4 ml-auto">
+          {/* Notification bell */}
+          <button className="relative p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg">
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
           {/* User Profile Section with Dropdown */}
           <div className="relative">
             <button
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+              className="flex items-center gap-2 sm:gap-3 hover:bg-gray-50 rounded-lg p-1.5 sm:p-2 transition-colors"
             >
               {/* Avatar - Show uploaded image or gradient with initials */}
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden relative">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base overflow-hidden relative flex-shrink-0">
                 {avatarUrl ? (
                   <Image
                     src={avatarUrl}
@@ -97,7 +99,7 @@ export default function Header({ user, setSidebarOpen }) {
                 {!avatarUrl && <span>{avatarInitial}</span>}
               </div>
 
-              {/* User Name and Role */}
+              {/* User Name and Role - hidden on mobile */}
               <div className="hidden md:block text-left">
                 <p className="font-medium text-sm text-gray-900">{displayName}</p>
                 <p className="text-xs text-gray-500">{userRole}</p>
@@ -106,16 +108,16 @@ export default function Header({ user, setSidebarOpen }) {
 
             {/* Dropdown Menu */}
             {showProfileDropdown && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="font-medium text-sm text-gray-900">{displayName}</p>
-                  <p className="text-xs text-gray-500">{user?.email || 'No email'}</p>
+              <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-100">
+                  <p className="font-medium text-sm text-gray-900 truncate">{displayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email || 'No email'}</p>
                   <p className="text-xs text-indigo-600 mt-1">{userRole}</p>
                 </div>
 
                 <button
                   onClick={handleLogout}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                  className="w-full px-3 sm:px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   Logout
@@ -124,6 +126,11 @@ export default function Header({ user, setSidebarOpen }) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Mobile date display - shown only on very small screens */}
+      <div className="sm:hidden px-3 pb-2 -mt-1">
+        <p className="text-xs text-gray-600 text-center">{today}</p>
       </div>
 
       {/* Overlay to close dropdown when clicking outside */}

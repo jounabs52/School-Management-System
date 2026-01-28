@@ -18,6 +18,8 @@ import {
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 function DatesheetContent() {
   const router = useRouter()
@@ -460,13 +462,13 @@ function DatesheetContent() {
 
   // Fetch data when user and session are available
   useEffect(() => {
-    if (currentUser?.school_id) {
+    if (currentUser?.school_id && session?.name) {
       fetchDatesheets()
       fetchClasses()
       fetchSubjects()
       fetchStudents()
     }
-  }, [fetchDatesheets, fetchClasses, fetchSubjects, fetchStudents, currentUser?.school_id])
+  }, [fetchDatesheets, fetchClasses, fetchSubjects, fetchStudents, currentUser?.school_id, session?.name])
 
   // Fetch subjects when class is selected in create modal
   useEffect(() => {
@@ -2533,15 +2535,15 @@ function DatesheetContent() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       {/* Tabs */}
       {activeTab !== 'schedule' && (
-        <div className="flex gap-2 mb-2">
+        <div className="flex flex-wrap gap-2 mb-2">
           {['datesheets', 'reports'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium transition-colors capitalize rounded-lg ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors capitalize rounded-lg ${
                 activeTab === tab
                   ? 'bg-red-600 text-white hover:bg-red-700'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -2556,22 +2558,23 @@ function DatesheetContent() {
       {/* DATESHEETS TAB */}
       {activeTab === 'datesheets' && (
         <div>
-          <div className="flex justify-between items-center mb-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search datesheets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2 pr-10 w-80 text-sm"
+                className="border border-gray-300 rounded px-3 py-1.5 sm:py-2 pr-10 w-full sm:w-80 text-sm"
               />
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition text-xs sm:text-sm"
             >
               <Plus className="w-4 h-4" />
-              Create New Datesheet
+              <span className="hidden sm:inline">Create New Datesheet</span>
+              <span className="sm:hidden">Create</span>
             </button>
           </div>
 
@@ -2600,82 +2603,143 @@ function DatesheetContent() {
               Loading datesheets...
             </div>
           ) : (
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-blue-900 text-white">
-              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
-              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Datesheet Title</th>
-              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Classes</th>
-              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Start Date</th>
-              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Exam Center</th>
-              <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredDatesheets.length > 0 ? (
-              filteredDatesheets.map((datesheet, index) => (
-                <tr key={datesheet.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                  <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
-                  <td className="px-3 py-2.5 font-medium border border-gray-200">{datesheet.title}</td>
-                  <td className="px-3 py-2.5 border border-gray-200">
-                    {datesheet.class_ids && datesheet.class_ids.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {datesheet.class_ids.map(classId => {
-                          const classInfo = classes.find(c => c.id === classId)
-                          return classInfo ? (
-                            <span key={classId} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
-                              {classInfo.class_name}
-                            </span>
-                          ) : null
-                        })}
-                      </div>
-                    ) : '-'}
-                  </td>
-                  <td className="px-3 py-2.5 border border-gray-200">{datesheet.start_date || '-'}</td>
-                  <td className="px-3 py-2.5 border border-gray-200">{datesheet.exam_center || '-'}</td>
-                  <td className="px-3 py-2.5 border border-gray-200">
-                    <div className="flex gap-2">
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr>
+                    <th className="px-2 sm:px-3 py-2 border border-gray-300 text-left text-xs font-semibold text-gray-700">Sr.</th>
+                    <th className="px-3 py-2 border border-gray-300 text-left text-xs font-semibold text-gray-700">Datesheet Title</th>
+                    <th className="px-2 sm:px-3 py-2 border border-gray-300 text-left text-xs font-semibold text-gray-700">Classes</th>
+                    <th className="px-2 sm:px-3 py-2 border border-gray-300 text-left text-xs font-semibold text-gray-700">Start Date</th>
+                    <th className="px-2 sm:px-3 py-2 border border-gray-300 text-left text-xs font-semibold text-gray-700">Exam Center</th>
+                    <th className="px-2 sm:px-3 py-2 border border-gray-300 text-left text-xs font-semibold text-gray-700">Options</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDatesheets.map((datesheet, index) => (
+                    <tr key={datesheet.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                      <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">{index + 1}</td>
+                      <td className="px-3 py-2.5 font-medium border border-gray-200">{datesheet.title}</td>
+                      <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">
+                        {datesheet.class_ids && datesheet.class_ids.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {datesheet.class_ids.map(classId => {
+                              const classInfo = classes.find(c => c.id === classId)
+                              return classInfo ? (
+                                <span key={classId} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
+                                  {classInfo.class_name}
+                                </span>
+                              ) : null
+                            })}
+                          </div>
+                        ) : '-'}
+                      </td>
+                      <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">{datesheet.start_date || '-'}</td>
+                      <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">{datesheet.exam_center || '-'}</td>
+                      <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleOpenSchedule(datesheet)}
+                            className="bg-blue-900 text-white px-4 py-1 rounded text-sm hover:bg-blue-800 flex items-center gap-1"
+                          >
+                            <Calendar className="w-4 h-4" />
+                            Schedule
+                          </button>
+                          <button
+                            onClick={() => handleGeneratePDF(datesheet)}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                            title="Download PDF"
+                          >
+                            <Download className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditDatesheet(datesheet)}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                          >
+                            <Pencil className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDatesheet(datesheet.id)}
+                            className="text-red-600 hover:text-red-800 p-1"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            }
+            cardView={
+              <CardGrid>
+                {filteredDatesheets.map((datesheet, index) => (
+                  <DataCard key={datesheet.id}>
+                    <CardHeader
+                      title={datesheet.title}
+                      subtitle={`#${index + 1}`}
+                    />
+                    <CardInfoGrid>
+                      {datesheet.class_ids && datesheet.class_ids.length > 0 && (
+                        <CardRow label="Classes">
+                          <div className="flex flex-wrap gap-1">
+                            {datesheet.class_ids.map(classId => {
+                              const classInfo = classes.find(c => c.id === classId)
+                              return classInfo ? (
+                                <span key={classId} className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
+                                  {classInfo.class_name}
+                                </span>
+                              ) : null
+                            })}
+                          </div>
+                        </CardRow>
+                      )}
+                      {datesheet.start_date && (
+                        <CardRow label="Start Date" value={datesheet.start_date} />
+                      )}
+                      {datesheet.exam_center && (
+                        <CardRow label="Exam Center" value={datesheet.exam_center} />
+                      )}
+                    </CardInfoGrid>
+                    <CardActions>
                       <button
                         onClick={() => handleOpenSchedule(datesheet)}
-                        className="bg-blue-900 text-white px-4 py-1 rounded text-sm hover:bg-blue-800 flex items-center gap-1"
+                        className="flex-1 bg-blue-900 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-800 flex items-center justify-center gap-1.5"
                       >
-                        <Calendar className="w-4 h-4" />
+                        <Calendar className="w-3.5 h-3.5" />
                         Schedule
                       </button>
                       <button
                         onClick={() => handleGeneratePDF(datesheet)}
-                        className="text-blue-600 hover:text-blue-800 p-1"
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
                         title="Download PDF"
                       >
-                        <Download className="w-5 h-5" />
+                        <Download className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleOpenEditDatesheet(datesheet)}
-                        className="text-blue-600 hover:text-blue-800 p-1"
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Edit"
                       >
-                        <Pencil className="w-5 h-5" />
+                        <Pencil className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteDatesheet(datesheet.id)}
-                        className="text-red-600 hover:text-red-800 p-1"
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="px-3 py-4 text-center text-gray-500 text-sm">
-                  {loading ? 'Loading...' : 'No datesheets found'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-          </div>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+            loading={loading}
+            empty={filteredDatesheets.length === 0}
+            emptyMessage="No datesheets found"
+          />
           )}
         </div>
       )}
@@ -2932,14 +2996,14 @@ function DatesheetContent() {
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => { setShowCreateModal(false); resetForm(); }}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
               </button>
               <button
                 onClick={handleCreateDatesheet}
                 disabled={loading || addedSubjects.length === 0}
-                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Creating...' : 'Save Datesheet'} <span className="text-xl">→</span>
               </button>
@@ -2970,110 +3034,172 @@ function DatesheetContent() {
           </div>
 
           {/* Schedule Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="border border-blue-800 px-2 py-2 font-semibold text-xs">Sr.</th>
-                  <th className="border border-blue-800 px-2 py-2 font-semibold text-xs">Class Name</th>
-                  {scheduleDates.map(date => (
-                    <th key={date} className="border border-blue-800 px-1.5 py-2 font-semibold text-xs min-w-[110px]">
-                      {new Date(date).toLocaleDateString('en-US', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {selectedClasses?.map((classId, index) => (
-                  <tr key={classId} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                    <td className="border border-gray-200 px-2 py-1.5 text-center text-xs">{index + 1}</td>
-                    <td className="border border-gray-200 px-2 py-1.5 font-medium text-xs">
-                      {getClassName(classId)}
-                    </td>
-                    {scheduleDates.map(date => {
-                      const schedule = getScheduleForClassAndDate(classId, date)
-                      const isDropTarget = dropTargetDate === date && draggedSchedule?.class_id === classId
-                      return (
-                        <td
-                          key={date}
-                          className={`border border-gray-200 px-1 py-1.5 min-h-[70px] transition-all ${
-                            isDropTarget ? 'bg-blue-100 border-blue-500' : ''
-                          }`}
-                          onDragOver={(e) => {
-                            if (draggedSchedule?.class_id === classId) {
-                              handleDragOver(e, date)
-                            }
-                          }}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => {
-                            if (draggedSchedule?.class_id === classId) {
-                              handleDrop(e, date)
-                            }
-                          }}
-                        >
-                          {schedule?.subject_id ? (
-                            <div
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, schedule)}
-                              onDragEnd={handleDragEnd}
-                              className={`flex flex-col gap-0.5 bg-blue-50 border border-blue-300 rounded p-1.5 cursor-move hover:shadow-md transition ${
-                                draggedSchedule?.id === schedule.id ? 'opacity-50' : ''
-                              }`}
-                            >
-                              <div className="font-semibold text-blue-800 text-xs leading-tight">
-                                {getSubjectName(schedule.subject_id)}
-                              </div>
-                              <div className="flex items-center gap-0.5 text-[10px] text-gray-600">
-                                <Clock className="w-2.5 h-2.5" />
-                                <span>{schedule.start_time} - {schedule.end_time}</span>
-                              </div>
-                              {schedule.room_number && (
-                                <div className="text-[10px] text-gray-600">
-                                  Room: {schedule.room_number}
-                                </div>
-                              )}
-                              <div className="flex gap-0.5 mt-0.5">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleEditSchedule(schedule)
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 p-0.5"
-                                  title="Edit schedule"
-                                >
-                                  <Pencil className="w-2.5 h-2.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className={`min-h-[60px] flex items-center justify-center text-[10px] text-gray-400 rounded border-2 border-dashed ${
-                              isDropTarget ? 'border-blue-500' : 'border-gray-300'
-                            }`}>
-                              {isDropTarget ? 'Drop here' : (
-                                schedule && hasUnscheduledSubjects(classId) && (
-                                  <button
-                                    onClick={() => handleEditSchedule(schedule)}
-                                    className="text-blue-500 hover:text-blue-700"
-                                  >
-                                    + Add Subject
-                                  </button>
-                                )
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      )
-                    })}
-
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr>
+                    <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold text-gray-700">Sr.</th>
+                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold text-gray-700">Class Name</th>
+                    {scheduleDates.map(date => (
+                      <th key={date} className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold text-gray-700">
+                        {new Date(date).toLocaleDateString('en-US', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </th>
+                    ))}
                   </tr>
+                </thead>
+                <tbody>
+                  {(selectedClasses || []).map((classId, index) => (
+                    <tr key={classId} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                      <td className="border border-gray-200 px-2 py-1.5 text-center text-xs">{index + 1}</td>
+                      <td className="border border-gray-200 px-2 py-1.5 font-medium text-xs">
+                        {getClassName(classId)}
+                      </td>
+                      {scheduleDates.map(date => {
+                        const schedule = getScheduleForClassAndDate(classId, date)
+                        const isDropTarget = dropTargetDate === date && draggedSchedule?.class_id === classId
+                        return (
+                          <td
+                            key={date}
+                            className={`border border-gray-200 px-1 py-1.5 min-h-[70px] transition-all ${
+                              isDropTarget ? 'bg-blue-100 border-blue-500' : ''
+                            }`}
+                            onDragOver={(e) => {
+                              if (draggedSchedule?.class_id === classId) {
+                                handleDragOver(e, date)
+                              }
+                            }}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => {
+                              if (draggedSchedule?.class_id === classId) {
+                                handleDrop(e, date)
+                              }
+                            }}
+                          >
+                            {schedule?.subject_id ? (
+                              <div
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, schedule)}
+                                onDragEnd={handleDragEnd}
+                                className={`flex flex-col gap-0.5 bg-blue-50 border border-blue-300 rounded p-1.5 cursor-move hover:shadow-md transition ${
+                                  draggedSchedule?.id === schedule.id ? 'opacity-50' : ''
+                                }`}
+                              >
+                                <div className="font-semibold text-blue-800 text-xs leading-tight">
+                                  {getSubjectName(schedule.subject_id)}
+                                </div>
+                                <div className="flex items-center gap-0.5 text-[10px] text-gray-600">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  <span>{schedule.start_time} - {schedule.end_time}</span>
+                                </div>
+                                {schedule.room_number && (
+                                  <div className="text-[10px] text-gray-600">
+                                    Room: {schedule.room_number}
+                                  </div>
+                                )}
+                                <div className="flex gap-0.5 mt-0.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleEditSchedule(schedule)
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 p-0.5"
+                                    title="Edit schedule"
+                                  >
+                                    <Pencil className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={`min-h-[60px] flex items-center justify-center text-[10px] text-gray-400 rounded border-2 border-dashed ${
+                                isDropTarget ? 'border-blue-500' : 'border-gray-300'
+                              }`}>
+                                {isDropTarget ? 'Drop here' : (
+                                  schedule && hasUnscheduledSubjects(classId) && (
+                                    <button
+                                      onClick={() => handleEditSchedule(schedule)}
+                                      className="text-blue-500 hover:text-blue-700"
+                                    >
+                                      + Add Subject
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            }
+            cardView={
+              <CardGrid>
+                {(selectedClasses || []).map((classId, index) => (
+                  <DataCard key={classId}>
+                    <CardHeader
+                      title={getClassName(classId)}
+                      subtitle={`#${index + 1}`}
+                    />
+                    <div className="space-y-2">
+                      {scheduleDates.map(date => {
+                        const schedule = getScheduleForClassAndDate(classId, date)
+                        if (!schedule?.subject_id) return null
+                        return (
+                          <div key={date} className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-gray-600">
+                                {new Date(date).toLocaleDateString('en-US', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditSchedule(schedule)
+                                }}
+                                className="text-blue-600 hover:text-blue-800 p-1"
+                                title="Edit schedule"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="font-semibold text-blue-900 text-sm mb-1">
+                              {getSubjectName(schedule.subject_id)}
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <Clock className="w-3 h-3" />
+                              <span>{schedule.start_time} - {schedule.end_time}</span>
+                            </div>
+                            {schedule.room_number && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                Room: {schedule.room_number}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                      {!scheduleDates.some(date => getScheduleForClassAndDate(classId, date)?.subject_id) && (
+                        <div className="text-center py-4 text-gray-400 text-sm">
+                          No schedules yet
+                        </div>
+                      )}
+                    </div>
+                  </DataCard>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </CardGrid>
+            }
+            loading={false}
+            empty={!selectedClasses || selectedClasses.length === 0}
+            emptyMessage="No classes selected"
+          />
         </div>
       )}
 
@@ -3329,14 +3455,14 @@ function DatesheetContent() {
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => { setShowEditExamModal(false); resetForm(); }}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Close
               </button>
               <button
                 onClick={handleUpdateDatesheet}
                 disabled={loading || addedSubjects.length === 0}
-                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Updating...' : 'Update Datesheet'} <span className="text-xl">→</span>
               </button>
@@ -3444,14 +3570,14 @@ function DatesheetContent() {
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowEditScheduleModal(false)}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateSchedule}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Saving...' : 'Save'} <span className="text-xl">→</span>
               </button>
@@ -3491,21 +3617,21 @@ function DatesheetContent() {
           </div>
 
           {/* Slips Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Student Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Roll Number</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Class</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Slip Number</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fetchedSlips.length > 0 ? (
-                  fetchedSlips.map((slip, index) => (
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr>
+                    <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">Sr.</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">Student Name</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">Roll Number</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">Class</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">Slip Number</th>
+                    <th className="border border-gray-300 px-3 py-2 text-center text-xs font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fetchedSlips.map((slip, index) => (
                     <tr key={slip.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
                       <td className="border border-gray-200 px-3 py-2.5">{index + 1}</td>
                       <td className="border border-gray-200 px-3 py-2.5 font-medium">{slip.student_name}</td>
@@ -3530,17 +3656,46 @@ function DatesheetContent() {
                         </div>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="border border-gray-200 px-3 py-8 text-center text-gray-500">
-                      {slipClassFilter ? 'No slips found for this class' : 'No slips generated yet. Click "Generate New Slips" to create slips.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            }
+            cardView={
+              <CardGrid>
+                {fetchedSlips.map((slip, index) => (
+                  <DataCard key={slip.id}>
+                    <CardHeader
+                      title={slip.student_name}
+                      subtitle={`#${index + 1}`}
+                    />
+                    <CardInfoGrid>
+                      <CardRow label="Roll No" value={slip.roll_number} />
+                      <CardRow label="Class" value={slip.class_name} />
+                      <CardRow label="Slip Number" value={slip.slip_number} />
+                    </CardInfoGrid>
+                    <CardActions>
+                      <button
+                        onClick={() => handleViewSlip(slip)}
+                        className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-sm font-medium transition-colors"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSlip(slip.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete slip"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+            loading={false}
+            empty={fetchedSlips.length === 0}
+            emptyMessage={slipClassFilter ? 'No slips found for this class' : 'No slips generated yet. Click "Generate New Slips" to create slips.'}
+          />
         </div>
       )}
 
@@ -3563,58 +3718,100 @@ function DatesheetContent() {
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
                 {generatedSlips.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-blue-900 text-white">
-                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Sr.</th>
-                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Student Name</th>
-                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Father Name</th>
-                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Roll No</th>
-                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Slip Number</th>
-                          <th className="border border-blue-800 px-4 py-2.5 text-left font-semibold">Generated On</th>
-                          <th className="border border-blue-800 px-4 py-2.5 text-center font-semibold">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                  <ResponsiveTableWrapper
+                    tableView={
+                      <table className="w-full border-collapse">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr>
+                            <th className="border border-gray-300 px-4 py-2 text-left text-xs font-semibold text-gray-700">Sr.</th>
+                            <th className="border border-gray-300 px-4 py-2 text-left text-xs font-semibold text-gray-700">Student Name</th>
+                            <th className="border border-gray-300 px-4 py-2 text-left text-xs font-semibold text-gray-700">Father Name</th>
+                            <th className="border border-gray-300 px-4 py-2 text-left text-xs font-semibold text-gray-700">Roll No</th>
+                            <th className="border border-gray-300 px-4 py-2 text-left text-xs font-semibold text-gray-700">Slip Number</th>
+                            <th className="border border-gray-300 px-4 py-2 text-left text-xs font-semibold text-gray-700">Generated On</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center text-xs font-semibold text-gray-700">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {generatedSlips.map((slip, index) => (
+                            <tr key={slip.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                              <td className="border border-gray-200 px-4 py-2.5">{index + 1}</td>
+                              <td className="border border-gray-200 px-4 py-2.5">
+                                {slip.students?.first_name && slip.students?.last_name
+                                  ? `${slip.students.first_name} ${slip.students.last_name}`
+                                  : slip.students?.first_name || 'N/A'}
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2.5">{slip.students?.father_name || 'N/A'}</td>
+                              <td className="border border-gray-200 px-4 py-2.5">{slip.students?.roll_number || 'N/A'}</td>
+                              <td className="border border-gray-200 px-4 py-2.5">{slip.slip_number}</td>
+                              <td className="border border-gray-200 px-4 py-2.5">
+                                {new Date(slip.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2.5 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => generateRollNoSlipPDF(slip)}
+                                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm flex items-center gap-1"
+                                    title="Download PDF"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                    PDF
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSlip(slip.id)}
+                                    className="bg-red-600 text-white p-1.5 rounded hover:bg-red-700 transition-colors"
+                                    title="Delete slip"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    }
+                    cardView={
+                      <CardGrid>
                         {generatedSlips.map((slip, index) => (
-                          <tr key={slip.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                            <td className="border border-gray-200 px-4 py-2.5">{index + 1}</td>
-                            <td className="border border-gray-200 px-4 py-2.5">
-                              {slip.students?.first_name && slip.students?.last_name
+                          <DataCard key={slip.id}>
+                            <CardHeader
+                              title={slip.students?.first_name && slip.students?.last_name
                                 ? `${slip.students.first_name} ${slip.students.last_name}`
                                 : slip.students?.first_name || 'N/A'}
-                            </td>
-                            <td className="border border-gray-200 px-4 py-2.5">{slip.students?.father_name || 'N/A'}</td>
-                            <td className="border border-gray-200 px-4 py-2.5">{slip.students?.roll_number || 'N/A'}</td>
-                            <td className="border border-gray-200 px-4 py-2.5">{slip.slip_number}</td>
-                            <td className="border border-gray-200 px-4 py-2.5">
-                              {new Date(slip.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="border border-gray-200 px-4 py-2.5 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => generateRollNoSlipPDF(slip)}
-                                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm flex items-center gap-1"
-                                  title="Download PDF"
-                                >
-                                  <Download className="w-4 h-4" />
-                                  PDF
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteSlip(slip.id)}
-                                  className="bg-red-600 text-white p-1.5 rounded hover:bg-red-700 transition-colors"
-                                  title="Delete slip"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
+                              subtitle={`#${index + 1}`}
+                            />
+                            <CardInfoGrid>
+                              <CardRow label="Father Name" value={slip.students?.father_name || 'N/A'} />
+                              <CardRow label="Roll No" value={slip.students?.roll_number || 'N/A'} />
+                              <CardRow label="Slip Number" value={slip.slip_number} />
+                              <CardRow label="Generated On" value={new Date(slip.created_at).toLocaleDateString()} />
+                            </CardInfoGrid>
+                            <CardActions>
+                              <button
+                                onClick={() => generateRollNoSlipPDF(slip)}
+                                className="flex-1 bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 text-sm flex items-center justify-center gap-1.5"
+                                title="Download PDF"
+                              >
+                                <Download className="w-4 h-4" />
+                                PDF
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSlip(slip.id)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Delete slip"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </CardActions>
+                          </DataCard>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </CardGrid>
+                    }
+                    loading={false}
+                    empty={generatedSlips.length === 0}
+                    emptyMessage="No slips found"
+                  />
                 ) : (
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -3866,14 +4063,14 @@ function DatesheetContent() {
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowReportConfigModal(false)}
-                className="px-6 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                className="px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleGenerateReport}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Generating...' : 'Generate'} <span className="text-xl">→</span>
               </button>
@@ -3913,14 +4110,14 @@ function DatesheetContent() {
             <div className="px-6 pb-6 border-t border-gray-200 pt-4 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowDatesheetClassModal(false)}
-                className="px-6 py-2 text-blue-500 hover:text-blue-600 font-medium"
+                className="px-3 sm:px-4 py-2 text-blue-500 hover:text-blue-600 font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleGenerateSingleClassPDF}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:bg-gray-400"
               >
                 {loading ? 'Generating...' : 'Generate PDF'} <span className="text-xl">→</span>
               </button>
@@ -3946,13 +4143,13 @@ function DatesheetContent() {
               <div className="px-6 pb-6 flex justify-end gap-3">
                 <button
                   onClick={handleCancel}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                  className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+                  className="px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
                 >
                   Confirm
                 </button>

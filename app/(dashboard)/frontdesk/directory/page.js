@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { Search, Users, Phone, Mail, Building, MessageCircle, Filter, ChevronDown, Plus, X, Edit, Trash2 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 function DirectoryContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -328,32 +330,32 @@ function DirectoryContent() {
   const sortedLetters = Object.keys(groupedContacts).sort()
 
   return (
-    <div className="p-1">
-      <div className="fixed top-4 right-4 z-[9999] space-y-1.5">
+    <div className="p-1 sm:p-2 md:p-3 lg:p-4">
+      <div className="fixed top-4 right-4 z-[9999] space-y-2 sm:space-y-3 w-[calc(100%-2rem)] sm:w-auto">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg min-w-[250px] ${
+            className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg shadow-lg min-w-0 sm:min-w-[280px] ${
               toast.type === 'success' ? 'bg-green-500 text-white' :
               toast.type === 'error' ? 'bg-red-500 text-white' :
               'bg-blue-500 text-white'
             }`}
           >
-            <span className="flex-1 text-sm">{toast.message}</span>
+            <span className="flex-1 text-xs sm:text-sm">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
               className="text-white hover:text-gray-200"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-black flex items-center gap-2">
-            <Users className="text-red-600 w-5 h-5" />
+      <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 md:p-4 mb-2 sm:mb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+          <h1 className="text-lg sm:text-xl font-bold text-black flex items-center gap-2 sm:gap-3">
+            <Users className="text-red-600 w-4 h-4 sm:w-5 sm:h-5" />
             People Directory
           </h1>
           <button
@@ -368,16 +370,16 @@ function DirectoryContent() {
                 setShowGroupModal(true)
               }
             }}
-            className="flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 sm:gap-2 bg-red-600 text-white py-1.5 sm:py-2 px-3 rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             {activeTab === 'directory' ? 'Add Contact' : 'Add Group'}
           </button>
         </div>
-        <div className="flex gap-1.5 mt-2.5">
+        <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 sm:mt-4">
           <button
             onClick={() => setActiveTab('directory')}
-            className={`px-3 py-1.5 font-medium text-xs transition-colors rounded-lg ${
+            className={`py-1.5 sm:py-2 px-3 font-medium text-xs sm:text-sm transition-colors rounded-lg ${
               activeTab === 'directory'
                 ? 'bg-red-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -387,7 +389,7 @@ function DirectoryContent() {
           </button>
           <button
             onClick={() => setActiveTab('groups')}
-            className={`px-3 py-1.5 font-medium text-xs transition-colors rounded-lg ${
+            className={`py-1.5 sm:py-2 px-3 font-medium text-xs sm:text-sm transition-colors rounded-lg ${
               activeTab === 'groups'
                 ? 'bg-red-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -400,14 +402,14 @@ function DirectoryContent() {
 
       {activeTab === 'directory' && (
         <>
-          <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
-        <div className="flex flex-col lg:flex-row gap-1.5 mb-2">
-          <div className="flex-1 flex gap-1.5">
+          <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 md:p-4 mb-2 sm:mb-3">
+        <div className="flex flex-col gap-2 sm:gap-3 mb-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <div className="relative">
               <select
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
-                className="appearance-none px-2.5 py-1.5 pr-7 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white cursor-pointer text-xs"
+                className="appearance-none py-1.5 sm:py-2 px-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white cursor-pointer text-xs sm:text-sm"
               >
                 {searchOptions.map((option) => (
                   <option key={option} value={option}>
@@ -415,126 +417,126 @@ function DirectoryContent() {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-1.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none w-3.5 h-3.5" />
+              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
               <input
                 type="text"
                 placeholder={`Search ${searchType.toLowerCase()}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-8 pr-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-xs"
+                className="w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm sm:text-base"
               />
             </div>
             <button
               onClick={handleSearch}
-              className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1.5 font-medium text-xs"
+              className="py-1.5 sm:py-2 px-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2 font-medium text-xs sm:text-sm"
             >
-              <Search className="w-3.5 h-3.5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               Search
             </button>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Filter className="text-gray-400 w-3.5 h-3.5" />
-            <div className="relative">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <Filter className="text-gray-400 w-4 h-4 sm:w-5 sm:h-5 hidden sm:block" />
+            <div className="relative flex-1 sm:flex-none">
               <select
                 value={selectedGroup}
                 onChange={(e) => setSelectedGroup(e.target.value)}
-                className="appearance-none px-2.5 py-1.5 pr-7 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white cursor-pointer text-xs"
+                className="w-full sm:w-auto appearance-none py-1.5 sm:py-2 px-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white cursor-pointer text-xs sm:text-sm"
               >
                 <option value="">All Groups</option>
                 {groups.map(group => (
                   <option key={group.id} value={group.id}>{group.group_name}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-1.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none w-3.5 h-3.5" />
+              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-gray-600">Total:</span>
-            <span className="text-xs font-semibold text-gray-900">{contacts.length}</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-5 pt-3 border-t border-gray-200">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-xs sm:text-sm text-gray-600">Total:</span>
+            <span className="text-xs sm:text-sm font-semibold text-gray-900">{contacts.length}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-gray-600">Showing:</span>
-            <span className="text-xs font-semibold text-red-600">{filteredContacts.length} of {contacts.length}</span>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-xs sm:text-sm text-gray-600">Showing:</span>
+            <span className="text-xs sm:text-sm font-semibold text-red-600">{filteredContacts.length} of {contacts.length}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-gray-600">Groups:</span>
-            <span className="text-xs font-semibold text-gray-900">{groups.length}</span>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-xs sm:text-sm text-gray-600">Groups:</span>
+            <span className="text-xs sm:text-sm font-semibold text-gray-900">{groups.length}</span>
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-6">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
+        <div className="flex items-center justify-center py-6 sm:py-8">
+          <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 border-b-2 border-red-600"></div>
         </div>
       ) : filteredContacts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm p-4 text-center">
-          <Users className="mx-auto mb-1.5 text-gray-300 w-8 h-8" />
-          <p className="text-gray-500 text-xs">{searchQuery || selectedGroup ? 'No matching contacts' : 'No contacts available'}</p>
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 md:p-8 text-center">
+          <Users className="mx-auto mb-2 sm:mb-3 text-gray-300 w-8 h-8 sm:w-10 sm:h-10" />
+          <p className="text-gray-500 text-xs sm:text-sm">{searchQuery || selectedGroup ? 'No matching contacts' : 'No contacts available'}</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 sm:space-y-5 md:space-y-6">
           {sortedLetters.map(letter => (
             <div key={letter}>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <div className="w-7 h-7 bg-blue-600 text-white rounded-lg flex items-center justify-center text-base font-bold shadow-sm">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-blue-600 text-white rounded-lg flex items-center justify-center text-sm sm:text-base font-bold shadow-sm">
                   {letter}
                 </div>
                 <div className="flex-1 h-px bg-gray-200"></div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                 {groupedContacts[letter].map(contact => (
-                  <div key={contact.id} className="bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow p-2.5 border border-gray-200">
-                    <div className="flex items-start justify-between mb-1.5">
+                  <div key={contact.id} className="bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow p-3 sm:p-4 border border-gray-200">
+                    <div className="flex items-start justify-between mb-2 sm:mb-3">
                       <div className="flex-1">
-                        <h3 className="text-xs font-semibold text-black mb-0.5">{contact.name}</h3>
-                        <span className="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700">
+                        <h3 className="text-xs sm:text-sm font-semibold text-black mb-1">{contact.name}</h3>
+                        <span className="inline-block px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full bg-blue-50 text-blue-700">
                           {contact.contact_groups?.group_name || 'No Group'}
                         </span>
                       </div>
-                      <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-sm">
                         {contact.name?.charAt(0).toUpperCase()}
                       </div>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1.5 sm:space-y-2">
                       {contact.company && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                          <Building className="text-gray-400 w-3 h-3" />
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600">
+                          <Building className="text-gray-400 w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           <span>{contact.company}</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <Phone className="text-gray-400 w-3 h-3" />
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600">
+                        <Phone className="text-gray-400 w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         <span>{contact.mobile}</span>
                       </div>
                     </div>
-                    <div className="space-y-1 mt-1.5 pt-1.5 border-t">
-                      <div className="flex gap-1">
-                        <button onClick={() => handleCall(contact.mobile)} className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors">
-                          <Phone className="w-3 h-3" />
-                          <span className="text-[10px] font-medium">Call</span>
+                    <div className="space-y-1.5 sm:space-y-2 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t">
+                      <div className="btn-row-mobile">
+                        <button onClick={() => handleCall(contact.mobile)} className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors">
+                          <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="text-[10px] sm:text-xs font-medium">Call</span>
                         </button>
                         {contact.whatsapp && (
-                          <button onClick={() => handleWhatsApp(contact.whatsapp)} className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 transition-colors">
-                            <MessageCircle className="w-3 h-3" />
-                            <span className="text-[10px] font-medium">WhatsApp</span>
+                          <button onClick={() => handleWhatsApp(contact.whatsapp)} className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 transition-colors">
+                            <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-xs font-medium">WhatsApp</span>
                           </button>
                         )}
                       </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => handleEditContact(contact)} className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors">
-                          <Edit className="w-3 h-3" />
-                          <span className="text-[10px] font-medium">Edit</span>
+                      <div className="btn-row-mobile">
+                        <button onClick={() => handleEditContact(contact)} className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors">
+                          <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="text-[10px] sm:text-xs font-medium">Edit</span>
                         </button>
-                        <button onClick={() => handleDeleteContact(contact.id)} className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors">
-                          <Trash2 className="w-3 h-3" />
-                          <span className="text-[10px] font-medium">Delete</span>
+                        <button onClick={() => handleDeleteContact(contact.id)} className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="text-[10px] sm:text-xs font-medium">Delete</span>
                         </button>
                       </div>
                     </div>
@@ -547,15 +549,15 @@ function DirectoryContent() {
       )}
 
           {filteredContacts.length > 0 && (
-            <div className="fixed right-4 top-1/2 transform -translate-y-1/2 bg-white rounded-lg shadow-lg p-1 hidden lg:block">
-              <div className="flex flex-col gap-0.5">
+            <div className="fixed right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-white rounded-lg shadow-lg p-1 sm:p-1.5 hidden lg:block xl:block">
+              <div className="flex flex-col gap-0.5 sm:gap-1">
                 {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => {
                   const hasContacts = groupedContacts[letter]
                   return (
                     <a
                       key={letter}
                       href={hasContacts ? `#${letter}` : undefined}
-                      className={`w-4 h-4 flex items-center justify-center text-[10px] font-medium rounded transition-colors ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-[10px] sm:text-xs font-medium rounded transition-colors ${
                         hasContacts
                           ? 'text-blue-600 hover:bg-blue-50 cursor-pointer'
                           : 'text-gray-300 cursor-default'
@@ -579,59 +581,100 @@ function DirectoryContent() {
       )}
 
       {activeTab === 'groups' && (
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 md:p-4">
           {groups.length === 0 ? (
-            <div className="text-center py-6">
-              <Users className="mx-auto mb-1.5 text-gray-300 w-8 h-8" />
-              <p className="text-gray-500 text-xs mb-2">No groups found</p>
-              <button onClick={() => { setEditingGroup(null); setGroupForm({ group_name: '', description: '' }); setShowGroupModal(true) }} className="inline-flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-xs">
-                <Plus className="w-3.5 h-3.5" />
+            <div className="text-center py-6 sm:py-8">
+              <Users className="mx-auto mb-2 sm:mb-3 text-gray-300 w-8 h-8 sm:w-10 sm:h-10" />
+              <p className="text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">No groups found</p>
+              <button onClick={() => { setEditingGroup(null); setGroupForm({ group_name: '', description: '' }); setShowGroupModal(true) }} className="inline-flex items-center gap-1.5 sm:gap-2 bg-red-600 text-white py-1.5 sm:py-2 px-3 rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm">
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                 Add Group
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="text-left py-2 px-3 text-xs font-semibold border-r border-blue-800">Group Name</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold border-r border-blue-800">Description</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold border-r border-blue-800">Created</th>
-                    <th className="text-right py-2 px-3 text-xs font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {groups.map(group => (
-                    <tr key={group.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                      <td className="py-2 px-3 border-r border-gray-200">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Users className="w-3 h-3 text-black" />
-                          </div>
-                          <span className="font-medium text-black text-xs">{group.group_name}</span>
-                        </div>
-                      </td>
-                      <td className="py-2 px-3 text-xs text-gray-600 border-r border-gray-200">
-                        {group.description || 'No description'}
-                      </td>
-                      <td className="py-2 px-3 text-xs text-gray-500 border-r border-gray-200">
-                        {new Date(group.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button onClick={() => handleEditGroup(group)} className="p-1.5 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Edit group">
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => handleDeleteGroup(group.id)} className="p-1.5 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Delete group">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+            <ResponsiveTableWrapper
+              tableContent={
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[500px] border-collapse">
+                    <thead>
+                      <tr className="bg-blue-900 text-white text-xs sm:text-sm">
+                        <th className="border border-blue-800 text-left py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-semibold border-r border-blue-800 whitespace-nowrap">Group Name</th>
+                        <th className="border border-blue-800 text-left py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-semibold border-r border-blue-800 whitespace-nowrap">Description</th>
+                        <th className="border border-blue-800 text-left py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-semibold border-r border-blue-800 whitespace-nowrap">Created</th>
+                        <th className="border border-blue-800 text-right py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-semibold whitespace-nowrap">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groups.map((group, index) => (
+                        <tr key={group.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                          <td className="border border-gray-200 py-1.5 sm:py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <div className="w-6 h-6 sm:w-7 sm:h-7 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+                              </div>
+                              <span className="font-medium text-black text-xs sm:text-sm">{group.group_name}</span>
+                            </div>
+                          </td>
+                          <td className="border border-gray-200 py-1.5 sm:py-2 px-3 text-xs sm:text-sm text-gray-600 border-r border-gray-200 whitespace-nowrap">
+                            {group.description || 'No description'}
+                          </td>
+                          <td className="border border-gray-200 py-1.5 sm:py-2 px-3 text-xs sm:text-sm text-gray-500 border-r border-gray-200 whitespace-nowrap">
+                            {new Date(group.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="border border-gray-200 py-1.5 sm:py-2 px-3 whitespace-nowrap">
+                            <div className="btn-row-mobile">
+                              <button onClick={() => handleEditGroup(group)} className="p-1.5 sm:p-2 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Edit group">
+                                <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                              </button>
+                              <button onClick={() => handleDeleteGroup(group.id)} className="p-1.5 sm:p-2 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Delete group">
+                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              }
+              cardContent={
+                <CardGrid>
+                  {groups.map((group, index) => (
+                    <DataCard key={group.id}>
+                      <CardHeader
+                        srNo={index + 1}
+                        title={group.group_name}
+                        subtitle={group.description || 'No description'}
+                        iconSize="w-5 h-5"
+                      />
+                      <CardInfoGrid>
+                        <CardRow
+                          label="Created"
+                          value={new Date(group.created_at).toLocaleDateString()}
+                          className="text-[10px]"
+                        />
+                      </CardInfoGrid>
+                      <CardActions>
+                        <button
+                          onClick={() => handleEditGroup(group)}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGroup(group.id)}
+                          className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </CardActions>
+                    </DataCard>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </CardGrid>
+              }
+            />
           )}
         </div>
       )}
@@ -639,61 +682,61 @@ function DirectoryContent() {
       {showAddModal && (
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowAddModal(false)}></div>
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-base font-semibold">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
-              <button onClick={() => setShowAddModal(false)} className="hover:bg-blue-800 p-1 rounded">
-                <X className="w-4 h-4" />
+          <div className="fixed top-0 right-0 h-full w-full max-w-[95%] sm:max-w-md md:max-w-lg xl:max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-blue-900 text-white px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-sm sm:text-base font-semibold">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
+              <button onClick={() => setShowAddModal(false)} className="hover:bg-blue-800 p-1.5 sm:p-2 rounded">
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
-            <div className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="p-3 sm:p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Name <span className="text-black">*</span></label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Name <span className="text-black">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter contact name"
                     value={contactForm.name}
                     onChange={(e) => setContactForm({...contactForm, name: e.target.value})}
-                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-1.5 sm:py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Mobile <span className="text-black">*</span></label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Mobile <span className="text-black">*</span></label>
                   <input
                     type="tel"
                     placeholder="Enter mobile number"
                     value={contactForm.mobile}
                     onChange={(e) => setContactForm({...contactForm, mobile: e.target.value})}
-                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-1.5 sm:py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">WhatsApp</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">WhatsApp</label>
                   <input
                     type="tel"
                     placeholder="Enter WhatsApp number"
                     value={contactForm.whatsapp}
                     onChange={(e) => setContactForm({...contactForm, whatsapp: e.target.value})}
-                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-1.5 sm:py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Company</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Company</label>
                   <input
                     type="text"
                     placeholder="Enter company name"
                     value={contactForm.company}
                     onChange={(e) => setContactForm({...contactForm, company: e.target.value})}
-                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-1.5 sm:py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Group</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Group</label>
                   <select
                     value={contactForm.group_id}
                     onChange={(e) => setContactForm({...contactForm, group_id: e.target.value})}
-                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-1.5 sm:py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-sm sm:text-base"
                   >
                     <option value="">Select Group</option>
                     {groups.map(group => (
@@ -703,16 +746,16 @@ function DirectoryContent() {
                 </div>
               </div>
             </div>
-            <div className="px-4 pb-4 border-t border-gray-200 pt-3 flex justify-end gap-2 sticky bottom-0 bg-white">
+            <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 border-t border-gray-200 pt-3 sm:pt-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-1.5 text-gray-700 hover:text-gray-900 font-medium text-xs"
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 text-gray-700 hover:text-gray-900 font-medium text-xs sm:text-sm"
               >
                 Close
               </button>
               <button
                 onClick={handleSaveContact}
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition text-xs"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition text-xs sm:text-sm"
               >
                 Save
               </button>
@@ -724,17 +767,17 @@ function DirectoryContent() {
       {showGroupModal && (
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setShowGroupModal(false)}></div>
-          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
-              <h2 className="text-base font-semibold">{editingGroup ? 'Edit Group' : 'Add New Group'}</h2>
-              <button onClick={() => setShowGroupModal(false)} className="hover:bg-blue-800 p-1 rounded">
-                <X className="w-4 h-4" />
+          <div className="fixed top-0 right-0 h-full w-full max-w-[95%] sm:max-w-md md:max-w-lg bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-blue-900 text-white px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-sm sm:text-base font-semibold">{editingGroup ? 'Edit Group' : 'Add New Group'}</h2>
+              <button onClick={() => setShowGroupModal(false)} className="hover:bg-blue-800 p-1.5 sm:p-2 rounded">
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
-            <div className="p-4">
-              <div className="space-y-3">
+            <div className="p-3 sm:p-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Group Name <span className="text-black">*</span>
                   </label>
                   <input
@@ -742,31 +785,31 @@ function DirectoryContent() {
                     placeholder="e.g., Teachers, Parents, Vendors"
                     value={groupForm.group_name}
                     onChange={(e) => setGroupForm({...groupForm, group_name: e.target.value})}
-                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-1.5 sm:py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Description</label>
                   <textarea
                     placeholder="Brief description of this group (optional)"
                     value={groupForm.description}
                     onChange={(e) => setGroupForm({...groupForm, description: e.target.value})}
                     rows="3"
-                    className="w-full border border-black rounded-lg px-3 py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none resize-none text-xs"
+                    className="w-full border border-black rounded-lg px-3 py-1.5 sm:py-2 text-black placeholder:text-gray-500 focus:ring-2 focus:ring-black focus:border-black outline-none resize-none text-sm sm:text-base"
                   />
                 </div>
               </div>
             </div>
-            <div className="px-4 pb-4 border-t border-gray-200 pt-3 flex justify-end gap-2 sticky bottom-0 bg-white">
+            <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 border-t border-gray-200 pt-3 sm:pt-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowGroupModal(false)}
-                className="px-4 py-1.5 text-gray-700 hover:text-gray-900 font-medium text-xs"
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 text-gray-700 hover:text-gray-900 font-medium text-xs sm:text-sm"
               >
                 Close
               </button>
               <button
                 onClick={handleSaveGroup}
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition text-xs"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition text-xs sm:text-sm"
               >
                 Save
               </button>
@@ -777,27 +820,27 @@ function DirectoryContent() {
 
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancel}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] flex items-center justify-center p-2 sm:p-4" onClick={handleCancel}>
             <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-sm mx-4 transform transition-all"
+              className="bg-white rounded-lg shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-red-600 text-white px-4 py-3 rounded-t-lg">
-                <h3 className="text-base font-semibold">{confirmDialog.title}</h3>
+              <div className="bg-red-600 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
+                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-4">
-                <p className="text-gray-700 text-xs">{confirmDialog.message}</p>
+              <div className="p-3 sm:p-4">
+                <p className="text-gray-700 text-xs sm:text-sm">{confirmDialog.message}</p>
               </div>
-              <div className="px-4 pb-4 flex justify-end gap-2">
+              <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs"
+                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition text-xs"
+                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition text-xs sm:text-sm"
                 >
                   Confirm
                 </button>

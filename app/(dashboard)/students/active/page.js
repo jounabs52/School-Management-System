@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle, Download } from 'lucide-react'
+import { Search, Eye, Edit2, Trash2, Loader2, AlertCircle, X, ToggleLeft, ToggleRight, Printer, CheckCircle, Download, CreditCard } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getLineWidth, applyPdfSettings, addCompactPDFHeader, addPDFFooter } from '@/lib/pdfSettings'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -58,7 +60,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -66,11 +68,11 @@ const Toast = ({ message, type, onClose }) => {
     style={{
       animation: 'slideIn 0.3s ease-out'
     }}>
-      {type === 'success' && <CheckCircle size={20} strokeWidth={2.5} />}
-      {type === 'error' && <X size={20} strokeWidth={2.5} />}
-      <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity">
-        <X size={18} strokeWidth={2.5} />
+      {type === 'success' && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" strokeWidth={2.5} />}
+      {type === 'error' && <X className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" strokeWidth={2.5} />}
+      <span className="font-medium text-xs sm:text-sm truncate">{message}</span>
+      <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity flex-shrink-0">
+        <X className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
       </button>
       <style jsx>{`
         @keyframes slideIn {
@@ -400,6 +402,8 @@ function ActiveStudentsContent() {
         admNo: student.admission_number,
         name: `${student.first_name}${student.last_name ? ' ' + student.last_name : ''}`,
         father: student.father_name || 'N/A',
+        fatherMobile: student.father_mobile || 'N/A',
+        rollNumber: student.roll_number || 'N/A',
         class: student.current_class_id,
         session: '2024-2025',
         gender: student.gender,
@@ -1367,7 +1371,7 @@ function ActiveStudentsContent() {
   }
 
   return (
-    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
@@ -1375,133 +1379,131 @@ function ActiveStudentsContent() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-3 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm flex items-center gap-2">
-          <AlertCircle size={16} />
-          {error}
+        <div className="mb-2 sm:mb-3 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2">
+          <AlertCircle size={14} className="sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="line-clamp-2">{error}</span>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="bg-white rounded-xl shadow-lg p-4 lg:p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Active Students</h2>
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-2 sm:p-3 md:p-4 lg:p-5">
+        <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-2 sm:mb-3 md:mb-4">Active Students</h2>
 
         {/* Search and Filter Section */}
-        <div className="grid grid-cols-1 md:grid-cols-10 gap-3 mb-4">
-          <div className="md:col-span-3">
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-              disabled={loadingClasses}
-            >
-              <option value="">All Classes</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.class_name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="filter-row-mobile mb-3 sm:mb-4">
+          <select
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+            className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            disabled={loadingClasses}
+          >
+            <option value="">All Classes</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.class_name}
+              </option>
+            ))}
+          </select>
 
-          <div className="md:col-span-7 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <div className="relative">
+            <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-[18px] sm:h-[18px]" />
             <input
               type="text"
-              placeholder="Search by name, father name, admission number, or CNIC"
+              placeholder="Search by name, admission no..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 sm:pl-9 pr-2 sm:pr-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-3">
-          <p className="text-gray-600 text-sm">
+        <div className="mb-2 sm:mb-3">
+          <p className="text-gray-600 text-xs sm:text-sm mb-2">
             There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> active students{selectedClass ? ' in this class' : ''}.
           </p>
-          <button
-            onClick={exportToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-          >
-            <Download size={18} />
-            Export to Excel
-          </button>
+          <div className="btn-row-mobile">
+            <button
+              onClick={exportToCSV}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
+            >
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Export to Excel</span>
+              <span className="sm:hidden">Export</span>
+            </button>
+          </div>
         </div>
 
         {loading && (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 size={32} className="animate-spin text-red-600" />
+          <div className="flex justify-center items-center py-6 sm:py-8">
+            <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-red-600" />
           </div>
         )}
 
         {!loading && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
-                    <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Session</th>
-                    <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class</th>
-                    <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
-                    <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Father Name</th>
-                    <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Adm.No</th>
-                    <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Options</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="px-3 py-6 text-center text-gray-500">
-                        No active students found.
-                      </td>
+          <>
+            <ResponsiveTableWrapper
+              loading={loading}
+              empty={filteredStudents.length === 0}
+              emptyMessage="No active students found."
+              tableView={
+                <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
+                  <thead>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Sr.</th>
+                      <th className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Session</th>
+                      <th className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Class</th>
+                      <th className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
+                      <th className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 hidden md:table-cell">Father Name</th>
+                      <th className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Adm.No</th>
+                      <th className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 text-center font-semibold border border-blue-800">Options</th>
                     </tr>
-                  ) : (
-                    paginatedStudents.map((student, index) => (
+                  </thead>
+                  <tbody>
+                    {paginatedStudents.map((student, index) => (
                       <tr
                         key={student.id}
                         className={`${
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                         } hover:bg-blue-50 transition`}
                       >
-                        <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{student.session}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{getClassName(student.class)}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <td className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 border border-gray-200">{startIndex + index + 1}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 border border-gray-200 hidden sm:table-cell">{student.session}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 border border-gray-200">{getClassName(student.class)}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 border border-gray-200">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                               {student.photo_url ? (
                                 <img src={student.photo_url} alt={student.name} className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-base">{student.avatar}</span>
+                                <span className="text-xs sm:text-base">{student.avatar}</span>
                               )}
                             </div>
-                            <span className="text-blue-600 font-medium hover:underline cursor-pointer">
+                            <span className="text-blue-600 font-medium hover:underline cursor-pointer text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[120px] md:max-w-none">
                               {student.name}
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5 border border-gray-200">{student.father}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{student.admNo}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          <div className="flex items-center justify-center gap-0.5">
+                        <td className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 border border-gray-200 hidden md:table-cell">{student.father}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 py-2 sm:py-2.5 border border-gray-200">{student.admNo}</td>
+                        <td className="px-1 sm:px-2 md:px-3 py-2 sm:py-2.5 border border-gray-200">
+                          <div className="flex items-center justify-center gap-0">
                             <button
                               onClick={() => handleView(student)}
-                              className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                               title="View"
                             >
-                              <Eye size={16} />
+                              <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </button>
                             <button
                               onClick={() => handleEdit(student)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                               title="Edit"
                             >
-                              <Edit2 size={16} />
+                              <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </button>
                             <button
                               onClick={() => handleToggleStatus(student)}
-                              className={`p-1.5 rounded-lg transition ${
+                              className={`p-1 sm:p-1.5 rounded-lg transition ${
                                 student.status === 'active'
                                   ? 'text-green-600 hover:bg-green-50'
                                   : 'text-gray-600 hover:bg-gray-50'
@@ -1509,48 +1511,97 @@ function ActiveStudentsContent() {
                               title={student.status === 'active' ? 'Deactivate Student' : 'Activate Student'}
                             >
                               {student.status === 'active' ? (
-                                <ToggleRight size={16} />
+                                <ToggleRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               ) : (
-                                <ToggleLeft size={16} />
+                                <ToggleLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               )}
                             </button>
                             <button
                               onClick={() => handleDelete(student)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                               title="Delete"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              }
+              cardView={
+                <CardGrid>
+                  {paginatedStudents.map((student, index) => (
+                    <DataCard key={student.id}>
+                      <CardHeader
+                        srNumber={startIndex + index + 1}
+                        photo={student.photo_url || student.avatar}
+                        name={student.name}
+                        subtitle={`${getClassName(student.class)} • Roll: ${student.rollNumber || 'N/A'}`}
+                        badge={
+                          <span className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-[10px] font-semibold">
+                            {student.status === 'active' ? 'Active' : 'Inactive'}
+                          </span>
+                        }
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="Admission#" value={student.admNo} />
+                        <CardRow label="Roll#" value={student.rollNumber || 'N/A'} />
+                        <CardRow label="Father" value={student.father} />
+                        <CardRow label="Mobile" value={student.fatherMobile || 'N/A'} />
+                      </CardInfoGrid>
+                      <CardActions>
+                        <button
+                          onClick={() => handleView(student)}
+                          className="bg-teal-600 hover:bg-teal-700 text-white p-1 rounded transition"
+                          title="View Details"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(student)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition"
+                          title="Edit Student"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleView(student)}
+                          className="bg-purple-600 hover:bg-purple-700 text-white p-1 rounded transition"
+                          title="Print Card"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                        </button>
+                      </CardActions>
+                    </DataCard>
+                  ))}
+                </CardGrid>
+              }
+            />
 
             {filteredStudents.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50">
-                <div className="text-xs text-gray-600">
+              <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 bg-gray-50 rounded-b-lg">
+                <div className="text-[10px] sm:text-xs text-gray-600 text-center sm:text-left">
                   Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1 sm:gap-1.5">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition ${
                       currentPage === 1
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-900 text-white hover:bg-blue-800'
                     }`}
                   >
-                    Previous
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">Prev</span>
                   </button>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 sm:gap-1">
                     {(() => {
                       const pages = []
-                      const maxVisiblePages = 4
+                      const maxVisiblePages = window?.innerWidth < 640 ? 3 : 4
                       let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
                       let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
 
@@ -1563,7 +1614,7 @@ function ActiveStudentsContent() {
                           <button
                             key={i}
                             onClick={() => setCurrentPage(i)}
-                            className={`w-8 h-8 rounded-lg text-xs font-medium transition ${
+                            className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg text-[10px] sm:text-xs font-medium transition ${
                               currentPage === i
                                 ? 'bg-blue-900 text-white'
                                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
@@ -1579,7 +1630,7 @@ function ActiveStudentsContent() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition ${
                       currentPage === totalPages
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -1590,152 +1641,151 @@ function ActiveStudentsContent() {
                 </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
       {/* View Student Modal - Slide from Right */}
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
+          <div className="fixed inset-0 sm:inset-auto sm:top-0 sm:right-0 h-full w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl bg-white shadow-2xl z-[99999] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300 flex flex-col">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-t-lg sm:rounded-t-xl">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-bold">Student Information</h3>
-                    <p className="text-blue-200 text-sm mt-0.5">View complete student details</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm sm:text-base md:text-lg font-bold truncate">Student Information</h3>
+                    <p className="text-blue-200 text-[10px] sm:text-xs md:text-sm mt-0.5">View complete student details</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                     <button
                       onClick={handlePrintStudent}
-                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                       title="Print Student Information"
                     >
-                      <Printer size={20} />
+                      <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                     <button
                       onClick={() => setShowViewModal(false)}
-                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                     >
-                      <X size={20} />
+                      <X className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50 custom-scrollbar" style={{
+              <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6 bg-gray-50 custom-scrollbar" style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#cbd5e1 #f1f5f9'
               }}>
-                <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-200">
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden flex-shrink-0">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-gray-200">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center text-2xl sm:text-4xl overflow-hidden flex-shrink-0">
                     {selectedStudent.photo_url ? (
                       <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
                     ) : (
                       selectedStudent.avatar
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-xl font-bold text-gray-800">
+                  <div className="flex-1 text-center sm:text-left">
+                    <h4 className="text-base sm:text-lg md:text-xl font-bold text-gray-800">
                       {selectedStudent.first_name} {selectedStudent.last_name || ''}
                     </h4>
-                    <p className="text-gray-600">Admission No: <span className="font-semibold">{selectedStudent.admission_number}</span></p>
-                    <p className="text-sm text-gray-500">Status: <span className={`font-semibold ${selectedStudent.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>{selectedStudent.status || 'N/A'}</span></p>
+                    <p className="text-gray-600 text-xs sm:text-sm">Admission No: <span className="font-semibold">{selectedStudent.admission_number}</span></p>
+                    <p className="text-[10px] sm:text-sm text-gray-500">Status: <span className={`font-semibold ${selectedStudent.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>{selectedStudent.status || 'N/A'}</span></p>
                   </div>
                 </div>
 
                 {/* Basic Information */}
-                <div className="mb-6">
-                  <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Basic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="mb-4 sm:mb-6">
+                  <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Basic Information</h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
                     {selectedStudent.first_name && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">First Name</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.first_name}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">First Name</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.first_name}</p>
                       </div>
                     )}
                     {selectedStudent.last_name && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Last Name</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.last_name}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Last Name</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.last_name}</p>
                       </div>
                     )}
                     {selectedStudent.gender && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Gender</p>
-                        <p className="font-semibold text-gray-800 capitalize">{selectedStudent.gender}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Gender</p>
+                        <p className="font-semibold text-gray-800 capitalize text-xs sm:text-sm md:text-base">{selectedStudent.gender}</p>
                       </div>
                     )}
                     {selectedStudent.date_of_birth && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Date of Birth</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.date_of_birth}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Date of Birth</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.date_of_birth}</p>
                       </div>
                     )}
                     {selectedStudent.student_cnic && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Student CNIC/B-Form</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.student_cnic}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">CNIC/B-Form</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.student_cnic}</p>
                       </div>
                     )}
                     {selectedStudent.blood_group && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Blood Group</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.blood_group}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Blood Group</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.blood_group}</p>
                       </div>
                     )}
                     {selectedStudent.religion && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Religion</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.religion}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Religion</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.religion}</p>
                       </div>
                     )}
                     {selectedStudent.caste_race && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Caste/Race</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.caste_race}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Caste/Race</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.caste_race}</p>
                       </div>
                     )}
                     {selectedStudent.nationality && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Nationality</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.nationality}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Nationality</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.nationality}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Academic Information */}
-                <div className="mb-6">
-                  <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Academic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="mb-4 sm:mb-6">
+                  <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Academic Information</h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
                     {selectedStudent.className && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Class</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.className}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Class</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.className}</p>
                       </div>
                     )}
                     {selectedStudent.sectionName && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Section</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.sectionName}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Section</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.sectionName}</p>
                       </div>
                     )}
                     {selectedStudent.roll_number && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Roll Number</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.roll_number}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Roll Number</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.roll_number}</p>
                       </div>
                     )}
                     {selectedStudent.admission_date && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">Admission Date</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.admission_date}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Admission Date</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.admission_date}</p>
                       </div>
                     )}
                     {selectedStudent.house && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1">House</p>
-                        <p className="font-semibold text-gray-800">{selectedStudent.house}</p>
+                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">House</p>
+                        <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.house}</p>
                       </div>
                     )}
                   </div>
@@ -1743,49 +1793,49 @@ function ActiveStudentsContent() {
 
                 {/* Father Information */}
                 {selectedStudent.father_name && (
-                  <div className="mb-6">
-                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Father Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mb-4 sm:mb-6">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Father Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
                       {selectedStudent.father_name && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Father Name</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father_name}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father Name</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_name}</p>
                         </div>
                       )}
                       {selectedStudent.father_cnic && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Father CNIC</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father_cnic}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father CNIC</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_cnic}</p>
                         </div>
                       )}
                       {selectedStudent.father_mobile && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Father Mobile</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father_mobile}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father Mobile</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.father_mobile}</p>
                         </div>
                       )}
                       {selectedStudent.father_email && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Father Email</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father_email}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-1">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father Email</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_email}</p>
                         </div>
                       )}
                       {selectedStudent.father_qualification && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Father Qualification</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father_qualification}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Qualification</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_qualification}</p>
                         </div>
                       )}
                       {selectedStudent.father_occupation && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Father Occupation</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father_occupation}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Occupation</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_occupation}</p>
                         </div>
                       )}
                       {selectedStudent.father_annual_income && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
-                          <p className="text-xs text-gray-500 mb-1">Father Annual Income</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.father_annual_income}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Annual Income</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.father_annual_income}</p>
                         </div>
                       )}
                     </div>
@@ -1794,49 +1844,49 @@ function ActiveStudentsContent() {
 
                 {/* Mother Information */}
                 {selectedStudent.mother_name && (
-                  <div className="mb-6">
-                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Mother Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mb-4 sm:mb-6">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Mother Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
                       {selectedStudent.mother_name && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Mother Name</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.mother_name}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother Name</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_name}</p>
                         </div>
                       )}
                       {selectedStudent.mother_cnic && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Mother CNIC</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.mother_cnic}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother CNIC</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_cnic}</p>
                         </div>
                       )}
                       {selectedStudent.mother_mobile && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Mother Mobile</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.mother_mobile}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother Mobile</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.mother_mobile}</p>
                         </div>
                       )}
                       {selectedStudent.mother_email && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Mother Email</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.mother_email}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-1">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother Email</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_email}</p>
                         </div>
                       )}
                       {selectedStudent.mother_qualification && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Mother Qualification</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.mother_qualification}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Qualification</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_qualification}</p>
                         </div>
                       )}
                       {selectedStudent.mother_occupation && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Mother Occupation</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.mother_occupation}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Occupation</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_occupation}</p>
                         </div>
                       )}
                       {selectedStudent.mother_annual_income && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
-                          <p className="text-xs text-gray-500 mb-1">Mother Annual Income</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.mother_annual_income}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Annual Income</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.mother_annual_income}</p>
                         </div>
                       )}
                     </div>
@@ -1845,37 +1895,37 @@ function ActiveStudentsContent() {
 
                 {/* Contact Information */}
                 {(selectedStudent.whatsapp_number || selectedStudent.current_address || selectedStudent.city || selectedStudent.state || selectedStudent.postal_code) && (
-                  <div className="mb-6">
-                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Contact Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mb-4 sm:mb-6">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Contact Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
                       {selectedStudent.whatsapp_number && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">WhatsApp Number</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.whatsapp_number}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">WhatsApp</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.whatsapp_number}</p>
                         </div>
                       )}
                       {selectedStudent.current_address && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
-                          <p className="text-xs text-gray-500 mb-1">Current Address</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.current_address}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Current Address</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.current_address}</p>
                         </div>
                       )}
                       {selectedStudent.city && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">City</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.city}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">City</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.city}</p>
                         </div>
                       )}
                       {selectedStudent.state && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">State/Province</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.state}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">State/Province</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.state}</p>
                         </div>
                       )}
                       {selectedStudent.postal_code && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Postal Code</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.postal_code}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Postal Code</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.postal_code}</p>
                         </div>
                       )}
                     </div>
@@ -1884,47 +1934,46 @@ function ActiveStudentsContent() {
 
                 {/* Fee Information */}
                 {(selectedStudent.base_fee || selectedStudent.discount_amount || selectedStudent.final_fee) && (
-                  <div className="mb-6">
-                    <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Fee Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mb-4 sm:mb-6">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Fee Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
                       {selectedStudent.base_fee && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Base Fee</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.base_fee}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Base Fee</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.base_fee}</p>
                         </div>
                       )}
                       {selectedStudent.discount_amount && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Discount</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.discount_amount}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Discount</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.discount_amount}</p>
                         </div>
                       )}
                       {selectedStudent.final_fee && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">Final Fee</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.final_fee}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Final Fee</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.final_fee}</p>
                         </div>
                       )}
                       {selectedStudent.discount_note && (
-                        <div className="bg-gray-50 p-3 rounded-lg md:col-span-3">
-                          <p className="text-xs text-gray-500 mb-1">Discount Note</p>
-                          <p className="font-semibold text-gray-800">{selectedStudent.discount_note}</p>
+                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Discount Note</p>
+                          <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.discount_note}</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                <div className="mt-6 flex gap-3">
+                <div className="mt-4 sm:mt-6 flex gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowViewModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs sm:text-sm md:text-base"
                   >
                     Close
                   </button>
                 </div>
               </div>
-            </div>
           </div>
         </ModalOverlay>
       )}
@@ -1932,36 +1981,37 @@ function ActiveStudentsContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedStudent && (
         <ModalOverlay onClose={() => !deleting && setShowDeleteModal(false)} disabled={deleting}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-xl">
-                <h3 className="text-base font-bold">Confirm Action</h3>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl w-[95%] max-w-xs sm:max-w-sm animate-in slide-in-from-bottom sm:slide-in-from-bottom duration-300" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-t-lg sm:rounded-t-xl">
+                <h3 className="text-sm sm:text-base font-bold">Confirm Action</h3>
               </div>
-              <div className="p-4">
-                <p className="text-gray-700 mb-4 text-sm">
+              <div className="p-3 sm:p-4">
+                <p className="text-gray-700 mb-3 sm:mb-4 text-xs sm:text-sm">
                   Are you sure you want to delete <span className="font-bold text-red-600">{selectedStudent.first_name} {selectedStudent.last_name || ''}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     disabled={deleting}
-                    className="flex-1 px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-sm"
+                    className="flex-1 px-2 sm:px-4 py-2 sm:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-xs sm:text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
                     disabled={deleting}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                    className="flex-1 px-2 sm:px-4 py-2 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50 text-xs sm:text-sm"
                   >
                     {deleting ? (
                       <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Processing...
+                        <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                        <span className="hidden sm:inline">Processing...</span>
+                        <span className="sm:hidden">Wait...</span>
                       </>
                     ) : (
                       <>
-                        <Trash2 size={16} />
+                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         Delete
                       </>
                     )}
@@ -1976,46 +2026,46 @@ function ActiveStudentsContent() {
       {/* Edit Student Modal */}
       {showEditModal && (
         <ModalOverlay onClose={() => !saving && setShowEditModal(false)} disabled={saving}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[99999] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-3">
+          <div className="fixed inset-0 sm:inset-auto sm:top-0 sm:right-0 h-full w-full sm:max-w-md md:max-w-lg lg:max-w-xl bg-white shadow-2xl z-[99999] flex flex-col overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 py-2.5 sm:py-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-base font-bold">Edit Student</h3>
-                  <p className="text-blue-200 text-xs mt-0.5">Update student details</p>
+                  <h3 className="text-sm sm:text-base font-bold">Edit Student</h3>
+                  <p className="text-blue-200 text-[10px] sm:text-xs mt-0.5">Update student details</p>
                 </div>
                 <button
                   onClick={() => !saving && setShowEditModal(false)}
                   disabled={saving}
-                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition disabled:opacity-50"
+                  className="text-white hover:bg-white/10 p-1 sm:p-1.5 rounded-full transition disabled:opacity-50"
                 >
-                  <X size={18} />
+                  <X className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 bg-gray-50">
               {/* Academic Data Section */}
-              <div className="mb-4">
-                <h4 className="text-xs font-bold text-green-600 mb-3">ACADEMIC DATA</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-gray-700 text-xs mb-1">
+              <div className="mb-3 sm:mb-4">
+                <h4 className="text-[10px] sm:text-xs font-bold text-green-600 mb-2 sm:mb-3">ACADEMIC DATA</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">
                       Admission/GR No <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.admissionNo}
                       onChange={(e) => setFormData({ ...formData, admissionNo: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Class</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Class</label>
                     <select
                       value={formData.class}
                       onChange={(e) => handleClassChange(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select Class</option>
                       {classes.map((cls) => (
@@ -2026,11 +2076,11 @@ function ActiveStudentsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Section</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Section</label>
                     <select
                       value={formData.section}
                       onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       disabled={loadingSections || !formData.class}
                     >
                       <option value="">Select Section</option>
@@ -2042,32 +2092,32 @@ function ActiveStudentsContent() {
                     </select>
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Admission Date</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Admission Date</label>
                     <input
                       type="date"
                       value={formData.admissionDate}
                       onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Roll Number</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Roll Number</label>
                     <input
                       type="text"
-                      placeholder="Enter Roll Number"
+                      placeholder="Roll No."
                       value={formData.rollNumber}
                       onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-700 text-xs mb-1">House</label>
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">House</label>
                     <select
                       value={formData.house}
                       onChange={(e) => setFormData({ ...formData, house: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select House</option>
                       <option value="Red">Red</option>
@@ -2077,75 +2127,75 @@ function ActiveStudentsContent() {
                     </select>
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Base Fee</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Base Fee</label>
                     <input
                       type="number"
                       placeholder="0.00"
                       value={formData.baseFee}
                       readOnly
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Discount</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Discount</label>
                     <input
                       type="number"
                       placeholder="0.00"
                       value={formData.discount}
                       onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-700 text-xs mb-1">Discount Note</label>
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Discount Note</label>
                     <input
                       type="text"
                       placeholder="Optional note"
                       value={formData.discountNote}
                       onChange={(e) => setFormData({ ...formData, discountNote: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Student & Father Information */}
-              <div className="mb-4">
-                <h4 className="text-xs font-bold text-blue-600 mb-3">STUDENT & FATHER INFORMATION</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="mb-3 sm:mb-4">
+                <h4 className="text-[10px] sm:text-xs font-bold text-blue-600 mb-2 sm:mb-3">STUDENT & FATHER INFORMATION</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">
                       Student Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      placeholder="Enter Student Name"
+                      placeholder="Student Name"
                       value={formData.studentName}
                       onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">
                       Father Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      placeholder="Enter Father Name"
+                      placeholder="Father Name"
                       value={formData.fatherName}
                       onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-gray-700 text-xs mb-1">Student Photo</label>
-                    <div className="flex items-center gap-3">
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Student Photo</label>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                       {imagePreview && (
-                        <div className="relative w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-300">
+                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
                           <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                           <button
                             type="button"
@@ -2155,12 +2205,12 @@ function ActiveStudentsContent() {
                             }}
                             className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
                           >
-                            <X size={12} />
+                            <X className="w-2.5 h-2.5" />
                           </button>
                         </div>
                       )}
                       {formData.photoUrl && !imagePreview && (
-                        <div className="relative w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-300">
+                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
                           <img src={formData.photoUrl} alt="Current" className="w-full h-full object-cover" />
                         </div>
                       )}
@@ -2178,35 +2228,35 @@ function ActiveStudentsContent() {
                             reader.readAsDataURL(file)
                           }
                         }}
-                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="flex-1 w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Father Mobile</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Father Mobile</label>
                     <input
                       type="text"
-                      placeholder="Enter Father Mobile"
+                      placeholder="Father Mobile"
                       value={formData.fatherMobile}
                       onChange={(e) => setFormData({ ...formData, fatherMobile: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Date Of Birth</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Date Of Birth</label>
                     <input
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Gender</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Gender</label>
                     <select
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -2214,11 +2264,11 @@ function ActiveStudentsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-xs mb-1">Blood Group</label>
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Blood Group</label>
                     <select
                       value={formData.bloodGroup}
                       onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select Blood Group</option>
                       <option value="A+">A+</option>
@@ -2231,63 +2281,63 @@ function ActiveStudentsContent() {
                       <option value="AB-">AB-</option>
                     </select>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-gray-700 text-xs mb-1">Current Address</label>
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Current Address</label>
                     <input
                       type="text"
-                      placeholder="Enter Current Address"
+                      placeholder="Current Address"
                       value={formData.currentAddress}
                       onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Student Other Details - Collapsible */}
-              <div className="mb-4">
+              <div className="mb-3 sm:mb-4">
                 <button
                   onClick={() => setShowOtherDetails(!showOtherDetails)}
-                  className="w-full bg-purple-600 text-white px-3 py-2 rounded-lg font-semibold flex justify-between items-center hover:bg-purple-700 transition text-sm"
+                  className="w-full bg-purple-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-semibold flex justify-between items-center hover:bg-purple-700 transition text-xs sm:text-sm"
                 >
                   <span>Student Other Details</span>
-                  <span className="text-xs">{showOtherDetails ? '▲ Hide' : '▼ Show'}</span>
+                  <span className="text-[10px] sm:text-xs">{showOtherDetails ? '▲ Hide' : '▼ Show'}</span>
                 </button>
 
                 {showOtherDetails && (
-                  <div className="mt-3 bg-white p-3 rounded-lg border border-gray-200">
-                    <h4 className="text-xs font-bold text-purple-600 mb-3">MOTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div className="mt-2 sm:mt-3 bg-white p-2 sm:p-3 rounded-lg border border-gray-200">
+                    <h4 className="text-[10px] sm:text-xs font-bold text-purple-600 mb-2 sm:mb-3">MOTHER INFORMATION</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
                       <div>
-                        <label className="block text-gray-700 text-xs mb-1">Mother Name</label>
+                        <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Mother Name</label>
                         <input
                           type="text"
                           placeholder="Mother Name"
                           value={formData.motherName}
                           onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-xs mb-1">Mother Mobile</label>
+                        <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Mother Mobile</label>
                         <input
                           type="text"
-                          placeholder="Enter Mother Mobile"
+                          placeholder="Mother Mobile"
                           value={formData.motherMobile}
                           onChange={(e) => setFormData({ ...formData, motherMobile: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
 
-                    <h4 className="text-xs font-bold text-green-600 mb-3">OTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <h4 className="text-[10px] sm:text-xs font-bold text-green-600 mb-2 sm:mb-3">OTHER INFORMATION</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                       <div>
-                        <label className="block text-gray-700 text-xs mb-1">Religion</label>
+                        <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Religion</label>
                         <select
                           value={formData.religion}
                           onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                         >
                           <option value="">Select Religion</option>
                           <option value="Islam">Islam</option>
@@ -2297,12 +2347,12 @@ function ActiveStudentsContent() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-xs mb-1">Nationality</label>
+                        <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Nationality</label>
                         <input
                           type="text"
                           value={formData.nationality}
                           onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
@@ -2311,27 +2361,31 @@ function ActiveStudentsContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-4 py-3 bg-white">
-              <div className="flex gap-2">
+            <div className="border-t border-gray-200 px-2 sm:px-3 md:px-4 py-2 sm:py-3 bg-white">
+              <div className="flex gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
-                  className="flex-1 px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-sm"
+                  className="flex-1 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveStudent}
                   disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo}
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 text-sm"
+                  className="flex-1 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 text-xs sm:text-sm"
                 >
                   {saving ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Saving...
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                      <span className="hidden sm:inline">Saving...</span>
+                      <span className="sm:hidden">Wait...</span>
                     </>
                   ) : (
-                    'Update Student'
+                    <>
+                      <span className="hidden sm:inline">Update Student</span>
+                      <span className="sm:hidden">Update</span>
+                    </>
                   )}
                 </button>
               </div>

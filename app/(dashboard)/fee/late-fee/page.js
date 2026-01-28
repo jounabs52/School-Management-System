@@ -53,14 +53,27 @@ function LateFeeConfigContent() {
     is_active: true
   })
 
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
+
+  // Load user on mount
   useEffect(() => {
-    loadData()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
 
+  // Fetch data when user is available
+  useEffect(() => {
+    if (currentUser) {
+      loadData()
+    }
+  }, [currentUser])
+
   const loadData = async () => {
+    if (!currentUser) return
+
     setLoading(true)
     try {
-      const user = getUserFromCookie()
 
       // Load sessions
       const { data: sessionsData, error: sessionsError } = await supabase
@@ -104,7 +117,7 @@ function LateFeeConfigContent() {
     setSaving(true)
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const dataToSave = {
         ...formData,
         user_id: user.id,
@@ -167,7 +180,7 @@ function LateFeeConfigContent() {
     if (!confirm('Are you sure you want to delete this configuration?')) return
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { error } = await supabase
         .from('late_fee_config')
         .delete()
@@ -213,21 +226,21 @@ function LateFeeConfigContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Late Fee Configuration</h1>
-        <p className="text-gray-600">Configure automatic late fee calculation rules</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Late Fee Configuration</h1>
+        <p className="text-sm sm:text-base text-gray-600">Configure automatic late fee calculation rules</p>
       </div>
 
       {/* Add Button */}
       {!showForm && (
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <button
             onClick={() => setShowForm(true)}
-            className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 font-medium"
+            className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center sm:justify-start gap-2 font-medium text-sm sm:text-base"
           >
-            <Plus size={20} />
+            <Plus size={18} className="sm:w-5 sm:h-5" />
             Add Late Fee Configuration
           </button>
         </div>
@@ -235,8 +248,8 @@ function LateFeeConfigContent() {
 
       {/* Form */}
       {showForm && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
             {editingConfig ? 'Edit Configuration' : 'New Configuration'}
           </h2>
 
@@ -266,7 +279,7 @@ function LateFeeConfigContent() {
               <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                 Calculation Type <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                 {[
                   { value: 'fixed', label: 'Fixed Amount', desc: 'One-time fixed late fee' },
                   { value: 'daily', label: 'Daily Rate', desc: 'Charge per day overdue' },
@@ -296,7 +309,7 @@ function LateFeeConfigContent() {
             </div>
 
             {/* Amount Fields Based on Type */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {formData.calculation_type === 'fixed' && (
                 <div>
                   <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
@@ -431,7 +444,7 @@ function LateFeeConfigContent() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 border-t">
               <button
                 type="button"
                 onClick={handleCancel}
@@ -462,16 +475,16 @@ function LateFeeConfigContent() {
       )}
 
       {/* Existing Configurations */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Existing Configurations</h2>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Existing Configurations</h2>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {configs.map(config => (
-            <div key={config.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-              <div className="flex items-start justify-between">
+            <div key={config.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-semibold text-gray-900">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
                       {config.sessions?.session_name || 'All Sessions (Default)'}
                     </h3>
                     <span className={`px-2 py-1 rounded-full text-xs ${
@@ -481,7 +494,7 @@ function LateFeeConfigContent() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
                     <div>
                       <span className="text-gray-500">Type:</span>
                       <span className="ml-2 font-medium capitalize">{config.calculation_type}</span>
@@ -529,7 +542,7 @@ function LateFeeConfigContent() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 ml-4">
+                <div className="flex gap-2 sm:ml-4 justify-end sm:justify-start">
                   <button
                     onClick={() => handleEdit(config)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"

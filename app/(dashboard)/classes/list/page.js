@@ -7,6 +7,8 @@ import * as XLSX from 'xlsx'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie, getSchoolId } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose }) => {
@@ -45,7 +47,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-full shadow-lg transition-all duration-300 max-w-[90%] sm:max-w-md ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -53,11 +55,11 @@ const Toast = ({ message, type, onClose }) => {
     style={{
       animation: 'slideIn 0.3s ease-out'
     }}>
-      {type === 'success' && <CheckCircle size={16} strokeWidth={2.5} />}
-      {type === 'error' && <X size={16} strokeWidth={2.5} />}
-      <span className="font-medium text-xs">{message}</span>
+      {type === 'success' && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />}
+      {type === 'error' && <X className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />}
+      <span className="font-medium text-xs sm:text-sm">{message}</span>
       <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity">
-        <X size={14} strokeWidth={2.5} />
+        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.5} />
       </button>
       <style jsx>{`
         @keyframes slideIn {
@@ -105,6 +107,7 @@ function ClassListContent() {
     })
   }, [])
 
+  const [currentUser, setCurrentUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -289,11 +292,21 @@ function ClassListContent() {
   }
 
 
-  // Fetch staff and classes data
+  // Load user first
   useEffect(() => {
-    fetchStaff()
-    fetchClasses()
+    const { id, school_id } = getLoggedInUser()
+    if (id && school_id) {
+      setCurrentUser({ id, school_id })
+    }
   }, [])
+
+  // Fetch staff and classes data when user is available
+  useEffect(() => {
+    if (currentUser?.id && currentUser?.school_id) {
+      fetchStaff()
+      fetchClasses()
+    }
+  }, [currentUser])
 
   // Real-time subscription for classes
   useEffect(() => {
@@ -370,11 +383,8 @@ function ClassListContent() {
         return
       }
 
-      const { id: userId, school_id: schoolId } = getLoggedInUser()
-      if (!userId || !schoolId) {
-        console.error('❌ No user found')
-        return
-      }
+      if (!currentUser) return
+      const { id: userId, school_id: schoolId } = currentUser
 
       console.log('✅ Fetching staff for school_id:', schoolId)
 
@@ -407,12 +417,11 @@ function ClassListContent() {
         return
       }
 
-      const { id: userId, school_id: schoolId } = getLoggedInUser()
-      if (!userId || !schoolId) {
-        console.error('❌ No user found')
+      if (!currentUser) {
         setLoading(false)
         return
       }
+      const { id: userId, school_id: schoolId } = currentUser
 
       console.log('✅ Fetched school_id:', schoolId)
 
@@ -936,37 +945,37 @@ function ClassListContent() {
   // If in view mode, show the class details page
   if (viewMode && selectedClass) {
     return (
-      <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
+      <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
         {/* Toast Notification */}
         {toast.show && (
           <Toast message={toast.message} type={toast.type} onClose={hideToast} />
         )}
         {/* Top Bar with Go Back Button */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
             Class: <span className="text-blue-600">{selectedClass.class_name}</span>
           </h2>
           <button
             onClick={handleGoBack}
-            className="px-3 py-2 rounded-lg font-medium text-sm flex items-center gap-1.5 bg-red-600 text-white hover:bg-red-700 transition"
+            className="py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 rounded-lg font-medium text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 bg-red-600 text-white hover:bg-red-700 transition"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             Go Back
           </button>
         </div>
 
         {/* Class Students Section */}
         <div>
-            <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
-              <h2 className="text-base font-bold text-gray-800 mb-3">
+            <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 md:p-5 lg:p-6 mb-3 sm:mb-4">
+              <h2 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 mb-2 sm:mb-3 md:mb-4">
                 Students enrolled in the <span className="text-blue-600">{selectedClass.class_name}</span> session <span className="font-bold">2024-2025</span>
               </h2>
 
-              <div className="flex flex-col md:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
                 <select
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
-                  className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white md:w-40"
+                  className="py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white w-full sm:w-40 md:w-48"
                 >
                   <option value="">All Sections</option>
                   {sections.map((section) => (
@@ -976,13 +985,13 @@ function ClassListContent() {
                   ))}
                 </select>
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                   <input
                     type="text"
                     placeholder="Search by name or roll number"
                     value={studentSearchTerm}
                     onChange={(e) => setStudentSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
               </div>
@@ -990,29 +999,29 @@ function ClassListContent() {
 
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
+                <table className="w-full border-collapse text-xs sm:text-sm">
                   <thead>
                     <tr className="bg-blue-900 text-white">
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Father Name</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Section</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Roll No</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fee</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Discount</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Sr.</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Student Name</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Father Name</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Section</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Roll No</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Fee</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Discount</th>
+                      <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Options</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loadingStudents ? (
                       <tr>
-                        <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
+                        <td colSpan="8" className="px-2 sm:px-3 py-4 sm:py-6 text-center text-gray-500 text-xs sm:text-sm">
                           Loading students...
                         </td>
                       </tr>
                     ) : filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
+                        <td colSpan="8" className="px-2 sm:px-3 py-4 sm:py-6 text-center text-gray-500 text-xs sm:text-sm">
                           No students found
                         </td>
                       </tr>
@@ -1027,34 +1036,34 @@ function ClassListContent() {
 
                         return (
                           <tr key={student.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-3 py-2.5 border border-gray-200 text-blue-600">
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 text-blue-600 whitespace-nowrap">
                               {index + 1}
                             </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                               <span className="text-blue-600 font-medium">{studentName}</span>
                             </td>
-                            <td className="px-3 py-2.5 border border-gray-200">{student.father_name || '-'}</td>
-                            <td className="px-3 py-2.5 border border-gray-200">{sectionName}</td>
-                            <td className="px-3 py-2.5 border border-gray-200 text-blue-600">{student.roll_number || '-'}</td>
-                            <td className="px-3 py-2.5 border border-gray-200 text-blue-600">
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">{student.father_name || '-'}</td>
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">{sectionName}</td>
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 text-blue-600 whitespace-nowrap">{student.roll_number || '-'}</td>
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 text-blue-600 whitespace-nowrap">
                               {feeAmount > 0 ? feeAmount.toLocaleString() : 'Free'}
                             </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                               {discount > 0 ? discount.toLocaleString() : '-'}
                             </td>
-                            <td className="px-3 py-2.5 border border-gray-200">
-                              <div className="flex items-center gap-1">
+                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
+                              <div className="flex items-center gap-1 sm:gap-2">
                                 <button
                                   onClick={() => handleStudentEdit(student)}
-                                  className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                                  className="p-1 sm:p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                                 >
-                                  <Edit2 size={16} />
+                                  <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
                                 <button
                                   onClick={() => handleStudentDelete(student)}
-                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                  className="p-1 sm:p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                                 >
-                                  <Trash2 size={16} />
+                                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
                               </div>
                             </td>
@@ -1072,53 +1081,53 @@ function ClassListContent() {
         {/* Student Edit Sidebar */}
         {showStudentEditModal && selectedStudent && (
           <ModalOverlay onClose={() => setShowStudentEditModal(false)}>
-            <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
+            <div className="fixed top-0 right-0 h-full w-full sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-base font-bold">Edit Student</h3>
-                    <p className="text-blue-200 text-xs mt-0.5">Update student details</p>
+                    <h3 className="text-sm sm:text-base md:text-lg font-bold">Edit Student</h3>
+                    <p className="text-blue-200 text-xs sm:text-sm mt-0.5">Update student details</p>
                   </div>
                   <button
                     onClick={() => setShowStudentEditModal(false)}
-                    className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
+                    className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                   >
-                    <X size={18} />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-                <div className="space-y-4">
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 lg:p-6 bg-gray-50">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                       Student Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={studentFormData.name}
                       onChange={(e) => setStudentFormData({ ...studentFormData, name: e.target.value })}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                  <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                       Father Name
                     </label>
                     <input
                       type="text"
                       value={studentFormData.father}
                       onChange={(e) => setStudentFormData({ ...studentFormData, father: e.target.value })}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                  <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                       Section
                     </label>
                     <select
                       value={studentFormData.section}
                       onChange={(e) => setStudentFormData({ ...studentFormData, section: e.target.value })}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     >
                       <option value="">Select Section</option>
                       {classSections.map((section) => (
@@ -1128,54 +1137,54 @@ function ClassListContent() {
                       ))}
                     </select>
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                  <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                       Roll No
                     </label>
                     <input
                       type="text"
                       value={studentFormData.rollNo}
                       onChange={(e) => setStudentFormData({ ...studentFormData, rollNo: e.target.value })}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                  <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                       Fee
                     </label>
                     <input
                       type="text"
                       value={studentFormData.fee}
                       onChange={(e) => setStudentFormData({ ...studentFormData, fee: e.target.value })}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                    <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                  <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                    <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                       Discount
                     </label>
                     <input
                       type="text"
                       value={studentFormData.discount}
                       onChange={(e) => setStudentFormData({ ...studentFormData, discount: e.target.value })}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
                 </div>
               </div>
-              <div className="border-t border-gray-200 px-4 py-3 bg-white">
-                <div className="flex gap-2">
+              <div className="border-t border-gray-200 px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 bg-white">
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowStudentEditModal(false)}
-                    className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleStudentUpdate}
-                    className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
                   >
-                    <Edit2 size={14} />
+                    <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     Update
                   </button>
                 </div>
@@ -1187,27 +1196,27 @@ function ClassListContent() {
         {/* Student Delete Confirmation Modal */}
         {showStudentDeleteModal && selectedStudent && (
           <ModalOverlay onClose={() => setShowStudentDeleteModal(false)}>
-            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-xl">
-                  <h3 className="text-base font-bold">Confirm Delete</h3>
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
                 </div>
-                <div className="p-4">
-                  <p className="text-gray-700 text-sm mb-4">
+                <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                  <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
                     Are you sure you want to delete student <span className="font-bold text-red-600">{`${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''}`.trim()}</span>? This action cannot be undone.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 sm:gap-3">
                     <button
                       onClick={() => setShowStudentDeleteModal(false)}
-                      className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                      className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={confirmStudentDelete}
-                      className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
+                      className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       Delete
                     </button>
                   </div>
@@ -1223,43 +1232,44 @@ function ClassListContent() {
 
   // Main class list view
   return (
-    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
+    <div className="p-2 sm:p-3 md:p-4 lg:p-6 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
       {/* Top Button */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         <button
           onClick={() => setShowModal(true)}
-          className="bg-red-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-red-700 transition flex items-center gap-1.5 shadow-lg"
+          className="bg-red-600 text-white py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 rounded-lg font-medium text-xs sm:text-sm hover:bg-red-700 transition flex items-center gap-1.5 sm:gap-2 shadow-lg"
         >
-          <Plus size={16} />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           Add New Class
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-base font-bold text-gray-800">Search Classes</h2>
+      <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 md:p-5 lg:p-6 mb-3 sm:mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3 md:mb-4">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Search Classes</h2>
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
           >
-            <Download size={18} />
-            Export to Excel
+            <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Export to Excel</span>
+            <span className="sm:hidden">Export</span>
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
           {/* Class Filter */}
-          <div className="md:w-40">
-            <label className="block text-gray-600 text-xs mb-1.5">Class</label>
+          <div className="w-full sm:w-40 md:w-48">
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1 sm:mb-1.5">Class</label>
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Classes</option>
               {classes.map((cls) => (
@@ -1272,15 +1282,15 @@ function ClassListContent() {
 
           {/* Search Input */}
           <div className="flex-1">
-            <label className="block text-gray-600 text-xs mb-1.5">Search</label>
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1 sm:mb-1.5">Search</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
               <input
                 type="text"
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
@@ -1288,32 +1298,32 @@ function ClassListContent() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
+      <ResponsiveTableWrapper
+        tableView={
+          <table className="w-full border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="bg-blue-900 text-white">
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Standard Fee</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fee Plan</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Students</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total Fee</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Discount</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Budget</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Sr.</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Class Name</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Standard Fee</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Fee Plan</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Students</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Total Fee</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Discount</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Budget</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="9" className="px-2 sm:px-3 py-4 sm:py-6 text-center text-gray-500 text-xs sm:text-sm">
                     Loading classes...
                   </td>
                 </tr>
               ) : filteredClasses.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="9" className="px-2 sm:px-3 py-4 sm:py-6 text-center text-gray-500 text-xs sm:text-sm">
                     No classes found
                   </td>
                 </tr>
@@ -1332,17 +1342,17 @@ function ClassListContent() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-                      <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">{startIndex + index + 1}</td>
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                           {cls.class_name}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         {standardFee.toLocaleString()}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
+                        <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${
                           cls.fee_plan === 'quarterly' ? 'bg-purple-100 text-purple-800' :
                           cls.fee_plan === 'semi-annual' ? 'bg-orange-100 text-orange-800' :
                           cls.fee_plan === 'annual' ? 'bg-green-100 text-green-800' :
@@ -1355,38 +1365,38 @@ function ClassListContent() {
                            cls.fee_plan === 'one-time' ? 'One-Time' : 'Monthly'}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">{totalStudents}</td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">{totalStudents}</td>
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         {totalFee.toLocaleString()}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         {discount > 0 ? discount.toLocaleString() : ''}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         {budget.toLocaleString()}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <div className="flex items-center gap-1">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           <button
                             onClick={() => handleView(cls)}
-                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                            className="p-1 sm:p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                             title="View"
                           >
-                            <Eye size={16} />
+                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                           <button
                             onClick={() => handleEdit(cls)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            className="p-1 sm:p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                             title="Edit"
                           >
-                            <Edit2 size={16} />
+                            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                           <button
                             onClick={() => handleDelete(cls)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1 sm:p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </div>
                       </td>
@@ -1396,19 +1406,79 @@ function ClassListContent() {
               )}
             </tbody>
           </table>
-        </div>
+        }
+        cardView={
+          <CardGrid>
+            {paginatedClasses.map((cls, index) => {
+              const totalStudents = cls.total_students || 0
+              const standardFee = parseFloat(cls.standard_fee) || 0
+              const totalFee = standardFee * totalStudents
+              const discount = parseFloat(cls.total_discount) || 0
+              const budget = totalFee - discount
+              const feePlan = cls.fee_plan === 'quarterly' ? 'Quarterly' :
+                           cls.fee_plan === 'semi-annual' ? 'Semi-Annual' :
+                           cls.fee_plan === 'annual' ? 'Annual' :
+                           cls.fee_plan === 'one-time' ? 'One-Time' : 'Monthly'
 
-        {/* Pagination Controls */}
+              return (
+                <DataCard key={cls.id}>
+                  <CardHeader
+                    srNumber={startIndex + index + 1}
+                    photo={cls.class_name.charAt(0)}
+                    name={cls.class_name}
+                    subtitle={`${totalStudents} student${totalStudents !== 1 ? 's' : ''}`}
+                  />
+                  <CardInfoGrid>
+                    <CardRow label="Fee" value={standardFee.toLocaleString()} />
+                    <CardRow label="Plan" value={feePlan} />
+                    <CardRow label="Total Fee" value={totalFee.toLocaleString()} />
+                    <CardRow label="Discount" value={discount > 0 ? discount.toLocaleString() : '-'} />
+                    <CardRow label="Budget" value={budget.toLocaleString()} />
+                  </CardInfoGrid>
+                  <CardActions>
+                    <button
+                      onClick={() => handleView(cls)}
+                      className="p-1 text-teal-600 rounded"
+                      title="View"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(cls)}
+                      className="p-1 text-blue-600 rounded"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(cls)}
+                      className="p-1 text-red-600 rounded"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </CardActions>
+                </DataCard>
+              )
+            })}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={paginatedClasses.length === 0}
+        emptyMessage="No classes found"
+      />
+
+      {/* Pagination Controls */}
         {filteredClasses.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-            <div className="text-xs text-gray-600">
+          <div className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 md:gap-4 bg-gray-50">
+            <div className="text-xs sm:text-sm text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredClasses.length)} of {filteredClasses.length} classes
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1 sm:gap-1.5 md:gap-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
+                className={`py-1.5 sm:py-2 px-2 sm:px-3 md:px-4 rounded-lg font-medium text-xs sm:text-sm transition ${
                   currentPage === 1
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1416,7 +1486,7 @@ function ClassListContent() {
               >
                 Previous
               </button>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 {(() => {
                   const pages = []
                   const maxVisiblePages = 4
@@ -1433,7 +1503,7 @@ function ClassListContent() {
                       <button
                         key={i}
                         onClick={() => setCurrentPage(i)}
-                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${
+                        className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg font-medium text-xs sm:text-sm transition ${
                           currentPage === i
                             ? 'bg-[#1E3A8A] text-white'
                             : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
@@ -1449,7 +1519,7 @@ function ClassListContent() {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
+                className={`py-1.5 sm:py-2 px-2 sm:px-3 md:px-4 rounded-lg font-medium text-xs sm:text-sm transition ${
                   currentPage === totalPages
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1460,30 +1530,29 @@ function ClassListContent() {
             </div>
           </div>
         )}
-      </div>
 
       {/* Add New Class Sidebar */}
       {showModal && (
         <ModalOverlay onClose={() => setShowModal(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-base font-bold">Create New Class</h3>
-                  <p className="text-blue-200 text-xs mt-0.5">Fill in the details below</p>
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold">Create New Class</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-0.5">Fill in the details below</p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                 >
-                  <X size={18} />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-              <div className="space-y-4">
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 lg:p-6 bg-gray-50">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Incharge
                   </label>
                   <div className="relative">
@@ -1504,7 +1573,7 @@ function ClassListContent() {
                       onBlur={() => {
                         setTimeout(() => setShowInchargeDropdown(false), 200)
                       }}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                     {showInchargeDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -1523,7 +1592,7 @@ function ClassListContent() {
                                 setInchargeSearchTerm(fullName)
                                 setShowInchargeDropdown(false)
                               }}
-                              className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
+                              className="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base hover:bg-blue-50 cursor-pointer"
                             >
                               {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
                             </div>
@@ -1532,8 +1601,8 @@ function ClassListContent() {
                     )}
                   </div>
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Class Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1541,17 +1610,17 @@ function ClassListContent() {
                     placeholder="e.g., Grade 5, Nursery A"
                     value={formData.className}
                     onChange={(e) => setFormData({ ...formData, className: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Fee Plan <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.feePlan}
                     onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="monthly">Monthly</option>
                     <option value="quarterly">Quarterly (3 months)</option>
@@ -1560,29 +1629,29 @@ function ClassListContent() {
                     <option value="one-time">One-Time Fee</option>
                   </select>
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Class Fee
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">Rs.</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs sm:text-sm font-medium">Rs.</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formData.classFee}
                       onChange={(e) => setFormData({ ...formData, classFee: e.target.value })}
-                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Exam Marking System
                   </label>
                   <select
                     value={formData.markingSystem}
                     onChange={(e) => setFormData({ ...formData, markingSystem: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Marking System</option>
                     <option value="marks">Marks</option>
@@ -1593,19 +1662,19 @@ function ClassListContent() {
                 </div>
               </div>
             </div>
-            <div className="border-t border-gray-200 px-4 py-3 bg-white">
-              <div className="flex gap-2">
+            <div className="border-t border-gray-200 px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 bg-white">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-3 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+                  className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 px-3 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-sm"
+                  className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
                 >
-                  <Plus size={14} />
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   Save Class
                 </button>
               </div>
@@ -1617,25 +1686,25 @@ function ClassListContent() {
       {/* Edit Class Sidebar */}
       {showEditModal && (
         <ModalOverlay onClose={() => setShowEditModal(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-base font-bold">Edit Class</h3>
-                  <p className="text-blue-200 text-xs mt-0.5">Update class details</p>
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold">Edit Class</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-0.5">Update class details</p>
                 </div>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                 >
-                  <X size={18} />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-              <div className="space-y-4">
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 lg:p-6 bg-gray-50">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Incharge
                   </label>
                   <div className="relative">
@@ -1656,7 +1725,7 @@ function ClassListContent() {
                       onBlur={() => {
                         setTimeout(() => setShowInchargeDropdown(false), 200)
                       }}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                     {showInchargeDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -1675,7 +1744,7 @@ function ClassListContent() {
                                 setInchargeSearchTerm(fullName)
                                 setShowInchargeDropdown(false)
                               }}
-                              className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
+                              className="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base hover:bg-blue-50 cursor-pointer"
                             >
                               {staff.first_name} {staff.last_name || ''} - {staff.designation || 'Staff'}
                             </div>
@@ -1684,8 +1753,8 @@ function ClassListContent() {
                     )}
                   </div>
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Class Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1693,17 +1762,17 @@ function ClassListContent() {
                     placeholder="e.g., Grade 5, Nursery A"
                     value={formData.className}
                     onChange={(e) => setFormData({ ...formData, className: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   />
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Fee Plan <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.feePlan}
                     onChange={(e) => setFormData({ ...formData, feePlan: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="monthly">Monthly</option>
                     <option value="quarterly">Quarterly (3 months)</option>
@@ -1712,29 +1781,29 @@ function ClassListContent() {
                     <option value="one-time">One-Time Fee</option>
                   </select>
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Class Fee
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">Rs.</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs sm:text-sm font-medium">Rs.</span>
                     <input
                       type="text"
                       placeholder="0"
                       value={formData.classFee}
                       onChange={(e) => setFormData({ ...formData, classFee: e.target.value })}
-                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                      className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                     />
                   </div>
                 </div>
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                <div className="bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">
                     Exam Marking System
                   </label>
                   <select
                     value={formData.markingSystem}
                     onChange={(e) => setFormData({ ...formData, markingSystem: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300"
                   >
                     <option value="">Select Marking System</option>
                     <option value="marks">Marks</option>
@@ -1745,19 +1814,19 @@ function ClassListContent() {
                 </div>
               </div>
             </div>
-            <div className="border-t border-gray-200 px-4 py-3 bg-white">
-              <div className="flex gap-2">
+            <div className="border-t border-gray-200 px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 bg-white">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-3 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+                  className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="flex-1 px-3 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 text-sm"
+                  className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
                 >
-                  <Edit2 size={14} />
+                  <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   Update
                 </button>
               </div>
@@ -1769,27 +1838,27 @@ function ClassListContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && classToDelete && (
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-xl">
-                <h3 className="text-base font-bold">Confirm Delete</h3>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-4">
-                <p className="text-gray-700 text-sm mb-4">
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
                   Are you sure you want to delete <span className="font-bold text-red-600">{classToDelete.class_name}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-3 py-2 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-3 py-2 bg-red-600 text-white font-medium text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     Delete
                   </button>
                 </div>

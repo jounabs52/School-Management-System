@@ -30,6 +30,8 @@ import {
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardInfoGrid } from '@/components/DataCard'
 
 
 function SalarySlipsPageContent() {
@@ -646,7 +648,7 @@ function SalarySlipsPageContent() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -677,14 +679,14 @@ function SalarySlipsPageContent() {
       />
 
       {/* Search and Filter Section */}
-      <div className="bg-white rounded-lg shadow-sm p-3 mb-2">
-        <div className="flex flex-col md:flex-row gap-2 mb-2">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 md:p-5 lg:p-6 mb-2 sm:mb-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-2 sm:mb-3">
           {/* Search Type Dropdown */}
-          <div className="w-full md:w-48">
+          <div className="w-full sm:w-48">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">Default Search</option>
               <option value="staff_name">Staff Name</option>
@@ -695,36 +697,36 @@ function SalarySlipsPageContent() {
 
           {/* Search Input */}
           <div className="flex-1 relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 rounded-lg pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           {/* Advanced Search Toggle */}
           <button
             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 text-sm rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg font-medium transition-colors flex items-center justify-center gap-1 sm:gap-2"
           >
-            <Filter size={18} />
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
             Advance Search
           </button>
         </div>
 
         {/* Advanced Search Panel */}
         {showAdvancedSearch && (
-          <div className="border-t pt-2 mt-2">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Status Filter</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Status Filter</label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                 >
                   <option value="all">All Status</option>
                   <option value="paid">Paid</option>
@@ -736,7 +738,7 @@ function SalarySlipsPageContent() {
               <div className="flex items-end">
                 <button
                   onClick={clearFilters}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 text-sm rounded-lg transition-colors"
+                  className="w-full bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -745,27 +747,31 @@ function SalarySlipsPageContent() {
           </div>
         )}
 
-        <p className="text-sm text-gray-600">
+        <p className="text-xs sm:text-sm text-gray-600 mt-2">
           There are <span className="font-semibold text-red-600">{filteredPayments.length}</span> salary slips.
         </p>
       </div>
 
       {/* Salary Slips Table */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden p-3 sm:p-4 md:p-5 lg:p-6">
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading salary slips...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-xs sm:text-sm">Loading salary slips...</div>
         ) : filteredPayments.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+          <ResponsiveTableWrapper
+            loading={loading}
+            empty={filteredPayments.length === 0}
+            emptyMessage="No salary slips found"
+            tableView={
+            <table className="w-full border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Staff Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Narration</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Total</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Balance</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Status</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Options</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Sr.</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Staff Name</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap hidden md:table-cell">Narration</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold whitespace-nowrap">Total</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold whitespace-nowrap hidden sm:table-cell">Balance</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold whitespace-nowrap hidden lg:table-cell">Status</th>
+                  <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold whitespace-nowrap">Options</th>
                 </tr>
               </thead>
               <tbody>
@@ -774,14 +780,14 @@ function SalarySlipsPageContent() {
 
                   return (
                     <tr key={payment.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                      <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
-                      <td className="border border-gray-200 px-3 py-2.5">
-                        <div className="flex items-center gap-2">
+                      <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 whitespace-nowrap">{index + 1}</td>
+                      <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           {payment.staff?.photo_url ? (
                             <img
                               src={payment.staff.photo_url}
                               alt={`${payment.staff.first_name} ${payment.staff.last_name}`}
-                              className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                              className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover border border-gray-200"
                               onError={(e) => {
                                 e.target.onerror = null;
                                 e.target.style.display = 'none';
@@ -789,31 +795,31 @@ function SalarySlipsPageContent() {
                               }}
                             />
                           ) : null}
-                          <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold ${payment.staff?.photo_url ? 'hidden' : ''}`}>
+                          <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold ${payment.staff?.photo_url ? 'hidden' : ''}`}>
                             {payment.staff?.first_name?.[0]}{payment.staff?.last_name?.[0]}
                           </div>
                           <div>
-                            <div className="text-xs font-medium text-gray-800">
+                            <div className="text-xs sm:text-sm font-medium text-gray-800">
                               {payment.staff?.first_name} {payment.staff?.last_name}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 hidden sm:block">
                               {payment.staff?.employee_number || 'N/A'}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="border border-gray-200 px-3 py-2.5 text-gray-700">
+                      <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 whitespace-nowrap hidden md:table-cell">
                         Salary Slip ({getMonthName(payment.payment_month)} - {payment.payment_year})
                       </td>
-                      <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold text-gray-800">
+                      <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold text-gray-800 whitespace-nowrap">
                         Rs{parseFloat(payment.net_salary || 0).toLocaleString()}
                       </td>
-                      <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold text-gray-800">
+                      <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold text-gray-800 whitespace-nowrap hidden sm:table-cell">
                         Rs{balance.toLocaleString()}
                       </td>
-                      <td className="border border-gray-200 px-3 py-2.5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span className={`w-2.5 h-2.5 rounded-full ${
+                      <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center whitespace-nowrap hidden lg:table-cell">
+                        <div className="flex items-center justify-center gap-1 sm:gap-1.5">
+                          <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${
                             payment.status === 'paid'
                               ? 'bg-green-500'
                               : payment.status === 'pending'
@@ -834,28 +840,28 @@ function SalarySlipsPageContent() {
                           </span>
                         </div>
                       </td>
-                      <td className="border border-gray-200 px-3 py-2.5">
-                        <div className="flex items-center justify-center gap-1">
+                      <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1 sm:gap-2">
                           <button
                             onClick={() => handleViewDetails(payment)}
                             className="text-blue-600 hover:text-blue-800 transition-colors"
                             title="View Details"
                           >
-                            <Info size={18} />
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                           <button
                             onClick={() => handlePrintSlip(payment)}
                             className="text-purple-600 hover:text-purple-800 transition-colors"
                             title="Print Slip"
                           >
-                            <Printer size={18} />
+                            <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                           <button
                             onClick={() => confirmDelete(payment)}
                             className="text-red-600 hover:text-red-800 transition-colors"
                             title="Delete"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </div>
                       </td>
@@ -864,9 +870,39 @@ function SalarySlipsPageContent() {
                 })}
               </tbody>
             </table>
-          </div>
+            }
+            cardView={
+              <div className="space-y-2">
+                {filteredPayments.map((payment) => {
+                  const balance = calculateBalance(payment)
+                  return (
+                    <DataCard key={payment.id}>
+                      <CardHeader
+                        photo={payment.staff?.photo_url || `${payment.staff?.first_name?.[0]}${payment.staff?.last_name?.[0]}`}
+                        name={`${payment.staff?.first_name} ${payment.staff?.last_name}`}
+                        subtitle={`${getMonthName(payment.payment_month)} ${payment.payment_year} • ${payment.staff?.employee_number || 'N/A'}`}
+                        badge={
+                          <span className={`w-1.5 h-1.5 rounded-full ${payment.status === 'paid' ? 'bg-green-500' : payment.status === 'pending' ? 'bg-orange-500' : payment.status === 'partial' ? 'bg-yellow-500' : 'bg-gray-500'}`}></span>
+                        }
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="Total" value={`Rs${parseFloat(payment.net_salary || 0).toLocaleString()}`} />
+                        <CardRow label="Balance" value={`Rs${balance.toLocaleString()}`} />
+                        <CardRow label="Status" value={<span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${payment.status === 'paid' ? 'bg-green-100 text-green-700' : payment.status === 'pending' ? 'bg-orange-100 text-orange-700' : payment.status === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}>{payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : payment.status === 'partial' ? 'Partial' : payment.status}</span>} />
+                      </CardInfoGrid>
+                      <CardActions>
+                        <button onClick={() => handleViewDetails(payment)} className="text-blue-600 hover:text-blue-800 p-1" title="View Details"><Info size={14} /></button>
+                        <button onClick={() => handlePrintSlip(payment)} className="text-purple-600 hover:text-purple-800 p-1" title="Print Slip"><Printer size={14} /></button>
+                        <button onClick={() => confirmDelete(payment)} className="text-red-600 hover:text-red-800 p-1" title="Delete"><Trash2 size={14} /></button>
+                      </CardActions>
+                    </DataCard>
+                  )
+                })}
+              </div>
+            }
+          />
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-xs sm:text-sm">
             No salary slips found. {searchQuery && 'Try adjusting your search criteria.'}
           </div>
         )}
@@ -879,19 +915,19 @@ function SalarySlipsPageContent() {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={() => setShowDetailsModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 rounded-t-xl">
-                <h3 className="text-sm font-bold">Salary Slip Details</h3>
-                <p className="text-blue-100 text-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg xl:max-w-2xl max-h-[90vh] overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 sm:px-4 py-2 sm:py-3 md:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base font-bold">Salary Slip Details</h3>
+                <p className="text-blue-100 text-xs sm:text-sm">
                   {selectedPayment.staff?.first_name} {selectedPayment.staff?.last_name} - {getMonthName(selectedPayment.payment_month)} {selectedPayment.payment_year}
                 </p>
               </div>
-              <div className="p-2 overflow-y-auto max-h-[calc(90vh-180px)]">
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
                 {/* Staff Information */}
-                <div className="mb-2">
+                <div className="mb-2 sm:mb-4">
                   <h4 className="text-sm font-semibold text-gray-800 mb-2">Staff Information</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-600">Name:</span>
                       <span className="ml-2 font-medium">{selectedPayment.staff?.first_name} {selectedPayment.staff?.last_name}</span>
@@ -943,7 +979,7 @@ function SalarySlipsPageContent() {
                 {/* Payment Information */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-800 mb-2">Payment Information</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-600">Payment Date:</span>
                       <span className="ml-2 font-medium">{new Date(selectedPayment.payment_date).toLocaleDateString('en-GB')}</span>
@@ -979,7 +1015,7 @@ function SalarySlipsPageContent() {
                   )}
                 </div>
               </div>
-              <div className="bg-gray-50 px-3 py-2 flex justify-end gap-2">
+              <div className="bg-gray-50 px-2 sm:px-3 py-2 flex justify-end gap-2">
                 <button
                   onClick={() => setShowDetailsModal(false)}
                   className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-1 text-sm rounded-lg font-medium transition-colors"
@@ -999,30 +1035,30 @@ function SalarySlipsPageContent() {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={() => !deleting && setShowDeleteModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-2 sm:py-3 md:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-6">
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 mb-4 sm:mb-6 text-xs sm:text-sm">
                   Are you sure you want to delete the salary payment for <span className="font-bold text-red-600">{paymentToDelete.staff?.first_name} {paymentToDelete.staff?.last_name}</span> ({getMonthName(paymentToDelete.payment_month)} {paymentToDelete.payment_year})? This action cannot be undone.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
                       setPaymentToDelete(null)
                     }}
                     disabled={deleting}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-xs sm:text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeletePayment}
                     disabled={deleting}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50 text-xs sm:text-sm"
                   >
                     {deleting ? 'Deleting...' : 'Delete'}
                   </button>

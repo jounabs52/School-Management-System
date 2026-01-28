@@ -694,20 +694,20 @@ function TestMarksPage() {
   const viewSubjectData = subjects.find(s => s.id === viewSubject)
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg ${
               toast.type === 'success' ? 'bg-green-500' :
               toast.type === 'error' ? 'bg-red-500' :
-              'bg-blue-500'
-            } text-white min-w-[300px]`}
+              'bg-gray-500'
+            } text-white min-w-[250px] sm:min-w-[300px] text-sm`}
           >
-            {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5" />}
-            {toast.type === 'info' && <AlertCircle className="w-5 h-5" />}
+            {toast.type === 'success' && <CheckCircle className="w-4 sm:w-5 h-4 sm:h-5" />}
+            {toast.type === 'error' && <XCircle className="w-4 sm:w-5 h-4 sm:h-5" />}
+            {toast.type === 'info' && <AlertCircle className="w-4 sm:w-5 h-4 sm:h-5" />}
             <span className="flex-1">{toast.message}</span>
             <button onClick={() => removeToast(toast.id)} className="hover:bg-white/20 p-1 rounded">
               <X className="w-4 h-4" />
@@ -716,40 +716,42 @@ function TestMarksPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-gray-800">Test Marks Management</h1>
-          <div className="flex gap-2">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-4">
+          <h1 className="text-lg sm:text-xl font-bold text-gray-800">Test Marks Management</h1>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('enter')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'enter'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              Enter Marks
+              <FileText className="w-3 sm:w-4 h-3 sm:h-4" />
+              <span className="hidden sm:inline">Enter Marks</span>
+              <span className="sm:hidden">Enter</span>
             </button>
             <button
               onClick={() => setActiveTab('view')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'view'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <Eye className="w-4 h-4" />
-              View Results
+              <Eye className="w-3 sm:w-4 h-3 sm:h-4" />
+              <span className="hidden sm:inline">View Results</span>
+              <span className="sm:hidden">View</span>
             </button>
           </div>
         </div>
 
         {activeTab === 'enter' && (
           <div>
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Select Test <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -767,7 +769,7 @@ function TestMarksPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Class</label>
                 <input
                   type="text"
                   value={selectedTestData?.classes?.class_name || ''}
@@ -777,7 +779,7 @@ function TestMarksPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Section</label>
                 <input
                   type="text"
                   value={selectedTestData?.sections?.section_name || 'All Sections'}
@@ -787,7 +789,7 @@ function TestMarksPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Select Subject <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -807,15 +809,15 @@ function TestMarksPage() {
             </div>
 
             {selectedTestData && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <div className="grid grid-cols-4 gap-4 text-sm">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
                   <div>
-                    <span className="font-semibold text-gray-700">Total Marks (This Subject):</span>
-                    <span className="ml-2 text-gray-900">{subjectTotalMarks || 'Select subject'}</span>
+                    <span className="font-semibold text-gray-700">Total Marks:</span>
+                    <span className="ml-1 sm:ml-2 text-gray-900">{subjectTotalMarks || 'Select subject'}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Test Date:</span>
-                    <span className="ml-2 text-gray-900">
+                    <span className="ml-1 sm:ml-2 text-gray-900">
                       {new Date(selectedTestData.test_date).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'short',
@@ -825,11 +827,11 @@ function TestMarksPage() {
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Students:</span>
-                    <span className="ml-2 text-gray-900">{students.length}</span>
+                    <span className="ml-1 sm:ml-2 text-gray-900">{students.length}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Status:</span>
-                    <span className="ml-2 text-green-600 font-medium">{selectedTestData.status}</span>
+                    <span className="ml-1 sm:ml-2 text-green-600 font-medium">{selectedTestData.status}</span>
                   </div>
                 </div>
               </div>
@@ -838,18 +840,19 @@ function TestMarksPage() {
             {students.length > 0 && selectedSubject && (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                  <table className="w-full">
+                  <table className="w-full text-xs sm:text-sm">
                     <thead className="bg-blue-600 text-white sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Admission No</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Student Name</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Father Name</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold w-32">
-                          Marks Obtained <span className="text-red-300">*</span>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">Roll No</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden sm:table-cell">Admission No</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">Student Name</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold hidden md:table-cell">Father Name</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold w-20 sm:w-32">
+                          <span className="hidden sm:inline">Marks Obtained</span>
+                          <span className="sm:hidden">Marks</span> <span className="text-red-300">*</span>
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold w-24">Absent</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold w-48">Remarks</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold w-16 sm:w-24">Absent</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold w-32 sm:w-48 hidden lg:table-cell">Remarks</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -857,13 +860,13 @@ function TestMarksPage() {
                         const marks = marksData[student.id] || {}
                         return (
                           <tr key={student.id} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm">{student.roll_number || 'N/A'}</td>
-                            <td className="px-3 py-2 text-sm">{student.admission_number}</td>
-                            <td className="px-3 py-2 text-sm font-medium">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2">{student.roll_number || 'N/A'}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 hidden sm:table-cell">{student.admission_number}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 font-medium">
                               {student.first_name} {student.last_name}
                             </td>
-                            <td className="px-3 py-2 text-sm">{student.father_name}</td>
-                            <td className="px-4 py-3">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 hidden md:table-cell">{student.father_name}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">
                               <input
                                 type="number"
                                 step="0.01"
@@ -872,11 +875,11 @@ function TestMarksPage() {
                                 value={marks.obtained_marks || ''}
                                 onChange={(e) => handleMarksChange(student.id, 'obtained_marks', e.target.value)}
                                 disabled={marks.is_absent}
-                                className="w-full border border-gray-300 rounded px-2 py-1 text-sm disabled:bg-gray-100"
+                                className="w-full border border-gray-300 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm disabled:bg-gray-100"
                                 placeholder="0"
                               />
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">
                               <input
                                 type="checkbox"
                                 checked={marks.is_absent || false}
@@ -884,7 +887,7 @@ function TestMarksPage() {
                                 className="w-4 h-4 text-blue-600 rounded"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 hidden lg:table-cell">
                               <input
                                 type="text"
                                 value={marks.remarks || ''}
@@ -900,20 +903,20 @@ function TestMarksPage() {
                   </table>
                 </div>
 
-                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
+                <div className="bg-gray-50 px-2 sm:px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row justify-end gap-2">
                   <button
                     onClick={() => {
                       setMarksData(existingMarks)
                       showToast('Changes reset', 'info')
                     }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-xs sm:text-sm font-medium"
                   >
                     Reset
                   </button>
                   <button
                     onClick={handleSaveMarks}
                     disabled={loading}
-                    className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                    className="w-full sm:w-auto bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-4 sm:px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
                   >
                     <Save className="w-4 h-4" />
                     {loading ? 'Saving...' : 'Save Marks'}
@@ -923,16 +926,16 @@ function TestMarksPage() {
             )}
 
             {selectedTest && selectedSubject && students.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No students found for the selected class/section</p>
+              <div className="text-center py-8 sm:py-12 text-gray-500">
+                <AlertCircle className="w-10 sm:w-12 h-10 sm:h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-sm sm:text-base">No students found for the selected class/section</p>
               </div>
             )}
 
             {(!selectedTest || !selectedSubject) && (
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>Please select a test and subject to enter marks</p>
+              <div className="text-center py-8 sm:py-12 text-gray-500">
+                <FileText className="w-10 sm:w-12 h-10 sm:h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-sm sm:text-base">Please select a test and subject to enter marks</p>
               </div>
             )}
           </div>
@@ -940,9 +943,9 @@ function TestMarksPage() {
 
         {activeTab === 'view' && (
           <div>
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Select Test <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -960,7 +963,7 @@ function TestMarksPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Select Subject <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -982,32 +985,33 @@ function TestMarksPage() {
                 <button
                   onClick={generatePDF}
                   disabled={!viewTest || !viewSubject || viewMarks.length === 0}
-                  className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
+                  className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
                 >
                   <Printer className="w-4 h-4" />
-                  Print PDF
+                  <span className="hidden sm:inline">Print PDF</span>
+                  <span className="sm:hidden">Print</span>
                 </button>
               </div>
             </div>
 
             {viewTestData && viewSubject && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                <div className="grid grid-cols-4 gap-4 text-sm">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <span className="font-semibold text-gray-700">Test Name:</span>
-                    <span className="ml-2 text-gray-900">{viewTestData.test_name}</span>
+                    <span className="ml-1 sm:ml-2 text-gray-900">{viewTestData.test_name}</span>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-700">Class:</span>
-                    <span className="ml-2 text-gray-900">{viewTestData.classes?.class_name}</span>
+                    <span className="ml-1 sm:ml-2 text-gray-900">{viewTestData.classes?.class_name}</span>
                   </div>
                   <div>
-                    <span className="font-semibold text-gray-700">Total Marks (This Subject):</span>
-                    <span className="ml-2 text-gray-900">{viewSubjectTotalMarks}</span>
+                    <span className="font-semibold text-gray-700"><span className="hidden sm:inline">Total Marks (This Subject)</span><span className="sm:hidden">Total Marks</span>:</span>
+                    <span className="ml-1 sm:ml-2 text-gray-900">{viewSubjectTotalMarks}</span>
                   </div>
                   <div>
-                    <span className="font-semibold text-gray-700">Total Students:</span>
-                    <span className="ml-2 text-gray-900">{viewMarks.length}</span>
+                    <span className="font-semibold text-gray-700"><span className="hidden sm:inline">Total Students</span><span className="sm:hidden">Students</span>:</span>
+                    <span className="ml-1 sm:ml-2 text-gray-900">{viewMarks.length}</span>
                   </div>
                 </div>
               </div>
@@ -1019,15 +1023,15 @@ function TestMarksPage() {
                   <table className="w-full">
                     <thead className="bg-blue-600 text-white sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Sr.</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Admission No</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Student Name</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Father Name</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Total Marks</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Obtained Marks</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Percentage</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold">Sr.</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold hidden sm:table-cell">Roll No</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold hidden md:table-cell">Admission No</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold">Student Name</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold hidden lg:table-cell">Father Name</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold hidden sm:table-cell">Total</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold">Obtained</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold hidden sm:table-cell">%</th>
+                        <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1038,35 +1042,35 @@ function TestMarksPage() {
 
                         return (
                           <tr key={mark.id} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm">{index + 1}</td>
-                            <td className="px-3 py-2 text-sm">{student.roll_number || 'N/A'}</td>
-                            <td className="px-3 py-2 text-sm">{student.admission_number}</td>
-                            <td className="px-3 py-2 text-sm font-medium">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm">{index + 1}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">{student.roll_number || 'N/A'}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm hidden md:table-cell">{student.admission_number}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium">
                               {student.first_name} {student.last_name}
                             </td>
-                            <td className="px-3 py-2 text-sm">{student.father_name}</td>
-                            <td className="px-3 py-2 text-sm text-center">{viewSubjectTotalMarks}</td>
-                            <td className="px-3 py-2 text-sm text-center font-medium">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm hidden lg:table-cell">{student.father_name}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm text-center hidden sm:table-cell">{viewSubjectTotalMarks}</td>
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm text-center font-medium">
                               {mark.is_absent ? (
                                 <span className="text-red-600">Absent</span>
                               ) : (
                                 mark.obtained_marks || 0
                               )}
                             </td>
-                            <td className="px-3 py-2 text-sm text-center">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm text-center hidden sm:table-cell">
                               {mark.is_absent ? '-' : `${percentage}%`}
                             </td>
-                            <td className="px-3 py-2 text-sm">
+                            <td className="border border-gray-200 px-2 sm:px-3 py-2 text-xs sm:text-sm">
                               {mark.is_absent ? (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <span className="px-1 sm:px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                   Absent
                                 </span>
                               ) : isPassing ? (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <span className="px-1 sm:px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                   Pass
                                 </span>
                               ) : (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <span className="px-1 sm:px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                   Fail
                                 </span>
                               )}

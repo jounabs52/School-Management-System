@@ -15,6 +15,8 @@ import {
   applyPdfSettings
 } from '@/lib/pdfSettings'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions } from '@/components/DataCard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -69,6 +71,9 @@ function FeeCreateContent() {
   const rowsPerPage = 10
 
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
+
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
@@ -127,14 +132,23 @@ function FeeCreateContent() {
     }
   }, [showChallanModal, viewChallan, deleteConfirmModal])
 
+  // Load user on mount
   useEffect(() => {
-    fetchInitialData()
-    fetchSchoolName()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
+
+  // Fetch data when user is available
+  useEffect(() => {
+    if (currentUser) {
+      fetchInitialData()
+      fetchSchoolName()
+    }
+  }, [currentUser])
 
   const fetchSchoolName = async () => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data, error } = await supabase
@@ -155,7 +169,7 @@ function FeeCreateContent() {
   const fetchInitialData = async () => {
     try {
       setLoading(true)
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         console.error('No user found')
         setLoading(false)
@@ -496,7 +510,7 @@ function FeeCreateContent() {
    * @returns {object} Object containing totalAmount and feeItems array
    */
   const calculateFeesAndItems = (formData, monthlyFeeType, studentDiscount = 0, challanId = null) => {
-    const user = getUserFromCookie()
+    const user = currentUser
     let totalAmount = 0
     const feeItems = []
 
@@ -575,7 +589,7 @@ function FeeCreateContent() {
     }
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: sessionData } = await supabase
@@ -675,7 +689,7 @@ function FeeCreateContent() {
     }
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: studentsData, error: studentsError } = await supabase
@@ -714,7 +728,7 @@ function FeeCreateContent() {
 
   const fetchCreatedChallans = async () => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         console.log('fetchCreatedChallans: No user found')
         return
@@ -918,7 +932,7 @@ function FeeCreateContent() {
 
     try {
       // Get user for authentication
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         showToast('User not found', 'error')
         return
@@ -1385,7 +1399,7 @@ function FeeCreateContent() {
   const handleCreateInstantChallan = async () => {
     try {
       setSubmitting(true)
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         showToast('User not found', 'error')
         setSubmitting(false)
@@ -1757,7 +1771,7 @@ function FeeCreateContent() {
       setShowChallanModal(true)
       setSelectedCategory('instant')
 
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         showToast('User session not found', 'error')
         return
@@ -1936,7 +1950,7 @@ function FeeCreateContent() {
     if (!deleteConfirmModal) return
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { error } = await supabase
         .from('fee_challans')
         .delete()
@@ -1965,7 +1979,7 @@ function FeeCreateContent() {
 
   const handleStatusToggle = async (challanId) => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         showToast('User not found', 'error')
         return
@@ -2041,7 +2055,7 @@ function FeeCreateContent() {
 
     try {
       setSubmitting(true)
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         showToast('User not found', 'error')
         return
@@ -2142,7 +2156,7 @@ function FeeCreateContent() {
   const handleCreateMonthlyChallan = async () => {
     try {
       setSubmitting(true)
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         showToast('User not found', 'error')
         return
@@ -2364,7 +2378,7 @@ function FeeCreateContent() {
 
 
   return (
-    <div className="p-2 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       <style jsx global>{`
         @keyframes slide-in {
           from {
@@ -2386,53 +2400,55 @@ function FeeCreateContent() {
       )}
 
       {/* Compact Filter Section */}
-      <div className="bg-white rounded-lg shadow p-3 mb-3">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
+      <div className="bg-white rounded-lg shadow p-2 sm:p-3 mb-2 sm:mb-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 mb-2">
           <button
             onClick={handleCreateChallan}
-            className="bg-red-600 text-white px-3 py-2 rounded text-xs font-semibold hover:bg-red-700 transition flex items-center gap-1.5 whitespace-nowrap"
+            className="w-full sm:w-auto bg-red-600 text-white px-3 py-2 rounded text-xs font-semibold hover:bg-red-700 transition flex items-center justify-center sm:justify-start gap-1.5 whitespace-nowrap"
           >
             <Plus size={14} />
             Create Challan
           </button>
 
-          <select
-            value={selectedClass}
-            onChange={(e) => {
-              setSelectedClass(e.target.value)
-              setSelectedSection('') // Reset section when class changes
-            }}
-            className="px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="">All Classes</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>
-                {cls.class_name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={selectedSection}
-            onChange={(e) => setSelectedSection(e.target.value)}
-            className="px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
-            disabled={!selectedClass}
-          >
-            <option value="">All Sections</option>
-            {sections
-              .filter(sec => !selectedClass || sec.class_id === selectedClass)
-              .map((sec) => (
-                <option key={sec.id} value={sec.id}>
-                  {sec.section_name}
+          <div className="flex gap-2 w-full sm:w-auto">
+            <select
+              value={selectedClass}
+              onChange={(e) => {
+                setSelectedClass(e.target.value)
+                setSelectedSection('') // Reset section when class changes
+              }}
+              className="flex-1 sm:flex-none px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="">All Classes</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.class_name}
                 </option>
               ))}
-          </select>
+            </select>
 
-          <div className="flex-1 relative min-w-[200px]">
+            <select
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+              disabled={!selectedClass}
+            >
+              <option value="">All Sections</option>
+              {sections
+                .filter(sec => !selectedClass || sec.class_id === selectedClass)
+                .map((sec) => (
+                  <option key={sec.id} value={sec.id}>
+                    {sec.section_name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex-1 relative w-full sm:min-w-[200px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <input
               type="text"
-              placeholder="Search by challan number, student name, or admission number..."
+              placeholder="Search by challan number, student name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-7 pr-2.5 py-2 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
@@ -2443,7 +2459,7 @@ function FeeCreateContent() {
           <button
             onClick={downloadCSV}
             disabled={filteredChallans.length === 0}
-            className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ml-auto"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             title="Download CSV"
           >
             <Download size={14} />
@@ -2451,7 +2467,7 @@ function FeeCreateContent() {
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-3 text-xs">
+        <div className="flex flex-wrap gap-2 sm:gap-3 text-xs">
           <span className="text-gray-600">
             Total: <span className="font-bold text-blue-600">{filteredChallans.length}</span>
           </span>
@@ -2467,211 +2483,261 @@ function FeeCreateContent() {
         </div>
       </div>
 
-      {/* Table - Desktop View */}
-      <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead className="bg-blue-900 text-white">
-              <tr>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Sr.</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Student Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Father Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Class</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Due Date</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Total Amount</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Already Paid</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Balance Due</th>
-                <th className="px-3 py-2.5 text-left font-semibold text-xs border border-blue-800">Status</th>
-                <th className="px-3 py-2.5 text-center font-semibold text-xs border border-blue-800">Options</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                // Loading skeleton rows
-                [...Array(5)].map((_, i) => (
-                  <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} animate-pulse`}>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-8"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-32"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-28"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-24"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-20"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-20"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-20"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-3 bg-gray-200 rounded w-20"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="h-5 bg-gray-200 rounded-full w-16"></div>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="flex gap-1 justify-center">
-                        {[...Array(5)].map((_, j) => (
-                          <div key={j} className="h-6 w-6 bg-gray-200 rounded"></div>
-                        ))}
-                      </div>
-                    </td>
+      {/* Table with Mobile Cards */}
+      <ResponsiveTableWrapper
+        loading={loading}
+        empty={paginatedChallans.length === 0}
+        emptyMessage={createdChallans.length === 0 ? 'No challans created yet. Click "Create Challan" to get started.' : 'No challans found for the selected class.'}
+        tableView={
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Sr.</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Student Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Father Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Class</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Due Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Already Paid</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Balance Due</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Options</th>
                   </tr>
-                ))
-              ) : filteredChallans.length === 0 ? (
-                <tr>
-                  <td colSpan="10" className="px-3 py-8 text-center text-gray-500 text-xs">
-                    {createdChallans.length === 0 ? 'No challans created yet. Click "Create Challan" to get started.' : 'No challans found for the selected class.'}
-                  </td>
-                </tr>
-              ) : (
-                paginatedChallans.map((challan, index) => (
-                  <tr key={challan.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">{startIndex + index + 1}</td>
-                    <td className="px-3 py-2.5 text-blue-600 font-medium text-xs border border-gray-200">
-                      {challan.students?.first_name} {challan.students?.last_name}
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
-                      {challan.students?.father_name || 'N/A'}
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
-                      {challan.students?.classes?.class_name || 'N/A'}
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-600 text-xs border border-gray-200">
-                      {new Date(challan.due_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 py-2.5 text-gray-900 font-bold text-xs border border-gray-200">
-                      Rs. {(challan.total_amount || 0).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <span className="text-green-600 font-semibold text-xs">
-                        Rs. {(challan.paid_amount || 0).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <span className={`font-bold text-xs ${
-                        (challan.total_amount - (challan.paid_amount || 0)) > 0 ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        Rs. {Math.max(0, (challan.total_amount || 0) - (challan.paid_amount || 0)).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-block ${
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {paginatedChallans.map((challan, index) => {
+                    const balanceDue = Math.max(0, (challan.total_amount || 0) - (challan.paid_amount || 0))
+                    const isPaid = (challan.paid_amount || 0) >= (challan.total_amount || 0)
+
+                    return (
+                      <tr key={challan.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-sm text-gray-900">{startIndex + index + 1}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className="text-blue-600 font-medium">{challan.students?.first_name} {challan.students?.last_name}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{challan.students?.father_name || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{challan.students?.classes?.class_name || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{new Date(challan.due_date).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className="font-bold">Rs. {(challan.total_amount || 0).toLocaleString()}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className="text-green-600 font-semibold">Rs. {(challan.paid_amount || 0).toLocaleString()}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>Rs. {balanceDue.toLocaleString()}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-block ${
+                            challan.status === 'paid' ? 'bg-green-100 text-green-800' :
+                            challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleViewChallan(challan)}
+                              className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
+                              title="View Challan"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            {!isPaid && (
+                              <>
+                                <button
+                                  onClick={() => handleEditChallan(challan)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"
+                                  title="Edit Challan"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteChallan(challan.id)}
+                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
+                                  title="Delete Challan"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleStatusToggle(challan.id)}
+                                  className="p-1.5 text-green-600 hover:bg-green-50 rounded transition"
+                                  title="Toggle Status"
+                                >
+                                  <RefreshCw size={16} />
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => handlePrintChallan(challan)}
+                              className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition"
+                              title="Print Challan"
+                            >
+                              <Printer size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50">
+                <div className="text-sm text-gray-600">
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} challans
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {getPageNumbers().map((pageNum, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => typeof pageNum === 'number' && goToPage(pageNum)}
+                      disabled={pageNum === '...'}
+                      className={`px-3 py-1.5 text-sm border rounded ${
+                        pageNum === currentPage
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-gray-300 hover:bg-gray-100'
+                      } ${pageNum === '...' ? 'cursor-default' : ''}`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        }
+        cardView={
+          <div className="space-y-3">
+            {paginatedChallans.map((challan, index) => {
+              const balanceDue = Math.max(0, (challan.total_amount || 0) - (challan.paid_amount || 0))
+              const isPaid = (challan.paid_amount || 0) >= (challan.total_amount || 0)
+
+              return (
+                <DataCard key={challan.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full">
+                      <div>
+                        <span className="text-[10px] text-gray-500">#{startIndex + index + 1}</span>
+                        <div className="font-bold text-blue-600 text-xs mt-0.5">
+                          {challan.students?.first_name} {challan.students?.last_name}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                         challan.status === 'paid' ? 'bg-green-100 text-green-800' :
                         challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
                       }`}>
                         {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                       </span>
-                    </td>
-                    <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="flex items-center justify-center gap-1">
+                    </div>
+                  </CardHeader>
+                  <CardRow label="Father Name" value={challan.students?.father_name || 'N/A'} />
+                  <CardRow label="Class" value={challan.students?.classes?.class_name || 'N/A'} />
+                  <CardRow label="Due Date" value={new Date(challan.due_date).toLocaleDateString()} />
+                  <CardRow label="Total Amount" value={`Rs. ${(challan.total_amount || 0).toLocaleString()}`} valueClassName="font-bold" />
+                  <CardRow label="Already Paid" value={`Rs. ${(challan.paid_amount || 0).toLocaleString()}`} valueClassName="text-green-600 font-semibold" />
+                  <CardRow label="Balance Due" value={`Rs. ${balanceDue.toLocaleString()}`} valueClassName={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`} />
+                  <CardActions>
+                    <button
+                      onClick={() => handleViewChallan(challan)}
+                      className="flex-1 bg-teal-600 text-white py-1.5 rounded text-xs font-medium hover:bg-teal-700 transition flex items-center justify-center gap-1"
+                    >
+                      <Eye size={12} />
+                      View
+                    </button>
+                    {!isPaid && (
+                      <>
                         <button
-                          onClick={() => handleViewChallan(challan)}
-                          className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
-                          title="View Challan"
+                          onClick={() => handleEditChallan(challan)}
+                          className="flex-1 bg-blue-600 text-white py-1.5 rounded text-xs font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1"
                         >
-                          <Eye size={16} />
+                          <Edit2 size={12} />
+                          Edit
                         </button>
-                        {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
-                          <button
-                            onClick={() => handleEditChallan(challan)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"
-                            title="Edit Challan"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                        )}
-                        {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
-                          <button
-                            onClick={() => handleDeleteChallan(challan.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
-                            title="Delete Challan"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                        {((challan.paid_amount || 0) < (challan.total_amount || 0)) && (
-                          <button
-                            onClick={() => handleStatusToggle(challan.id)}
-                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition"
-                            title="Toggle Status"
-                          >
-                            <RefreshCw size={16} />
-                          </button>
-                        )}
                         <button
-                          onClick={() => handlePrintChallan(challan)}
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition"
-                          title="Print Challan"
+                          onClick={() => handleDeleteChallan(challan.id)}
+                          className="flex-1 bg-red-600 text-white py-1.5 rounded text-xs font-medium hover:bg-red-700 transition flex items-center justify-center gap-1"
                         >
-                          <Printer size={16} />
+                          <Trash2 size={12} />
+                          Delete
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </>
+                    )}
+                    <button
+                      onClick={() => handlePrintChallan(challan)}
+                      className="flex-1 bg-purple-600 text-white py-1.5 rounded text-xs font-medium hover:bg-purple-700 transition flex items-center justify-center gap-1"
+                    >
+                      <Printer size={12} />
+                      Print
+                    </button>
+                  </CardActions>
+                </DataCard>
+              )
+            })}
 
-        {!loading && filteredChallans.length > 0 && (
-          <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="text-xs text-gray-500">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} challans
-            </div>
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition ${
-                  currentPage === 1
-                    ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
-                    : 'bg-blue-800 text-white hover:bg-blue-900'
-                }`}
-              >
-                Previous
-              </button>
-
-              {getPageNumbers().map((page, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => typeof page === 'number' && goToPage(page)}
-                  className={`w-8 h-8 rounded text-xs font-medium transition ${
-                    page === currentPage
-                      ? 'bg-blue-800 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition ${
-                  currentPage === totalPages
-                    ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
-                    : 'bg-blue-800 text-white hover:bg-blue-900'
-                }`}
-              >
-                Next
-              </button>
-            </div>
+            {/* Pagination for mobile */}
+            {totalPages > 1 && (
+              <div className="flex flex-col items-center gap-3 pt-3 border-t border-gray-200">
+                <div className="text-sm text-gray-600">
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} challans
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {getPageNumbers().map((pageNum, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => typeof pageNum === 'number' && goToPage(pageNum)}
+                      disabled={pageNum === '...'}
+                      className={`px-3 py-1.5 text-sm border rounded ${
+                        pageNum === currentPage
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-gray-300 hover:bg-gray-100'
+                      } ${pageNum === '...' ? 'cursor-default' : ''}`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        }
+      />
 
       {showChallanModal && (
         <>
@@ -2684,12 +2750,12 @@ function FeeCreateContent() {
               resetInstantChallanForm()
             }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
             {/* Blue Header */}
-            <div className="bg-[#2B5AA8] text-white px-6 py-4 flex justify-between items-center">
+            <div className="bg-[#2B5AA8] text-white px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold">{editingChallan ? 'Edit Fee Challan' : 'Create Fee Challan'}</h3>
-                <p className="text-blue-100 text-sm mt-0.5">{editingChallan ? 'Update challan details' : 'Fill in the details below'}</p>
+                <h3 className="text-lg sm:text-xl font-bold">{editingChallan ? 'Edit Fee Challan' : 'Create Fee Challan'}</h3>
+                <p className="text-blue-100 text-xs sm:text-sm mt-0.5">{editingChallan ? 'Update challan details' : 'Fill in the details below'}</p>
               </div>
               <button
                 onClick={() => {
@@ -2703,9 +2769,9 @@ function FeeCreateContent() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50">
               <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-gray-700 font-medium mb-2 text-sm">Target</label>
                     <select
@@ -2972,15 +3038,15 @@ function FeeCreateContent() {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-white">
-              <div className="flex gap-3 justify-between">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-white">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-between">
                 <button
                   onClick={() => {
                     setShowChallanModal(false)
                     setEditingChallan(null)
                     resetInstantChallanForm()
                   }}
-                  className="flex-1 px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300"
+                  className="flex-1 px-4 sm:px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300 text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -2992,7 +3058,7 @@ function FeeCreateContent() {
                     !(instantChallanForm.category === 'Monthly Fee' || instantChallanForm.selectedOtherFees.length > 0) ||
                     !instantChallanForm.dueDate
                   }
-                  className="flex-1 bg-[#DC2626] text-white px-6 py-2.5 rounded-lg font-medium hover:bg-[#B91C1C] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-[#DC2626] text-white px-4 sm:px-6 py-2.5 rounded-lg font-medium hover:bg-[#B91C1C] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   {submitting ? (
                     <RefreshCw size={18} className="animate-spin" />
@@ -3014,11 +3080,11 @@ function FeeCreateContent() {
             style={{ backdropFilter: 'blur(4px)' }}
             onClick={() => setViewChallan(null)}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95%] sm:w-full max-w-2xl bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
             {/* Header - Blue Style with Print Icon */}
-            <div className="bg-[#2B5AA8] text-white px-6 py-4 flex justify-between items-center">
+            <div className="bg-[#2B5AA8] text-white px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold">Student Information</h3>
+                <h3 className="text-lg sm:text-xl font-bold">Student Information</h3>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -3038,11 +3104,11 @@ function FeeCreateContent() {
             </div>
 
             {/* Content - Clean Section Layout */}
-            <div className="p-6 bg-white max-h-[70vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 bg-white max-h-[70vh] overflow-y-auto">
               {/* Student Information */}
-              <div className="mb-6">
-                <h4 className="text-base font-bold text-gray-900 mb-4">Student Information</h4>
-                <div className="grid grid-cols-2 gap-6">
+              <div className="mb-4 sm:mb-6">
+                <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">Student Information</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {viewChallan.students?.first_name && (
                     <div>
                       <p className="text-xs text-gray-500 mb-1">Student Name</p>
@@ -3112,9 +3178,9 @@ function FeeCreateContent() {
 
               {/* Academic Information */}
               {(viewChallan.students?.classes?.class_name || viewChallan.students?.sections?.section_name || viewChallan.students?.status) && (
-                <div className="mb-6 pt-6 border-t border-gray-200">
-                  <h4 className="text-base font-bold text-gray-900 mb-4">Academic Information</h4>
-                  <div className="grid grid-cols-2 gap-6">
+                <div className="mb-4 sm:mb-6 pt-4 sm:pt-6 border-t border-gray-200">
+                  <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">Academic Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     {viewChallan.students?.classes?.class_name && (
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Class</p>
@@ -3251,10 +3317,10 @@ function FeeCreateContent() {
             style={{ backdropFilter: 'blur(4px)' }}
             onClick={() => setDeleteConfirmModal(null)}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white shadow-2xl z-[10000] rounded-lg overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95%] sm:w-full max-w-md bg-white shadow-2xl z-[10000] rounded-lg overflow-hidden">
             {/* Red Header */}
-            <div className="bg-[#DC2626] px-6 py-3.5">
-              <h3 className="text-xl font-bold text-white">Confirm Delete</h3>
+            <div className="bg-[#DC2626] px-4 sm:px-6 py-3.5">
+              <h3 className="text-lg sm:text-xl font-bold text-white">Confirm Delete</h3>
             </div>
 
             {/* Content */}

@@ -82,9 +82,10 @@ export default function DashboardLayout({ children }) {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:pl-64' : 'lg:pl-16'}`}>
+      {/* Main content - no left padding on mobile, responsive padding on desktop */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 w-full ${sidebarOpen ? 'lg:pl-64' : 'lg:pl-16'}`}>
         <Header user={user} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-        <main className="flex-1 p-3 lg:p-4">
+        <main className="flex-1 p-2 sm:p-3 lg:p-4 overflow-x-hidden">
           {children}
         </main>
       </div>

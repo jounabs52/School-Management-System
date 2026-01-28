@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { AlertCircle } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardInfoGrid } from '@/components/DataCard'
 
 export default function SalaryStructurePage() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -445,7 +447,7 @@ export default function SalaryStructurePage() {
       currentUser={currentUser}
       pageName="Create Salary"
     >
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -477,50 +479,54 @@ export default function SalaryStructurePage() {
 
       {/* Search Section - Only show when no staff is selected */}
       {!selectedStaff && (
-        <div className="bg-white rounded-lg shadow-md p-3 mb-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-5 lg:p-6 mb-2 sm:mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 lg:gap-5 mb-2 sm:mb-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Employee Number</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Employee Number</label>
               <input
                 type="text"
                 placeholder="Employee Number"
                 value={searchEmployeeNumber}
                 onChange={(e) => setSearchEmployeeNumber(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 sm:py-2.5 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">OR General Data</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">OR General Data</label>
               <input
                 type="text"
                 placeholder="Search by name, father name or employee number"
                 value={searchGeneralData}
                 onChange={(e) => setSearchGeneralData(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 sm:py-2.5 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
-          <p className="text-sm text-gray-500">
-            Click on <span className="text-blue-600 font-medium underline cursor-pointer" onClick={clearScreen}>clear screen</span> or press <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Shift+Esc</kbd> to clear the screen.
+          <p className="text-xs sm:text-sm text-gray-500">
+            Click on <span className="text-blue-600 font-medium underline cursor-pointer" onClick={clearScreen}>clear screen</span> or press <kbd className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Shift+Esc</kbd> to clear the screen.
           </p>
         </div>
       )}
 
       {/* Staff List */}
       {!selectedStaff && (
-        <div className="bg-white rounded-lg shadow-md p-3">
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-5 lg:p-6">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">Loading staff...</div>
+            <div className="text-center py-6 sm:py-8 text-gray-500 text-xs sm:text-sm">Loading staff...</div>
           ) : staffList.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
+            <ResponsiveTableWrapper
+              loading={loading}
+              empty={staffList.length === 0}
+              emptyMessage="No staff found"
+              tableView={
+              <table className="w-full border-collapse border border-gray-300 text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-blue-900 text-white">
-                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Staff Name</th>
-                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Employee Number</th>
-                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Designation</th>
-                    <th className="border border-gray-300 px-3 py-2 text-sm text-left font-semibold">Department</th>
-                    <th className="border border-gray-300 px-3 py-2 text-sm text-center font-semibold">Options</th>
+                    <th className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Staff Name</th>
+                    <th className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap hidden sm:table-cell">Employee Number</th>
+                    <th className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap hidden md:table-cell">Designation</th>
+                    <th className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap hidden lg:table-cell">Department</th>
+                    <th className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold whitespace-nowrap">Options</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -528,18 +534,18 @@ export default function SalaryStructurePage() {
                     const hasStructure = staffSalaryStructures[staff.id]
                     return (
                       <tr key={staff.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.first_name} {staff.last_name}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.employee_number || 'N/A'}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.designation || 'N/A'}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-800">{staff.department || 'N/A'}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-center">
+                        <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-800 whitespace-nowrap">{staff.first_name} {staff.last_name}</td>
+                        <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-800 whitespace-nowrap hidden sm:table-cell">{staff.employee_number || 'N/A'}</td>
+                        <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-800 whitespace-nowrap hidden md:table-cell">{staff.designation || 'N/A'}</td>
+                        <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-800 whitespace-nowrap hidden lg:table-cell">{staff.department || 'N/A'}</td>
+                        <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-center whitespace-nowrap">
                           <button
                             onClick={() => handleStaffButtonClick(staff)}
                             className={`${
                               hasStructure
                                 ? 'bg-blue-900 hover:bg-blue-800'
                                 : 'bg-red-600 hover:bg-red-700'
-                            } text-white px-6 py-1 rounded font-medium transition-colors`}
+                            } text-white px-3 sm:px-4 md:px-6 py-1 sm:py-1.5 rounded text-xs sm:text-sm font-medium transition-colors`}
                           >
                             {hasStructure ? 'Created' : 'Create Salary'}
                           </button>
@@ -549,36 +555,61 @@ export default function SalaryStructurePage() {
                   })}
                 </tbody>
               </table>
-            </div>
+              }
+              cardView={
+                <div className="space-y-2">
+                  {staffList.map((staff) => {
+                    const hasStructure = staffSalaryStructures[staff.id]
+                    return (
+                      <DataCard key={staff.id}>
+                        <CardHeader
+                          name={`${staff.first_name} ${staff.last_name}`}
+                          subtitle={`Emp#: ${staff.employee_number || 'N/A'}`}
+                          badge={
+                            <button onClick={() => handleStaffButtonClick(staff)} className={`${hasStructure ? 'bg-blue-900 hover:bg-blue-800' : 'bg-red-600 hover:bg-red-700'} text-white px-2 py-1 rounded text-[10px] font-medium transition-colors`}>{hasStructure ? 'Created' : 'Create'}</button>
+                          }
+                        />
+                        <CardInfoGrid>
+                          <CardRow label="Designation" value={staff.designation || 'N/A'} />
+                          <CardRow label="Department" value={staff.department || 'N/A'} />
+                        </CardInfoGrid>
+                      </DataCard>
+                    )
+                  })}
+                </div>
+              }
+            />
           ) : (
-            <div className="text-center py-8 text-gray-500">No active staff found. Please adjust your search criteria.</div>
+            <div className="text-center py-6 sm:py-8 text-gray-500 text-xs sm:text-sm">No active staff found. Please adjust your search criteria.</div>
           )}
         </div>
       )}
 
       {/* Salary Structure Form */}
       {selectedStaff && (
-        <div className="bg-white rounded-lg shadow-md p-2">
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-5 lg:p-6">
           {/* Staff Info Header */}
-          <div className="flex items-center gap-2 mb-1 pb-2 border-b">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-sm">👨‍💼</span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 mb-2 sm:mb-3 pb-2 sm:pb-3 border-b">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-sm sm:text-base">👨‍💼</span>
             </div>
             <div className="flex-1">
-              <h2 className="text-sm font-bold text-blue-600">
+              <h2 className="text-sm sm:text-base font-bold text-blue-600">
                 {selectedStaff.first_name} {selectedStaff.last_name}
               </h2>
-              <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
+              <div className="flex flex-wrap gap-1 sm:gap-2 md:gap-3 text-xs sm:text-sm text-gray-600 mt-1">
                 <span>Employee No: {selectedStaff.employee_number || 'N/A'}</span>
+                <span className="hidden sm:inline">|</span>
                 <span>Designation: {selectedStaff.designation || 'N/A'}</span>
-                <span>Department: {selectedStaff.department || 'N/A'}</span>
+                <span className="hidden md:inline">|</span>
+                <span className="hidden md:inline">Department: {selectedStaff.department || 'N/A'}</span>
               </div>
             </div>
             <button
               onClick={() => setSelectedStaff(null)}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-500 hover:text-gray-700 absolute top-2 right-2 sm:static"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -586,78 +617,78 @@ export default function SalaryStructurePage() {
 
           {/* Status Badge */}
           {existingStructure && (
-            <div className="mb-1">
-              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+            <div className="mb-2 sm:mb-3">
+              <span className="bg-green-100 text-green-700 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
                 ✓ Salary Structure Exists
               </span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-5">
             {/* Basic Salary & Allowances */}
-            <div className="bg-green-50 rounded-lg p-2">
-              <h3 className="text-sm font-semibold text-green-700 mb-1 flex items-center gap-2">
-                <span>💰</span> Basic Salary & Allowances
+            <div className="bg-green-50 rounded-lg p-3 sm:p-4 md:p-5 lg:p-6">
+              <h3 className="text-xs sm:text-sm font-semibold text-green-700 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="text-sm sm:text-base">💰</span> Basic Salary & Allowances
               </h3>
 
-              <div className="space-y-1">
+              <div className="space-y-2 sm:space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Basic Salary <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
                     value={basicSalary}
                     onChange={(e) => setBasicSalary(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">House Allowance</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">House Allowance</label>
                   <input
                     type="number"
                     value={houseAllowance}
                     onChange={(e) => setHouseAllowance(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Medical Allowance</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Medical Allowance</label>
                   <input
                     type="number"
                     value={medicalAllowance}
                     onChange={(e) => setMedicalAllowance(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Transport Allowance</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Transport Allowance</label>
                   <input
                     type="number"
                     value={transportAllowance}
                     onChange={(e) => setTransportAllowance(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Other Allowances</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Other Allowances</label>
                   <input
                     type="number"
                     value={otherAllowances}
                     onChange={(e) => setOtherAllowances(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
@@ -666,100 +697,100 @@ export default function SalaryStructurePage() {
             </div>
 
             {/* Deductions */}
-            <div className="bg-red-50 rounded-lg p-2">
-              <h3 className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-2">
-                <span>➖</span> Deductions
+            <div className="bg-red-50 rounded-lg p-3 sm:p-4 md:p-5 lg:p-6">
+              <h3 className="text-xs sm:text-sm font-semibold text-red-700 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="text-sm sm:text-base">➖</span> Deductions
               </h3>
 
-              <div className="space-y-1">
+              <div className="space-y-2 sm:space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Provident Fund</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Provident Fund</label>
                   <input
                     type="number"
                     value={providentFund}
                     onChange={(e) => setProvidentFund(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Tax Deduction</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Tax Deduction</label>
                   <input
                     type="number"
                     value={taxDeduction}
                     onChange={(e) => setTaxDeduction(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Other Deductions</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Other Deductions</label>
                   <input
                     type="number"
                     value={otherDeductions}
                     onChange={(e) => setOtherDeductions(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                     placeholder="0"
                     min="0"
                   />
                 </div>
 
-                <div className="pt-1">
-                  <label className="block text-xs font-medium text-gray-700">Effective From</label>
+                <div className="pt-1 sm:pt-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Effective From</label>
                   <input
                     type="date"
                     value={effectiveFrom}
                     onChange={(e) => setEffectiveFrom(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Effective To (Optional)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Effective To (Optional)</label>
                   <input
                     type="date"
                     value={effectiveTo}
                     onChange={(e) => setEffectiveTo(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="w-full border border-gray-300 rounded px-2 sm:px-3 py-2 sm:py-2.5 text-sm sm:text-base"
                   />
                 </div>
               </div>
             </div>
 
             {/* Summary */}
-            <div className="bg-blue-50 rounded-lg p-2">
-              <h3 className="text-sm font-semibold text-blue-700 mb-1 flex items-center gap-2">
-                <span>📊</span> Salary Summary
+            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 md:p-5 lg:p-6">
+              <h3 className="text-xs sm:text-sm font-semibold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="text-sm sm:text-base">📊</span> Salary Summary
               </h3>
 
-              <div className="space-y-1">
-                <div className="p-2 bg-white rounded-lg border border-blue-200">
-                  <div className="text-xs text-gray-600">Gross Salary</div>
-                  <div className="text-sm font-bold text-blue-600">{calculateGrossSalary().toLocaleString()} PKR</div>
+              <div className="space-y-2 sm:space-y-3">
+                <div className="p-2 sm:p-3 bg-white rounded-lg border border-blue-200">
+                  <div className="text-xs sm:text-sm text-gray-600">Gross Salary</div>
+                  <div className="text-sm sm:text-base font-bold text-blue-600">{calculateGrossSalary().toLocaleString()} PKR</div>
                   <div className="text-xs text-gray-500">Basic + All Allowances</div>
                 </div>
 
-                <div className="p-2 bg-white rounded-lg border border-red-200">
-                  <div className="text-xs text-gray-600">Total Deductions</div>
-                  <div className="text-sm font-bold text-red-600">{calculateTotalDeductions().toLocaleString()} PKR</div>
+                <div className="p-2 sm:p-3 bg-white rounded-lg border border-red-200">
+                  <div className="text-xs sm:text-sm text-gray-600">Total Deductions</div>
+                  <div className="text-sm sm:text-base font-bold text-red-600">{calculateTotalDeductions().toLocaleString()} PKR</div>
                   <div className="text-xs text-gray-500">All Deductions</div>
                 </div>
 
-                <div className="p-2 bg-green-100 rounded-lg border-2 border-green-400">
-                  <div className="text-xs text-gray-700 font-medium">Net Salary (Take Home)</div>
-                  <div className="text-sm font-bold text-green-700">{calculateNetSalary().toLocaleString()} PKR</div>
+                <div className="p-2 sm:p-3 bg-green-100 rounded-lg border-2 border-green-400">
+                  <div className="text-xs sm:text-sm text-gray-700 font-medium">Net Salary (Take Home)</div>
+                  <div className="text-sm sm:text-base font-bold text-green-700">{calculateNetSalary().toLocaleString()} PKR</div>
                   <div className="text-xs text-gray-600">Gross - Deductions</div>
                 </div>
 
-                <div className="pt-1 space-y-1">
+                <div className="pt-2 sm:pt-3 space-y-2 sm:space-y-3">
                   <button
                     onClick={handleSaveSalaryStructure}
                     disabled={saving || basicSalary <= 0}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg font-semibold transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {saving ? 'Saving...' : existingStructure ? 'Update Salary Structure' : 'Create Salary Structure'}
                   </button>
@@ -767,7 +798,7 @@ export default function SalaryStructurePage() {
                   {existingStructure && (
                     <button
                       onClick={() => setShowDeleteModal(true)}
-                      className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors"
+                      className="w-full bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg font-semibold transition-colors"
                     >
                       Delete Salary Structure
                     </button>
@@ -775,7 +806,7 @@ export default function SalaryStructurePage() {
 
                   <button
                     onClick={() => setSelectedStaff(null)}
-                    className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm rounded-lg font-semibold transition-colors"
+                    className="w-full bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg font-semibold transition-colors"
                   >
                     Back to Staff List
                   </button>
@@ -785,54 +816,54 @@ export default function SalaryStructurePage() {
           </div>
 
           {/* Breakdown Table */}
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+          <div className="mt-3 sm:mt-4 md:mt-5 lg:mt-6 overflow-x-auto">
+            <table className="w-full border-collapse border border-gray-300 text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-2 py-1 text-xs text-left font-semibold">Component</th>
-                  <th className="border border-gray-300 px-2 py-1 text-xs text-right font-semibold">Amount (PKR)</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold whitespace-nowrap">Component</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold whitespace-nowrap">Amount (PKR)</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border border-gray-300 px-2 py-1 text-xs font-medium">Basic Salary</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right">{parseFloat(basicSalary || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 font-medium whitespace-nowrap">Basic Salary</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right whitespace-nowrap">{parseFloat(basicSalary || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ House Allowance</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(houseAllowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 pl-4 sm:pl-6 text-green-700 whitespace-nowrap">+ House Allowance</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-green-700 whitespace-nowrap">{parseFloat(houseAllowance || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ Medical Allowance</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(medicalAllowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 pl-4 sm:pl-6 text-green-700 whitespace-nowrap">+ Medical Allowance</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-green-700 whitespace-nowrap">{parseFloat(medicalAllowance || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ Transport Allowance</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(transportAllowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 pl-4 sm:pl-6 text-green-700 whitespace-nowrap">+ Transport Allowance</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-green-700 whitespace-nowrap">{parseFloat(transportAllowance || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-50">
-                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-green-700">+ Other Allowances</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-700">{parseFloat(otherAllowances || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 pl-4 sm:pl-6 text-green-700 whitespace-nowrap">+ Other Allowances</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-green-700 whitespace-nowrap">{parseFloat(otherAllowances || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-blue-100 font-bold">
-                  <td className="border border-gray-300 px-2 py-1 text-xs">= Gross Salary</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-blue-700">{calculateGrossSalary().toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">= Gross Salary</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-blue-700 whitespace-nowrap">{calculateGrossSalary().toLocaleString()}</td>
                 </tr>
                 <tr className="bg-red-50">
-                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-red-700">- Provident Fund</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-red-700">{parseFloat(providentFund || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 pl-4 sm:pl-6 text-red-700 whitespace-nowrap">- Provident Fund</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-700 whitespace-nowrap">{parseFloat(providentFund || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-red-50">
-                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-red-700">- Tax Deduction</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-red-700">{parseFloat(taxDeduction || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 pl-4 sm:pl-6 text-red-700 whitespace-nowrap">- Tax Deduction</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-700 whitespace-nowrap">{parseFloat(taxDeduction || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-red-50">
-                  <td className="border border-gray-300 px-2 py-1 text-xs pl-4 text-red-700">- Other Deductions</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-red-700">{parseFloat(otherDeductions || 0).toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 pl-4 sm:pl-6 text-red-700 whitespace-nowrap">- Other Deductions</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-700 whitespace-nowrap">{parseFloat(otherDeductions || 0).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-green-200 font-bold">
-                  <td className="border border-gray-300 px-2 py-1 text-xs">= Net Salary</td>
-                  <td className="border border-gray-300 px-2 py-1 text-xs text-right text-green-800">{calculateNetSalary().toLocaleString()}</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">= Net Salary</td>
+                  <td className="border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-green-800 whitespace-nowrap">{calculateNetSalary().toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
@@ -847,38 +878,38 @@ export default function SalaryStructurePage() {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={() => setShowUpdateConfirmModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-t-xl">
-                <h3 className="text-lg font-bold">Salary Structure Already Exists</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 sm:px-4 py-2 sm:py-3 md:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base font-bold">Salary Structure Already Exists</h3>
               </div>
-              <div className="p-6">
-                <div className="flex items-start gap-3 mb-4">
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
                   <div className="flex-shrink-0">
-                    <AlertCircle className="w-12 h-12 text-blue-500" />
+                    <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-gray-700 mb-2">
+                    <p className="text-gray-700 mb-1 sm:mb-2 text-sm sm:text-base">
                       <span className="font-bold">{selectedStaff.first_name} {selectedStaff.last_name}</span> already has a salary structure created.
                     </p>
-                    <p className="text-gray-600 text-sm">
+                    <p className="text-gray-600 text-xs sm:text-sm">
                       Do you want to update the existing salary structure?
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-3 mt-6">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
                   <button
                     onClick={() => {
                       setShowUpdateConfirmModal(false)
                       setSelectedStaff(null)
                     }}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs sm:text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleConfirmUpdate}
-                    className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold hover:bg-blue-700 rounded-lg transition"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white font-semibold hover:bg-blue-700 rounded-lg transition text-xs sm:text-sm"
                   >
                     Yes, Update
                   </button>
@@ -896,27 +927,27 @@ export default function SalaryStructurePage() {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={() => !deleting && setShowDeleteModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-3 sm:px-4 py-2 sm:py-4 rounded-t-xl">
                 <h3 className="text-base font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-3">
+              <div className="p-3 sm:p-4">
                 <p className="text-gray-700 mb-2">
                   Are you sure you want to delete the salary structure for <span className="font-bold text-red-600">{selectedStaff.first_name} {selectedStaff.last_name}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     disabled={deleting}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                    className="flex-1 px-4 sm:px-3 sm:px-4 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeleteSalaryStructure}
                     disabled={deleting}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+                    className="flex-1 px-4 sm:px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50"
                   >
                     {deleting ? 'Deleting...' : 'Delete'}
                   </button>

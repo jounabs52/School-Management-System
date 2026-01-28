@@ -19,6 +19,8 @@ import {
 } from '@/lib/pdfSettings'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 function SalaryRegisterReportContent() {
   const router = useRouter()
@@ -436,7 +438,7 @@ function SalaryRegisterReportContent() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -468,8 +470,8 @@ function SalaryRegisterReportContent() {
 
       {/* Header */}
       <div className="mb-2 print:mb-2">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-2">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => router.push('/payroll/reports')}
               className="print:hidden bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-lg transition-colors"
@@ -484,17 +486,17 @@ function SalaryRegisterReportContent() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2 print:hidden">
+          <div className="flex flex-wrap gap-2 print:hidden w-full sm:w-auto">
             <button
               onClick={handlePrint}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
@@ -503,13 +505,13 @@ function SalaryRegisterReportContent() {
         </div>
 
         {/* Month/Year Filter */}
-        <div className="flex gap-4 mb-2 print:hidden">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-2 print:hidden">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                 <option key={month} value={month}>{getMonthName(month)}</option>
@@ -521,7 +523,7 @@ function SalaryRegisterReportContent() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                 <option key={year} value={year}>{year}</option>
@@ -532,97 +534,113 @@ function SalaryRegisterReportContent() {
       </div>
 
       {/* Salary Register Table */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden print:shadow-none">
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading salary register...</div>
-        ) : salaryStructures.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-blue-900 text-white print:bg-gray-800">
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">#</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Role</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Comp</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">J.Date</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Prov Fund</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Basic</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">House</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Medical</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Transport</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Other Allow</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Gross</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Tax</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Other Ded</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Net Salary</th>
+      <ResponsiveTableWrapper
+        tableView={
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-blue-900 text-white print:bg-gray-800">
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">#</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">Name</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">Role</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold">Comp</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold">J.Date</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Prov Fund</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Basic</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">House</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Medical</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Transport</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Other Allow</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Gross</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Tax</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Other Ded</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Net Salary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {salaryStructures.map((structure, index) => (
+                <tr key={structure.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">{index + 1}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 font-medium">
+                    {structure.staff?.first_name} {structure.staff?.last_name}
+                  </td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">{structure.staff?.designation || 'N/A'}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">{structure.staff?.employee_number || 'N/A'}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">
+                    {structure.staff?.date_of_joining
+                      ? new Date(structure.staff.date_of_joining).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'N/A'}
+                  </td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">{parseFloat(structure.provident_fund || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-medium">{parseFloat(structure.basic_salary || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">{parseFloat(structure.house_allowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">{parseFloat(structure.medical_allowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">{parseFloat(structure.transport_allowance || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">{parseFloat(structure.other_allowances || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">{parseFloat(structure.gross_salary || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-600">{parseFloat(structure.tax_deduction || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-600">{parseFloat(structure.other_deductions || 0).toLocaleString()}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-bold text-green-700">{parseFloat(structure.net_salary || 0).toLocaleString()}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {salaryStructures.map((structure, index) => (
-                  <tr key={structure.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                    <td className="border border-gray-200 px-3 py-2.5">{index + 1}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 font-medium">
-                      {structure.staff?.first_name} {structure.staff?.last_name}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2.5">{structure.staff?.designation || 'N/A'}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-center">{structure.staff?.employee_number || 'N/A'}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-center">
-                      {structure.staff?.date_of_joining
-                        ? new Date(structure.staff.date_of_joining).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                        : 'N/A'}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.provident_fund || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right font-medium">{parseFloat(structure.basic_salary || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.house_allowance || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.medical_allowance || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.transport_allowance || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right">{parseFloat(structure.other_allowances || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold">{parseFloat(structure.gross_salary || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">{parseFloat(structure.tax_deduction || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">{parseFloat(structure.other_deductions || 0).toLocaleString()}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right font-bold text-green-700">{parseFloat(structure.net_salary || 0).toLocaleString()}</td>
-                  </tr>
-                ))}
-                {/* Total Row */}
-                <tr className="bg-gray-200 font-bold">
-                  <td colSpan="6" className="border border-gray-200 px-3 py-2.5 text-right">TOTAL:</td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.basic_salary || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.house_allowance || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.medical_allowance || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.transport_allowance || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_allowances || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.gross_salary || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.tax_deduction || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right text-red-600">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_deductions || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right text-green-700">
-                    {salaryStructures.reduce((sum, s) => sum + parseFloat(s.net_salary || 0), 0).toLocaleString()}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            No salary structures found for the selected period.
-          </div>
-        )}
-      </div>
+              ))}
+              {/* Total Row */}
+              <tr className="bg-gray-200 font-bold">
+                <td colSpan="6" className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">TOTAL:</td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.basic_salary || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.house_allowance || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.medical_allowance || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.transport_allowance || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_allowances || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.gross_salary || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-600">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.tax_deduction || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-600">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.other_deductions || 0), 0).toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-green-700">
+                  {salaryStructures.reduce((sum, s) => sum + parseFloat(s.net_salary || 0), 0).toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        }
+        cardView={
+          <CardGrid>
+            {salaryStructures.map((structure, index) => (
+              <DataCard key={structure.id}>
+                <CardHeader
+                  srNumber={index + 1}
+                  name={`${structure.staff?.first_name} ${structure.staff?.last_name}`}
+                  subtitle={structure.staff?.designation || 'N/A'}
+                />
+                <CardInfoGrid>
+                  <CardRow label="Emp#" value={structure.staff?.employee_number || 'N/A'} />
+                  <CardRow label="Prov" value={`Rs ${parseFloat(structure.provident_fund || 0).toLocaleString()}`} />
+                  <CardRow label="Basic" value={`Rs ${parseFloat(structure.basic_salary || 0).toLocaleString()}`} className="font-medium" />
+                  <CardRow label="Gross" value={`Rs ${parseFloat(structure.gross_salary || 0).toLocaleString()}`} className="font-semibold" />
+                  <CardRow label="Tax" value={`Rs ${parseFloat(structure.tax_deduction || 0).toLocaleString()}`} className="text-red-600" />
+                  <CardRow label="Net" value={`Rs ${parseFloat(structure.net_salary || 0).toLocaleString()}`} className="font-bold text-green-700" />
+                </CardInfoGrid>
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={salaryStructures.length === 0}
+        emptyMessage="No salary structures found for the selected period"
+      />
 
       {/* Print Footer */}
       <div className="hidden print:block mt-8 text-xs text-gray-600 text-center">

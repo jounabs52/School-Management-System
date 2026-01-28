@@ -15,6 +15,8 @@ import {
   getLogoSize,
   applyPdfSettings
 } from '@/lib/pdfSettings'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions } from '@/components/DataCard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -855,6 +857,9 @@ function FeeCollectContent() {
   // Toast state
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
+
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
   }
@@ -1013,11 +1018,20 @@ function FeeCollectContent() {
     }
   }, [showPaymentModal, showPrintModal])
 
+  // Load user on mount
   useEffect(() => {
-    fetchAllChallans()
-    fetchAllClasses()
-    fetchSchoolInfo()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
+
+  // Fetch data when user is available
+  useEffect(() => {
+    if (currentUser) {
+      fetchAllChallans()
+      fetchAllClasses()
+      fetchSchoolInfo()
+    }
+  }, [currentUser])
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -1026,7 +1040,7 @@ function FeeCollectContent() {
 
   const fetchSchoolInfo = async () => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: schoolData, error } = await supabase
@@ -1045,7 +1059,7 @@ function FeeCollectContent() {
 
   const fetchAllClasses = async () => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: allClasses, error } = await supabase
@@ -1066,7 +1080,7 @@ function FeeCollectContent() {
   const fetchAllChallans = async () => {
     try {
       setLoading(true)
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         console.error('No user found')
         setLoading(false)
@@ -1185,7 +1199,7 @@ function FeeCollectContent() {
   const handlePayment = async () => {
     try {
       console.log('handlePayment called')
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) {
         console.error('No user found')
         showToast('User not found', 'error')
@@ -1365,7 +1379,7 @@ function FeeCollectContent() {
   }
 
   return (
-    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
@@ -1384,14 +1398,14 @@ function FeeCollectContent() {
       )}
 
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-xl font-bold text-gray-800 mb-1">Collect Fee</h1>
-        <p className="text-gray-600 text-sm">Search students and collect pending fees</p>
+      <div className="mb-3 sm:mb-4">
+        <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 mb-1">Collect Fee</h1>
+        <p className="text-gray-600 text-xs sm:text-sm">Search students and collect pending fees</p>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow p-3 mb-3">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
+      <div className="bg-white rounded-lg shadow p-2 sm:p-3 mb-2 sm:mb-3">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 mb-2">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -1431,15 +1445,15 @@ function FeeCollectContent() {
           <button
             onClick={downloadCSV}
             disabled={filteredChallans.length === 0}
-            className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ml-auto"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap sm:ml-auto w-full sm:w-auto"
             title="Download CSV"
           >
             <Download size={14} />
-            <span>Download CSV</span>
+            <span className="sm:inline">Download CSV</span>
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-3 text-xs">
+        <div className="flex flex-wrap gap-2 sm:gap-3 text-xs">
           <p className="text-gray-600">
             Total: <span className="font-bold text-blue-600">{filteredChallans.length}</span>
           </p>
@@ -1455,76 +1469,57 @@ function FeeCollectContent() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-blue-900 text-white">
-              <tr>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Admission No.</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Fee Plan</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total Amount</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Already Paid</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Balance Due</th>
-                <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Status</th>
-                <th className="px-3 py-2.5 text-center font-semibold border border-blue-800">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+      {/* Table with Mobile Cards */}
+      <ResponsiveTableWrapper
+        tableView={
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-blue-900 text-white">
                 <tr>
-                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
-                    Loading...
-                  </td>
+                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
+                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
+                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Admission No.</th>
+                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
+                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee Plan</th>
+                  <th className="px-4 py-3 text-right font-semibold border border-blue-800">Total Amount</th>
+                  <th className="px-4 py-3 text-right font-semibold border border-blue-800">Already Paid</th>
+                  <th className="px-4 py-3 text-right font-semibold border border-blue-800">Balance Due</th>
+                  <th className="px-4 py-3 text-center font-semibold border border-blue-800">Status</th>
+                  <th className="px-4 py-3 text-center font-semibold border border-blue-800">Action</th>
                 </tr>
-              ) : paginatedChallans.length === 0 ? (
-                <tr>
-                  <td colSpan="10" className="px-3 py-6 text-center text-gray-500">
-                    No challans found
-                  </td>
-                </tr>
-              ) : (
-                paginatedChallans.map((challan, index) => {
+              </thead>
+              <tbody>
+                {paginatedChallans.map((challan, index) => {
                   const totalAmount = parseFloat(challan.total_amount)
                   const paidAmount = parseFloat(challan.paid_amount || 0)
                   const balanceDue = totalAmount - paidAmount
-
                   return (
-                    <tr
-                      key={challan.id}
-                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition ${challan.status === 'paid' ? 'bg-green-50' : ''}`}
-                    >
-                      <td className="px-3 py-2.5 text-gray-700 border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-3 py-2.5 text-gray-900 font-medium border border-gray-200">
+                    <tr key={challan.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-4 py-3 border border-gray-200 font-medium">
                         {challan.student?.first_name} {challan.student?.last_name}
                       </td>
-                      <td className="px-3 py-2.5 text-gray-700 border border-gray-200">{challan.student?.admission_number}</td>
-                      <td className="px-3 py-2.5 text-gray-700 border border-gray-200">
-                        {challan.student?.class?.class_name || 'N/A'}
-                        {challan.student?.section?.section_name ? ` - ${challan.student.section.section_name}` : ''}
+                      <td className="px-4 py-3 border border-gray-200">{challan.student?.admission_number}</td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        {`${challan.student?.class?.class_name || 'N/A'}${challan.student?.section?.section_name ? ` - ${challan.student.section.section_name}` : ''}`}
                       </td>
-                      <td className="px-3 py-2.5 text-center border border-gray-200">
+                      <td className="px-4 py-3 border border-gray-200">
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">
                           {getFeePlanLabel(challan.student?.class?.fee_plan || 'monthly')}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-gray-900 font-bold border border-gray-200">
+                      <td className="px-4 py-3 border border-gray-200 text-right font-bold">
                         Rs. {totalAmount.toLocaleString()}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                        <span className="text-green-600 font-semibold">
-                          Rs. {paidAmount.toLocaleString()}
-                        </span>
+                      <td className="px-4 py-3 border border-gray-200 text-right text-green-600 font-semibold">
+                        Rs. {paidAmount.toLocaleString()}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-4 py-3 border border-gray-200 text-right">
                         <span className={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
                           Rs. {balanceDue.toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-center border border-gray-200">
+                      <td className="px-4 py-3 border border-gray-200 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
                           challan.status === 'paid' ? 'bg-green-100 text-green-800' :
                           challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
@@ -1533,7 +1528,7 @@ function FeeCollectContent() {
                           {challan.status.charAt(0).toUpperCase() + challan.status.slice(1)}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-center border border-gray-200">
+                      <td className="px-4 py-3 border border-gray-200">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleViewChallan(challan)}
@@ -1554,61 +1549,122 @@ function FeeCollectContent() {
                       </td>
                     </tr>
                   )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {!loading && filteredChallans.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="text-xs text-gray-500">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} challans
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  currentPage === 1
-                    ? 'bg-blue-300 text-white cursor-not-allowed'
-                    : 'bg-blue-900 text-white hover:bg-blue-800'
-                }`}
-              >
-                Previous
-              </button>
-
-              {getPageNumbers().map((page, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => typeof page === 'number' && goToPage(page)}
-                  className={`min-w-[32px] h-8 rounded-lg text-sm font-medium transition ${
-                    page === currentPage
-                      ? 'bg-blue-900 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  currentPage === totalPages
-                    ? 'bg-blue-300 text-white cursor-not-allowed'
-                    : 'bg-blue-900 text-white hover:bg-blue-800'
-                }`}
-              >
-                Next
-              </button>
-            </div>
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        }
+        cardView={paginatedChallans.map((challan, index) => {
+          const totalAmount = parseFloat(challan.total_amount)
+          const paidAmount = parseFloat(challan.paid_amount || 0)
+          const balanceDue = totalAmount - paidAmount
+
+          return (
+            <DataCard key={challan.id} className={challan.status === 'paid' ? 'bg-green-50' : ''}>
+              <CardHeader>
+                <div className="flex items-center justify-between w-full">
+                  <div>
+                    <span className="text-[10px] text-gray-500">#{startIndex + index + 1}</span>
+                    <div className="font-bold text-gray-900 text-xs mt-0.5">
+                      {challan.student?.first_name} {challan.student?.last_name}
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${
+                    challan.status === 'paid' ? 'bg-green-100 text-green-800' :
+                    challan.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {challan.status}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardRow label="Admission No" value={challan.student?.admission_number} />
+              <CardRow label="Class" value={`${challan.student?.class?.class_name || 'N/A'}${challan.student?.section?.section_name ? ` - ${challan.student.section.section_name}` : ''}`} />
+              <CardRow label="Fee Plan" value={
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 capitalize">
+                  {getFeePlanLabel(challan.student?.class?.fee_plan || 'monthly')}
+                </span>
+              } />
+              <CardRow label="Total Amount" value={`Rs. ${totalAmount.toLocaleString()}`} valueClassName="font-bold" />
+              <CardRow label="Already Paid" value={`Rs. ${paidAmount.toLocaleString()}`} valueClassName="text-green-600 font-semibold" />
+              <CardRow label="Balance Due" value={`Rs. ${balanceDue.toLocaleString()}`} valueClassName={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`} />
+              <CardActions>
+                <button
+                  onClick={() => handleViewChallan(challan)}
+                  className="flex-1 bg-blue-600 text-white py-1.5 rounded text-xs font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1"
+                >
+                  <Eye size={12} />
+                  View
+                </button>
+                {(challan.status === 'pending' || challan.status === 'overdue' || paidAmount < totalAmount) && (
+                  <button
+                    onClick={() => handleSelectChallan(challan)}
+                    className="flex-1 bg-red-600 text-white py-1.5 rounded text-xs font-medium hover:bg-red-700 transition flex items-center justify-center gap-1"
+                  >
+                    <CreditCard size={12} />
+                    Collect
+                  </button>
+                )}
+              </CardActions>
+            </DataCard>
+          )
+        })}
+        loading={loading}
+        empty={paginatedChallans.length === 0}
+        emptyMessage="No challans found"
+      />
+
+      {/* Pagination */}
+      {!loading && filteredChallans.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-3 px-2">
+          <p className="text-xs text-gray-600">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredChallans.length)} of {filteredChallans.length} challans
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => goToPage(1)}
+              disabled={currentPage === 1}
+              className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              First
+            </button>
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Prev
+            </button>
+            {getPageNumbers().map((page) => (
+              <button
+                key={page}
+                onClick={() => goToPage(page)}
+                className={`px-2 py-1 text-xs border rounded ${
+                  currentPage === page
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => goToPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Payment Modal */}
       {showPaymentModal && selectedChallan && (
@@ -1618,8 +1674,8 @@ function FeeCollectContent() {
             onClick={() => setShowPaymentModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 py-3 sm:py-4">
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-base font-bold">Collect Fee</h3>
@@ -1639,9 +1695,9 @@ function FeeCollectContent() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50">
               {/* Challan Details */}
-              <div className="mb-4">
+              <div className="mb-3 sm:mb-4">
                 <h4 className="text-gray-800 font-bold mb-2 text-sm">Challan Details</h4>
                 <div className="bg-white p-3 rounded-lg border border-gray-200">
                   <div className="space-y-1.5 text-sm">
@@ -1778,8 +1834,8 @@ function FeeCollectContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-4 py-3 bg-white">
-              <div className="flex gap-2 justify-end">
+            <div className="border-t border-gray-200 px-3 sm:px-4 py-2 sm:py-3 bg-white">
+              <div className="flex flex-col sm:flex-row gap-2 justify-end">
                 <button
                   onClick={() => setShowPaymentModal(false)}
                   className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"

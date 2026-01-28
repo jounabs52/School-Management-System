@@ -7,6 +7,8 @@ import { getUserFromCookie } from '@/lib/clientAuth'
 import { getPdfSettings, hexToRgb, getMarginValues, getCellPadding, getLineWidth, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -2192,13 +2194,13 @@ function TimetableContent() {
   }
 
   return (
-    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
       {/* Tabs */}
-      <div className="mb-4 flex gap-2">
+      <div className="mb-3 sm:mb-4 flex flex-wrap gap-1 sm:gap-2">
         <button
           onClick={() => {
             setActiveTab('timetable')
@@ -2207,13 +2209,13 @@ function TimetableContent() {
             setShowTimingModal(false)
             setShowDeleteConfirm(false)
           }}
-          className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 text-sm ${
+          className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${
             activeTab === 'timetable'
               ? 'bg-[#DC2626] text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <Clock size={16} />
+          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Timetable
         </button>
         <button
@@ -2224,23 +2226,23 @@ function TimetableContent() {
             setShowTimingModal(false)
             setShowDeleteConfirm(false)
           }}
-          className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 text-sm ${
+          className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${
             activeTab === 'periods'
               ? 'bg-[#DC2626] text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <CalendarDays size={16} />
+          <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Periods
         </button>
       </div>
 
       {/* Content Area */}
       {activeTab === 'timetable' ? (
-        <div className="bg-white rounded-xl shadow-lg p-4">
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div style={{ width: '200px' }}>
+        <div className="bg-white rounded-xl shadow-lg p-2 sm:p-3 md:p-4 lg:p-5">
+          <div className="mb-3 sm:mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 mb-2">
+              <div className="w-full sm:w-[180px] md:w-[200px]">
                 <label className="block text-gray-700 text-xs mb-1 font-medium">Class</label>
                 <select
                   value={selectedClass}
@@ -2252,9 +2254,9 @@ function TimetableContent() {
                     setTimetableLoaded(false)
                   }}
                   disabled={loadingClasses}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-gray-100"
+                  className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-gray-100"
                 >
-                  <option value="">{loadingClasses ? 'Loading classes...' : 'Select Class'}</option>
+                  <option value="">{loadingClasses ? 'Loading...' : 'Select Class'}</option>
                   <option value="all">All Classes</option>
                   {!loadingClasses && classes.length === 0 && <option disabled>No classes available</option>}
                   {classes.map((cls) => (
@@ -2266,8 +2268,8 @@ function TimetableContent() {
               </div>
 
               {selectedClass && selectedClass !== 'all' && sections.length > 0 && (
-                <div style={{ width: '200px' }}>
-                  <label className="block text-gray-700 text-xs mb-1 font-medium">Section (Optional)</label>
+                <div className="w-full sm:w-[180px] md:w-[200px]">
+                  <label className="block text-gray-700 text-xs mb-1 font-medium">Section</label>
                   <select
                     value={selectedSection}
                     onChange={(e) => {
@@ -2275,7 +2277,7 @@ function TimetableContent() {
                       setTimetable([])
                       setTimetableLoaded(false)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   >
                     <option value="">All Sections</option>
                     {sections.map((section) => (
@@ -2290,10 +2292,10 @@ function TimetableContent() {
               <button
                 onClick={handleLoad}
                 disabled={!selectedClass}
-                className="bg-[#DC2626] text-white px-6 py-2 rounded-md font-medium hover:bg-red-700 transition flex items-center gap-2 shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed whitespace-nowrap mt-5"
+                className="bg-[#DC2626] text-white px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 rounded-md font-medium hover:bg-red-700 transition flex items-center justify-center gap-1 sm:gap-2 shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed whitespace-nowrap text-xs sm:text-sm"
               >
                 Load
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -2301,12 +2303,12 @@ function TimetableContent() {
           </div>
 
           {!timetableLoaded ? (
-            <div className="text-center py-8">
-              <Clock size={48} className="mx-auto text-gray-300 mb-3" />
-              <h3 className="text-lg font-bold text-gray-700 mb-1">
+            <div className="text-center py-6 sm:py-8">
+              <Clock className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 mb-2 sm:mb-3" />
+              <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-1">
                 {!selectedClass ? 'Select a Class' : 'Click Load to View Timetable'}
               </h3>
-              <p className="text-gray-500 text-sm">
+              <p className="text-gray-500 text-xs sm:text-sm px-4">
                 {!selectedClass
                   ? 'Please select a class and click Load to view the timetable'
                   : 'Click the Load button to display the timetable'}
@@ -2315,9 +2317,9 @@ function TimetableContent() {
           ) : (
             <>
               {/* Filter and Action Buttons Row */}
-              <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-3">
                 {selectedClass !== 'all' && (
-                  <div style={{ width: '200px' }}>
+                  <div className="w-full sm:w-[200px]">
                     <select
                       value={selectedTeacherFilter}
                       onChange={(e) => setSelectedTeacherFilter(e.target.value)}
@@ -2332,9 +2334,9 @@ function TimetableContent() {
                     </select>
                   </div>
                 )}
-                {selectedClass === 'all' && <div></div>}
+                {selectedClass === 'all' && <div className="hidden sm:block"></div>}
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-1 sm:gap-2">
                   {selectedClass === 'all' ? (
                     <button
                       onClick={handlePrintAllTimetables}
@@ -2735,29 +2737,27 @@ function TimetableContent() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-[#1B3C6D] text-white">
-                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Sr.</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Class</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Day</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Name</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Start Time</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">End Time</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Type</th>
-                  <th className="px-3 py-2.5 text-center font-semibold border border-[#1B3C6D]">Options</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPeriods.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="px-3 py-6 text-center text-gray-500">
-                      No periods found
-                    </td>
+          <ResponsiveTableWrapper
+            loading={loading}
+            empty={filteredPeriods.length === 0}
+            emptyMessage="No periods found"
+            emptyIcon={<Clock className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />}
+            tableView={
+              <table className="w-full border-collapse text-sm min-w-[600px]">
+                <thead>
+                  <tr className="bg-[#1B3C6D] text-white">
+                    <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Sr.</th>
+                    <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Class</th>
+                    <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Day</th>
+                    <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Name</th>
+                    <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Start Time</th>
+                    <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">End Time</th>
+                    <th className="px-3 py-2.5 text-left font-semibold border border-[#1B3C6D]">Type</th>
+                    <th className="px-3 py-2.5 text-center font-semibold border border-[#1B3C6D]">Options</th>
                   </tr>
-                ) : (
-                  paginatedPeriods.map((period, index) => (
+                </thead>
+                <tbody>
+                  {paginatedPeriods.map((period, index) => (
                     <tr key={period.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
                       <td className="px-3 py-2.5 border border-gray-200">
@@ -2800,24 +2800,81 @@ function TimetableContent() {
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            }
+            cardView={
+              <CardGrid>
+                {paginatedPeriods.map((period, index) => (
+                  <DataCard key={period.id}>
+                    <CardHeader
+                      srNumber={startIndex + index + 1}
+                      name={period.period_name}
+                      subtitle={`Period ${period.period_number} • ${period.day_of_week || 'ALL DAYS'}`}
+                      badge={
+                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] font-semibold">
+                          {formatPeriodType(period.period_type)}
+                        </span>
+                      }
+                    />
+                    <CardInfoGrid>
+                      <CardRow
+                        label="Class"
+                        value={period.class_id ? classes.find(c => c.id === period.class_id)?.class_name || '-' : 'All Classes'}
+                      />
+                      <CardRow label="Day" value={period.day_of_week || 'ALL DAYS'} />
+                      <CardRow label="Start Time" value={formatTime(period.start_time)} />
+                      <CardRow label="End Time" value={formatTime(period.end_time)} />
+                    </CardInfoGrid>
+                    <CardActions>
+                      <button
+                        onClick={() => {
+                          setEditingPeriod(period)
+                          setPeriodForm({
+                            class_id: period.class_id || '',
+                            day_of_week: period.day_of_week || '',
+                            period_number: period.period_number,
+                            period_name: period.period_name,
+                            start_time: period.start_time,
+                            end_time: period.end_time,
+                            period_type: period.period_type
+                          })
+                          setShowPeriodModal(true)
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition"
+                        title="Edit Period"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPeriodToDelete(period)
+                          setShowDeletePeriodModal(true)
+                        }}
+                        className="bg-red-600 hover:bg-red-700 text-white p-1 rounded transition"
+                        title="Delete Period"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+          />
 
           {/* Pagination */}
           {filteredPeriods.length > 0 && (
-            <div className="px-3 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between mt-3">
-              <div className="text-xs text-gray-500">
+            <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 bg-gray-50 rounded-b-lg mt-3">
+              <div className="text-[10px] sm:text-xs text-gray-600 text-center sm:text-left">
                 Showing {startIndex + 1} to {Math.min(endIndex, filteredPeriods.length)} of {filteredPeriods.length} periods
               </div>
-
-              <div className="flex items-center gap-1.5">
+              <div className="flex gap-1 sm:gap-1.5">
                 <button
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition ${
                     currentPage === 1
                       ? 'bg-blue-300 text-white cursor-not-allowed'
                       : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -2830,7 +2887,7 @@ function TimetableContent() {
                   <button
                     key={idx}
                     onClick={() => typeof page === 'number' && goToPage(page)}
-                    className={`w-8 h-8 rounded-lg text-sm font-medium transition ${
+                    className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg text-[10px] sm:text-sm font-medium transition ${
                       page === currentPage
                         ? 'bg-blue-900 text-white'
                         : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -2843,7 +2900,7 @@ function TimetableContent() {
                 <button
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition ${
                     currentPage === totalPages
                       ? 'bg-blue-300 text-white cursor-not-allowed'
                       : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -2865,20 +2922,20 @@ function TimetableContent() {
             onClick={() => setShowPeriodModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">{editingPeriod ? 'Update Period' : 'Add Period'}</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                  <h3 className="text-lg sm:text-xl font-bold">{editingPeriod ? 'Update Period' : 'Add Period'}</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Fill in the details below</p>
                 </div>
                 <button onClick={() => setShowPeriodModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
                   <X size={24} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">Class</label>
                   <select
@@ -2997,19 +3054,19 @@ function TimetableContent() {
             onClick={() => setShowBulkPeriodModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Add Period via policy</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                  <h3 className="text-lg sm:text-xl font-bold">Add Period via policy</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Fill in the details below</p>
                 </div>
                 <button onClick={() => setShowBulkPeriodModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
                   <X size={24} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
               <p className="text-sm text-gray-600 mb-4">
                 This will create 8 periods automatically with the specified timing and gap between periods for selected classes and days.
               </p>
@@ -3070,7 +3127,7 @@ function TimetableContent() {
                 <p className="text-xs text-gray-500 mt-1">{bulkPeriodForm.day_of_weeks.length} day(s) selected</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">Start Time <span className="text-red-500">*</span></label>
                   <input
@@ -3121,7 +3178,7 @@ function TimetableContent() {
                 </div>
               </div>
             </div>
-            <div className="p-6 bg-white border-t border-gray-200">
+            <div className="p-4 sm:p-6 bg-white border-t border-gray-200">
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowBulkPeriodModal(false)}
@@ -3149,20 +3206,20 @@ function TimetableContent() {
             onClick={() => setShowTimingModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Change Period Timing</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                  <h3 className="text-lg sm:text-xl font-bold">Change Period Timing</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Fill in the details below</p>
                 </div>
                 <button onClick={() => setShowTimingModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
                   <X size={24} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">Start Time <span className="text-red-500">*</span></label>
                   <input
@@ -3213,7 +3270,7 @@ function TimetableContent() {
                 </div>
               </div>
             </div>
-            <div className="p-6 bg-white border-t border-gray-200">
+            <div className="p-4 sm:p-6 bg-white border-t border-gray-200">
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowTimingModal(false)}
@@ -3279,20 +3336,20 @@ function TimetableContent() {
             onClick={() => setShowTimetableModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">{editingTimetable ? 'Update Timetable Entry' : 'Add Timetable Entry'}</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                  <h3 className="text-lg sm:text-xl font-bold">{editingTimetable ? 'Update Timetable Entry' : 'Add Timetable Entry'}</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Fill in the details below</p>
                 </div>
                 <button onClick={() => setShowTimetableModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition">
                   <X size={24} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">Day <span className="text-red-500">*</span></label>
                   <select
@@ -3360,7 +3417,7 @@ function TimetableContent() {
                   </select>
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-gray-700 font-semibold mb-2">Type <span className="text-red-500">*</span></label>
                   <select
                     value={timetableForm.entry_type}

@@ -9,6 +9,8 @@ import jsPDF from 'jspdf'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getLineWidth, applyPdfSettings, addPDFFooter } from '@/lib/pdfSettings'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardInfoGrid, CardRow, CardActions, CardGrid } from '@/components/DataCard'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -70,7 +72,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -78,11 +80,11 @@ const Toast = ({ message, type, onClose }) => {
     style={{
       animation: 'slideIn 0.3s ease-out'
     }}>
-      {type === 'success' && <CheckCircle size={20} strokeWidth={2.5} />}
-      {type === 'error' && <X size={20} strokeWidth={2.5} />}
-      <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity">
-        <X size={18} strokeWidth={2.5} />
+      {type === 'success' && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" strokeWidth={2.5} />}
+      {type === 'error' && <X className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" strokeWidth={2.5} />}
+      <span className="font-medium text-xs sm:text-sm truncate">{message}</span>
+      <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity flex-shrink-0">
+        <X className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
       </button>
       <style jsx>{`
         @keyframes slideIn {
@@ -1276,7 +1278,7 @@ function InactiveStudentsContent() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
@@ -1284,29 +1286,29 @@ function InactiveStudentsContent() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+        <div className="mb-2 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative">
           {success}
         </div>
       )}
       {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <AlertCircle size={20} />
-          {error}
+        <div className="mb-2 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+          <span className="line-clamp-2">{error}</span>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Inactive Students</h2>
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
+        <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800 mb-2 sm:mb-3 md:mb-4 lg:mb-6">Inactive Students</h2>
 
         {/* Search and Filter Section */}
-        <div className="grid grid-cols-1 md:grid-cols-10 gap-4 mb-6">
+        <div className="filter-row-mobile mb-3 sm:mb-4 lg:mb-6">
           {/* Class Dropdown */}
-          <div className="md:col-span-3">
+          <div>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               disabled={loadingClasses}
             >
               <option value="">All Classes</option>
@@ -1319,128 +1321,214 @@ function InactiveStudentsContent() {
           </div>
 
           {/* Search Input */}
-          <div className="md:col-span-7 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <div className="relative">
+            <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
-              placeholder="Search by name, father name, admission number, or CNIC"
+              placeholder="Search by name, admission no..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 sm:pl-9 md:pl-10 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
 
+        <style jsx>{`
+          .filter-row-mobile {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+          }
+
+          @media (min-width: 640px) {
+            .filter-row-mobile {
+              grid-template-columns: 2fr 3fr;
+              gap: 0.75rem;
+            }
+          }
+        `}</style>
+
         {/* Student Count and Export Button */}
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-gray-600">
+        <div className="btn-row-mobile mb-2 sm:mb-3 md:mb-4">
+          <p className="text-gray-600 text-xs sm:text-sm md:text-base">
             There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> inactive students{selectedClass ? ' in this class' : ''}.
           </p>
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
           >
-            <Download size={18} />
-            Export to Excel
+            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
+            <span className="hidden sm:inline">Export to Excel</span>
+            <span className="sm:hidden">Export</span>
           </button>
         </div>
 
+        <style jsx>{`
+          .btn-row-mobile {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+          }
+
+          @media (min-width: 640px) {
+            .btn-row-mobile {
+              flex-direction: row;
+              justify-content: space-between;
+              align-items: center;
+            }
+          }
+        `}</style>
+
         {/* Loading State */}
         {loading && (
-          <div className="flex justify-center items-center py-12">
-            <Loader2 size={40} className="animate-spin text-red-600" />
+          <div className="flex justify-center items-center py-8 sm:py-10 md:py-12">
+            <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin text-red-600" />
           </div>
         )}
 
-        {/* Table */}
+        {/* Table with Responsive Wrapper */}
         {!loading && (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Session</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Father Name</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Adm.No</th>
-                  <th className="px-4 py-3 text-left font-semibold border border-blue-800">Options</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                      No inactive students found.
-                    </td>
+          <ResponsiveTableWrapper
+            loading={loading}
+            empty={filteredStudents.length === 0}
+            emptyMessage="No inactive students found."
+            tableView={
+              <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Sr.</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Session</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Class</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800">Student Name</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 hidden md:table-cell">Father Name</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Adm.No</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800">Options</th>
                   </tr>
-                ) : (
-                  paginatedStudents.map((student, index) => (
-                    <tr
-                      key={student.id}
-                      className={`${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                      } hover:bg-blue-50 transition`}
-                    >
-                      <td className="px-4 py-3 border border-gray-200">{student.sr}</td>
-                      <td className="px-4 py-3 border border-gray-200">{student.session}</td>
-                      <td className="px-4 py-3 border border-gray-200">{getClassName(student.class)}</td>
-                      <td className="px-4 py-3 border border-gray-200">
-                        <div className="flex items-center gap-3">
-                          {student.photo_url ? (
-                            <img
-                              src={student.photo_url}
-                              alt={student.name}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">
-                              {student.avatar}
-                            </div>
-                          )}
-                          <span className="text-blue-600 font-medium hover:underline cursor-pointer">
-                            {student.name}
-                          </span>
-                        </div>
+                </thead>
+                <tbody>
+                  {filteredStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-2 sm:px-3 md:px-4 py-6 sm:py-8 text-center text-gray-500 text-xs sm:text-sm">
+                        No inactive students found.
                       </td>
-                      <td className="px-4 py-3 border border-gray-200">{student.father}</td>
-                      <td className="px-4 py-3 border border-gray-200">{student.admNo}</td>
-                      <td className="px-4 py-3 border border-gray-200">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleView(student)}
-                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
-                            title="View"
-                          >
-                            <Eye size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleToggleStatus(student)}
-                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition"
-                            title="Activate Student"
-                          >
-                            <ToggleLeft size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(student)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Permanently Delete"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                    </tr>
+                  ) : (
+                    paginatedStudents.map((student, index) => (
+                      <tr
+                        key={student.id}
+                        className={`${
+                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                        } hover:bg-blue-50 transition`}
+                      >
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">{student.sr}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 hidden sm:table-cell">{student.session}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">{getClassName(student.class)}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">
+                          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+                            {student.photo_url ? (
+                              <img
+                                src={student.photo_url}
+                                alt={student.name}
+                                className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm sm:text-base md:text-xl flex-shrink-0">
+                                {student.avatar}
+                              </div>
+                            )}
+                            <span className="text-blue-600 font-medium hover:underline cursor-pointer text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[120px] md:max-w-none">
+                              {student.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 hidden md:table-cell">{student.father}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">{student.admNo}</td>
+                        <td className="px-1 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">
+                          <div className="flex items-center gap-0 sm:gap-0.5 md:gap-1">
+                            <button
+                              onClick={() => handleView(student)}
+                              className="p-1 sm:p-1.5 md:p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                              title="View"
+                            >
+                              <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleStatus(student)}
+                              className="p-1 sm:p-1.5 md:p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition"
+                              title="Activate Student"
+                            >
+                              <ToggleLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(student)}
+                              className="p-1 sm:p-1.5 md:p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              title="Permanently Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
+                            </button>
+                          </div>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </div>
+            }
+            cardView={
+              <CardGrid>
+                {paginatedStudents.map((student) => (
+                  <DataCard key={student.id}>
+                    <CardHeader
+                      srNumber={student.sr}
+                      photo={student.photo_url || student.avatar}
+                      name={student.name}
+                      subtitle={getClassName(student.class)}
+                      badge={
+                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium">
+                          Inactive
+                        </span>
+                      }
+                    />
+                    <CardInfoGrid>
+                      <CardRow label="Adm#" value={student.admNo} />
+                      <CardRow label="Session" value={student.session} />
+                      <CardRow label="Father" value={student.father} />
+                      <CardRow label="Class" value={getClassName(student.class)} />
+                    </CardInfoGrid>
+                    <CardActions>
+                      <button
+                        onClick={() => handleView(student)}
+                        className="flex-1 p-1 text-teal-600 hover:bg-teal-50 rounded transition flex items-center justify-center"
+                        title="View"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleToggleStatus(student)}
+                        className="flex-1 p-1 text-gray-600 hover:bg-gray-50 rounded transition flex items-center justify-center"
+                        title="Activate"
+                      >
+                        <ToggleLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(student)}
+                        className="flex-1 p-1 text-red-600 hover:bg-red-50 rounded transition flex items-center justify-center"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+          />
         )}
 
         {/* Pagination Controls */}
         {filteredStudents.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50">
             <div className="text-sm text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
             </div>
@@ -1505,9 +1593,9 @@ function InactiveStudentsContent() {
       {/* View Student Modal */}
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl flex-shrink-0">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-4 animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-white rounded-none sm:rounded-xl shadow-2xl max-w-full sm:max-w-2xl lg:max-w-4xl w-full h-full sm:h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl flex-shrink-0">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Student Information</h3>
                   <div className="flex items-center gap-2">
@@ -1527,7 +1615,7 @@ function InactiveStudentsContent() {
                   </div>
                 </div>
               </div>
-              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
+              <div className="p-3 sm:p-6 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
                 <style jsx>{`
                   .custom-scrollbar::-webkit-scrollbar {
                     width: 8px;
@@ -1544,8 +1632,8 @@ function InactiveStudentsContent() {
                     background: #94a3b8;
                   }
                 `}</style>
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden">
+                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-gray-200">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center text-3xl sm:text-4xl overflow-hidden flex-shrink-0">
                     {selectedStudent.photo_url ? (
                       <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
                     ) : (
@@ -1850,8 +1938,8 @@ function InactiveStudentsContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedStudent && (
         <ModalOverlay onClose={() => !deleting && setShowDeleteModal(false)} disabled={deleting}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-4 animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-white rounded-none sm:rounded-xl shadow-2xl max-w-full sm:max-w-md w-full h-full sm:h-auto flex flex-col sm:block" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
                 <h3 className="text-lg font-bold">Confirm Delete</h3>
               </div>
@@ -1894,7 +1982,7 @@ function InactiveStudentsContent() {
       {/* Edit Student Sidebar */}
       {showEditSidebar && (
         <ModalOverlay onClose={() => !saving && setShowEditSidebar(false)} disabled={saving}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200 animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
               <div className="flex justify-between items-center">
                 <div>

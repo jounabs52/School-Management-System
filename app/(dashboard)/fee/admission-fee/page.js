@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { Users, FileText, TrendingUp, TrendingDown, Edit, Trash2, Plus, X, CheckCircle } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions } from '@/components/DataCard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -64,6 +66,9 @@ function AdmissionFeePolicyContent() {
   // Toast state
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
+
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
   }
@@ -88,30 +93,35 @@ function AdmissionFeePolicyContent() {
     }
   }, [showAddPolicyModal, showEditModal, showDeleteModal, showIncrementModal, showDecrementModal])
 
+  // Load user on mount
   useEffect(() => {
-    fetchClasses()
-    fetchFeeTypes()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
 
+  // Fetch data when user is available
   useEffect(() => {
-    if (selectedClass) {
+    if (currentUser) {
+      fetchClasses()
+      fetchFeeTypes()
+    }
+  }, [currentUser])
+
+  useEffect(() => {
+    if (selectedClass && currentUser) {
       fetchFeePolicy()
     }
-  }, [selectedClass])
+  }, [selectedClass, currentUser])
 
   const fetchClasses = async () => {
-    try {
-      const user = getUserFromCookie()
-      if (!user) {
-        window.location.href = '/login'
-        return
-      }
+    if (!currentUser) return
 
+    try {
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select('id, class_name, order_number')
-        .eq('user_id', user.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('order_number', { ascending: true })
 
@@ -125,15 +135,14 @@ function AdmissionFeePolicyContent() {
   }
 
   const fetchFeeTypes = async () => {
-    try {
-      const user = getUserFromCookie()
-      if (!user) return
+    if (!currentUser) return
 
+    try {
       const { data, error } = await supabase
         .from('fee_types')
         .select('id, fee_name, fee_code')
-        .eq('user_id', user.id)
-        .eq('school_id', user.school_id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
         .eq('status', 'active')
         .order('fee_name')
 
@@ -145,9 +154,9 @@ function AdmissionFeePolicyContent() {
   }
 
   const fetchFeePolicy = async () => {
+    if (!currentUser || !selectedClass) return
+
     try {
-      const user = getUserFromCookie()
-      if (!user || !selectedClass) return
 
       const { data, error } = await supabase
         .from('fee_structures')
@@ -184,7 +193,7 @@ function AdmissionFeePolicyContent() {
     }
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: classData, error: classError } = await supabase
@@ -232,7 +241,7 @@ function AdmissionFeePolicyContent() {
     }
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: classData, error: classError } = await supabase
@@ -287,7 +296,7 @@ function AdmissionFeePolicyContent() {
     }
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       let feeTypeId = null
@@ -366,7 +375,7 @@ function AdmissionFeePolicyContent() {
     if (!deletingPolicyId) return
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { error } = await supabase
         .from('fee_structures')
         .delete()
@@ -420,7 +429,7 @@ function AdmissionFeePolicyContent() {
     }
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: sessionData, error: sessionError } = await supabase
@@ -590,7 +599,7 @@ function AdmissionFeePolicyContent() {
     }
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       if (!user) return
 
       const { data: sessionData, error: sessionError } = await supabase
@@ -740,7 +749,7 @@ function AdmissionFeePolicyContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-2">
+    <div className="min-h-screen bg-gray-50 p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       {/* Animation Styles */}
       <style jsx global>{`
         @keyframes slide-in {
@@ -780,8 +789,8 @@ function AdmissionFeePolicyContent() {
       )}
 
       {/* Compact Filter Section */}
-      <div className="bg-white rounded-lg shadow p-2 mb-2">
-        <div className="flex flex-col md:flex-row gap-1.5 items-center">
+      <div className="bg-white rounded-lg shadow p-2 sm:p-3 mb-2 sm:mb-3">
+        <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 items-stretch sm:items-center">
           {/* Class Dropdown - First */}
           <select
             value={selectedClass?.id || ''}
@@ -843,112 +852,125 @@ function AdmissionFeePolicyContent() {
           </div>
 
           {/* Fee Policy Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Sr.</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Fee Head</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Title</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold border border-blue-800">Amount</th>
-                    <th className="px-3 py-2.5 text-center text-xs font-semibold border border-blue-800">Options</th>
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full text-sm">
+                <thead className="bg-blue-900 text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Sr.</th>
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee Head</th>
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Title</th>
+                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Amount</th>
+                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Options</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {feePolicy.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-3 py-8 text-center text-xs text-gray-500 border border-gray-200">
-                        No fee policy found for this class. Click "Add Fee" to get started.
+                  {paginatedPolicies.map((policy, index) => (
+                    <tr key={policy.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-4 py-3 border border-gray-200">{startIndex + index + 1}</td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        <span className="text-blue-600 font-medium">{policy.fee_types?.fee_name || 'N/A'}</span>
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">{policy.fee_types?.fee_name || 'N/A'}</td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        <span className="text-blue-600 font-bold">Rs. {policy.amount ? policy.amount.toLocaleString() : '0'}</span>
+                      </td>
+                      <td className="px-4 py-3 border border-gray-200">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleEditPolicy(policy)}
+                            className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
+                            title="Edit Policy"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePolicy(policy.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
+                            title="Delete Policy"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    paginatedPolicies.map((policy, index) => (
-                      <tr key={policy.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                        <td className="px-3 py-2.5 border border-gray-200 text-xs text-gray-600">{startIndex + index + 1}</td>
-                        <td className="px-3 py-2.5 border border-gray-200 text-xs">
-                          <span className="text-blue-600 font-medium">{policy.fee_types?.fee_name || 'N/A'}</span>
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200 text-xs text-gray-600">
-                          {policy.fee_types?.fee_name || 'N/A'}
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200 text-xs text-blue-600 font-bold">
-                          Rs. {policy.amount ? policy.amount.toLocaleString() : '0'}
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleEditPolicy(policy)}
-                              className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition"
-                              title="Edit Policy"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePolicy(policy.id)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
-                              title="Delete Policy"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* Pagination */}
-            {feePolicy.length > 0 && (
-              <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                <div className="text-xs text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, feePolicy.length)} of {feePolicy.length} policies
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-1.5 rounded text-xs font-medium transition ${
-                      currentPage === 1
-                        ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
-                        : 'bg-blue-800 text-white hover:bg-blue-900'
-                    }`}
-                  >
-                    Previous
-                  </button>
-
-                  {getPageNumbers().map((page, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => goToPage(page)}
-                      className={`w-8 h-8 rounded text-xs font-medium transition ${
-                        page === currentPage
-                          ? 'bg-blue-800 text-white'
-                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage === totalPages || totalPages === 0}
-                    className={`px-3 py-1.5 rounded text-xs font-medium transition ${
-                      currentPage === totalPages || totalPages === 0
-                        ? 'bg-blue-300 text-white cursor-not-allowed opacity-50'
-                        : 'bg-blue-800 text-white hover:bg-blue-900'
-                    }`}
-                  >
-                    Next
-                  </button>
-                </div>
+            }
+            cardView={
+              <div className="space-y-2">
+                {paginatedPolicies.map((policy, index) => (
+                  <DataCard key={policy.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[10px] text-gray-500">#{startIndex + index + 1}</span>
+                        <span className="text-blue-600 font-bold text-xs">Rs. {policy.amount ? policy.amount.toLocaleString() : '0'}</span>
+                      </div>
+                    </CardHeader>
+                    <CardRow label="Fee Head" value={policy.fee_types?.fee_name || 'N/A'} />
+                    <CardActions>
+                      <button
+                        onClick={() => handleEditPolicy(policy)}
+                        className="flex-1 bg-teal-600 text-white py-1.5 rounded text-xs font-medium hover:bg-teal-700 transition flex items-center justify-center gap-1"
+                      >
+                        <Edit size={12} />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeletePolicy(policy.id)}
+                        className="flex-1 bg-red-600 text-white py-1.5 rounded text-xs font-medium hover:bg-red-700 transition flex items-center justify-center gap-1"
+                      >
+                        <Trash2 size={12} />
+                        Delete
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
               </div>
-            )}
-          </div>
+            }
+            loading={loading}
+            empty={feePolicy.length === 0}
+            emptyMessage="No fee policy found for this class. Click 'Add Fee' to get started."
+          />
+
+          {/* Pagination */}
+          {feePolicy.length > rowsPerPage && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 mt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs sm:text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, feePolicy.length)} of {feePolicy.length} {feePolicy.length === 1 ? 'policy' : 'policies'}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Previous
+                </button>
+                {getPageNumbers().map(page => (
+                  <button
+                    key={page}
+                    onClick={() => goToPage(page)}
+                    className={`px-3 py-1.5 text-xs sm:text-sm border rounded transition ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -964,11 +986,11 @@ function AdmissionFeePolicyContent() {
               setIncrementType('percentage')
             }}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95%] sm:w-full max-w-md bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
             {/* Blue Header */}
-            <div className="bg-[#2B5AA8] px-6 py-4 flex justify-between items-center">
+            <div className="bg-[#2B5AA8] px-4 sm:px-6 py-4 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-white">Fee Increment</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Fee Increment</h3>
                 <p className="text-blue-100 text-sm mt-0.5">For class: {selectedClass.class_name}</p>
               </div>
               <button
@@ -1072,11 +1094,11 @@ function AdmissionFeePolicyContent() {
               setDecrementType('percentage')
             }}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95%] sm:w-full max-w-md bg-white shadow-2xl z-[10000] rounded-xl overflow-hidden">
             {/* Blue Header */}
-            <div className="bg-[#2B5AA8] px-6 py-4 flex justify-between items-center">
+            <div className="bg-[#2B5AA8] px-4 sm:px-6 py-4 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-white">Fee Decrement</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Fee Decrement</h3>
                 <p className="text-blue-100 text-sm mt-0.5">For class: {selectedClass.class_name}</p>
               </div>
               <button
@@ -1180,7 +1202,7 @@ function AdmissionFeePolicyContent() {
               setFeeAmount('')
             }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200 animate-slide-in">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200 animate-slide-in">
             {/* Blue Header */}
             <div className="bg-[#2B5AA8] text-white px-6 py-4 flex justify-between items-center">
               <div>
@@ -1311,7 +1333,7 @@ function AdmissionFeePolicyContent() {
               setFeeAmount('')
             }}
           />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200 animate-slide-in">
+          <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200 animate-slide-in">
             {/* Blue Header */}
             <div className="bg-[#2B5AA8] text-white px-6 py-4 flex justify-between items-center">
               <div>
@@ -1406,10 +1428,10 @@ function AdmissionFeePolicyContent() {
               setDeletingPolicyId(null)
             }}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white shadow-2xl z-[10000] rounded-lg overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95%] sm:w-full max-w-md bg-white shadow-2xl z-[10000] rounded-lg overflow-hidden">
             {/* Red Header */}
-            <div className="bg-[#DC2626] px-6 py-3.5">
-              <h3 className="text-xl font-bold text-white">Confirm Delete</h3>
+            <div className="bg-[#DC2626] px-4 sm:px-6 py-3.5">
+              <h3 className="text-lg sm:text-xl font-bold text-white">Confirm Delete</h3>
             </div>
 
             {/* Content */}

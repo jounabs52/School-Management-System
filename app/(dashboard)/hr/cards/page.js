@@ -806,23 +806,23 @@ function StaffIDCardsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 p-1.5 sm:p-2 md:p-3 lg:p-4">
       {/* Compact Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#1E3A8A] p-2 rounded-lg">
-              <CreditCard className="w-6 h-6 text-white" />
+      <div className="bg-white border-b border-gray-200 px-2 sm:px-2 sm:px-3 py-1.5 sm:py-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="bg-[#1E3A8A] p-1.5 sm:p-2 rounded-lg">
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Staff ID Cards</h1>
-              <p className="text-sm text-gray-500">Generate professional staff identification cards</p>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Staff ID Cards</h1>
+              <p className="text-xs sm:text-sm text-gray-500">Generate professional staff identification cards</p>
             </div>
           </div>
 
           {/* Settings button */}
-          <div>
-            <button onClick={() => setShowSettingsModal(true)} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm">
+          <div className="w-full sm:w-auto">
+            <button onClick={() => setShowSettingsModal(true)} className="flex items-center justify-center gap-1.5 sm:gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm w-full sm:w-auto">
               <Settings className="w-4 h-4" />
               <span className="text-sm font-medium">Settings</span>
             </button>
@@ -831,11 +831,11 @@ function StaffIDCardsContent() {
       </div>
 
       {/* Main Content */}
-      <div className="p-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="p-2 sm:p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4">
 
           {/* Configuration Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4">
 
             {/* Staff Search */}
             <div>
@@ -901,21 +901,21 @@ function StaffIDCardsContent() {
 
           {/* Settings Modal */}
           {showSettingsModal && (
-            <div className="fixed inset-0 z-50 flex items-start justify-center pt-16">
+            <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 sm:pt-16 px-2 sm:px-0">
               <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSettingsModal(false)}></div>
-              <div className="relative w-[92%] sm:w-3/4 lg:w-2/3 xl:w-1/2 bg-white rounded-lg shadow-lg overflow-hidden z-50">
-                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold">ID Card Settings</h3>
+              <div className="relative w-full sm:w-3/4 lg:w-2/3 xl:w-1/2 bg-white rounded-lg shadow-lg overflow-hidden z-50 max-h-[90vh] sm:max-h-auto">
+                <div className="flex items-center justify-between px-3 sm:px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200">
+                  <h3 className="text-base sm:text-lg font-semibold">ID Card Settings</h3>
                   <button onClick={() => setShowSettingsModal(false)} className="text-gray-500 hover:text-gray-700">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4">
+                <div className="p-3 sm:p-5 max-h-[60vh] sm:max-h-[70vh] overflow-y-auto space-y-4">
                   {/* Header & Branding */}
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">HEADER & BRANDING</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <h4 className="text-xs sm:text-sm font-semibold mb-2">HEADER & BRANDING</h4>
+                    <div className="grid grid-cols-1 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Institute Name (Main Header)</label>
                         <input type="text" value={idCardSettings.instituteName} onChange={(e) => setIdCardSettings(prev => ({...prev, instituteName: e.target.value }))} placeholder="e.g., SUPERIOR COLLEGE BHAKKAR" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
@@ -961,8 +961,8 @@ function StaffIDCardsContent() {
 
                   {/* Color Settings */}
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">COLOR SETTINGS</h4>
-                    <div className="grid grid-cols-2 gap-3">
+                    <h4 className="text-xs sm:text-sm font-semibold mb-2">COLOR SETTINGS</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Header Background</label>
                         <div className="flex items-center gap-2">
@@ -999,8 +999,8 @@ function StaffIDCardsContent() {
 
                   {/* Photo Settings */}
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">STUDENT PHOTO</h4>
-                    <div className="grid grid-cols-2 gap-3">
+                    <h4 className="text-xs sm:text-sm font-semibold mb-2">STUDENT PHOTO</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Photo Shape</label>
                         <select value={idCardSettings.photoShape} onChange={(e) => setIdCardSettings(prev => ({...prev, photoShape: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
@@ -1039,8 +1039,8 @@ function StaffIDCardsContent() {
 
                   {/* Front Side Fields */}
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">FRONT SIDE FIELDS</h4>
-                    <div className="flex flex-wrap gap-3">
+                    <h4 className="text-xs sm:text-sm font-semibold mb-2">FRONT SIDE FIELDS</h4>
+                    <div className="flex flex-wrap gap-2 sm:gap-3">
                       <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.name} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, name: e.target.checked }}))} /> Name</label>
                       <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.employeeNo} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, employeeNo: e.target.checked }}))} /> Roll No</label>
                       <label className="inline-flex items-center gap-2"><input type="checkbox" checked={idCardSettings.frontFields.designation} onChange={(e) => setIdCardSettings(prev => ({...prev, frontFields: {...prev.frontFields, designation: e.target.checked }}))} /> Designation</label>
@@ -1052,8 +1052,8 @@ function StaffIDCardsContent() {
 
                   {/* Card Design & Font Settings */}
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">CARD DESIGN</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <h4 className="text-xs sm:text-sm font-semibold mb-2">CARD DESIGN</h4>
+                    <div className="grid grid-cols-1 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Card Orientation</label>
                         <select value={idCardSettings.cardOrientation} onChange={(e) => setIdCardSettings(prev => ({...prev, cardOrientation: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
@@ -1074,7 +1074,7 @@ function StaffIDCardsContent() {
 
                   {/* Back Side & QR */}
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">BACK SIDE SETTINGS</h4>
+                    <h4 className="text-xs sm:text-sm font-semibold mb-2">BACK SIDE SETTINGS</h4>
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Header Text</label>
@@ -1100,7 +1100,7 @@ function StaffIDCardsContent() {
 
                   {/* Terms & Conditions */}
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">TERMS & CONDITIONS</h4>
+                    <h4 className="text-xs sm:text-sm font-semibold mb-2">TERMS & CONDITIONS</h4>
                     <div className="space-y-2">
                       {(idCardSettings.terms || []).map((t, idx) => (
                         <div key={idx} className="flex items-center gap-3">
@@ -1115,22 +1115,22 @@ function StaffIDCardsContent() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50">
-                  <button onClick={() => setShowSettingsModal(false)} className="px-4 py-2 rounded border border-gray-300 text-sm">Cancel</button>
-                  <button onClick={() => setShowResetConfirm(true)} className="px-4 py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm">Reset</button>
-                  <button onClick={saveIdCardSettings} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">Save Settings</button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-3 sm:px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 bg-gray-50">
+                  <button onClick={() => setShowSettingsModal(false)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-gray-300 text-sm w-full sm:w-auto">Cancel</button>
+                  <button onClick={() => setShowResetConfirm(true)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm w-full sm:w-auto">Reset</button>
+                  <button onClick={saveIdCardSettings} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm w-full sm:w-auto">Save Settings</button>
                 </div>
               </div>
             </div>
           )}
           {staffData && (
             <>
-              <div className="border-t border-gray-200 pt-4 mb-4">
-                <h2 className="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide">
+              <div className="border-t border-gray-200 pt-3 sm:pt-4 mb-4">
+                <h2 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3 uppercase tracking-wide">
                   Staff Information
                 </h2>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
                       Full Name
@@ -1186,9 +1186,9 @@ function StaffIDCardsContent() {
                 <button
                   onClick={generateIDCardPDF}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm w-full sm:w-auto text-sm sm:text-base"
                 >
-                  <CreditCard className="w-5 h-5" />
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                   {saving ? 'Generating...' : 'Generate ID Card PDF'}
                 </button>
               </div>
@@ -1215,32 +1215,32 @@ function StaffIDCardsContent() {
 
       {/* Reset Confirmation Modal (red) */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)}></div>
-          <div className="relative z-50 w-[92%] max-w-sm bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
-            <div className="p-4 flex items-start gap-3">
+          <div className="relative z-50 w-full max-w-sm bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-3 sm:p-4 flex items-start gap-3">
               <div className="text-red-600 p-1 rounded bg-red-50">
-                <AlertCircle className="w-6 h-6" />
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <h4 className="font-semibold text-red-700">Reset ID Card Settings</h4>
-                <p className="text-sm text-gray-600 mt-1">This will remove saved ID card settings and restore defaults. Uploaded logos remain in school settings. Continue?</p>
+                <h4 className="font-semibold text-red-700 text-sm sm:text-base">Reset ID Card Settings</h4>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">This will remove saved ID card settings and restore defaults. Uploaded logos remain in school settings. Continue?</p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 px-4 py-3 bg-red-50">
-              <button onClick={() => setShowResetConfirm(false)} className="px-3 py-2 rounded border border-gray-300 text-sm">Cancel</button>
-              <button onClick={performResetIdcard} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm">Reset</button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-50">
+              <button onClick={() => setShowResetConfirm(false)} className="px-3 py-2 rounded border border-gray-300 text-sm w-full sm:w-auto">Cancel</button>
+              <button onClick={performResetIdcard} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm w-full sm:w-auto">Reset</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-4 right-4 z-[9999] space-y-2 w-[calc(100%-2rem)] sm:w-auto">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[300px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+            className={`flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[300px] max-w-full sm:max-w-md px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               toast.type === 'success' ? 'bg-green-600' :
               toast.type === 'error' ? 'bg-red-600' :
               toast.type === 'warning' ? 'bg-amber-600' :

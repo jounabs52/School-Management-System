@@ -19,6 +19,8 @@ import {
 } from '@/lib/pdfSettings'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 function SalaryPaidReportContent() {
   const router = useRouter()
@@ -418,7 +420,7 @@ function SalaryPaidReportContent() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -450,8 +452,8 @@ function SalaryPaidReportContent() {
 
       {/* Header */}
       <div className="mb-2 print:mb-2">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-2">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => router.push('/payroll/reports')}
               className="print:hidden bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-lg transition-colors"
@@ -467,24 +469,24 @@ function SalaryPaidReportContent() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2 print:hidden">
+          <div className="flex flex-wrap gap-2 print:hidden w-full sm:w-auto">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-gray-600 hover:bg-gray-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Filter size={16} />
               Filters
             </button>
             <button
               onClick={handlePrint}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Printer size={16} />
               Print
             </button>
             <button
               onClick={handleExport}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export
@@ -494,14 +496,14 @@ function SalaryPaidReportContent() {
 
         {/* Filters */}
         {showFilters && (
-          <div className="bg-white rounded-lg shadow-sm p-3 mb-2 print:hidden">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 mb-2 print:hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                     <option key={month} value={month}>{getMonthName(month)}</option>
@@ -513,7 +515,7 @@ function SalaryPaidReportContent() {
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                     <option key={year} value={year}>{year}</option>
@@ -525,7 +527,7 @@ function SalaryPaidReportContent() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Status</option>
                   <option value="paid">Paid</option>
@@ -539,71 +541,97 @@ function SalaryPaidReportContent() {
       </div>
 
       {/* Salary Payments Table */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden print:shadow-none">
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading salary payment report...</div>
-        ) : filteredPayments.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-blue-900 text-white print:bg-gray-800">
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">#</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Staff Name</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Computer No</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Narration</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-right font-semibold">Amount Paid</th>
-                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPayments.map((payment, index) => (
-                  <tr key={payment.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                    <td className="border border-gray-200 px-3 py-2.5">{index + 1}</td>
-                    <td className="border border-gray-200 px-3 py-2.5 font-medium">
-                      {payment.staff?.first_name} {payment.staff?.last_name}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2.5">
-                      {payment.staff?.employee_number || 'N/A'}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2.5">
-                      Salary {payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : 'Partial'} for {getMonthName(payment.payment_month)} {payment.payment_year}
-                      {payment.remarks && ` - ${payment.remarks}`}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-right font-semibold">
-                      {parseFloat(payment.net_salary || 0).toLocaleString()}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2.5 text-center">
-                      {new Date(payment.payment_date).toLocaleDateString('en-GB')}
-                    </td>
-                  </tr>
-                ))}
-                {/* Grand Total Row */}
-                <tr className="bg-red-100 font-bold">
-                  <td colSpan="4" className="border border-gray-200 px-3 py-2.5 text-right">
-                    Grand Total
+      <ResponsiveTableWrapper
+        tableView={
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-blue-900 text-white print:bg-gray-800">
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">#</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">Staff Name</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">Computer No</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold">Narration</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">Amount Paid</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPayments.map((payment, index) => (
+                <tr key={payment.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">{index + 1}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 font-medium">
+                    {payment.staff?.first_name} {payment.staff?.last_name}
                   </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-right text-red-700">
-                    {calculateGrandTotal().toLocaleString()}
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">
+                    {payment.staff?.employee_number || 'N/A'}
                   </td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-center">---</td>
-                  <td className="border border-gray-200 px-3 py-2.5 text-center print:hidden">---</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">
+                    Salary {payment.status === 'paid' ? 'Paid' : payment.status === 'pending' ? 'Pending' : 'Partial'} for {getMonthName(payment.payment_month)} {payment.payment_year}
+                    {payment.remarks && ` - ${payment.remarks}`}
+                  </td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right font-semibold">
+                    {parseFloat(payment.net_salary || 0).toLocaleString()}
+                  </td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">
+                    {new Date(payment.payment_date).toLocaleDateString('en-GB')}
+                  </td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12 text-gray-500 border border-gray-300">
-            <div className="mb-2">Grand Total</div>
-            <div className="text-lg font-bold">0</div>
-            <div className="mt-4 text-sm">No salary payments found for the selected period.</div>
-          </div>
-        )}
-      </div>
+              ))}
+              {/* Grand Total Row */}
+              <tr className="bg-red-100 font-bold">
+                <td colSpan="4" className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">
+                  Grand Total
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-700">
+                  {calculateGrandTotal().toLocaleString()}
+                </td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">---</td>
+                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center print:hidden">---</td>
+              </tr>
+            </tbody>
+          </table>
+        }
+        cardView={
+          <CardGrid>
+            {filteredPayments.map((payment, index) => (
+              <DataCard key={payment.id}>
+                <CardHeader
+                  srNumber={index + 1}
+                  name={`${payment.staff?.first_name} ${payment.staff?.last_name}`}
+                  subtitle={payment.staff?.employee_number || 'N/A'}
+                  badge={
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                      payment.status === 'paid' ? 'bg-green-100 text-green-700' :
+                      payment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-orange-100 text-orange-700'
+                    }`}>
+                      {payment.status}
+                    </span>
+                  }
+                />
+                <CardInfoGrid>
+                  <CardRow label="Period" value={`${getMonthName(payment.payment_month)} ${payment.payment_year}`} />
+                  <CardRow label="Amount" value={`Rs ${parseFloat(payment.net_salary || 0).toLocaleString()}`} className="font-semibold" />
+                  <CardRow label="Date" value={new Date(payment.payment_date).toLocaleDateString('en-GB')} />
+                  <CardRow label="Method" value={payment.payment_method || 'N/A'} />
+                </CardInfoGrid>
+                {payment.remarks && (
+                  <div className="text-[10px] text-gray-600 mt-1 truncate">
+                    <span className="font-medium">Note:</span> {payment.remarks}
+                  </div>
+                )}
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={filteredPayments.length === 0}
+        emptyMessage="No salary payments found for the selected period"
+      />
 
       {/* Summary Card */}
       {filteredPayments.length > 0 && (
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 print:hidden">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+        <div className="mt-4 sm:mt-6 bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 print:hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-center">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Payments</p>
               <p className="text-lg font-bold text-blue-600">{filteredPayments.length}</p>

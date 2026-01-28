@@ -19,6 +19,8 @@ import { convertImageToBase64 } from '@/lib/pdfUtils'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 function ExamReportsPageContent() {
   const router = useRouter()
@@ -1193,13 +1195,13 @@ function ExamReportsPageContent() {
   }
 
   return (
-    <div className="bg-gray-50 p-1">
+    <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <Toaster position="top-right" />
 
       {/* Header */}
       <div className="mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => router.back()}
               className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
@@ -1210,90 +1212,91 @@ function ExamReportsPageContent() {
           {reportData && (
             <button
               onClick={exportToPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs sm:text-sm"
             >
               <FileText className="w-4 h-4" />
-              Export PDF
+              <span className="hidden sm:inline">Export PDF</span>
+              <span className="sm:hidden">Export</span>
             </button>
           )}
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow-md p-3 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+      <div className="bg-white rounded-lg shadow-md p-2 sm:p-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <button
             onClick={() => {
               setActiveTab('test-results')
               setSelectedTest('')
             }}
-            className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-lg border-2 transition-all ${
               activeTab === 'test-results'
                 ? 'border-blue-600 bg-blue-50'
                 : 'border-gray-200 hover:border-blue-300'
             }`}
           >
-            <FileText className="w-6 h-6 text-blue-600" />
-            <div className="text-left">
-              <div className="font-semibold text-sm">Test Results</div>
-              <div className="text-xs text-gray-500">View individual test</div>
+            <FileText className="w-5 sm:w-6 h-5 sm:h-6 text-blue-600 flex-shrink-0" />
+            <div className="text-left min-w-0">
+              <div className="font-semibold text-xs sm:text-sm truncate">Test Results</div>
+              <div className="text-xs text-gray-500 hidden sm:block">View individual test</div>
             </div>
           </button>
 
           <button
             onClick={() => setActiveTab('class-summary')}
-            className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-lg border-2 transition-all ${
               activeTab === 'class-summary'
                 ? 'border-purple-600 bg-purple-50'
                 : 'border-gray-200 hover:border-purple-300'
             }`}
           >
-            <Users className="w-6 h-6 text-purple-600" />
-            <div className="text-left">
-              <div className="font-semibold text-sm">Class Summary</div>
-              <div className="text-xs text-gray-500">Pass/fail by class</div>
+            <Users className="w-5 sm:w-6 h-5 sm:h-6 text-purple-600 flex-shrink-0" />
+            <div className="text-left min-w-0">
+              <div className="font-semibold text-xs sm:text-sm truncate">Class Summary</div>
+              <div className="text-xs text-gray-500 hidden sm:block">Pass/fail by class</div>
             </div>
           </button>
 
           <button
             onClick={() => setActiveTab('subject-summary')}
-            className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-lg border-2 transition-all ${
               activeTab === 'subject-summary'
                 ? 'border-green-600 bg-green-50'
                 : 'border-gray-200 hover:border-green-300'
             }`}
           >
-            <BookOpen className="w-6 h-6 text-green-600" />
-            <div className="text-left">
-              <div className="font-semibold text-sm">Subject Summary</div>
-              <div className="text-xs text-gray-500">Performance by subject</div>
+            <BookOpen className="w-5 sm:w-6 h-5 sm:h-6 text-green-600 flex-shrink-0" />
+            <div className="text-left min-w-0">
+              <div className="font-semibold text-xs sm:text-sm truncate">Subject Summary</div>
+              <div className="text-xs text-gray-500 hidden sm:block">Performance by subject</div>
             </div>
           </button>
 
           <button
             onClick={() => setActiveTab('top-performers')}
-            className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-lg border-2 transition-all ${
               activeTab === 'top-performers'
                 ? 'border-yellow-600 bg-yellow-50'
                 : 'border-gray-200 hover:border-yellow-300'
             }`}
           >
-            <Award className="w-6 h-6 text-yellow-600" />
-            <div className="text-left">
-              <div className="font-semibold text-sm">Top Performers</div>
-              <div className="text-xs text-gray-500">Best & struggling students</div>
+            <Award className="w-5 sm:w-6 h-5 sm:h-6 text-yellow-600 flex-shrink-0" />
+            <div className="text-left min-w-0">
+              <div className="font-semibold text-xs sm:text-sm truncate">Top Performers</div>
+              <div className="text-xs text-gray-500 hidden sm:block">Best & struggling</div>
             </div>
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-3 mb-4">
-        <h2 className="text-sm font-semibold mb-3">Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="bg-white rounded-lg shadow-md p-2 sm:p-3 mb-4">
+        <h2 className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3">Filters</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           {activeTab === 'test-results' && (
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="sm:col-span-3">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Select Test/Exam *
               </label>
               <select
@@ -1305,7 +1308,7 @@ function ExamReportsPageContent() {
                   const assessment = combinedAssessments.find(a => a.id === value)
                   setSelectedType(assessment?.type || '')
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Choose a test or exam...</option>
                 {combinedAssessments.length > 0 && (
@@ -1338,13 +1341,13 @@ function ExamReportsPageContent() {
 
           {activeTab === 'class-summary' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Filter by Class
               </label>
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="all">All Classes</option>
                 {classes.map((cls) => (
@@ -1358,13 +1361,13 @@ function ExamReportsPageContent() {
 
           {activeTab === 'subject-summary' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Filter by Subject
               </label>
               <select
                 value={selectedSubject}
                 onChange={(e) => setSelectedSubject(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="all">All Subjects</option>
                 {subjects.map((subj) => (
@@ -1380,7 +1383,7 @@ function ExamReportsPageContent() {
 
       {/* Statistics Cards */}
       {Object.keys(stats).length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6 mb-4 sm:mb-6">
           {Object.entries(stats).slice(0, 4).map(([key, value]) => {
             const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
             const isPercentage = key.toLowerCase().includes('percentage')
@@ -1400,11 +1403,11 @@ function ExamReportsPageContent() {
             }
 
             return (
-              <div key={key} className={`${bgColor} rounded-lg p-6 shadow-md`}>
-                <div className={`text-3xl font-bold ${textColor} mb-1`}>
+              <div key={key} className={`${bgColor} rounded-lg p-3 sm:p-6 shadow-md`}>
+                <div className={`text-xl sm:text-3xl font-bold ${textColor} mb-1`}>
                   {value}{isPercentage ? '%' : ''}
                 </div>
-                <div className="text-sm text-gray-600">{label}</div>
+                <div className="text-xs sm:text-sm text-gray-600 truncate">{label}</div>
               </div>
             )
           })}
@@ -1413,11 +1416,11 @@ function ExamReportsPageContent() {
 
       {/* Report Content */}
       {reportData && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">{getReportTitle()}</h2>
+        <div className="bg-white rounded-lg shadow-md p-2 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
+            <h2 className="text-base sm:text-xl font-semibold">{getReportTitle()}</h2>
             {activeTab === 'test-results' && stats.isExam && stats.subjectCount > 1 && (
-              <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+              <span className="text-xs sm:text-sm bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full">
                 Combined marks from {stats.subjectCount} subjects
               </span>
             )}
@@ -1425,220 +1428,421 @@ function ExamReportsPageContent() {
 
           {/* Test Results Table */}
           {activeTab === 'test-results' && Array.isArray(reportData) && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">#</th>
-                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
-                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Obtained</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Total</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Percentage</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Grade</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <ResponsiveTableWrapper
+              tableView={
+                <table className="min-w-full border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">#</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Roll No.</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Student Name</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Obtained</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Total</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">%</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Grade</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.map((mark, index) => {
+                      const percentage = !mark.is_absent ? ((mark.obtained_marks / stats.totalMarks) * 100).toFixed(1) : '-'
+                      const grade = !mark.is_absent ? getGrade(mark.obtained_marks, stats.totalMarks) : '-'
+                      const isPass = !mark.is_absent && mark.obtained_marks >= stats.passThreshold
+
+                      return (
+                        <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">{index + 1}</td>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 font-medium">{mark.students?.roll_number || 'N/A'}</td>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">{mark.students?.first_name} {mark.students?.last_name}</td>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center font-semibold">
+                            {!mark.is_absent ? mark.obtained_marks : '-'}
+                          </td>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">{stats.totalMarks}</td>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center font-medium hidden sm:table-cell">
+                            {percentage !== '-' ? percentage + '%' : '-'}
+                          </td>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">
+                            <span className={`px-1 sm:px-3 py-1 rounded-full text-xs font-semibold ${
+                              grade === 'A+' || grade === 'A' ? 'bg-green-100 text-green-800' :
+                              grade === 'B' || grade === 'C' ? 'bg-blue-100 text-blue-800' :
+                              grade === 'D' || grade === 'E' ? 'bg-yellow-100 text-yellow-800' :
+                              grade === 'F' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {grade}
+                            </span>
+                          </td>
+                          <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">
+                            <span className={`px-1 sm:px-3 py-1 rounded-full text-xs font-semibold ${
+                              mark.is_absent ? 'bg-gray-100 text-gray-800' :
+                              isPass ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {mark.is_absent ? 'Abs' : isPass ? 'Pass' : 'Fail'}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              }
+              cardView={
+                <CardGrid>
                   {reportData.map((mark, index) => {
                     const percentage = !mark.is_absent ? ((mark.obtained_marks / stats.totalMarks) * 100).toFixed(1) : '-'
                     const grade = !mark.is_absent ? getGrade(mark.obtained_marks, stats.totalMarks) : '-'
                     const isPass = !mark.is_absent && mark.obtained_marks >= stats.passThreshold
 
                     return (
-                      <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                        <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
-                        <td className="px-4 py-3 border border-gray-200 font-medium">{mark.students?.roll_number || 'N/A'}</td>
-                        <td className="px-4 py-3 border border-gray-200">{mark.students?.first_name} {mark.students?.last_name}</td>
-                        <td className="px-4 py-3 border border-gray-200 text-center font-semibold">
-                          {!mark.is_absent ? mark.obtained_marks : '-'}
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 text-center">{stats.totalMarks}</td>
-                        <td className="px-4 py-3 border border-gray-200 text-center font-medium">
-                          {percentage !== '-' ? percentage + '%' : '-'}
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 text-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            grade === 'A+' || grade === 'A' ? 'bg-green-100 text-green-800' :
-                            grade === 'B' || grade === 'C' ? 'bg-blue-100 text-blue-800' :
-                            grade === 'D' || grade === 'E' ? 'bg-yellow-100 text-yellow-800' :
-                            grade === 'F' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {grade}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 text-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            mark.is_absent ? 'bg-gray-100 text-gray-800' :
-                            isPass ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {mark.is_absent ? 'Absent' : isPass ? 'Pass' : 'Fail'}
-                          </span>
-                        </td>
-                      </tr>
+                      <DataCard key={index}>
+                        <CardHeader
+                          srNumber={index + 1}
+                          name={`${mark.students?.first_name} ${mark.students?.last_name}`}
+                          subtitle={`Roll: ${mark.students?.roll_number || 'N/A'}`}
+                          badge={
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              mark.is_absent ? 'bg-gray-100 text-gray-700' :
+                              isPass ? 'bg-green-100 text-green-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {mark.is_absent ? 'Abs' : isPass ? 'Pass' : 'Fail'}
+                            </span>
+                          }
+                        />
+                        <CardInfoGrid>
+                          <CardRow
+                            label="Marks"
+                            value={!mark.is_absent ? `${mark.obtained_marks}/${stats.totalMarks}` : 'Absent'}
+                          />
+                          <CardRow
+                            label="Percent"
+                            value={percentage !== '-' ? `${percentage}%` : '-'}
+                          />
+                          <CardRow
+                            label="Grade"
+                            value={
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                grade === 'A+' || grade === 'A' ? 'bg-green-100 text-green-700' :
+                                grade === 'B' || grade === 'C' ? 'bg-blue-100 text-blue-700' :
+                                grade === 'D' || grade === 'E' ? 'bg-yellow-100 text-yellow-700' :
+                                grade === 'F' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {grade}
+                              </span>
+                            }
+                          />
+                        </CardInfoGrid>
+                      </DataCard>
                     )
                   })}
-                </tbody>
-              </table>
-            </div>
+                </CardGrid>
+              }
+              empty={reportData.length === 0}
+              emptyMessage="No results found"
+            />
           )}
 
           {/* Class Summary Table */}
           {activeTab === 'class-summary' && Array.isArray(reportData) && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Class</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Students</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Passed</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Failed</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Absent</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportData.map((item, index) => (
-                    <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                      <td className="px-4 py-3 border border-gray-200 font-medium">{item.className}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalAssessments}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalStudents}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                          {item.passedStudents}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">
-                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
-                          {item.failedStudents}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">
-                          {item.absentStudents}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 border border-gray-200 text-center font-bold">{item.passPercentage}%</td>
+            <ResponsiveTableWrapper
+              tableView={
+                <table className="min-w-full border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Class</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Assessments</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Students</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Passed</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Failed</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Absent</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Pass %</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.map((item, index) => (
+                      <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 font-medium">{item.className}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">{item.totalAssessments}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">{item.totalStudents}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">
+                          <span className="px-1 sm:px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                            {item.passedStudents}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">
+                          <span className="px-1 sm:px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
+                            {item.failedStudents}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">
+                          <span className="px-1 sm:px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">
+                            {item.absentStudents}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center font-bold">{item.passPercentage}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              }
+              cardView={
+                <CardGrid>
+                  {reportData.map((item, index) => (
+                    <DataCard key={index}>
+                      <CardHeader
+                        srNumber={index + 1}
+                        name={item.className}
+                        subtitle={`${item.totalAssessments} Assessment${item.totalAssessments !== 1 ? 's' : ''}`}
+                        badge={
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">
+                            {item.passPercentage}% Pass
+                          </span>
+                        }
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="Students" value={item.totalStudents} />
+                        <CardRow
+                          label="Passed"
+                          value={
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                              {item.passedStudents}
+                            </span>
+                          }
+                        />
+                        <CardRow
+                          label="Failed"
+                          value={
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                              {item.failedStudents}
+                            </span>
+                          }
+                        />
+                      </CardInfoGrid>
+                    </DataCard>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </CardGrid>
+              }
+              empty={reportData.length === 0}
+              emptyMessage="No class summary found"
+            />
           )}
 
           {/* Subject Summary Table */}
           {activeTab === 'subject-summary' && Array.isArray(reportData) && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-blue-900 text-white">
-                    <th className="px-4 py-3 text-left font-semibold border border-blue-800">Subject</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Students</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Passed</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Failed</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass %</th>
-                    <th className="px-4 py-3 text-center font-semibold border border-blue-800">Avg %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportData.map((item, index) => (
-                    <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                      <td className="px-4 py-3 border border-gray-200 font-medium">{item.subjectName}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalAssessments}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">{item.totalStudents}</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                          {item.passedStudents}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 border border-gray-200 text-center">
-                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
-                          {item.failedStudents}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 border border-gray-200 text-center font-bold">{item.passPercentage}%</td>
-                      <td className="px-4 py-3 border border-gray-200 text-center font-bold">{item.averagePercentage}%</td>
+            <ResponsiveTableWrapper
+              tableView={
+                <table className="min-w-full border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-blue-900 text-white">
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Subject</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Tests</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Students</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Passed</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Failed</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Pass %</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Avg %</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.map((item, index) => (
+                      <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 font-medium">{item.subjectName}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">{item.totalAssessments}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">{item.totalStudents}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">
+                          <span className="px-1 sm:px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                            {item.passedStudents}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center">
+                          <span className="px-1 sm:px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
+                            {item.failedStudents}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center font-bold">{item.passPercentage}%</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center font-bold hidden sm:table-cell">{item.averagePercentage}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              }
+              cardView={
+                <CardGrid>
+                  {reportData.map((item, index) => (
+                    <DataCard key={index}>
+                      <CardHeader
+                        srNumber={index + 1}
+                        name={item.subjectName}
+                        subtitle={`${item.totalAssessments} Assessment${item.totalAssessments !== 1 ? 's' : ''}`}
+                        badge={
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                            Avg: {item.averagePercentage}%
+                          </span>
+                        }
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="Students" value={item.totalStudents} />
+                        <CardRow
+                          label="Passed"
+                          value={
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                              {item.passedStudents}
+                            </span>
+                          }
+                        />
+                        <CardRow
+                          label="Failed"
+                          value={
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                              {item.failedStudents}
+                            </span>
+                          }
+                        />
+                        <CardRow label="Pass %" value={`${item.passPercentage}%`} />
+                      </CardInfoGrid>
+                    </DataCard>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </CardGrid>
+              }
+              empty={reportData.length === 0}
+              emptyMessage="No subject summary found"
+            />
           )}
 
           {/* Top Performers Tables */}
           {activeTab === 'top-performers' && reportData.topPerformers && (
-            <div className="space-y-8">
+            <div className="space-y-4 sm:space-y-8">
               <div>
-                <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
+                <h3 className="text-sm sm:text-lg font-semibold text-green-700 mb-2 sm:mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-4 sm:w-5 h-4 sm:h-5" />
                   Top 10 Performers
                 </h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-blue-900 text-white">
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Rank</th>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
-                        <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
-                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass</th>
-                        <th className="px-4 py-3 text-center font-semibold border border-blue-800">Average %</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportData.topPerformers.map((student, idx) => (
-                        <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                          <td className="px-4 py-3 border border-gray-200 font-bold">{idx + 1}</td>
-                          <td className="px-4 py-3 border border-gray-200">{student.roll_number}</td>
-                          <td className="px-4 py-3 border border-gray-200 font-medium">{student.student_name}</td>
-                          <td className="px-4 py-3 border border-gray-200 text-center">{student.assessmentCount}</td>
-                          <td className="px-4 py-3 border border-gray-200 text-center">{student.passCount}</td>
-                          <td className="px-4 py-3 border border-gray-200 text-center font-bold text-green-700">
-                            {student.averagePercentage}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {reportData.needsAttention.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-red-700 mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 rotate-180" />
-                    Students Needing Attention (Below 40%)
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse text-sm">
+                <ResponsiveTableWrapper
+                  tableView={
+                    <table className="min-w-full border-collapse text-xs sm:text-sm">
                       <thead>
                         <tr className="bg-blue-900 text-white">
-                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Roll No.</th>
-                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Assessments</th>
-                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Pass</th>
-                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Average %</th>
+                          <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Rank</th>
+                          <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Roll No.</th>
+                          <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Student Name</th>
+                          <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Tests</th>
+                          <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Pass</th>
+                          <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Avg %</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {reportData.needsAttention.map((student, idx) => (
+                        {reportData.topPerformers.map((student, idx) => (
                           <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                            <td className="px-4 py-3 border border-gray-200">{student.roll_number}</td>
-                            <td className="px-4 py-3 border border-gray-200 font-medium">{student.student_name}</td>
-                            <td className="px-4 py-3 border border-gray-200 text-center">{student.assessmentCount}</td>
-                            <td className="px-4 py-3 border border-gray-200 text-center">{student.passCount}</td>
-                            <td className="px-4 py-3 border border-gray-200 text-center font-bold text-red-700">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 font-bold">{idx + 1}</td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">{student.roll_number}</td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 font-medium">{student.student_name}</td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">{student.assessmentCount}</td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">{student.passCount}</td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center font-bold text-green-700">
                               {student.averagePercentage}%
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  }
+                  cardView={
+                    <CardGrid>
+                      {reportData.topPerformers.map((student, idx) => (
+                        <DataCard key={idx}>
+                          <CardHeader
+                            srNumber={idx + 1}
+                            name={student.student_name}
+                            subtitle={`Roll: ${student.roll_number}`}
+                            badge={
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                                {student.averagePercentage}%
+                              </span>
+                            }
+                          />
+                          <CardInfoGrid>
+                            <CardRow label="Tests" value={student.assessmentCount} />
+                            <CardRow label="Passed" value={student.passCount} />
+                            <CardRow label="Rank" value={`#${idx + 1}`} />
+                          </CardInfoGrid>
+                        </DataCard>
+                      ))}
+                    </CardGrid>
+                  }
+                  empty={reportData.topPerformers.length === 0}
+                  emptyMessage="No top performers found"
+                />
+              </div>
+
+              {reportData.needsAttention.length > 0 && (
+                <div>
+                  <h3 className="text-sm sm:text-lg font-semibold text-red-700 mb-2 sm:mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-4 sm:w-5 h-4 sm:h-5 rotate-180" />
+                    <span className="hidden sm:inline">Students Needing Attention (Below 40%)</span>
+                    <span className="sm:hidden">Needs Attention</span>
+                  </h3>
+                  <ResponsiveTableWrapper
+                    tableView={
+                      <table className="min-w-full border-collapse text-xs sm:text-sm">
+                        <thead>
+                          <tr className="bg-blue-900 text-white">
+                            <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Roll No.</th>
+                            <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold border border-blue-800">Student Name</th>
+                            <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Tests</th>
+                            <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800 hidden sm:table-cell">Pass</th>
+                            <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-center font-semibold border border-blue-800">Avg %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportData.needsAttention.map((student, idx) => (
+                            <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                              <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200">{student.roll_number}</td>
+                              <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 font-medium">{student.student_name}</td>
+                              <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">{student.assessmentCount}</td>
+                              <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center hidden sm:table-cell">{student.passCount}</td>
+                              <td className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 text-center font-bold text-red-700">
+                                {student.averagePercentage}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    }
+                    cardView={
+                      <CardGrid>
+                        {reportData.needsAttention.map((student, idx) => (
+                          <DataCard key={idx}>
+                            <CardHeader
+                              srNumber={idx + 1}
+                              name={student.student_name}
+                              subtitle={`Roll: ${student.roll_number}`}
+                              badge={
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                                  {student.averagePercentage}%
+                                </span>
+                              }
+                            />
+                            <CardInfoGrid>
+                              <CardRow label="Tests" value={student.assessmentCount} />
+                              <CardRow label="Passed" value={student.passCount} />
+                              <CardRow
+                                label="Status"
+                                value={
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-700">
+                                    Needs Help
+                                  </span>
+                                }
+                              />
+                            </CardInfoGrid>
+                          </DataCard>
+                        ))}
+                      </CardGrid>
+                    }
+                    empty={reportData.needsAttention.length === 0}
+                    emptyMessage="No students needing attention"
+                  />
                 </div>
               )}
             </div>
@@ -1648,12 +1852,12 @@ function ExamReportsPageContent() {
 
       {/* No Data Message */}
       {!reportData && !loading && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        <div className="bg-white rounded-lg shadow-md p-6 sm:p-12 text-center">
+          <FileText className="w-12 sm:w-16 h-12 sm:h-16 mx-auto mb-4 text-gray-400" />
+          <h3 className="text-base sm:text-xl font-semibold text-gray-700 mb-2">
             {activeTab === 'test-results' ? 'Select a Test' : 'No Data Available'}
           </h3>
-          <p className="text-gray-500">
+          <p className="text-xs sm:text-base text-gray-500">
             {activeTab === 'test-results'
               ? 'Please select a test from the dropdown to view results'
               : 'Adjust your filters or add test data to see results'

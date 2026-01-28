@@ -13,6 +13,8 @@ import { getPdfSettings, hexToRgb, getAutoTableStyles } from '@/lib/pdfSettings'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardInfoGrid, CardRow, CardActions, CardGrid } from '@/components/DataCard'
 
 function ContactsContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -672,44 +674,44 @@ function ContactsContent() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1 sm:p-2 md:p-3 lg:p-4">
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="btn-row-mobile mb-2 sm:mb-3">
         <button
           onClick={() => {
             resetForm()
             setEditingContact(null)
             setShowAddModal(true)
           }}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition"
         >
           <Plus className="w-4 h-4" />
           Add Contact
         </button>
         <button
           onClick={() => setShowGroupModal(true)}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition"
         >
           <Users className="w-4 h-4" />
           Create Group
         </button>
         <button
           onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition"
         >
           <Upload className="w-4 h-4" />
           Import Data
         </button>
         <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition"
         >
           <FileSpreadsheet className="w-4 h-4" />
           Export Excel
         </button>
         <button
           onClick={exportToPDF}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition"
         >
           <Download className="w-4 h-4" />
           Export PDF
@@ -717,8 +719,8 @@ function ContactsContent() {
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 md:p-4 mb-2 sm:mb-3">
+        <div className="filter-row-mobile gap-2 sm:gap-3">
           {/* Search Type Dropdown */}
           <div className="relative min-w-[180px]">
             <select
@@ -734,7 +736,7 @@ function ContactsContent() {
           </div>
 
           {/* Search Input */}
-          <div className="flex-1 min-w-[250px]">
+          <div className="flex-1 min-w-0 sm:min-w-[250px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -751,14 +753,14 @@ function ContactsContent() {
           {/* Search Button */}
           <button
             onClick={handleSearch}
-            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition"
           >
             Search
             <Search className="w-4 h-4" />
           </button>
 
           {/* Group Filter */}
-          <div className="min-w-[200px]">
+          <div className="w-full sm:w-auto sm:min-w-[200px]">
             <select
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
@@ -772,122 +774,179 @@ function ContactsContent() {
           </div>
         </div>
 
-        <p className="mt-3 text-sm text-gray-600">
+        <p className="mt-3 text-xs sm:text-sm text-gray-600">
           Showing <span className="text-blue-600 font-semibold">{filteredContacts.length}</span> of <span className="text-blue-600 font-semibold">{contacts.length}</span> contacts
         </p>
       </div>
 
-      {/* Contacts Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-sm text-gray-500">Loading contacts...</div>
-        ) : filteredContacts.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-500">No contacts found</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-900 text-white text-sm">
-                  <th className="px-3 py-2 text-left font-semibold">
+      {/* Contacts Table/Cards */}
+      <ResponsiveTableWrapper
+        loading={loading}
+        empty={filteredContacts.length === 0}
+        emptyMessage="No contacts found"
+        tableView={
+          <table className="w-full min-w-[700px]">
+            <thead>
+              <tr className="bg-blue-900 text-white text-xs sm:text-sm">
+                <th className="border border-blue-800 px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      onChange={handleSelectAll}
+                      checked={selectedContacts.length === filteredContacts.length && filteredContacts.length > 0}
+                      className="w-4 h-4 rounded"
+                    />
+                    <span>Sr.</span>
+                  </div>
+                </th>
+                <th className="border border-blue-800 px-3 py-2 text-left font-semibold">Name</th>
+                <th className="border border-blue-800 px-3 py-2 text-left font-semibold">Group</th>
+                <th className="border border-blue-800 px-3 py-2 text-left font-semibold">Company</th>
+                <th className="border border-blue-800 px-3 py-2 text-left font-semibold">Mobile</th>
+                <th className="border border-blue-800 px-3 py-2 text-left font-semibold">WhatsApp</th>
+                <th className="border border-blue-800 px-3 py-2 text-left font-semibold">Options</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredContacts.map((contact, index) => (
+                <tr key={contact.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="border border-gray-200 px-3 py-2">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        onChange={handleSelectAll}
-                        checked={selectedContacts.length === filteredContacts.length && filteredContacts.length > 0}
+                        checked={selectedContacts.includes(contact.id)}
+                        onChange={() => handleSelectContact(contact.id)}
                         className="w-4 h-4 rounded"
                       />
-                      <span>Sr.</span>
+                      <span className="text-sm">{index + 1}</span>
                     </div>
-                  </th>
-                  <th className="px-3 py-2 text-left font-semibold">Name</th>
-                  <th className="px-3 py-2 text-left font-semibold">Group</th>
-                  <th className="px-3 py-2 text-left font-semibold">Company</th>
-                  <th className="px-3 py-2 text-left font-semibold">Mobile</th>
-                  <th className="px-3 py-2 text-left font-semibold">WhatsApp</th>
-                  <th className="px-3 py-2 text-left font-semibold">Options</th>
+                  </td>
+                  <td className="border border-gray-200 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-semibold">
+                        {contact.name?.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-blue-500 text-sm font-medium">{contact.name}</span>
+                    </div>
+                  </td>
+                  <td className="border border-gray-200 px-3 py-2">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                      {contact.contact_groups?.group_name || 'N/A'}
+                    </span>
+                  </td>
+                  <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700">{contact.company || 'N/A'}</td>
+                  <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700">{contact.mobile}</td>
+                  <td className="border border-gray-200 px-3 py-2">
+                    {contact.whatsapp ? (
+                      <button
+                        onClick={() => handleWhatsApp(contact.whatsapp)}
+                        className="flex items-center gap-1 text-green-600 hover:text-green-700"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="text-xs">{contact.whatsapp}</span>
+                      </button>
+                    ) : (
+                      <span className="text-sm text-gray-400">N/A</span>
+                    )}
+                  </td>
+                  <td className="border border-gray-200 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEditContact(contact)}
+                        className="text-black hover:bg-gray-100 p-1 rounded"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteContact(contact.id)}
+                        className="text-black hover:bg-gray-100 p-1 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredContacts.map((contact, index) => (
-                  <tr key={contact.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedContacts.includes(contact.id)}
-                          onChange={() => handleSelectContact(contact.id)}
-                          className="w-4 h-4 rounded"
-                        />
-                        <span className="text-sm">{index + 1}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-semibold">
-                          {contact.name?.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-blue-500 text-sm font-medium">{contact.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                        {contact.contact_groups?.group_name || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-sm text-gray-700">{contact.company || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-700">{contact.mobile}</td>
-                    <td className="px-3 py-2">
-                      {contact.whatsapp ? (
-                        <button
-                          onClick={() => handleWhatsApp(contact.whatsapp)}
-                          className="flex items-center gap-1 text-green-600 hover:text-green-700"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span className="text-xs">{contact.whatsapp}</span>
-                        </button>
-                      ) : (
-                        <span className="text-sm text-gray-400">N/A</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleEditContact(contact)}
-                          className="text-black hover:bg-gray-100 p-1 rounded"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteContact(contact.id)}
-                          className="text-black hover:bg-gray-100 p-1 rounded"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        }
+        cardView={
+          <CardGrid>
+            {filteredContacts.map((contact, index) => (
+              <DataCard key={contact.id}>
+                <CardHeader
+                  srNumber={index + 1}
+                  photo={contact.name?.charAt(0).toUpperCase()}
+                  name={contact.name}
+                  badge={
+                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
+                      {contact.contact_groups?.group_name || 'N/A'}
+                    </span>
+                  }
+                />
+
+                <CardInfoGrid>
+                  <CardRow label="Group" value={contact.contact_groups?.group_name || 'N/A'} />
+                  <CardRow label="Company" value={contact.company || 'N/A'} />
+                  <CardRow label="Mobile" value={contact.mobile} />
+                  <CardRow
+                    label="WhatsApp"
+                    value={contact.whatsapp ? (
+                      <button
+                        onClick={() => handleWhatsApp(contact.whatsapp)}
+                        className="text-green-600 hover:text-green-700 font-medium"
+                      >
+                        {contact.whatsapp}
+                      </button>
+                    ) : 'N/A'}
+                  />
+                </CardInfoGrid>
+
+                <CardActions>
+                  <input
+                    type="checkbox"
+                    checked={selectedContacts.includes(contact.id)}
+                    onChange={() => handleSelectContact(contact.id)}
+                    className="w-3.5 h-3.5 rounded"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => handleEditContact(contact)}
+                    className="text-blue-600 hover:bg-blue-50 p-1 rounded"
+                    title="Edit"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteContact(contact.id)}
+                    className="text-red-600 hover:bg-red-50 p-1 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </CardActions>
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+      />
 
       {/* Add/Edit Contact Modal */}
       {showAddModal && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowAddModal(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-blue-900 text-white p-4 flex items-center justify-between sticky top-0 z-10">
-              <h2 className="text-lg font-semibold">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-blue-900 text-white p-3 sm:p-4 flex items-center justify-between sticky top-0 z-10">
+              <h2 className="text-base sm:text-lg font-semibold">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
               <button onClick={() => setShowAddModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm text-gray-700 mb-1 font-medium">
                   Name <span className="text-blue-600">*</span>
@@ -953,17 +1012,17 @@ function ContactsContent() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white z-10">
+            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white z-10">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2"
+                className="w-full sm:w-auto text-blue-500 hover:text-blue-600 font-medium px-4 py-2"
               >
                 Close
               </button>
               <button
                 onClick={handleSaveContact}
                 disabled={saving}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-3 sm:px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : editingContact ? 'Update' : 'Save'}
               </button>
@@ -976,14 +1035,14 @@ function ContactsContent() {
       {showImportModal && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowImportModal(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-blue-900 text-white p-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Import Contact Data</h2>
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-xl bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-blue-900 text-white p-3 sm:p-4 flex items-center justify-between">
+              <h2 className="text-base sm:text-lg font-semibold">Import Contact Data</h2>
               <button onClick={() => setShowImportModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <p className="text-gray-700 mb-4">
                 Download {' '}
                 <button
@@ -1025,18 +1084,18 @@ function ContactsContent() {
                 </div>
               )}
 
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
                 <button
                   onClick={handleImport}
                   disabled={!importFile || importing}
-                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="w-4 h-4" />
                   {importing ? 'Importing...' : 'Upload & Save'}
                 </button>
               </div>
             </div>
-            <div className="p-6 border-t flex justify-end">
+            <div className="p-4 sm:p-6 border-t flex justify-end">
               <button onClick={() => { setShowImportModal(false); setImportFile(null); }} className="text-blue-500 hover:text-blue-600 font-medium">
                 Close
               </button>
@@ -1049,15 +1108,15 @@ function ContactsContent() {
       {showGroupModal && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowGroupModal(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-blue-900 text-white p-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Create Contact Group</h2>
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-sm lg:max-w-md bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-blue-900 text-white p-3 sm:p-4 flex items-center justify-between">
+              <h2 className="text-base sm:text-lg font-semibold">Create Contact Group</h2>
               <button onClick={() => setShowGroupModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm text-gray-700 mb-1 font-medium">
                   Group Name <span className="text-blue-600">*</span>
@@ -1083,17 +1142,17 @@ function ContactsContent() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3">
               <button
                 onClick={() => setShowGroupModal(false)}
-                className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2"
+                className="w-full sm:w-auto text-blue-500 hover:text-blue-600 font-medium px-4 py-2"
               >
                 Close
               </button>
               <button
                 onClick={handleSaveGroup}
                 disabled={saving}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-3 sm:px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {saving ? 'Creating...' : 'Create Group'}
               </button>
@@ -1105,27 +1164,27 @@ function ContactsContent() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center p-4" onClick={handleCancelConfirm}>
             <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              className="bg-white rounded-lg shadow-2xl w-full max-w-sm sm:max-w-md transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-blue-900 text-white px-6 py-4 rounded-t-lg">
-                <h3 className="text-lg font-semibold">{confirmDialog.title}</h3>
+              <div className="bg-blue-900 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg">
+                <h3 className="text-base sm:text-lg font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700">{confirmDialog.message}</p>
+              <div className="p-4 sm:p-6">
+                <p className="text-gray-700 text-sm sm:text-base">{confirmDialog.message}</p>
               </div>
-              <div className="px-6 pb-6 flex justify-end gap-3">
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                 <button
                   onClick={handleCancelConfirm}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
                 >
                   Confirm
                 </button>
@@ -1136,15 +1195,15 @@ function ContactsContent() {
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-4 right-4 z-[9999] space-y-2 w-[calc(100%-2rem)] sm:w-auto">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-blue-500' :
-              toast.type === 'error' ? 'bg-blue-600' :
-              toast.type === 'warning' ? 'bg-blue-500' :
-              'bg-blue-500'
+            className={`flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[320px] max-w-full sm:max-w-md px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+              toast.type === 'success' ? 'bg-green-500' :
+              toast.type === 'error' ? 'bg-red-600' :
+              toast.type === 'warning' ? 'bg-yellow-500' :
+              'bg-gray-500'
             }`}
           >
             {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}

@@ -7,6 +7,8 @@ import * as XLSX from 'xlsx'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose }) => {
@@ -102,6 +104,7 @@ function SubjectsContent() {
     })
   }, [])
 
+  const [currentUser, setCurrentUser] = useState(null)
   const [showSidebar, setShowSidebar] = useState(false)
   const [showEditSidebar, setShowEditSidebar] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -152,11 +155,21 @@ function SubjectsContent() {
     }
   }, [showSidebar, showEditSidebar, showDeleteModal])
 
-  // Fetch classes and subjects on component mount
+  // Load user first
   useEffect(() => {
-    fetchClasses()
-    fetchSubjects()
+    const { id, school_id } = getLoggedInUser()
+    if (id && school_id) {
+      setCurrentUser({ id, school_id })
+    }
   }, [])
+
+  // Fetch classes and subjects when user is available
+  useEffect(() => {
+    if (currentUser?.id && currentUser?.school_id) {
+      fetchClasses()
+      fetchSubjects()
+    }
+  }, [currentUser])
 
   // Real-time subscription for class_subjects
   useEffect(() => {
@@ -235,13 +248,12 @@ function SubjectsContent() {
         return
       }
 
-      const { id: userId, school_id: schoolId } = getLoggedInUser()
-      if (!userId || !schoolId) {
-        console.error('❌ No user found')
+      if (!currentUser) {
         setClasses([])
         setLoadingClasses(false)
         return
       }
+      const { id: userId, school_id: schoolId } = currentUser
 
       console.log('✅ Fetching classes for school_id:', schoolId)
 
@@ -293,12 +305,11 @@ function SubjectsContent() {
         return
       }
 
-      const { id: userId, school_id: schoolId } = getLoggedInUser()
-      if (!userId || !schoolId) {
-        console.error('❌ No user found')
+      if (!currentUser) {
         setLoading(false)
         return
       }
+      const { id: userId, school_id: schoolId } = currentUser
 
       console.log('✅ Fetching subjects for school_id:', schoolId)
 
@@ -1146,43 +1157,44 @@ function SubjectsContent() {
   }
 
   return (
-    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
       {/* Top Button */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <button
           onClick={() => setShowSidebar(true)}
-          className="bg-[#DC2626] text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-lg"
+          className="bg-[#DC2626] text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base hover:bg-red-700 transition flex items-center gap-2 shadow-lg"
         >
-          <Plus size={20} />
+          <Plus size={18} className="sm:w-5 sm:h-5" />
           Add Subject
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Search Subjects</h2>
+      <div className="bg-white rounded-xl shadow-lg p-2 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
+          <h2 className="text-sm sm:text-base lg:text-xl font-bold text-gray-800">Search Subjects</h2>
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
           >
-            <Download size={18} />
-            Export to Excel
+            <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
+            <span className="hidden sm:inline">Export to Excel</span>
+            <span className="sm:hidden">Export</span>
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
           {/* Class Filter */}
-          <div className="md:w-48">
-            <label className="block text-gray-600 text-sm mb-2">Class</label>
+          <div className="w-full sm:w-48">
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1.5 sm:mb-2">Class</label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Classes</option>
               {classes.map((cls) => (
@@ -1195,15 +1207,15 @@ function SubjectsContent() {
 
           {/* Search Input */}
           <div className="flex-1">
-            <label className="block text-gray-600 text-sm mb-2">Search</label>
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1.5 sm:mb-2">Search</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} className="sm:w-5 sm:h-5" />
               <input
                 type="text"
                 placeholder="Search by subject name or code"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
@@ -1211,27 +1223,27 @@ function SubjectsContent() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+      <ResponsiveTableWrapper
+        tableView={
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-blue-900 text-white">
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800 w-16">Sr.</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800 w-32">Class Name</th>
-                <th className="px-4 py-3 text-left font-semibold border border-blue-800">Subjects</th>
-                <th className="px-4 py-3 text-center font-semibold border border-blue-800 w-24">Options</th>
+                <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left font-semibold border border-blue-800 w-12 sm:w-16">Sr.</th>
+                <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left font-semibold border border-blue-800 w-24 sm:w-32">Class Name</th>
+                <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left font-semibold border border-blue-800">Subjects</th>
+                <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-center font-semibold border border-blue-800 w-20 sm:w-24">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="4" className="px-2 sm:px-4 py-6 sm:py-8 text-center text-gray-500">
                     Loading subjects...
                   </td>
                 </tr>
               ) : groupedSubjectsArray.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="4" className="px-2 sm:px-4 py-6 sm:py-8 text-center text-gray-500">
                     No subjects found
                   </td>
                 </tr>
@@ -1243,20 +1255,20 @@ function SubjectsContent() {
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                     } hover:bg-blue-50 transition`}
                   >
-                    <td className="px-4 py-3 border border-gray-200 text-blue-600 align-top w-16">{startIndex + index + 1}</td>
-                    <td className="px-4 py-3 border border-gray-200 font-medium align-top w-32">{classGroup.className}</td>
-                    <td className="px-4 py-3 border border-gray-200">
-                      <div className="flex flex-wrap gap-2">
+                    <td className="px-2 sm:px-4 py-2.5 sm:py-3 border border-gray-200 text-blue-600 align-top w-12 sm:w-16">{startIndex + index + 1}</td>
+                    <td className="px-2 sm:px-4 py-2.5 sm:py-3 border border-gray-200 font-medium align-top w-24 sm:w-32">{classGroup.className}</td>
+                    <td className="px-2 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
+                      <div className="flex flex-wrap gap-1 sm:gap-2">
                         {classGroup.subjects.map((subject) => (
-                          <div key={subject.id} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
-                            <BookOpen size={14} className="text-blue-600" />
-                            <span className="font-medium text-sm">{subject.subjectName}</span>
+                          <div key={subject.id} className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-50 rounded-lg border border-blue-200">
+                            <BookOpen size={12} className="text-blue-600 sm:w-3.5 sm:h-3.5" />
+                            <span className="font-medium text-xs sm:text-sm">{subject.subjectName}</span>
                           </div>
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-3 border border-gray-200 align-top w-24">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-2 sm:px-4 py-2.5 sm:py-3 border border-gray-200 align-top w-20 sm:w-24">
+                      <div className="flex items-center justify-center gap-1 sm:gap-2">
                         <button
                           onClick={() => {
                             setSelectedSubject({
@@ -1301,19 +1313,89 @@ function SubjectsContent() {
               )}
             </tbody>
           </table>
-        </div>
+        }
+        cardView={
+          <CardGrid>
+            {paginatedSubjects.map((classGroup, index) => (
+              <DataCard key={classGroup.classId}>
+                <CardHeader
+                  srNumber={startIndex + index + 1}
+                  photo={classGroup.className.charAt(0)}
+                  name={classGroup.className}
+                  subtitle={`${classGroup.subjects.length} subject${classGroup.subjects.length !== 1 ? 's' : ''}`}
+                />
+                <CardInfoGrid>
+                  <div className="col-span-2">
+                    <div className="text-[10px] text-gray-500 mb-1">Subjects:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {classGroup.subjects.map((subject) => (
+                        <div key={subject.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded border border-blue-200">
+                          <BookOpen className="w-2.5 h-2.5 text-blue-600" />
+                          <span className="text-[10px] font-medium">{subject.subjectName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardInfoGrid>
+                <CardActions>
+                  <button
+                    onClick={() => {
+                      setSelectedSubject({
+                        classId: classGroup.classId,
+                        className: classGroup.className,
+                        subjects: classGroup.subjects
+                      })
+                      setEditFormData({
+                        classId: classGroup.classId,
+                        subjects: classGroup.subjects.map(s => ({
+                          id: s.id,
+                          subjectId: s.subjectId,
+                          subjectName: s.subjectName,
+                          subjectCode: s.subjectCode
+                        }))
+                      })
+                      setShowEditSidebar(true)
+                    }}
+                    className="p-1 text-teal-600 rounded"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedSubject({
+                        classId: classGroup.classId,
+                        className: classGroup.className,
+                        subjects: classGroup.subjects
+                      })
+                      setShowDeleteModal(true)
+                    }}
+                    className="p-1 text-red-600 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </CardActions>
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={paginatedSubjects.length === 0}
+        emptyMessage="No subjects found"
+      />
 
-        {/* Pagination Controls */}
+      {/* Pagination Controls */}
         {groupedSubjectsArray.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-            <div className="text-sm text-gray-600">
+          <div className="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 bg-gray-50">
+            <div className="text-xs sm:text-sm text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, groupedSubjectsArray.length)} of {groupedSubjectsArray.length} classes
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-sm transition ${
                   currentPage === 1
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1321,9 +1403,9 @@ function SubjectsContent() {
               >
                 Previous
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 {(() => {
-                  const maxVisiblePages = 5
+                  const maxVisiblePages = 4
                   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
                   let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
 
@@ -1340,7 +1422,7 @@ function SubjectsContent() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-10 rounded-lg font-medium transition ${
+                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg font-medium text-sm transition ${
                         currentPage === page
                           ? 'bg-[#1E3A8A] text-white'
                           : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
@@ -1354,7 +1436,7 @@ function SubjectsContent() {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-sm transition ${
                   currentPage === totalPages
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1365,34 +1447,33 @@ function SubjectsContent() {
             </div>
           </div>
         )}
-      </div>
 
       {/* Add Subject Sidebar */}
       {showSidebar && (
         <ModalOverlay onClose={() => setShowSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Add New Subject</h3>
-                  <p className="text-blue-200 text-sm mt-1">Fill in the details below</p>
+                  <h3 className="text-base sm:text-xl font-bold">Add New Subject</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Fill in the details below</p>
                 </div>
                 <button
                   onClick={() => setShowSidebar(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} className="sm:w-[22px] sm:h-[22px]" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Class Selection and Copy from Class - Side by Side */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <div className="flex gap-4 items-start">
+                <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start">
                     {/* Class Selection - Smaller Width */}
-                    <div className="flex-shrink-0 w-64">
+                    <div className="w-full sm:flex-shrink-0 sm:w-64">
                       <label className="block text-gray-800 font-semibold mb-2 text-sm uppercase tracking-wide">
                         Class <span className="text-red-500">*</span>
                       </label>
@@ -1425,12 +1506,12 @@ function SubjectsContent() {
 
                     {/* Copy from Class - Optional, shown when class is selected */}
                     {formData.classId && (
-                      <div className="flex-1">
-                        <label className="block text-gray-800 font-semibold mb-2 text-sm uppercase tracking-wide flex items-center gap-2">
-                          <BookOpen size={16} className="text-blue-600" />
+                      <div className="w-full sm:flex-1">
+                        <label className="block text-gray-800 font-semibold mb-2 text-xs sm:text-sm uppercase tracking-wide flex items-center gap-2">
+                          <BookOpen size={14} className="text-blue-600 sm:w-4 sm:h-4" />
                           Copy from Class <span className="text-xs text-gray-500 font-normal">(Optional)</span>
                         </label>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                           <div className="relative flex-1">
                             <select
                               value={copyFromClassId}
@@ -1476,24 +1557,24 @@ function SubjectsContent() {
                   </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
                   <div className="flex justify-between items-center mb-3">
-                    <label className="block text-gray-800 font-semibold text-sm uppercase tracking-wide">
+                    <label className="block text-gray-800 font-semibold text-xs sm:text-sm uppercase tracking-wide">
                       Subjects <span className="text-red-500">*</span>
                     </label>
                     <button
                       type="button"
                       onClick={addSubjectField}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-semibold flex items-center gap-1"
+                      className="text-blue-600 hover:text-blue-700 text-xs sm:text-sm font-semibold flex items-center gap-1"
                     >
-                      <Plus size={16} />
+                      <Plus size={14} className="sm:w-4 sm:h-4" />
                       Add More
                     </button>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {formData.subjects.map((subject, index) => (
-                      <div key={index} className="relative p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div key={index} className="relative p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs font-semibold text-gray-600">Subject {index + 1}</span>
                           {formData.subjects.length > 1 && (
@@ -1531,19 +1612,19 @@ function SubjectsContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-4 sm:py-5 bg-white">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowSidebar(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+                  className="flex-1 px-3 sm:px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg hover:shadow-xl text-sm"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} className="sm:w-4 sm:h-4" />
                   Save Subjects
                 </button>
               </div>
@@ -1555,33 +1636,33 @@ function SubjectsContent() {
       {/* Edit Subject Sidebar */}
       {showEditSidebar && (
         <ModalOverlay onClose={() => setShowEditSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold">Edit Subjects</h3>
-                  <p className="text-blue-200 text-sm mt-1">Update subject details</p>
+                  <h3 className="text-base sm:text-xl font-bold">Edit Subjects</h3>
+                  <p className="text-blue-200 text-xs sm:text-sm mt-1">Update subject details</p>
                 </div>
                 <button
                   onClick={() => setShowEditSidebar(false)}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                  className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
                 >
-                  <X size={22} />
+                  <X size={18} className="sm:w-[22px] sm:h-[22px]" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <label className="block text-gray-800 font-semibold mb-3 text-sm uppercase tracking-wide">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 sm:mb-3 text-xs sm:text-sm uppercase tracking-wide">
                     Class <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
                       value={editFormData.classId}
                       onChange={(e) => setEditFormData({ ...editFormData, classId: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 appearance-none"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50 transition-all hover:border-gray-300 appearance-none text-sm"
                       disabled={loadingClasses}
                     >
                       <option value="">Select Class</option>
@@ -1591,28 +1672,28 @@ function SubjectsContent() {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                    <ChevronDown className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                   </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
                   <div className="flex justify-between items-center mb-3">
-                    <label className="block text-gray-800 font-semibold text-sm uppercase tracking-wide">
+                    <label className="block text-gray-800 font-semibold text-xs sm:text-sm uppercase tracking-wide">
                       Subjects <span className="text-red-500">*</span>
                     </label>
                     <button
                       type="button"
                       onClick={addEditSubjectField}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-semibold flex items-center gap-1"
+                      className="text-blue-600 hover:text-blue-700 text-xs sm:text-sm font-semibold flex items-center gap-1"
                     >
-                      <Plus size={16} />
+                      <Plus size={14} className="sm:w-4 sm:h-4" />
                       Add More
                     </button>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {editFormData.subjects.map((subject, index) => (
-                      <div key={index} className="relative p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div key={index} className="relative p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs font-semibold text-gray-600">Subject {index + 1}</span>
                           {editFormData.subjects.length > 1 && (
@@ -1650,19 +1731,19 @@ function SubjectsContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-4 sm:py-5 bg-white">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowEditSidebar(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+                  className="flex-1 px-3 sm:px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg hover:shadow-xl text-sm"
                 >
-                  <Edit2 size={16} />
+                  <Edit2 size={14} className="sm:w-4 sm:h-4" />
                   Update Subjects
                 </button>
               </div>
@@ -1674,36 +1755,36 @@ function SubjectsContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedSubject && (
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-base sm:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-4">
+              <div className="p-4 sm:p-6">
+                <p className="text-gray-700 mb-3 sm:mb-4 text-sm">
                   Are you sure you want to delete all subjects from <span className="font-bold">{selectedSubject.className}</span>?
                 </p>
-                <div className="mb-6 p-3 bg-red-50 rounded-lg border border-red-200">
-                  <p className="text-sm font-semibold text-red-800 mb-2">Subjects to be deleted:</p>
-                  <ul className="text-sm text-red-700 space-y-1">
+                <div className="mb-4 sm:mb-6 p-2 sm:p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-xs sm:text-sm font-semibold text-red-800 mb-2">Subjects to be deleted:</p>
+                  <ul className="text-xs sm:text-sm text-red-700 space-y-1">
                     {selectedSubject.subjects.map((subject) => (
                       <li key={subject.id}>• {subject.subjectName} {subject.subjectCode && `(${subject.subjectCode})`}</li>
                     ))}
                   </ul>
-                  <p className="text-xs text-red-600 mt-3">⚠️ This action cannot be undone.</p>
+                  <p className="text-xs text-red-600 mt-2 sm:mt-3">This action cannot be undone.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
+                    className="flex-1 px-3 sm:px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm"
+                    className="flex-1 px-3 sm:px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 text-sm"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} className="sm:w-4 sm:h-4" />
                     Delete All
                   </button>
                 </div>

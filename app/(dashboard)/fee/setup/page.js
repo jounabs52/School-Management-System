@@ -9,6 +9,8 @@ import {
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { supabase } from '@/lib/supabase'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Fee Type Icon Mapper
 const FeeTypeIcon = ({ feeCode, size = 20 }) => {
@@ -95,10 +97,10 @@ const FeeTypeModal = ({ isOpen, onClose, feeType, onSave, sessions }) => {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[99998] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[99998] flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-full sm:max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-lg">
               <DollarSign className="text-white" size={24} />
@@ -113,8 +115,8 @@ const FeeTypeModal = ({ isOpen, onClose, feeType, onSave, sessions }) => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Fee Name */}
             <div className="col-span-2">
               <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
@@ -207,11 +209,11 @@ const FeeTypeModal = ({ isOpen, onClose, feeType, onSave, sessions }) => {
             </div>
 
             {/* Collection Frequency */}
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                 Collection Frequency
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {['one-time', 'monthly', 'quarterly', 'semi-annual', 'annual'].map(freq => (
                   <label key={freq} className="flex items-center space-x-2 cursor-pointer p-2 border rounded-lg hover:bg-blue-50 transition">
                     <input
@@ -315,7 +317,7 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
   const loadClassFeeStructures = async () => {
     setLoading(true)
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { data, error} = await supabase
         .from('class_fee_structure')
         .select(`
@@ -358,7 +360,7 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
 
   const handleSaveStructure = async (structureData) => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const dataToSave = {
         ...structureData,
         user_id: user.id,
@@ -398,7 +400,7 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
     if (!confirm('Are you sure you want to delete this fee structure?')) return
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { error } = await supabase
         .from('class_fee_structure')
         .delete()
@@ -418,9 +420,9 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[99998]">
-      <div className="fixed top-0 right-0 h-full w-full max-w-4xl bg-white shadow-2xl z-[99999] flex flex-col">
+      <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-4xl bg-white shadow-2xl z-[99999] flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-lg">
               <Settings className="text-white" size={24} />
@@ -436,14 +438,14 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
         </div>
 
         {/* Session Selector */}
-        <div className="px-6 py-4 bg-gray-50 border-b">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border-b">
           <label className="block text-gray-700 font-semibold mb-2 text-xs uppercase tracking-wide">
             Select Session
           </label>
           <select
             value={selectedSession}
             onChange={(e) => setSelectedSession(e.target.value)}
-            className="w-full max-w-xs px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:max-w-xs px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             {sessions.map(session => (
               <option key={session.id} value={session.id}>
@@ -454,7 +456,7 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 size={32} className="animate-spin text-blue-600" />
@@ -462,15 +464,15 @@ const ClassFeeStructureModal = ({ isOpen, onClose, classItem, feeTypes, sessions
           ) : (
             <>
               {/* Existing Structures */}
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                 {structures.map(structure => (
-                  <div key={structure.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                    <div className="flex items-start justify-between">
+                  <div key={structure.id} className="bg-white rounded-lg shadow-sm p-3 sm:p-4 border border-gray-200">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
                       <div className="flex items-start gap-3 flex-1">
                         <FeeTypeIcon feeCode={structure.fee_types.fee_code} size={24} />
                         <div className="flex-1">
-                          <h4 className="font-semibold text-gray-800">{structure.fee_types.fee_name}</h4>
-                          <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                          <h4 className="font-semibold text-gray-800 text-sm sm:text-base">{structure.fee_types.fee_name}</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mt-2 text-xs sm:text-sm">
                             <div>
                               <span className="text-gray-500">Monthly Amount:</span>
                               <span className="ml-2 font-medium text-gray-800">Rs. {structure.monthly_amount.toLocaleString()}</span>
@@ -587,10 +589,10 @@ const FeeStructureForm = ({ structure, feeTypes, onSave, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100000] flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-full sm:max-w-2xl max-h-[90vh] overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <h3 className="text-base sm:text-lg font-bold text-white">
             {structure.id ? 'Edit Fee Structure' : 'Add Fee Structure'}
           </h3>
           <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg">
@@ -598,7 +600,7 @@ const FeeStructureForm = ({ structure, feeTypes, onSave, onClose }) => {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           <div className="space-y-4">
             {/* Fee Type Selection */}
             <div>
@@ -645,9 +647,9 @@ const FeeStructureForm = ({ structure, feeTypes, onSave, onClose }) => {
               <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                 Collection Frequency
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {['monthly', 'quarterly', 'semi-annual', 'annual'].map(freq => (
-                  <label key={freq} className="flex items-center space-x-2 cursor-pointer p-3 border rounded-lg hover:bg-blue-50 transition">
+                  <label key={freq} className="flex items-center space-x-2 cursor-pointer p-2 sm:p-3 border rounded-lg hover:bg-blue-50 transition">
                     <input
                       type="radio"
                       value={freq}
@@ -727,14 +729,27 @@ function FeeSetupContent() {
   const [showClassFeeModal, setShowClassFeeModal] = useState(false)
   const [selectedClass, setSelectedClass] = useState(null)
 
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
+
+  // Load user on mount
   useEffect(() => {
-    loadData()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
 
+  // Fetch data when user is available
+  useEffect(() => {
+    if (currentUser) {
+      loadData()
+    }
+  }, [currentUser])
+
   const loadData = async () => {
+    if (!currentUser) return
+
     setLoading(true)
     try {
-      const user = getUserFromCookie()
 
       // Load fee types
       const { data: feeTypesData, error: feeTypesError } = await supabase
@@ -784,7 +799,7 @@ function FeeSetupContent() {
 
   const handleSaveFeeType = async (feeTypeData) => {
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const dataToSave = {
         ...feeTypeData,
         user_id: user.id,
@@ -822,7 +837,7 @@ function FeeSetupContent() {
     if (!confirm('Are you sure you want to delete this fee type?')) return
 
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
       const { error } = await supabase
         .from('fee_types')
         .delete()
@@ -848,46 +863,47 @@ function FeeSetupContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Fee Management Setup</h1>
-        <p className="text-gray-600">Configure fee types and class fee structures</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Fee Management Setup</h1>
+        <p className="text-sm sm:text-base text-gray-600">Configure fee types and class fee structures</p>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-        <div className="flex border-b">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row border-b">
           <button
             onClick={() => setActiveTab('fee-types')}
-            className={`flex-1 px-6 py-4 font-medium transition ${
+            className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 font-medium transition text-sm sm:text-base ${
               activeTab === 'fee-types'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <DollarSign size={20} />
+              <DollarSign size={18} className="sm:w-5 sm:h-5" />
               Fee Types
             </div>
           </button>
           <button
             onClick={() => setActiveTab('class-fees')}
-            className={`flex-1 px-6 py-4 font-medium transition ${
+            className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 font-medium transition text-sm sm:text-base ${
               activeTab === 'class-fees'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <Settings size={20} />
-              Class Fee Structures
+              <Settings size={18} className="sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Class Fee Structures</span>
+              <span className="sm:hidden">Class Fees</span>
             </div>
           </button>
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-2 sm:p-4 lg:p-6">
           {activeTab === 'fee-types' && (
             <div>
               {/* Add Button */}
@@ -905,31 +921,101 @@ function FeeSetupContent() {
               </div>
 
               {/* Fee Types Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-blue-900 text-white">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee Name</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Code</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Type</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Frequency</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-blue-800">Status</th>
-                      <th className="px-4 py-3 text-center font-semibold border border-blue-800">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {feeTypes.map((ft, index) => (
-                      <tr key={ft.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3 border border-gray-200">
-                          <div className="flex items-center gap-2">
-                            <FeeTypeIcon feeCode={ft.fee_code} />
-                            <span className="font-medium">{ft.fee_name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200">
+              <ResponsiveTableWrapper
+                tableView={
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-blue-900 text-white">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Fee Name</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Code</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Type</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Frequency</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-blue-800">Status</th>
+                          <th className="px-4 py-3 text-center font-semibold border border-blue-800">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {feeTypes.map((ft, index) => (
+                          <tr key={ft.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3 border border-gray-200">
+                              <div className="flex items-center gap-2">
+                                <FeeTypeIcon feeCode={ft.fee_code} />
+                                <span className="font-medium">{ft.fee_name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200">
+                              <span className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">{ft.fee_code}</span>
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200">
+                              <div className="flex gap-1">
+                                {ft.is_recurring && (
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Recurring</span>
+                                )}
+                                {ft.is_admission_fee && (
+                                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Admission</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200 capitalize">
+                              {ft.collection_frequency?.replace('-', ' ')}
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200">
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                ft.status === 'active'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {ft.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedFeeType(ft)
+                                    setShowFeeTypeModal(true)
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteFeeType(ft.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                }
+                cardView={feeTypes.map((ft) => (
+                  <DataCard key={ft.id}>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <FeeTypeIcon feeCode={ft.fee_code} />
+                        <div>
+                          <div className="font-bold text-gray-900">{ft.fee_name}</div>
                           <span className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">{ft.fee_code}</span>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200">
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        ft.status === 'active'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {ft.status}
+                      </span>
+                    </CardHeader>
+                    <CardInfoGrid>
+                      <CardRow
+                        label="Type"
+                        value={
                           <div className="flex gap-1">
                             {ft.is_recurring && (
                               <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Recurring</span>
@@ -937,60 +1023,51 @@ function FeeSetupContent() {
                             {ft.is_admission_fee && (
                               <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Admission</span>
                             )}
+                            {!ft.is_recurring && !ft.is_admission_fee && <span className="text-gray-400">-</span>}
                           </div>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 capitalize">
-                          {ft.collection_frequency?.replace('-', ' ')}
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            ft.status === 'active'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}>
-                            {ft.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedFeeType(ft)
-                                setShowFeeTypeModal(true)
-                              }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteFeeType(ft.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {feeTypes.length === 0 && (
+                        }
+                      />
+                      <CardRow label="Frequency" value={ft.collection_frequency?.replace('-', ' ')} valueClassName="capitalize" />
+                    </CardInfoGrid>
+                    <CardActions>
+                      <button
+                        onClick={() => {
+                          setSelectedFeeType(ft)
+                          setShowFeeTypeModal(true)
+                        }}
+                        className="flex-1 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition text-sm font-medium flex items-center justify-center gap-1"
+                      >
+                        <Edit2 size={14} />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFeeType(ft.id)}
+                        className="flex-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition text-sm font-medium flex items-center justify-center gap-1"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </CardActions>
+                  </DataCard>
+                ))}
+                loading={loading}
+                empty={feeTypes.length === 0}
+                emptyMessage={
                   <div className="text-center py-12 text-gray-500">
                     <DollarSign size={48} className="mx-auto mb-3 opacity-30" />
                     <p>No fee types configured yet</p>
                     <p className="text-sm">Click "Add Fee Type" to create your first fee type</p>
                   </div>
-                )}
-              </div>
+                }
+              />
             </div>
           )}
 
           {activeTab === 'class-fees' && (
             <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                 {classes.map(classItem => (
-                  <div key={classItem.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                  <div key={classItem.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition">
                     <h3 className="font-bold text-gray-900 text-lg mb-2">{classItem.class_name}</h3>
                     <button
                       onClick={() => {

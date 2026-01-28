@@ -472,15 +472,15 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-2 bg-gray-50 overflow-x-hidden">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 overflow-x-hidden">
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-blue-600 rounded-lg">
             <Settings className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-800 leading-tight">School Settings</h1>
+            <h1 className="text-base sm:text-lg font-bold text-gray-800 leading-tight">School Settings</h1>
             <p className="text-xs text-gray-600 leading-tight">Update your school information</p>
           </div>
         </div>
@@ -496,7 +496,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {/* Show Basic Settings tab only if user has permission */}
         {(userRole === 'admin' || userRole === 'owner' || userPermissions?.settings_basic_view) && (
           <button
@@ -562,11 +562,11 @@ export default function SettingsPage() {
       {/* Basic Settings Form */}
       {activeTab === 'basic' && (
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="p-3">
+        <div className="p-2 sm:p-3">
           {/* Logo Section */}
           <div className="mb-3 pb-3 border-b border-gray-200">
             <h3 className="text-xs font-semibold mb-2 text-gray-700">SCHOOL LOGO</h3>
-            <div className="flex items-start gap-4">
+            <div className="flex flex-col sm:flex-row items-start gap-4">
               <div className="flex-shrink-0">
                 {schoolData.logo_url && !imageError ? (
                   <div className="relative w-24 h-24 border-2 border-gray-300 rounded overflow-hidden bg-white">
@@ -741,19 +741,19 @@ export default function SettingsPage() {
         </div>
 
         {/* Form Actions */}
-        <div className="px-3 pb-3 border-t border-gray-200 pt-3 flex justify-end gap-3">
+        <div className="px-2 sm:px-3 pb-3 border-t border-gray-200 pt-3 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
           <button
             type="button"
             onClick={fetchSchoolData}
             disabled={saving}
-            className="px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+            className="px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-sm"
           >
             Reset
           </button>
           <button
             type="submit"
             disabled={saving || schoolData.status !== 'active'}
-            className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             {saving ? (
               <>
@@ -774,7 +774,7 @@ export default function SettingsPage() {
       {/* PDF Settings Form */}
       {activeTab === 'pdf' && (
       <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="p-3">
+        <div className="p-2 sm:p-3">
           {/* Page Settings */}
           <h3 className="text-xs font-semibold mb-2 text-gray-700">PAGE SETTINGS</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">

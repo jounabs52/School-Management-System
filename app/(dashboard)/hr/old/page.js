@@ -6,6 +6,8 @@ import {
   Edit, Trash2, ChevronDown, X, User, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { convertImageToBase64, addPDFHeader, addPDFFooter } from '@/lib/pdfUtils'
@@ -661,119 +663,111 @@ function OldStaffContent() {
   }
 
   return (
-    <div className="p-3">
+    <div className="h-full p-1 sm:p-2 md:p-3 lg:p-4">
+      <h1 className="text-lg sm:text-xl font-bold text-gray-800 mb-2 sm:mb-3">Old/Disabled Staff</h1>
+
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="btn-row-mobile mb-2 sm:mb-3">
         <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition"
+          className="flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white py-1.5 sm:py-2 px-2.5 sm:px-3 rounded text-xs sm:text-sm font-medium transition"
         >
-          <FileSpreadsheet className="w-4 h-4" />
-          Export Excel
+          <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="truncate">Export Excel</span>
         </button>
         <button
           onClick={exportToPDF}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-medium transition"
+          className="flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 text-white py-1.5 sm:py-2 px-2.5 sm:px-3 rounded text-xs sm:text-sm font-medium transition"
         >
-          <Download className="w-4 h-4" />
-          Export PDF
+          <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="truncate">Export PDF</span>
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-2 sm:mb-3">
+        <div className="filter-row-mobile sm:items-center">
           {/* Search Type Dropdown */}
-          <div className="relative min-w-[180px]">
-            <select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              className="w-full appearance-none border border-gray-300 rounded px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white"
-            >
-              {searchOptions.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
+          <select
+            value={searchType}
+            onChange={(e) => setSearchType(e.target.value)}
+            className="text-xs sm:text-sm py-1.5 sm:py-2 px-2 sm:px-3 pr-8 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 appearance-none relative"
+          >
+            {searchOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
 
           {/* Search Input */}
-          <div className="flex-1 min-w-[250px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search old staff..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-            </div>
+          <div className="col-span-2 sm:col-span-1 sm:flex-1 relative">
+            <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search old staff..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs sm:text-sm py-1.5 sm:py-2 pl-8 sm:pl-10 pr-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
           {/* Advance Search Button */}
           <button
             onClick={() => setShowAdvanceSearch(true)}
-            className="flex items-center gap-2 border-2 border-blue-500 text-blue-500 hover:bg-blue-50 px-3 py-2 rounded text-sm font-medium transition"
+            className="flex items-center justify-center gap-1.5 border-2 border-blue-500 text-blue-500 hover:bg-blue-50 py-1.5 sm:py-2 px-2.5 sm:px-3 rounded text-xs sm:text-sm font-medium transition"
           >
-            <Filter className="w-4 h-4" />
-            Advance Search
+            <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="truncate">Filters</span>
           </button>
         </div>
 
         {/* Staff Count */}
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 sm:mt-3 text-xs sm:text-sm text-gray-600">
           Showing <span className="text-blue-600 font-semibold">{filteredStaffData.length}</span> of <span className="text-blue-600 font-semibold">{staffData.length}</span> old/disabled staff members
         </p>
       </div>
 
       {/* Staff Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative overflow-visible">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading staff data...</div>
-        ) : filteredStaffData.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No old/disabled staff members found</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+      <ResponsiveTableWrapper
+        tableView={
+          <table className="w-full min-w-[700px]">
             <thead>
-              <tr className="bg-blue-600 text-white text-sm">
-                <th className="px-3 py-2 text-left font-medium">Sr.</th>
-                <th className="px-3 py-2 text-left font-medium">Name</th>
-                <th className="px-3 py-2 text-left font-medium">Employee #</th>
-                <th className="px-3 py-2 text-left font-medium">Designation</th>
-                <th className="px-3 py-2 text-left font-medium">Phone</th>
-                <th className="px-3 py-2 text-left font-medium">Department</th>
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-                <th className="px-3 py-2 text-left font-medium">Options</th>
+              <tr className="bg-blue-900 text-white text-xs sm:text-sm">
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Sr.</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Name</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Employee #</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Designation</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Phone</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Department</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Status</th>
+                <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Options</th>
               </tr>
             </thead>
             <tbody>
               {filteredStaffData.map((staff, index) => (
                 <tr key={staff.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-3 py-2 text-sm text-gray-700">{index + 1}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
-                        <User className="w-4 h-4 text-gray-400" />
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 whitespace-nowrap">{index + 1}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-6 h-6 sm:w-7 sm:h-7 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 flex-shrink-0">
+                        <User className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                       </div>
-                      <span className="text-sm text-gray-700">
+                      <span className="text-xs sm:text-sm text-gray-700">
                         {staff.name}
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-600">{staff.employeeNumber}</td>
-                  <td className="px-3 py-2 text-sm text-gray-700">{staff.designation}</td>
-                  <td className="px-3 py-2 text-sm text-gray-700">{staff.phone}</td>
-                  <td className="px-3 py-2 text-sm text-gray-700">{staff.department}</td>
-                  <td className="px-3 py-2">
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 whitespace-nowrap">{staff.employeeNumber}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 whitespace-nowrap">{staff.designation}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 whitespace-nowrap">{staff.phone}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 whitespace-nowrap">{staff.department}</td>
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
                     <div className="relative">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           setStatusDropdownId(statusDropdownId === staff.id ? null : staff.id)
                         }}
-                        className={`inline-flex items-center gap-1 px-3 py-1 rounded text-sm font-medium text-white ${getStatusColor(staff.status)}`}
+                        className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded text-xs font-medium text-white ${getStatusColor(staff.status)}`}
                       >
                         {staff.status}
                         <ChevronDown className="w-3 h-3" />
@@ -782,15 +776,15 @@ function OldStaffContent() {
                       {statusDropdownId === staff.id && (
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute left-0 bottom-full mb-1 min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[9999]"
+                          className="absolute left-0 bottom-full mb-1 min-w-[140px] sm:min-w-[160px] bg-white border border-gray-200 rounded-md shadow-xl z-[9999]"
                         >
                           {statusOptions.map((option) => (
                             <button
                               key={option.value}
                               onClick={() => handleStatusChange(staff.id, option.value)}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors first:rounded-t-md last:rounded-b-md"
+                              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors first:rounded-t-md last:rounded-b-md"
                             >
-                              <span className={`w-2.5 h-2.5 rounded-full ${option.color}`} />
+                              <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${option.color}`} />
                               {option.label}
                             </button>
                           ))}
@@ -798,21 +792,21 @@ function OldStaffContent() {
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
+                  <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <button
                         onClick={() => handleEdit(staff)}
                         className="text-blue-500 hover:text-blue-600 p-1"
                         title="Edit"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                       <button
                         onClick={() => handleDelete(staff.id)}
                         className="text-red-500 hover:text-red-600 p-1"
                         title="Delete Permanently"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
                   </td>
@@ -820,49 +814,120 @@ function OldStaffContent() {
               ))}
             </tbody>
           </table>
-          </div>
-        )}
-      </div>
+        }
+        cardView={
+          <CardGrid>
+            {filteredStaffData.map((staff, index) => (
+              <DataCard key={staff.id}>
+                <CardHeader
+                  srNumber={index + 1}
+                  photo={<User className="w-4 h-4" />}
+                  name={staff.name}
+                  badge={
+                    <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-medium">
+                      {staff.status}
+                    </span>
+                  }
+                />
+                <CardInfoGrid>
+                  <CardRow label="Emp #" value={staff.employeeNumber} />
+                  <CardRow label="Phone" value={staff.phone} />
+                  <CardRow label="Designation" value={staff.designation} />
+                  <CardRow label="Department" value={staff.department} />
+                </CardInfoGrid>
+                <CardActions>
+                  <button
+                    onClick={() => handleEdit(staff)}
+                    className="p-1 text-blue-500 rounded"
+                    title="Edit"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(staff.id)}
+                    className="p-1 text-red-500 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="relative ml-auto">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setStatusDropdownId(statusDropdownId === staff.id ? null : staff.id)
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] font-medium"
+                    >
+                      Activate
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                    {statusDropdownId === staff.id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 bottom-full mb-1 min-w-[120px] bg-white border border-gray-200 rounded-md shadow-xl z-[9999]"
+                      >
+                        {statusOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => handleStatusChange(staff.id, option.value)}
+                            className="w-full px-2 py-1.5 text-left text-[10px] text-gray-700 hover:bg-gray-100 flex items-center gap-1 transition-colors first:rounded-t-md last:rounded-b-md"
+                          >
+                            <span className={`w-2 h-2 rounded-full ${option.color}`} />
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardActions>
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={filteredStaffData.length === 0}
+        emptyMessage="No old/disabled staff members found"
+      />
 
       {/* Edit Staff Modal */}
       {showEditModal && editingStaff && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998]" onClick={() => setShowEditModal(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-[9999] overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 flex items-center justify-between sticky top-0 z-10">
-              <h2 className="text-base font-semibold">Update Staff ({editingStaff.name})</h2>
+          <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-3xl bg-white shadow-2xl z-[9999] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-2 sm:p-3 flex items-center justify-between sticky top-0 z-10">
+              <h2 className="text-sm sm:text-base font-semibold">Update Staff ({editingStaff.name})</h2>
               <button onClick={() => setShowEditModal(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4">
+            <div className="p-2 sm:p-4">
               {/* Personal Information */}
               <div className="mb-4">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 text-sm rounded-t flex items-center gap-2">
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-t flex items-center gap-2">
                   <User className="w-4 h-4" />
                   PERSONAL INFORMATION
                 </div>
-                <div className="border border-t-0 border-gray-200 rounded-b p-4">
-                  <div className="grid grid-cols-3 gap-4">
+                <div className="border border-t-0 border-gray-200 rounded-b p-2 sm:p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">First Name <span className="text-red-500">*</span></label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">First Name <span className="text-red-500">*</span></label>
                       <input type="text" placeholder="First Name" value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Last Name</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Last Name</label>
                       <input type="text" placeholder="Last Name" value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Father Name</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Father Name</label>
                       <input type="text" placeholder="Father Name" value={formData.fatherName} onChange={(e) => setFormData({...formData, fatherName: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Date of Birth</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Date of Birth</label>
                       <input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Gender</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Gender</label>
                       <select value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
                         <option value="male">Male</option>
                         <option value="female">Female</option>
@@ -870,7 +935,7 @@ function OldStaffContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Nationality</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Nationality</label>
                       <input type="text" placeholder="Nationality" value={formData.nationality} onChange={(e) => setFormData({...formData, nationality: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                   </div>
@@ -879,26 +944,26 @@ function OldStaffContent() {
 
               {/* Contact Information */}
               <div className="mb-4">
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 text-sm rounded-t flex items-center gap-2">
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-t flex items-center gap-2">
                   <span>📱</span>
                   CONTACT INFORMATION
                 </div>
-                <div className="border border-t-0 border-gray-200 rounded-b p-4">
-                  <div className="grid grid-cols-3 gap-4">
+                <div className="border border-t-0 border-gray-200 rounded-b p-2 sm:p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Phone</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Phone</label>
                       <input type="text" placeholder="Phone Number" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Email</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Email</label>
                       <input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">City</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">City</label>
                       <input type="text" placeholder="City" value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm text-gray-600 mb-1">Address</label>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Address</label>
                       <input type="text" placeholder="Address" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                   </div>
@@ -907,18 +972,18 @@ function OldStaffContent() {
 
               {/* Professional Information */}
               <div className="mb-4">
-                <div className="bg-gradient-to-r from-blue-700 to-blue-800 text-white px-3 py-2 text-sm rounded-t flex items-center gap-2">
+                <div className="bg-gradient-to-r from-blue-700 to-blue-800 text-white px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-t flex items-center gap-2">
                   <span>💼</span>
                   PROFESSIONAL INFORMATION
                 </div>
-                <div className="border border-t-0 border-gray-200 rounded-b p-4">
-                  <div className="grid grid-cols-3 gap-4">
+                <div className="border border-t-0 border-gray-200 rounded-b p-2 sm:p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Joining Date</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Joining Date</label>
                       <input type="date" value={formData.joiningDate} onChange={(e) => setFormData({...formData, joiningDate: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Employment Type</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Employment Type</label>
                       <select value={formData.employmentType} onChange={(e) => setFormData({...formData, employmentType: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
                         <option value="permanent">Permanent</option>
                         <option value="contract">Contract</option>
@@ -926,7 +991,7 @@ function OldStaffContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Department</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Department</label>
                       <select
                         value={formData.department}
                         onChange={(e) => {
@@ -946,7 +1011,7 @@ function OldStaffContent() {
                     </div>
                     {showCustomDepartment && (
                       <div>
-                        <label className="block text-sm text-gray-600 mb-1">Custom Department</label>
+                        <label className="block text-xs sm:text-sm text-gray-600 mb-1">Custom Department</label>
                         <input
                           type="text"
                           placeholder="Enter department name"
@@ -957,15 +1022,15 @@ function OldStaffContent() {
                       </div>
                     )}
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Designation</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Designation</label>
                       <input type="text" placeholder="Designation" value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Qualification</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Qualification</label>
                       <input type="text" placeholder="Qualification" value={formData.qualification} onChange={(e) => setFormData({...formData, qualification: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Experience (Years)</label>
+                      <label className="block text-xs sm:text-sm text-gray-600 mb-1">Experience (Years)</label>
                       <input type="number" placeholder="Years" value={formData.experienceYears} onChange={(e) => setFormData({...formData, experienceYears: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     </div>
                   </div>
@@ -974,14 +1039,14 @@ function OldStaffContent() {
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-gray-200 flex items-center justify-end gap-2 sticky bottom-0 bg-white">
-              <button onClick={() => setShowEditModal(false)} className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2 text-sm">
+            <div className="p-2 sm:p-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-end gap-2 sticky bottom-0 bg-white">
+              <button onClick={() => setShowEditModal(false)} className="text-blue-500 hover:text-blue-600 font-medium px-2 sm:px-3 py-1.5 sm:py-2 text-sm w-full sm:w-auto">
                 Close
               </button>
               <button
                 onClick={handleUpdateStaff}
                 disabled={saving}
-                className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 rounded text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
               >
                 {saving ? 'Saving...' : 'Update'}
               </button>
@@ -994,14 +1059,14 @@ function OldStaffContent() {
       {showAdvanceSearch && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998]" onClick={() => setShowAdvanceSearch(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[9999] overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold">Refine Your Search</h2>
+          <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-md bg-white shadow-2xl z-[9999] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-2 sm:p-3 flex items-center justify-between">
+              <h2 className="text-sm sm:text-base font-semibold">Refine Your Search</h2>
               <button onClick={() => setShowAdvanceSearch(false)} className="hover:bg-blue-800 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-2 sm:p-4 space-y-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Employment Type</label>
                 <select value={filters.employmentType} onChange={(e) => setFilters({...filters, employmentType: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
@@ -1047,9 +1112,9 @@ function OldStaffContent() {
                 </select>
               </div>
             </div>
-            <div className="p-3 border-t flex justify-end gap-2">
-              <button onClick={() => setShowAdvanceSearch(false)} className="text-blue-500 font-medium text-sm px-4 py-2">Close</button>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded text-sm font-medium flex items-center gap-2">
+            <div className="p-2 sm:p-3 border-t flex flex-col sm:flex-row justify-end gap-2">
+              <button onClick={() => setShowAdvanceSearch(false)} className="text-blue-500 font-medium text-sm px-2 sm:px-3 py-1.5 sm:py-2 w-full sm:w-auto">Close</button>
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto">
                 Filter
               </button>
             </div>
@@ -1060,27 +1125,27 @@ function OldStaffContent() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+          <div className="fixed inset-0 bg-black/80 sm:bg-black/70 sm:backdrop-blur-sm z-[9998] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={handleCancelConfirm}>
             <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              className="w-full sm:w-auto sm:max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-lg">
-                <h3 className="text-base font-semibold">{confirmDialog.title}</h3>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-t-lg">
+                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-700">{confirmDialog.message}</p>
+              <div className="p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-gray-700">{confirmDialog.message}</p>
               </div>
-              <div className="px-4 pb-4 flex justify-end gap-2">
+              <div className="px-3 sm:px-4 pb-3 sm:pb-4 flex flex-col sm:flex-row justify-end gap-2">
                 <button
                   onClick={handleCancelConfirm}
-                  className="px-5 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+                  className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
+                  className="px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition w-full sm:w-auto"
                 >
                   Confirm
                 </button>
@@ -1091,11 +1156,11 @@ function OldStaffContent() {
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[10000] space-y-2">
+      <div className="fixed top-4 right-4 z-[10000] space-y-2 w-[calc(100%-2rem)] sm:w-auto">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 min-w-[280px] max-w-md px-3 py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+            className={`flex items-center gap-2 min-w-0 sm:min-w-[280px] max-w-full sm:max-w-md px-2 sm:px-3 py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               toast.type === 'success' ? 'bg-blue-500' :
               toast.type === 'error' ? 'bg-blue-600' :
               toast.type === 'warning' ? 'bg-blue-500' :

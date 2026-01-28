@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, UserPlus, Shield, Trash2, Search, CheckCircle, XCircle, AlertCircle, Eye, EyeOff, Edit2 } from 'lucide-react'
+import { X, UserPlus, Shield, Trash2, Search, CheckCircle, XCircle, AlertCircle, Eye, EyeOff, Edit2, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardInfoGrid } from '@/components/DataCard'
 
 export default function StaffManagement({ currentUser, showToast }) {
   const [loading, setLoading] = useState(false)
@@ -760,8 +762,8 @@ export default function StaffManagement({ currentUser, showToast }) {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
+            <ResponsiveTableWrapper
+              tableView={
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
@@ -773,90 +775,136 @@ export default function StaffManagement({ currentUser, showToast }) {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {loading ? (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center">
-                          <div className="flex flex-col items-center justify-center">
-                            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
-                            <p className="text-sm text-gray-600">Loading staff...</p>
+                    {filteredStaff.map((staff) => (
+                      <tr key={staff.id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {staff.staff ? `${staff.staff.first_name} ${staff.staff.last_name}` : staff.username}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-600">{staff.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-600">
+                            {staff.phone || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            staff.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {staff.status === 'active' ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                openEditModal(staff)
+                              }}
+                              className="p-2 hover:bg-green-50 rounded-lg transition text-green-600"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                openPermissionsModal(staff)
+                              }}
+                              className="p-2 hover:bg-blue-50 rounded-lg transition text-blue-600"
+                              title="Manage Permissions"
+                            >
+                              <Shield className="w-5 h-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                openDeleteModal(staff)
+                              }}
+                              className="p-2 hover:bg-red-50 rounded-lg transition text-red-600"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
                           </div>
                         </td>
                       </tr>
-                    ) : filteredStaff.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center">
-                          <p className="text-sm text-gray-500">No staff members found</p>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredStaff.map((staff) => (
-                        <tr key={staff.id} className="hover:bg-gray-50 transition">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {staff.staff ? `${staff.staff.first_name} ${staff.staff.last_name}` : staff.username}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-600">{staff.email}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-600">
-                              {staff.phone || 'N/A'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              staff.status === 'active'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {staff.status === 'active' ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  openEditModal(staff)
-                                }}
-                                className="p-2 hover:bg-green-50 rounded-lg transition text-green-600"
-                                title="Edit"
-                              >
-                                <Edit2 className="w-5 h-5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  openPermissionsModal(staff)
-                                }}
-                                className="p-2 hover:bg-blue-50 rounded-lg transition text-blue-600"
-                                title="Manage Permissions"
-                              >
-                                <Shield className="w-5 h-5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  openDeleteModal(staff)
-                                }}
-                                className="p-2 hover:bg-red-50 rounded-lg transition text-red-600"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                    ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
+              }
+              cardView={
+                <div className="space-y-2">
+                  {filteredStaff.map((staff) => (
+                    <DataCard key={staff.id}>
+                      <CardHeader
+                        name={staff.staff ? `${staff.staff.first_name} ${staff.staff.last_name}` : staff.username}
+                        subtitle={staff.email}
+                        badge={
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            staff.status === 'active'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {staff.status === 'active' ? 'Active' : 'Inactive'}
+                          </span>
+                        }
+                      />
+                      <CardInfoGrid>
+                        <CardRow label="Phone" value={staff.phone || 'N/A'} />
+                        <CardRow label="Status" value={staff.status === 'active' ? 'Active' : 'Inactive'} />
+                      </CardInfoGrid>
+                      <CardActions>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            openEditModal(staff)
+                          }}
+                          className="p-1 text-green-600 rounded"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            openPermissionsModal(staff)
+                          }}
+                          className="p-1 text-blue-600 rounded"
+                          title="Manage Permissions"
+                        >
+                          <Shield className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            openDeleteModal(staff)
+                          }}
+                          className="p-1 text-red-600 rounded"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </CardActions>
+                    </DataCard>
+                  ))}
+                </div>
+              }
+              loading={loading}
+              empty={filteredStaff.length === 0}
+              emptyMessage="No staff members found"
+            />
           )}
         </div>
       </div>

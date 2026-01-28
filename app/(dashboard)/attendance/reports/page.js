@@ -16,6 +16,8 @@ import {
 } from '@/lib/pdfUtils'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardInfoGrid, CardGrid } from '@/components/DataCard'
 
 function AttendanceReportsContent() {
   const [activeTab, setActiveTab] = useState('student')
@@ -412,13 +414,13 @@ function AttendanceReportsContent() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4">
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-2 sm:top-4 right-2 sm:right-4 z-[9999] space-y-2 max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)] md:max-w-sm lg:max-w-md">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[300px] ${
+            className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 rounded-lg shadow-lg min-w-[180px] sm:min-w-[250px] md:min-w-[300px] text-xs sm:text-sm ${
               toast.type === 'success' ? 'bg-green-500 text-white' :
               toast.type === 'error' ? 'bg-red-500 text-white' :
               toast.type === 'warning' ? 'bg-yellow-500 text-white' :
@@ -428,9 +430,9 @@ function AttendanceReportsContent() {
             <span className="flex-1">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
-              className="text-white hover:text-gray-200"
+              className="text-white hover:text-gray-200 flex-shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         ))}
@@ -442,8 +444,8 @@ function AttendanceReportsContent() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={handleCloseReport}></div>
           <div className="fixed top-0 right-0 h-full w-full bg-white shadow-2xl z-50 overflow-y-auto flex flex-col">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-lg print:hidden">
-              <h2 className="text-xl font-semibold">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-2 sm:px-4 md:px-3 sm:px-4 py-2 sm:py-3 md:py-4 flex items-center justify-between sticky top-0 z-10 shadow-lg print:hidden">
+              <h2 className="text-sm sm:text-base lg:text-xl font-semibold truncate mr-2">
                 {activeTab === 'student'
                   ? studentReports.find(r => r.id === activeReport)?.name
                   : staffReports.find(r => r.id === activeReport)?.name
@@ -451,14 +453,14 @@ function AttendanceReportsContent() {
               </h2>
               <button
                 onClick={handleCloseReport}
-                className="text-white hover:bg-blue-800 p-2 rounded-lg transition-colors"
+                className="text-white hover:bg-blue-800 p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div id="report-content" className="flex-1 overflow-auto p-6 bg-gray-50">
+            <div id="report-content" className="flex-1 overflow-auto p-2 sm:p-3 md:p-4 lg:p-6 bg-gray-50">
               {renderReportContent()}
             </div>
           </div>
@@ -468,10 +470,10 @@ function AttendanceReportsContent() {
       {/* Tabs */}
       {!activeReport && (
         <>
-          <div className="flex gap-1 mb-2">
+          <div className="flex gap-1 sm:gap-2 mb-2 sm:mb-3">
             <button
               onClick={() => setActiveTab('student')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+              className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'student'
                   ? 'bg-red-600 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -481,7 +483,7 @@ function AttendanceReportsContent() {
             </button>
             <button
               onClick={() => setActiveTab('staff')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+              className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'staff'
                   ? 'bg-red-600 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -492,27 +494,27 @@ function AttendanceReportsContent() {
           </div>
 
           {/* Reports Table */}
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
+          <ResponsiveTableWrapper
+            tableView={
+              <table className="w-full border-collapse text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-blue-900 text-white">
-                    <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Sr.</th>
-                    <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Report Name</th>
-                    <th className="border border-blue-800 px-3 py-2.5 text-left font-semibold">Description</th>
-                    <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Action</th>
+                    <th className="border border-blue-800 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-left font-semibold whitespace-nowrap">Sr.</th>
+                    <th className="border border-blue-800 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-left font-semibold whitespace-nowrap">Report Name</th>
+                    <th className="border border-blue-800 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-left font-semibold hidden sm:table-cell whitespace-nowrap">Description</th>
+                    <th className="border border-blue-800 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(activeTab === 'student' ? studentReports : staffReports).map((report, index) => (
                     <tr key={report.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                      <td className="border border-gray-200 px-3 py-2.5 text-gray-700">{index + 1}</td>
-                      <td className="border border-gray-200 px-3 py-2.5 font-medium text-gray-900">{report.name}</td>
-                      <td className="border border-gray-200 px-3 py-2.5 text-gray-600">{report.description}</td>
-                      <td className="border border-gray-200 px-3 py-2.5 text-center">
+                      <td className="border border-gray-200 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-gray-700 whitespace-nowrap">{index + 1}</td>
+                      <td className="border border-gray-200 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 font-medium text-gray-900">{report.name}</td>
+                      <td className="border border-gray-200 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-gray-600 hidden sm:table-cell">{report.description}</td>
+                      <td className="border border-gray-200 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center">
                         <button
                           onClick={() => handleViewReport(report.id)}
-                          className="px-4 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+                          className="px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-xs sm:text-sm"
                         >
                           View
                         </button>
@@ -521,8 +523,34 @@ function AttendanceReportsContent() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
+            }
+            cardView={
+              <CardGrid>
+                {(activeTab === 'student' ? studentReports : staffReports).map((report, index) => (
+                  <DataCard key={report.id}>
+                    <CardHeader
+                      srNumber={index + 1}
+                      name={report.name}
+                    />
+                    <div className="mb-1">
+                      <p className="text-[10px] text-gray-600 leading-tight">{report.description}</p>
+                    </div>
+                    <div className="pt-1.5 mt-1.5 border-t border-gray-100">
+                      <button
+                        onClick={() => handleViewReport(report.id)}
+                        className="w-full px-3 py-1.5 bg-red-600 text-white rounded text-[10px] font-medium hover:bg-red-700 transition"
+                      >
+                        View Report
+                      </button>
+                    </div>
+                  </DataCard>
+                ))}
+              </CardGrid>
+            }
+            loading={false}
+            empty={(activeTab === 'student' ? studentReports : staffReports).length === 0}
+            emptyMessage="No reports available"
+          />
         </>
       )}
 
@@ -690,25 +718,25 @@ function AttendanceReportsContent() {
     }, [reportDate, currentUser])
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-5 lg:p-6">
         {/* Filters */}
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-4">
+        <div className="mb-3 sm:mb-4 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Date</label>
                 <input
                   type="date"
                   value={reportDate}
                   onChange={(e) => setReportDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 sm:py-2 text-sm sm:text-base"
                 />
               </div>
               <div className="flex items-end">
                 <button
                   onClick={loadReport}
                   disabled={loading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                  className="w-full sm:w-auto bg-blue-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded hover:bg-blue-700 disabled:bg-gray-400 text-xs sm:text-sm"
                 >
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
@@ -718,60 +746,61 @@ function AttendanceReportsContent() {
         </div>
 
         {/* Report Header */}
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Daily Attendance Report</h3>
-          <p className="text-gray-600">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <div className="text-center mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Daily Attendance Report</h3>
+          <p className="text-gray-600 text-xs sm:text-sm">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
 
         {/* Download Button - Only shown when data is loaded */}
         {!loading && data.length > 0 && (
-          <div className="flex justify-end mb-4 print:hidden">
+          <div className="flex justify-end mb-3 sm:mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs sm:text-sm"
             >
-              <FileDown className="w-4 h-4" />
-              Download PDF
+              <FileDown className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {/* Report Table */}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-4 sm:py-6 md:py-8 text-gray-500 text-xs sm:text-sm">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300 bg-white">
+            <table className="w-full border-collapse border border-gray-300 bg-white text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Class</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Present</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">P/Late</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Half Day</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Leave</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Absent</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Not Marked</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Total</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-left font-semibold whitespace-nowrap">Class</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold whitespace-nowrap">Present</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden sm:table-cell whitespace-nowrap">P/Late</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden md:table-cell whitespace-nowrap">Half Day</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden md:table-cell whitespace-nowrap">Leave</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold whitespace-nowrap">Absent</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden lg:table-cell whitespace-nowrap">Not Marked</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold whitespace-nowrap">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.className}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-green-600 font-medium">{row.present}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-orange-600 font-medium">{row.late}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-blue-600 font-medium">{row.halfDay}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-purple-600 font-medium">{row.leave}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-red-600 font-medium">{row.absent}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-gray-500 font-medium">{row.notMarked}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">{row.total}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap">{row.className}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-green-600 font-medium whitespace-nowrap">{row.present}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-orange-600 font-medium hidden sm:table-cell whitespace-nowrap">{row.late}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-blue-600 font-medium hidden md:table-cell whitespace-nowrap">{row.halfDay}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-purple-600 font-medium hidden md:table-cell whitespace-nowrap">{row.leave}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-red-600 font-medium whitespace-nowrap">{row.absent}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-gray-500 font-medium hidden lg:table-cell whitespace-nowrap">{row.notMarked}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold whitespace-nowrap">{row.total}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">No data available for the selected date</div>
+          <div className="text-center py-4 sm:py-6 md:py-8 text-gray-500 text-xs sm:text-sm">No data available for the selected date</div>
         )}
       </div>
     )
@@ -918,26 +947,26 @@ function AttendanceReportsContent() {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-5 lg:p-6">
         {/* Filters */}
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="mb-3 sm:mb-4 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Month</label>
                 <input
                   type="month"
                   value={reportMonth}
                   onChange={(e) => setReportMonth(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 sm:py-2 text-sm sm:text-base"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Class</label>
                 <select
                   value={reportClass}
                   onChange={(e) => setReportClass(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 sm:py-2 text-sm sm:text-base"
                 >
                   <option value="">Select Class</option>
                   {localClasses.map(cls => (
@@ -946,11 +975,11 @@ function AttendanceReportsContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Section</label>
                 <select
                   value={reportSection}
                   onChange={(e) => setReportSection(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 sm:py-2 text-sm sm:text-base"
                   disabled={!reportClass}
                 >
                   <option value="">All Sections</option>
@@ -963,7 +992,7 @@ function AttendanceReportsContent() {
                 <button
                   onClick={loadReport}
                   disabled={loading || !reportClass}
-                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                  className="w-full bg-blue-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded hover:bg-blue-700 disabled:bg-gray-400 text-xs sm:text-sm"
                 >
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
@@ -973,9 +1002,9 @@ function AttendanceReportsContent() {
         </div>
 
         {/* Report Header */}
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Monthly Attendance Summary</h3>
-          <p className="text-gray-600">
+        <div className="text-center mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Monthly Attendance Summary</h3>
+          <p className="text-gray-600 text-xs sm:text-sm">
             Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
             {reportClass && ` | Class: ${localClasses.find(c => c.id === reportClass)?.class_name || ''}`}
             {reportSection && ` | Section: ${localSections.find(s => s.id === reportSection)?.section_name || ''}`}
@@ -984,59 +1013,60 @@ function AttendanceReportsContent() {
 
         {/* Download Button - Only shown when data is loaded */}
         {!loading && data.length > 0 && (
-          <div className="flex justify-end mb-4 print:hidden">
+          <div className="flex justify-end mb-3 sm:mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs sm:text-sm"
             >
-              <FileDown className="w-4 h-4" />
-              Download PDF
+              <FileDown className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {/* Report Table */}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-4 sm:py-6 md:py-8 text-gray-500 text-xs sm:text-sm">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse border border-gray-300 text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Student Name</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Roll No</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Days</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Present</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">P/Late</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Short Leave</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Absent</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Leave</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Holiday</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Not Marked</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-left font-semibold whitespace-nowrap">Sr.</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-left font-semibold whitespace-nowrap">Student Name</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden sm:table-cell whitespace-nowrap">Roll No</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden md:table-cell whitespace-nowrap">Days</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold whitespace-nowrap">Present</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden sm:table-cell whitespace-nowrap">P/Late</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden lg:table-cell whitespace-nowrap">Short Leave</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold whitespace-nowrap">Absent</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden md:table-cell whitespace-nowrap">Leave</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden lg:table-cell whitespace-nowrap">Holiday</th>
+                  <th className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-semibold hidden lg:table-cell whitespace-nowrap">Not Marked</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{index + 1}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.name}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm">{row.rollNumber}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm font-medium">{row.days}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-green-600 font-medium">{row.present}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-orange-600 font-medium">{row.late}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-blue-600 font-medium">{row.halfDay}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-red-600 font-medium">{row.absent}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-purple-600 font-medium">{row.leave}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-gray-600 font-medium">{row.holiday}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-gray-500 font-medium">{row.notMarked}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap">{index + 1}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap">{row.name}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center hidden sm:table-cell whitespace-nowrap">{row.rollNumber}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center font-medium hidden md:table-cell whitespace-nowrap">{row.days}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-green-600 font-medium whitespace-nowrap">{row.present}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-orange-600 font-medium hidden sm:table-cell whitespace-nowrap">{row.late}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-blue-600 font-medium hidden lg:table-cell whitespace-nowrap">{row.halfDay}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-red-600 font-medium whitespace-nowrap">{row.absent}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-purple-600 font-medium hidden md:table-cell whitespace-nowrap">{row.leave}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-gray-600 font-medium hidden lg:table-cell whitespace-nowrap">{row.holiday}</td>
+                    <td className="border border-gray-300 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-center text-gray-500 font-medium hidden lg:table-cell whitespace-nowrap">{row.notMarked}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-4 sm:py-6 md:py-8 text-gray-500 text-xs sm:text-sm">
             {reportClass ? 'No students found for the selected class' : 'Please select a class and generate report'}
           </div>
         )}
@@ -1205,26 +1235,26 @@ function AttendanceReportsContent() {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-5 lg:p-6">
         {/* Filters */}
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="mb-3 sm:mb-4 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Month</label>
                 <input
                   type="month"
                   value={reportMonth}
                   onChange={(e) => setReportMonth(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 sm:py-2 text-sm sm:text-base"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Class</label>
                 <select
                   value={reportClass}
                   onChange={(e) => setReportClass(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 sm:py-2 text-sm sm:text-base"
                 >
                   <option value="">Select Class</option>
                   {localClasses.map(cls => (
@@ -1233,11 +1263,11 @@ function AttendanceReportsContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Section</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Select Section</label>
                 <select
                   value={reportSection}
                   onChange={(e) => setReportSection(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 sm:py-2 text-sm sm:text-base"
                   disabled={!reportClass}
                 >
                   <option value="">All Sections</option>
@@ -1250,7 +1280,7 @@ function AttendanceReportsContent() {
                 <button
                   onClick={loadReport}
                   disabled={loading || !reportClass}
-                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                  className="w-full bg-blue-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded hover:bg-blue-700 disabled:bg-gray-400 text-xs sm:text-sm"
                 >
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
@@ -1260,14 +1290,14 @@ function AttendanceReportsContent() {
         </div>
 
         {/* Report Header */}
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Attendance Register</h3>
-          <p className="text-gray-600">
+        <div className="text-center mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Attendance Register</h3>
+          <p className="text-gray-600 text-xs sm:text-sm">
             Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
             {reportClass && ` | Class: ${localClasses.find(c => c.id === reportClass)?.class_name || ''}`}
             {reportSection && ` | Section: ${localSections.find(s => s.id === reportSection)?.section_name || ''}`}
           </p>
-          <div className="mt-2 flex justify-center gap-4 text-xs text-gray-600">
+          <div className="mt-2 flex flex-wrap justify-center gap-1 sm:gap-2 md:gap-4 text-[10px] sm:text-xs text-gray-600">
             <span className="flex items-center gap-1"><span className="text-green-600 font-bold">P</span> = Present</span>
             <span className="flex items-center gap-1"><span className="text-red-600 font-bold">A</span> = Absent</span>
             <span className="flex items-center gap-1"><span className="text-blue-600 font-bold">H</span> = Half Day</span>
@@ -1278,30 +1308,31 @@ function AttendanceReportsContent() {
 
         {/* Download Button - Only shown when data is loaded */}
         {!loading && data.length > 0 && (
-          <div className="flex justify-end mb-4 print:hidden">
+          <div className="flex justify-end mb-3 sm:mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs sm:text-sm"
             >
-              <FileDown className="w-4 h-4" />
-              Download PDF
+              <FileDown className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {/* Report Table */}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-4 sm:py-6 md:py-8 text-gray-500 text-xs sm:text-sm">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300 text-xs">
+            <table className="w-full border-collapse border border-gray-300 text-[10px] sm:text-xs">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-0 bg-blue-900 text-white z-10">Sr.</th>
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-10 bg-blue-900 text-white z-10">Student Name</th>
-                  <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold sticky left-40 bg-blue-900 text-white z-10">Roll</th>
+                  <th className="border border-gray-300 px-1 sm:px-2 py-1.5 sm:py-2 text-left text-[10px] sm:text-xs font-semibold sticky left-0 bg-blue-900 text-white z-10 whitespace-nowrap">Sr.</th>
+                  <th className="border border-gray-300 px-1 sm:px-2 py-1.5 sm:py-2 text-left text-[10px] sm:text-xs font-semibold sticky left-5 sm:left-8 bg-blue-900 text-white z-10 whitespace-nowrap">Name</th>
+                  <th className="border border-gray-300 px-1 sm:px-2 py-1.5 sm:py-2 text-center text-[10px] sm:text-xs font-semibold sticky left-16 sm:left-28 bg-blue-900 text-white z-10 whitespace-nowrap">Roll</th>
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                    <th key={day} className="border border-gray-300 px-1 py-2 text-center text-xs font-semibold min-w-[30px]">
+                    <th key={day} className="border border-gray-300 px-0.5 sm:px-1 py-1.5 sm:py-2 text-center text-[10px] sm:text-xs font-semibold min-w-[20px] sm:min-w-[26px] md:min-w-[30px] whitespace-nowrap">
                       {day}
                     </th>
                   ))}
@@ -1310,13 +1341,13 @@ function AttendanceReportsContent() {
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-2 py-2 text-xs sticky left-0 bg-white">{index + 1}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs sticky left-10 bg-white">{row.name}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-center text-xs sticky left-40 bg-white">{row.rollNumber}</td>
+                    <td className="border border-gray-300 px-1 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs sticky left-0 bg-white whitespace-nowrap">{index + 1}</td>
+                    <td className="border border-gray-300 px-1 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs sticky left-5 sm:left-8 bg-white truncate max-w-[40px] sm:max-w-[80px] md:max-w-none whitespace-nowrap">{row.name}</td>
+                    <td className="border border-gray-300 px-1 sm:px-2 py-1.5 sm:py-2 text-center text-[10px] sm:text-xs sticky left-16 sm:left-28 bg-white whitespace-nowrap">{row.rollNumber}</td>
                     {row.dailyStatus.map((status, dayIndex) => (
                       <td
                         key={dayIndex}
-                        className={`border border-gray-300 px-1 py-2 text-center text-xs font-bold ${status ? getStatusColor(status) : 'bg-white text-gray-300'}`}
+                        className={`border border-gray-300 px-0.5 sm:px-1 py-1.5 sm:py-2 text-center text-[10px] sm:text-xs font-bold whitespace-nowrap ${status ? getStatusColor(status) : 'bg-white text-gray-300'}`}
                       >
                         {status ? getStatusCode(status) : '-'}
                       </td>
@@ -1327,7 +1358,7 @@ function AttendanceReportsContent() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-4 sm:py-6 md:py-8 text-gray-500 text-xs sm:text-sm">
             {reportClass ? 'No students found for the selected class' : 'Please select a class and generate report'}
           </div>
         )}
@@ -1443,18 +1474,18 @@ function AttendanceReportsContent() {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
         {/* Filters */}
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="mb-4 sm:mb-6 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
                 <input
                   type="month"
                   value={reportMonth}
                   onChange={(e) => setReportMonth(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base"
                 />
               </div>
               <div>
@@ -1462,7 +1493,7 @@ function AttendanceReportsContent() {
                 <select
                   value={reportClass}
                   onChange={(e) => setReportClass(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base"
                 >
                   <option value="">Select Class</option>
                   {localClasses.map(cls => (
@@ -1475,7 +1506,7 @@ function AttendanceReportsContent() {
                 <select
                   value={reportSection}
                   onChange={(e) => setReportSection(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base"
                   disabled={!reportClass}
                 >
                   <option value="">All Sections</option>
@@ -1488,7 +1519,7 @@ function AttendanceReportsContent() {
                 <button
                   onClick={loadReport}
                   disabled={loading || !reportClass}
-                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                  className="w-full bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm sm:text-base"
                 >
                   {loading ? 'Loading...' : 'Generate Sheet'}
                 </button>
@@ -1498,29 +1529,29 @@ function AttendanceReportsContent() {
         </div>
 
         {/* Report Header */}
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Attendance Sheet</h3>
-          <p className="text-gray-600">
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Attendance Sheet</h3>
+          <p className="text-gray-600 text-sm sm:text-base">
             Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
             {reportClass && ` | Class: ${localClasses.find(c => c.id === reportClass)?.class_name || ''}`}
             {reportSection && ` | Section: ${localSections.find(s => s.id === reportSection)?.section_name || ''}`}
           </p>
-          <p className="text-sm text-gray-500 mt-1">Fill in manually with attendance marks</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Fill in manually with attendance marks</p>
         </div>
 
         {/* Report Table */}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading sheet...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">Loading sheet...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border-2 border-gray-400 text-xs">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold w-12">Sr.</th>
-                  <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold min-w-[150px]">Student Name</th>
-                  <th className="border-2 border-gray-400 px-2 py-2 text-center text-xs font-semibold w-16">Roll</th>
+                  <th className="border-2 border-gray-400 px-1 sm:px-2 py-2 text-left text-xs font-semibold w-8 sm:w-12">Sr.</th>
+                  <th className="border-2 border-gray-400 px-1 sm:px-2 py-2 text-left text-xs font-semibold min-w-[100px] sm:min-w-[150px]">Student Name</th>
+                  <th className="border-2 border-gray-400 px-1 sm:px-2 py-2 text-center text-xs font-semibold w-12 sm:w-16">Roll</th>
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                    <th key={day} className="border-2 border-gray-400 px-1 py-2 text-center text-xs font-semibold w-8">
+                    <th key={day} className="border-2 border-gray-400 px-1 py-2 text-center text-xs font-semibold w-6 sm:w-8">
                       {day}
                     </th>
                   ))}
@@ -1529,11 +1560,11 @@ function AttendanceReportsContent() {
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index}>
-                    <td className="border-2 border-gray-400 px-2 py-3 text-xs text-center">{index + 1}</td>
-                    <td className="border-2 border-gray-400 px-2 py-3 text-xs">{row.name}</td>
-                    <td className="border-2 border-gray-400 px-2 py-3 text-center text-xs">{row.rollNumber}</td>
+                    <td className="border-2 border-gray-400 px-1 sm:px-2 py-2 sm:py-3 text-xs text-center">{index + 1}</td>
+                    <td className="border-2 border-gray-400 px-1 sm:px-2 py-2 sm:py-3 text-xs truncate max-w-[100px] sm:max-w-none">{row.name}</td>
+                    <td className="border-2 border-gray-400 px-1 sm:px-2 py-2 sm:py-3 text-center text-xs">{row.rollNumber}</td>
                     {Array.from({ length: daysInMonth }, (_, i) => i).map(day => (
-                      <td key={day} className="border-2 border-gray-400 px-1 py-3 text-center bg-white h-8">
+                      <td key={day} className="border-2 border-gray-400 px-1 py-2 sm:py-3 text-center bg-white h-6 sm:h-8">
                         &nbsp;
                       </td>
                     ))}
@@ -1543,7 +1574,7 @@ function AttendanceReportsContent() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">
             {reportClass ? 'No students found for the selected class' : 'Please select a class and generate sheet'}
           </div>
         )}
@@ -1709,18 +1740,18 @@ function AttendanceReportsContent() {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
         {/* Filters */}
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="mb-4 sm:mb-6 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
                 <input
                   type="date"
                   value={reportDate}
                   onChange={(e) => setReportDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base"
                 />
               </div>
               <div>
@@ -1728,7 +1759,7 @@ function AttendanceReportsContent() {
                 <select
                   value={reportClass}
                   onChange={(e) => setReportClass(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base"
                 >
                   <option value="">All Classes</option>
                   {localClasses.map(cls => (
@@ -1741,7 +1772,7 @@ function AttendanceReportsContent() {
                 <select
                   value={reportSection}
                   onChange={(e) => setReportSection(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base"
                   disabled={!reportClass}
                 >
                   <option value="">All Sections</option>
@@ -1754,7 +1785,7 @@ function AttendanceReportsContent() {
                 <button
                   onClick={loadReport}
                   disabled={loading}
-                  className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                  className="w-full bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm sm:text-base"
                 >
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
@@ -1764,14 +1795,14 @@ function AttendanceReportsContent() {
         </div>
 
         {/* Report Header */}
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">{getStatusLabel()} Students List</h3>
-          <p className="text-gray-600">
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">{getStatusLabel()} Students List</h3>
+          <p className="text-gray-600 text-sm sm:text-base">
             Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             {reportClass && ` | Class: ${localClasses.find(c => c.id === reportClass)?.class_name || 'All'}`}
             {reportSection && ` | Section: ${localSections.find(s => s.id === reportSection)?.section_name || 'All'}`}
           </p>
-          <p className="text-sm text-gray-600 mt-1">Total: {data.length} student{data.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">Total: {data.length} student{data.length !== 1 ? 's' : ''}</p>
         </div>
 
         {/* Download Button - Only shown when data is loaded */}
@@ -1779,48 +1810,49 @@ function AttendanceReportsContent() {
           <div className="flex justify-end mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm sm:text-base"
             >
               <FileDown className="w-4 h-4" />
-              Download PDF
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {/* Report Table */}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse border border-gray-300 text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Name</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Father Name</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Admission No</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Class</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Roll No</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold">Sr.</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold">Name</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold hidden sm:table-cell">Father Name</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden md:table-cell">Admission No</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden lg:table-cell">Class</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">Roll No</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{index + 1}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.name}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.fatherName}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm">{row.admissionNumber}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm">
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{index + 1}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{row.name}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 hidden sm:table-cell">{row.fatherName}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center hidden md:table-cell">{row.admissionNumber}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center hidden lg:table-cell">
                       {row.className}{row.section && ` - ${row.section}`}
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm">{row.rollNumber}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center">{row.rollNumber}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">
             No {getStatusLabel().toLowerCase()} students found for the selected date
           </div>
         )}
@@ -1889,16 +1921,16 @@ function AttendanceReportsContent() {
     }, [reportDate, currentUser])
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-4">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+        <div className="mb-4 sm:mb-6 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-                <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+                <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
               </div>
               <div className="flex items-end">
-                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                <button onClick={loadReport} disabled={loading} className="w-full sm:w-auto bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm sm:text-base">
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
               </div>
@@ -1906,9 +1938,9 @@ function AttendanceReportsContent() {
           </div>
         </div>
 
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Staff Daily Attendance Report</h3>
-          <p className="text-gray-600">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Staff Daily Attendance Report</h3>
+          <p className="text-gray-600 text-sm sm:text-base">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
 
         {/* Download Button - Only shown when data is loaded */}
@@ -1916,39 +1948,40 @@ function AttendanceReportsContent() {
           <div className="flex justify-end mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm sm:text-base"
             >
               <FileDown className="w-4 h-4" />
-              Download PDF
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">Loading report...</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse border border-gray-300 text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Present</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">P/Late</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Half Day</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Leave</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Absent</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Not Marked</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Total</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">Present</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden sm:table-cell">P/Late</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden md:table-cell">Half Day</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden md:table-cell">Leave</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">Absent</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden lg:table-cell">Not Marked</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">Total</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-2 text-center text-sm text-green-600 font-medium">{data.present}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-center text-sm text-orange-600 font-medium">{data.late}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-center text-sm text-blue-600 font-medium">{data.halfDay}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-center text-sm text-purple-600 font-medium">{data.leave}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-center text-sm text-red-600 font-medium">{data.absent}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-center text-sm text-gray-500 font-medium">{data.notMarked}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">{data.total}</td>
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-green-600 font-medium">{data.present}</td>
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-orange-600 font-medium hidden sm:table-cell">{data.late}</td>
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-blue-600 font-medium hidden md:table-cell">{data.halfDay}</td>
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-purple-600 font-medium hidden md:table-cell">{data.leave}</td>
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-red-600 font-medium">{data.absent}</td>
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-gray-500 font-medium hidden lg:table-cell">{data.notMarked}</td>
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">{data.total}</td>
                 </tr>
               </tbody>
             </table>
@@ -2051,16 +2084,16 @@ function AttendanceReportsContent() {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-4">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+        <div className="mb-4 sm:mb-6 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
               </div>
               <div className="flex items-end">
-                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                <button onClick={loadReport} disabled={loading} className="w-full sm:w-auto bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm sm:text-base">
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
               </div>
@@ -2068,9 +2101,9 @@ function AttendanceReportsContent() {
           </div>
         </div>
 
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Staff Monthly Attendance Summary</h3>
-          <p className="text-gray-600">Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Staff Monthly Attendance Summary</h3>
+          <p className="text-gray-600 text-sm sm:text-base">Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
         </div>
 
         {/* Download Button - Only shown when data is loaded */}
@@ -2078,57 +2111,58 @@ function AttendanceReportsContent() {
           <div className="flex justify-end mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm sm:text-base"
             >
               <FileDown className="w-4 h-4" />
-              Download PDF
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse border border-gray-300 text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Staff Name</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Employee ID</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Department</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Days</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Present</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">P/Late</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Short Leave</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Absent</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Leave</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Holiday</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Not Marked</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold">Sr.</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold">Staff Name</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden sm:table-cell">Employee ID</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold hidden md:table-cell">Department</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden lg:table-cell">Days</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">Present</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden sm:table-cell">P/Late</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden lg:table-cell">Short Leave</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">Absent</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden md:table-cell">Leave</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden lg:table-cell">Holiday</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden lg:table-cell">Not Marked</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{index + 1}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.name}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm">{row.employeeId}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.department}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm font-medium">{row.days}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-green-600 font-medium">{row.present}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-orange-600 font-medium">{row.late}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-blue-600 font-medium">{row.halfDay}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-red-600 font-medium">{row.absent}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-purple-600 font-medium">{row.leave}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-gray-600 font-medium">{row.holiday}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm text-gray-500 font-medium">{row.notMarked}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{index + 1}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{row.name}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center hidden sm:table-cell">{row.employeeId}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 hidden md:table-cell">{row.department}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-medium hidden lg:table-cell">{row.days}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-green-600 font-medium">{row.present}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-orange-600 font-medium hidden sm:table-cell">{row.late}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-blue-600 font-medium hidden lg:table-cell">{row.halfDay}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-red-600 font-medium">{row.absent}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-purple-600 font-medium hidden md:table-cell">{row.leave}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-gray-600 font-medium hidden lg:table-cell">{row.holiday}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center text-gray-500 font-medium hidden lg:table-cell">{row.notMarked}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">No staff found. Please generate report.</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">No staff found. Please generate report.</div>
         )}
       </div>
     )
@@ -2247,16 +2281,16 @@ function AttendanceReportsContent() {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-4">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+        <div className="mb-4 sm:mb-6 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
               </div>
               <div className="flex items-end">
-                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                <button onClick={loadReport} disabled={loading} className="w-full sm:w-auto bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm sm:text-base">
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
               </div>
@@ -2264,10 +2298,10 @@ function AttendanceReportsContent() {
           </div>
         </div>
 
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Staff Attendance Register</h3>
-          <p className="text-gray-600">Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
-          <div className="mt-2 flex justify-center gap-4 text-xs text-gray-600">
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Staff Attendance Register</h3>
+          <p className="text-gray-600 text-sm sm:text-base">Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
+          <div className="mt-2 flex flex-wrap justify-center gap-2 sm:gap-4 text-xs text-gray-600">
             <span className="flex items-center gap-1"><span className="text-green-600 font-bold">P</span> = Present</span>
             <span className="flex items-center gap-1"><span className="text-red-600 font-bold">A</span> = Absent</span>
             <span className="flex items-center gap-1"><span className="text-blue-600 font-bold">H</span> = Half Day</span>
@@ -2281,35 +2315,36 @@ function AttendanceReportsContent() {
           <div className="flex justify-end mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm sm:text-base"
             >
               <FileDown className="w-4 h-4" />
-              Download PDF
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-0 bg-blue-900 text-white z-10">Sr.</th>
-                  <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold sticky left-10 bg-blue-900 text-white z-10">Staff Name</th>
-                  <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold sticky left-40 bg-blue-900 text-white z-10">Emp ID</th>
+                  <th className="border border-gray-300 px-1 sm:px-2 py-2 text-left text-xs font-semibold sticky left-0 bg-blue-900 text-white z-10">Sr.</th>
+                  <th className="border border-gray-300 px-1 sm:px-2 py-2 text-left text-xs font-semibold sticky left-6 sm:left-10 bg-blue-900 text-white z-10">Staff Name</th>
+                  <th className="border border-gray-300 px-1 sm:px-2 py-2 text-center text-xs font-semibold sticky left-24 sm:left-40 bg-blue-900 text-white z-10">Emp ID</th>
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                    <th key={day} className="border border-gray-300 px-1 py-2 text-center text-xs font-semibold min-w-[30px]">{day}</th>
+                    <th key={day} className="border border-gray-300 px-1 py-2 text-center text-xs font-semibold min-w-[24px] sm:min-w-[30px]">{day}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-2 py-2 text-xs sticky left-0 bg-white">{index + 1}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs sticky left-10 bg-white">{row.name}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-center text-xs sticky left-40 bg-white">{row.employeeId}</td>
+                    <td className="border border-gray-300 px-1 sm:px-2 py-2 text-xs sticky left-0 bg-white">{index + 1}</td>
+                    <td className="border border-gray-300 px-1 sm:px-2 py-2 text-xs sticky left-6 sm:left-10 bg-white truncate max-w-[60px] sm:max-w-none">{row.name}</td>
+                    <td className="border border-gray-300 px-1 sm:px-2 py-2 text-center text-xs sticky left-24 sm:left-40 bg-white">{row.employeeId}</td>
                     {row.dailyStatus.map((status, dayIndex) => (
                       <td key={dayIndex} className={`border border-gray-300 px-1 py-2 text-center text-xs font-bold ${status ? getStatusColor(status) : 'bg-white text-gray-300'}`}>
                         {status ? getStatusCode(status) : '-'}
@@ -2321,7 +2356,7 @@ function AttendanceReportsContent() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">No staff found. Please generate report.</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">No staff found. Please generate report.</div>
         )}
       </div>
     )
@@ -2388,17 +2423,17 @@ function AttendanceReportsContent() {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
         {/* Filters */}
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-4">
+        <div className="mb-4 sm:mb-6 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
               </div>
               <div className="flex items-end">
-                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                <button onClick={loadReport} disabled={loading} className="w-full sm:w-auto bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm sm:text-base">
                   {loading ? 'Loading...' : 'Generate Sheet'}
                 </button>
               </div>
@@ -2406,35 +2441,35 @@ function AttendanceReportsContent() {
           </div>
         </div>
 
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Staff Attendance Sheet</h3>
-          <p className="text-gray-600">Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
-          <p className="text-sm text-gray-500 mt-1">Fill in manually with attendance marks</p>
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Staff Attendance Sheet</h3>
+          <p className="text-gray-600 text-sm sm:text-base">Month: {new Date(reportMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Fill in manually with attendance marks</p>
         </div>
 
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading sheet...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">Loading sheet...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border-2 border-gray-400 text-xs">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold w-12">Sr.</th>
-                  <th className="border-2 border-gray-400 px-2 py-2 text-left text-xs font-semibold min-w-[150px]">Staff Name</th>
-                  <th className="border-2 border-gray-400 px-2 py-2 text-center text-xs font-semibold w-20">Emp ID</th>
+                  <th className="border-2 border-gray-400 px-1 sm:px-2 py-2 text-left text-xs font-semibold w-8 sm:w-12">Sr.</th>
+                  <th className="border-2 border-gray-400 px-1 sm:px-2 py-2 text-left text-xs font-semibold min-w-[100px] sm:min-w-[150px]">Staff Name</th>
+                  <th className="border-2 border-gray-400 px-1 sm:px-2 py-2 text-center text-xs font-semibold w-16 sm:w-20">Emp ID</th>
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                    <th key={day} className="border-2 border-gray-400 px-1 py-2 text-center text-xs font-semibold w-8">{day}</th>
+                    <th key={day} className="border-2 border-gray-400 px-1 py-2 text-center text-xs font-semibold w-6 sm:w-8">{day}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index}>
-                    <td className="border-2 border-gray-400 px-2 py-3 text-xs text-center">{index + 1}</td>
-                    <td className="border-2 border-gray-400 px-2 py-3 text-xs">{row.name}</td>
-                    <td className="border-2 border-gray-400 px-2 py-3 text-center text-xs">{row.employeeId}</td>
+                    <td className="border-2 border-gray-400 px-1 sm:px-2 py-2 sm:py-3 text-xs text-center">{index + 1}</td>
+                    <td className="border-2 border-gray-400 px-1 sm:px-2 py-2 sm:py-3 text-xs truncate max-w-[100px] sm:max-w-none">{row.name}</td>
+                    <td className="border-2 border-gray-400 px-1 sm:px-2 py-2 sm:py-3 text-center text-xs">{row.employeeId}</td>
                     {Array.from({ length: daysInMonth }, (_, i) => i).map(day => (
-                      <td key={day} className="border-2 border-gray-400 px-1 py-3 text-center bg-white h-8">&nbsp;</td>
+                      <td key={day} className="border-2 border-gray-400 px-1 py-2 sm:py-3 text-center bg-white h-6 sm:h-8">&nbsp;</td>
                     ))}
                   </tr>
                 ))}
@@ -2442,7 +2477,7 @@ function AttendanceReportsContent() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">No staff found. Please generate sheet.</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">No staff found. Please generate sheet.</div>
         )}
       </div>
     )
@@ -2521,16 +2556,16 @@ function AttendanceReportsContent() {
     }, [currentUser, reportDate])
 
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="mb-6 print:hidden">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-4">
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+        <div className="mb-4 sm:mb-6 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-                <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+                <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
               </div>
               <div className="flex items-end">
-                <button onClick={loadReport} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                <button onClick={loadReport} disabled={loading} className="w-full sm:w-auto bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm sm:text-base">
                   {loading ? 'Loading...' : 'Generate Report'}
                 </button>
               </div>
@@ -2538,10 +2573,10 @@ function AttendanceReportsContent() {
           </div>
         </div>
 
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900">{getStatusLabel()} Staff List</h3>
-          <p className="text-gray-600">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          <p className="text-sm text-gray-600 mt-1">Total: {data.length} staff member{data.length !== 1 ? 's' : ''}</p>
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">{getStatusLabel()} Staff List</h3>
+          <p className="text-gray-600 text-sm sm:text-base">Date: {new Date(reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">Total: {data.length} staff member{data.length !== 1 ? 's' : ''}</p>
         </div>
 
         {/* Download Button - Only shown when data is loaded */}
@@ -2549,43 +2584,44 @@ function AttendanceReportsContent() {
           <div className="flex justify-end mb-4 print:hidden">
             <button
               onClick={onDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm sm:text-base"
             >
               <FileDown className="w-4 h-4" />
-              Download PDF
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
           </div>
         )}
 
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading report...</div>
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">Loading report...</div>
         ) : data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse border border-gray-300 text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-900 text-white">
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Sr.</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Name</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Employee ID</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-semibold">Department</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-semibold">Phone</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold">Sr.</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold">Name</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold hidden sm:table-cell">Employee ID</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-left font-semibold hidden md:table-cell">Department</th>
+                  <th className="border border-gray-300 px-2 sm:px-4 py-2 text-center font-semibold">Phone</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{index + 1}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.name}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm">{row.employeeId}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm">{row.department}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center text-sm">{row.phone}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{index + 1}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{row.name}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center hidden sm:table-cell">{row.employeeId}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 hidden md:table-cell">{row.department}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2 text-center">{row.phone}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">
             No {getStatusLabel().toLowerCase()} staff found for the selected date
           </div>
         )}
@@ -2606,8 +2642,8 @@ export default function AttendanceReportsPage() {
 
   if (!currentUser) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

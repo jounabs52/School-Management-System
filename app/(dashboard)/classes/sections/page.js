@@ -6,6 +6,8 @@ import { Plus, Search, Edit2, Trash2, X, CheckCircle, XCircle, Download } from '
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Modal Overlay Component - Uses Portal to render at document body level
 const ModalOverlay = ({ children, onClose }) => {
@@ -44,7 +46,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-full shadow-lg transition-all duration-300 max-w-[90%] sm:max-w-md ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -52,11 +54,11 @@ const Toast = ({ message, type, onClose }) => {
     style={{
       animation: 'slideIn 0.3s ease-out'
     }}>
-      {type === 'success' && <CheckCircle size={16} strokeWidth={2.5} />}
-      {type === 'error' && <X size={16} strokeWidth={2.5} />}
-      <span className="font-medium text-xs">{message}</span>
+      {type === 'success' && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />}
+      {type === 'error' && <X className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />}
+      <span className="font-medium text-xs sm:text-sm">{message}</span>
       <button onClick={onClose} className="ml-1 hover:opacity-80 transition-opacity">
-        <X size={14} strokeWidth={2.5} />
+        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.5} />
       </button>
       <style jsx>{`
         @keyframes slideIn {
@@ -101,6 +103,7 @@ function SectionsContent() {
     })
   }, [])
 
+  const [currentUser, setCurrentUser] = useState(null)
   const [showSidebar, setShowSidebar] = useState(false)
   const [showEditSidebar, setShowEditSidebar] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -144,12 +147,22 @@ function SectionsContent() {
     setToast({ show: false, message: '', type: '' })
   }
 
-  // Fetch data on component mount
+  // Load user first
   useEffect(() => {
-    fetchClasses()
-    fetchStaff()
-    fetchSections()
+    const { id, school_id } = getLoggedInUser()
+    if (id && school_id) {
+      setCurrentUser({ id, school_id })
+    }
   }, [])
+
+  // Fetch data when user is available
+  useEffect(() => {
+    if (currentUser?.id && currentUser?.school_id) {
+      fetchClasses()
+      fetchStaff()
+      fetchSections()
+    }
+  }, [currentUser])
 
   // Real-time subscription for sections
   useEffect(() => {
@@ -240,11 +253,8 @@ function SectionsContent() {
         return
       }
 
-      const { id: userId, school_id: schoolId } = getLoggedInUser()
-      if (!userId || !schoolId) {
-        console.error('❌ No user found')
-        return
-      }
+      if (!currentUser) return
+      const { id: userId, school_id: schoolId } = currentUser
 
       console.log('✅ Fetching classes for school_id:', schoolId)
 
@@ -273,11 +283,8 @@ function SectionsContent() {
         return
       }
 
-      const { id: userId, school_id: schoolId } = getLoggedInUser()
-      if (!userId || !schoolId) {
-        console.error('❌ No user found')
-        return
-      }
+      if (!currentUser) return
+      const { id: userId, school_id: schoolId } = currentUser
 
       console.log('✅ Fetching staff for school_id:', schoolId)
 
@@ -310,12 +317,11 @@ function SectionsContent() {
         return
       }
 
-      const { id: userId, school_id: schoolId } = getLoggedInUser()
-      if (!userId || !schoolId) {
-        console.error('❌ No user found')
+      if (!currentUser) {
         setLoading(false)
         return
       }
+      const { id: userId, school_id: schoolId } = currentUser
 
       console.log('✅ Fetching sections for school_id:', schoolId)
 
@@ -723,43 +729,44 @@ function SectionsContent() {
   }
 
   return (
-    <div className="p-2 lg:p-4 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
       {/* Top Button */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         <button
           onClick={() => setShowSidebar(true)}
-          className="bg-red-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-red-700 transition flex items-center gap-1.5 shadow-lg"
+          className="bg-red-600 text-white py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 rounded-lg font-medium text-xs sm:text-sm hover:bg-red-700 transition flex items-center gap-1.5 sm:gap-2 shadow-lg"
         >
-          <Plus size={16} />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           Assign Section
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-base font-bold text-gray-800">Search Sections</h2>
+      <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 md:p-5 lg:p-6 mb-3 sm:mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3 md:mb-4">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Search Sections</h2>
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
           >
-            <Download size={18} />
-            Export to Excel
+            <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Export to Excel</span>
+            <span className="sm:hidden">Export</span>
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
           {/* Class Dropdown */}
-          <div className="md:w-40">
-            <label className="block text-gray-600 text-xs mb-1.5">Class</label>
+          <div className="w-full sm:w-40 md:w-48">
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1 sm:mb-1.5">Class</label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Classes</option>
               {classList.map((cls) => (
@@ -771,12 +778,12 @@ function SectionsContent() {
           </div>
 
           {/* Section Dropdown */}
-          <div className="md:w-40">
-            <label className="block text-gray-600 text-xs mb-1.5">Section</label>
+          <div className="w-full sm:w-40 md:w-48">
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1 sm:mb-1.5">Section</label>
             <select
               value={selectedSectionFilter}
               onChange={(e) => setSelectedSectionFilter(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">All Sections</option>
               {uniqueSectionNames.map((sectionName) => (
@@ -789,15 +796,15 @@ function SectionsContent() {
 
           {/* General Search */}
           <div className="flex-1">
-            <label className="block text-gray-600 text-xs mb-1.5">Search</label>
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1 sm:mb-1.5">Search</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
               <input
                 type="text"
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
@@ -805,30 +812,30 @@ function SectionsContent() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
+      <ResponsiveTableWrapper
+        tableView={
+          <table className="w-full border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="bg-blue-900 text-white">
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Section Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Incharge Name</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Room Number</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Capacity</th>
-                <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Sr.</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Class Name</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Section Name</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Incharge Name</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Room Number</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Capacity</th>
+                <th className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Options</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="7" className="px-2 sm:px-3 py-4 sm:py-6 text-center text-gray-500 text-xs sm:text-sm">
                     Loading sections...
                   </td>
                 </tr>
               ) : filteredSections.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan="7" className="px-2 sm:px-3 py-4 sm:py-6 text-center text-gray-500 text-xs sm:text-sm">
                     No sections found
                   </td>
                 </tr>
@@ -845,23 +852,23 @@ function SectionsContent() {
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       } hover:bg-blue-50 transition`}
                     >
-                      <td className="px-3 py-2.5 border border-gray-200">{startIndex + index + 1}</td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">{startIndex + index + 1}</td>
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         <span className="text-blue-600 font-medium">{section.class_name}</span>
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">{section.section_name}</td>
-                      <td className="px-3 py-2.5 border border-gray-200">{section.teacher_name || '-'}</td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">{section.section_name}</td>
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">{section.teacher_name || '-'}</td>
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         {section.room_number || '-'}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
                         {capacity > 0 ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2">
                             <span className={`font-medium ${isFull ? 'text-red-600' : 'text-blue-600'}`}>
                               {currentStudents} / {capacity}
                             </span>
                             {isFull && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                              <span className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium bg-red-100 text-red-800 rounded-full">
                                 Full
                               </span>
                             )}
@@ -870,11 +877,11 @@ function SectionsContent() {
                           '-'
                         )}
                       </td>
-                      <td className="px-3 py-2.5 border border-gray-200">
-                      <div className="flex items-center gap-1">
+                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 whitespace-nowrap">
+                      <div className="flex items-center gap-1 sm:gap-2">
                         <button
                           onClick={() => handleToggleStatus(section)}
-                          className={`p-1.5 rounded-lg transition ${
+                          className={`p-1 sm:p-1.5 rounded-lg transition ${
                             section.status === 'active'
                               ? 'text-green-600 hover:bg-green-50'
                               : 'text-gray-400 hover:bg-gray-50'
@@ -882,22 +889,22 @@ function SectionsContent() {
                           title={section.status === 'active' ? 'Active - Click to Deactivate' : 'Inactive - Click to Activate'}
                         >
                           {section.status === 'active' ? (
-                            <CheckCircle size={16} />
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           ) : (
-                            <XCircle size={16} />
+                            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           )}
                         </button>
                         <button
                           onClick={() => handleEdit(section)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          className="p-1 sm:p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                         >
-                          <Edit2 size={16} />
+                          <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(section)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          className="p-1 sm:p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                       </div>
                     </td>
@@ -907,19 +914,84 @@ function SectionsContent() {
               )}
             </tbody>
           </table>
-        </div>
+        }
+        cardView={
+          <CardGrid>
+            {paginatedSections.map((section, index) => {
+              const currentStudents = section.current_students || 0
+              const capacity = section.capacity || 0
+              const isFull = capacity > 0 && currentStudents >= capacity
 
-        {/* Pagination Controls */}
+              return (
+                <DataCard key={section.id}>
+                  <CardHeader
+                    srNumber={startIndex + index + 1}
+                    photo={section.section_name.charAt(0)}
+                    name={`${section.class_name} - ${section.section_name}`}
+                    subtitle={section.teacher_name || 'No incharge'}
+                  />
+                  <CardInfoGrid>
+                    <CardRow label="Class" value={section.class_name} />
+                    <CardRow label="Section" value={section.section_name} />
+                    <CardRow label="Incharge" value={section.teacher_name || '-'} />
+                    <CardRow label="Room No." value={section.room_number || '-'} />
+                    <CardRow
+                      label="Capacity"
+                      value={capacity > 0 ? `${currentStudents} / ${capacity}${isFull ? ' (Full)' : ''}` : '-'}
+                    />
+                  </CardInfoGrid>
+                  <CardActions>
+                    <button
+                      onClick={() => handleToggleStatus(section)}
+                      className={`p-1 rounded ${
+                        section.status === 'active'
+                          ? 'text-green-600'
+                          : 'text-gray-400'
+                      }`}
+                      title={section.status === 'active' ? 'Active' : 'Inactive'}
+                    >
+                      {section.status === 'active' ? (
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleEdit(section)}
+                      className="p-1 text-teal-600 rounded"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(section)}
+                      className="p-1 text-red-600 rounded"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </CardActions>
+                </DataCard>
+              )
+            })}
+          </CardGrid>
+        }
+        loading={loading}
+        empty={paginatedSections.length === 0}
+        emptyMessage="No sections found"
+      />
+
+      {/* Pagination Controls */}
         {filteredSections.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-            <div className="text-xs text-gray-600">
+          <div className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 md:gap-4 bg-gray-50">
+            <div className="text-xs sm:text-sm text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredSections.length)} of {filteredSections.length} sections
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1 sm:gap-1.5 md:gap-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
+                className={`py-1.5 sm:py-2 px-2 sm:px-3 md:px-4 rounded-lg font-medium text-xs sm:text-sm transition ${
                   currentPage === 1
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -927,7 +999,7 @@ function SectionsContent() {
               >
                 Previous
               </button>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 {(() => {
                   const pages = []
                   const maxVisiblePages = 4
@@ -944,7 +1016,7 @@ function SectionsContent() {
                       <button
                         key={i}
                         onClick={() => setCurrentPage(i)}
-                        className={`w-8 h-8 rounded-lg font-medium text-sm transition ${
+                        className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg font-medium text-xs sm:text-sm transition ${
                           currentPage === i
                             ? 'bg-[#1E3A8A] text-white'
                             : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
@@ -960,7 +1032,7 @@ function SectionsContent() {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-1.5 rounded-lg font-medium text-sm transition ${
+                className={`py-1.5 sm:py-2 px-2 sm:px-3 md:px-4 rounded-lg font-medium text-xs sm:text-sm transition ${
                   currentPage === totalPages
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -971,12 +1043,11 @@ function SectionsContent() {
             </div>
           </div>
         )}
-      </div>
 
       {/* Add Section Sidebar */}
       {showSidebar && (
         <ModalOverlay onClose={() => setShowSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             {/* Sidebar Header */}
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
@@ -1152,7 +1223,7 @@ function SectionsContent() {
       {/* Edit Section Sidebar */}
       {showEditSidebar && (
         <ModalOverlay onClose={() => setShowEditSidebar(false)}>
-          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
+          <div className="fixed top-0 right-0 h-full w-full sm:max-w-md lg:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
             {/* Sidebar Header */}
             <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 py-4">
               <div className="flex justify-between items-center">
@@ -1297,8 +1368,8 @@ function SectionsContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedSection && (
         <ModalOverlay onClose={() => setShowDeleteModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-3 rounded-t-xl">
                 <h3 className="text-base font-bold">Confirm Delete</h3>
               </div>

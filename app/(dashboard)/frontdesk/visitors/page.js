@@ -8,6 +8,8 @@ import {
 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 function VisitorsContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -308,10 +310,10 @@ function VisitorsContent() {
   }, [showAddModal, confirmDialog.show])
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4">
 
       {/* Header Actions */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+      <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 md:p-4 mb-2 sm:mb-3">
         <button
           onClick={() => {
             setEditingVisitor(null)
@@ -319,41 +321,41 @@ function VisitorsContent() {
             setFormData({ ...formData, time_in: getCurrentTime() })
             setShowAddModal(true)
           }}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+          className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white py-1.5 sm:py-2 px-3 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           Add New Visitor
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 md:p-4 mb-2 sm:mb-3">
+        <div className="filter-row-mobile">
           {/* Search Type Dropdown */}
           <div className="relative min-w-[150px]">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="w-full appearance-none border border-gray-300 rounded px-3 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white text-sm"
+              className="w-full appearance-none border border-gray-300 rounded py-1.5 sm:py-2 px-3 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-700 bg-white text-sm sm:text-base"
             >
               {searchOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400 pointer-events-none" />
           </div>
 
           {/* Search Input */}
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-0 sm:min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full border border-gray-300 rounded pl-9 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                className="w-full border border-gray-300 rounded pl-9 sm:pl-10 pr-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base"
               />
             </div>
           </div>
@@ -363,95 +365,95 @@ function VisitorsContent() {
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+            className="border border-gray-300 rounded py-1.5 sm:py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base"
           />
 
           {/* Search Button */}
           <button
             onClick={handleSearch}
-            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded font-medium transition text-sm"
+            className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-1.5 sm:py-2 px-3 rounded font-medium transition text-xs sm:text-sm"
           >
             Search
-            <Search className="w-4 h-4" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
-        <p className="mt-3 pt-3 border-t border-gray-200 text-gray-600 text-sm">
+        <p className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 text-gray-600 text-xs sm:text-sm">
           Showing <span className="text-blue-600 font-semibold">{filteredVisitors.length}</span> of <span className="text-blue-600 font-semibold">{visitors.length}</span> visitors
         </p>
       </div>
 
       {/* Visitors Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-6 text-center text-gray-500 text-sm">Loading visitors...</div>
-        ) : filteredVisitors.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
-            <Users className="w-10 h-10 mx-auto mb-3 text-gray-400" />
-            <p className="text-sm">No visitors found</p>
+      <ResponsiveTableWrapper
+        loading={loading}
+        empty={filteredVisitors.length === 0}
+        emptyMessage={
+          <div className="text-center text-gray-500">
+            <Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />
+            <p className="text-xs sm:text-sm">No visitors found</p>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead className="bg-blue-900 text-white text-sm">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Sr.</th>
-                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Visitor Name</th>
-                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Destination</th>
-                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Time In</th>
-                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Time Out</th>
-                  <th className="px-3 py-2 text-left font-semibold border-r border-blue-800">Date</th>
-                  <th className="px-3 py-2 text-left font-semibold">Options</th>
-                </tr>
-              </thead>
+        }
+        tableView={
+          <table className="w-full min-w-[600px] border-collapse">
+            <thead className="bg-blue-900 text-white text-xs sm:text-sm">
+              <tr>
+                <th className="border border-blue-800 px-3 sm:px-4 py-2 sm:py-2.5 text-left font-semibold border-r border-blue-800 whitespace-nowrap">Sr.</th>
+                <th className="border border-blue-800 px-3 sm:px-4 py-2 sm:py-2.5 text-left font-semibold border-r border-blue-800 whitespace-nowrap">Visitor Name</th>
+                <th className="border border-blue-800 px-3 sm:px-4 py-2 sm:py-2.5 text-left font-semibold border-r border-blue-800 whitespace-nowrap">Destination</th>
+                <th className="border border-blue-800 px-3 sm:px-4 py-2 sm:py-2.5 text-left font-semibold border-r border-blue-800 whitespace-nowrap">Time In</th>
+                <th className="border border-blue-800 px-3 sm:px-4 py-2 sm:py-2.5 text-left font-semibold border-r border-blue-800 whitespace-nowrap">Time Out</th>
+                <th className="border border-blue-800 px-3 sm:px-4 py-2 sm:py-2.5 text-left font-semibold border-r border-blue-800 whitespace-nowrap">Date</th>
+                <th className="border border-blue-800 px-3 sm:px-4 py-2 sm:py-2.5 text-left font-semibold whitespace-nowrap">Options</th>
+              </tr>
+            </thead>
             <tbody>
               {filteredVisitors.map((visitor, index) => (
                 <tr key={visitor.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-3 py-2 text-sm border-r border-gray-200">{index + 1}</td>
-                  <td className="px-3 py-2 text-sm font-medium border-r border-gray-200">{visitor.visitor_name}</td>
-                  <td className="px-3 py-2 text-sm border-r border-gray-200">{visitor.destination}</td>
-                  <td className="px-3 py-2 text-sm border-r border-gray-200">{visitor.time_in}</td>
-                  <td className="px-3 py-2 text-sm border-r border-gray-200">
+                  <td className="border border-gray-200 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm border-r border-gray-200 whitespace-nowrap">{index + 1}</td>
+                  <td className="border border-gray-200 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-r border-gray-200 whitespace-nowrap">{visitor.visitor_name}</td>
+                  <td className="border border-gray-200 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm border-r border-gray-200 whitespace-nowrap">{visitor.destination}</td>
+                  <td className="border border-gray-200 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm border-r border-gray-200 whitespace-nowrap">{visitor.time_in}</td>
+                  <td className="border border-gray-200 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm border-r border-gray-200 whitespace-nowrap">
                     {visitor.time_out ? (
                       visitor.time_out
                     ) : (
                       <span className="text-blue-600 font-medium">Mark Left</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-sm border-r border-gray-200">
+                  <td className="border border-gray-200 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm border-r border-gray-200 whitespace-nowrap">
                     {visitor.visit_date ? new Date(visitor.visit_date).toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric'
                     }) : 'N/A'}
                   </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <button className="text-green-500 hover:text-green-600 p-1" title="Send Message">
-                        
+                  <td className="border border-gray-200 px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button className="text-green-500 hover:text-green-600 p-1 sm:p-1.5" title="Send Message">
+
                       </button>
                       {!visitor.time_out && (
                         <button
                           onClick={() => handleMarkLeft(visitor)}
-                          className="text-orange-500 hover:text-orange-600 p-1"
+                          className="text-orange-500 hover:text-orange-600 p-1 sm:p-1.5"
                           title="Mark Time Out"
                         >
-                          <Clock className="w-4 h-4" />
+                          <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                       )}
                       <button
                         onClick={() => handleEditVisitor(visitor)}
-                        className="text-blue-500 hover:text-blue-600 p-1"
+                        className="text-blue-500 hover:text-blue-600 p-1 sm:p-1.5"
                         title="Edit"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                       <button
                         onClick={() => handleDeleteVisitor(visitor.id)}
-                        className="text-red-500 hover:text-red-600 p-1"
+                        className="text-red-500 hover:text-red-600 p-1 sm:p-1.5"
                         title="Delete"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
                   </td>
@@ -459,17 +461,68 @@ function VisitorsContent() {
               ))}
             </tbody>
           </table>
-          </div>
-        )}
-      </div>
+        }
+        cardView={
+          <CardGrid>
+            {filteredVisitors.map((visitor, index) => (
+              <DataCard key={visitor.id}>
+                <CardHeader
+                  srNumber={index + 1}
+                  name={visitor.visitor_name}
+                />
+                <CardInfoGrid>
+                  <CardRow label="Destination" value={visitor.destination} />
+                  <CardRow label="Time In" value={visitor.time_in} />
+                  <CardRow
+                    label="Time Out"
+                    value={visitor.time_out || <span className="text-blue-600 text-[10px]">Not Yet</span>}
+                  />
+                  <CardRow
+                    label="Date"
+                    value={visitor.visit_date ? new Date(visitor.visit_date).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short'
+                    }) : 'N/A'}
+                  />
+                </CardInfoGrid>
+                <CardActions>
+                  {!visitor.time_out && (
+                    <button
+                      onClick={() => handleMarkLeft(visitor)}
+                      className="bg-orange-500 hover:bg-orange-600 text-white p-1 rounded"
+                      title="Mark Time Out"
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEditVisitor(visitor)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
+                    title="Edit"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteVisitor(visitor.id)}
+                    className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </CardActions>
+              </DataCard>
+            ))}
+          </CardGrid>
+        }
+      />
 
       {/* Add/Edit Visitor Modal */}
       {showAddModal && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowAddModal(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 flex items-center justify-between sticky top-0 z-10">
-              <h2 className="text-base font-semibold">
+          <div className="fixed inset-0 sm:inset-auto sm:top-0 sm:right-0 h-full w-full sm:max-w-md md:max-w-lg xl:max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 sm:p-4 flex items-center justify-between sticky top-0 z-10">
+              <h2 className="text-sm sm:text-base font-semibold">
                 {editingVisitor ? 'Edit Visitor' : 'Register New Visitor'}
               </h2>
               <button
@@ -478,85 +531,85 @@ function VisitorsContent() {
                   setEditingVisitor(null)
                   resetForm()
                 }}
-                className="hover:bg-blue-800 p-1 rounded"
+                className="hover:bg-blue-800 p-1.5 sm:p-2 rounded"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <div className="p-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-3 sm:p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Visitor Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.visitor_name}
                     onChange={(e) => setFormData({ ...formData, visitor_name: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded py-1.5 sm:py-2 px-3 text-sm sm:text-base"
                     placeholder="Full Name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Visitor Mobile <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.visitor_mobile}
                     onChange={(e) => setFormData({ ...formData, visitor_mobile: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded py-1.5 sm:py-2 px-3 text-sm sm:text-base"
                     placeholder="Mobile Number"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Destination <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.destination}
                     onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded py-1.5 sm:py-2 px-3 text-sm sm:text-base"
                     placeholder="Whom to meet?"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Time In <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="time"
                     value={formData.time_in}
                     onChange={(e) => setFormData({ ...formData, time_in: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded py-1.5 sm:py-2 px-3 text-sm sm:text-base"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Time Out
                   </label>
                   <input
                     type="time"
                     value={formData.time_out}
                     onChange={(e) => setFormData({ ...formData, time_out: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded py-1.5 sm:py-2 px-3 text-sm sm:text-base"
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Visit Details
                   </label>
                   <textarea
                     value={formData.visit_details}
                     onChange={(e) => setFormData({ ...formData, visit_details: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded py-1.5 sm:py-2 px-3 text-sm sm:text-base"
                     rows="3"
                     placeholder="Visit Details"
                   />
@@ -565,21 +618,21 @@ function VisitorsContent() {
 
             </div>
 
-            <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-2 sticky bottom-0 bg-white z-10">
+            <div className="p-3 sm:p-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white z-10">
               <button
                 onClick={() => {
                   setShowAddModal(false)
                   setEditingVisitor(null)
                   resetForm()
                 }}
-                className="text-gray-700 hover:text-gray-900 font-medium px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition text-sm"
+                className="w-full sm:w-auto text-gray-700 hover:text-gray-900 font-medium py-1.5 sm:py-2 px-3 border border-gray-300 rounded hover:bg-gray-100 transition text-xs sm:text-sm"
               >
                 Close
               </button>
               <button
                 onClick={handleSaveVisitor}
                 disabled={saving}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded font-medium flex items-center gap-2 disabled:opacity-50 text-sm"
+                className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white py-1.5 sm:py-2 px-3 rounded font-medium flex items-center justify-center gap-2 disabled:opacity-50 text-xs sm:text-sm"
               >
                 {saving ? 'Saving...' : editingVisitor ? 'Update' : 'Save'}
               </button>
@@ -591,27 +644,27 @@ function VisitorsContent() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center" onClick={handleCancelConfirm}>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center p-2 sm:p-4" onClick={handleCancelConfirm}>
             <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 transform transition-all"
+              className="bg-white rounded-lg shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg transform transition-all"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-t-lg">
-                <h3 className="text-base font-semibold">{confirmDialog.title}</h3>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
+                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-5">
-                <p className="text-gray-700 text-sm">{confirmDialog.message}</p>
+              <div className="p-3 sm:p-4">
+                <p className="text-gray-700 text-xs sm:text-sm">{confirmDialog.message}</p>
               </div>
-              <div className="px-5 pb-5 flex justify-end gap-2">
+              <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                 <button
                   onClick={handleCancelConfirm}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-sm"
+                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-xs sm:text-sm"
                 >
                   Confirm
                 </button>
@@ -622,26 +675,26 @@ function VisitorsContent() {
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2">
+      <div className="fixed top-4 right-4 z-[9999] space-y-2 sm:space-y-3 w-[calc(100%-2rem)] sm:w-auto">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-3 min-w-[320px] max-w-md px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+            className={`flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[280px] sm:min-w-[320px] max-w-full sm:max-w-md px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
               toast.type === 'success' ? 'bg-green-500' :
               toast.type === 'error' ? 'bg-red-500' :
               toast.type === 'warning' ? 'bg-orange-500' :
-              'bg-blue-500'
+              'bg-gray-500'
             }`}
           >
-            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            {toast.type === 'success' && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
+            {toast.type === 'warning' && <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
+            <span className="flex-1 text-xs sm:text-sm font-medium">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
               className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         ))}

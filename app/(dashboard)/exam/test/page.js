@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { X, Plus, Edit, Trash2, AlertCircle, CheckCircle, XCircle, FileText } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Helper to get logged-in user
 const getLoggedInUser = () => {
@@ -444,16 +446,16 @@ function TestsPage() {
   })
 
   return (
-    <div className="p-1">
+    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg bg-green-600 text-white min-w-[300px]"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg bg-green-600 text-white min-w-[250px] sm:min-w-[300px] text-sm"
           >
-            {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5 text-red-400" />}
-            {toast.type === 'info' && <AlertCircle className="w-5 h-5" />}
+            {toast.type === 'success' && <CheckCircle className="w-4 sm:w-5 h-4 sm:h-5" />}
+            {toast.type === 'error' && <XCircle className="w-4 sm:w-5 h-4 sm:h-5 text-red-400" />}
+            {toast.type === 'info' && <AlertCircle className="w-4 sm:w-5 h-4 sm:h-5" />}
             <span className="flex-1">{toast.message}</span>
             <button onClick={() => removeToast(toast.id)} className="hover:bg-white/20 p-1 rounded">
               <X className="w-4 h-4" />
@@ -462,44 +464,46 @@ function TestsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-gray-800">Exam Tests</h1>
-          <div className="flex gap-2">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3">
+          <h1 className="text-lg sm:text-xl font-bold text-gray-800">Exam Tests</h1>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <button
               onClick={() => {
                 setActiveTab('list')
                 resetForm()
               }}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'list'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              Tests List
+              <FileText className="w-3 sm:w-4 h-3 sm:h-4" />
+              <span className="hidden sm:inline">Tests List</span>
+              <span className="sm:hidden">List</span>
             </button>
             <button
               onClick={() => {
                 setActiveTab('add')
                 resetForm()
               }}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === 'add'
                   ? 'bg-red-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <Plus className="w-4 h-4" />
-              Add New Test
+              <Plus className="w-3 sm:w-4 h-3 sm:h-4" />
+              <span className="hidden sm:inline">Add New Test</span>
+              <span className="sm:hidden">Add</span>
             </button>
           </div>
         </div>
 
         {activeTab === 'list' && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4">
               <select
                 value={filterClass}
                 onChange={(e) => setFilterClass(e.target.value)}
@@ -541,130 +545,186 @@ function TestsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 border border-gray-300 rounded px-3 py-2 w-full text-sm"
                 />
-                <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm whitespace-nowrap">
+                <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs sm:text-sm whitespace-nowrap">
                   Search
                 </button>
               </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-blue-900 text-white">
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Class</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Subject</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Test Name</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Total Marks</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Students</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Result Date</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Status</th>
-                      <th className="px-3 py-2.5 text-left font-semibold border border-blue-800">Options</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTests.map((test, index) => (
-                      <tr key={test.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
-                        <td className="px-3 py-2.5 border border-gray-200">{index + 1}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">{test.classes?.class_name || 'N/A'}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          {test.test_subjects?.map(ts => ts.subjects?.subject_name).join(', ') || 'N/A'}
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200 font-medium">{test.test_name}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          {new Date(test.test_date).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200">{test.total_marks}</td>
-                        <td className="px-3 py-2.5 border border-gray-200">0</td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          {test.result_date
-                            ? new Date(test.result_date).toLocaleDateString('en-GB', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric'
-                              })
-                            : 'N/A'
-                          }
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          <select
-                            value={test.status}
-                            onChange={(e) => handleStatusChange(test.id, e.target.value)}
-                            disabled={loading}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer ${
-                              test.status === 'opened' ? 'bg-green-100 text-green-800' :
-                              test.status === 'closed' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            <option value="opened">opened</option>
-                            <option value="closed">closed</option>
-                          </select>
-                        </td>
-                        <td className="px-3 py-2.5 border border-gray-200">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEditTest(test)}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setTestToDelete(test)
-                                setShowDeleteModal(true)
-                              }}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
+              <ResponsiveTableWrapper
+                tableView={
+                  <table className="w-full border-collapse text-xs sm:text-sm">
+                    <thead>
+                      <tr className="bg-blue-900 text-white">
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800">Sr.</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800">Class</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 hidden sm:table-cell">Subject</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800">Test Name</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800">Date</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 hidden md:table-cell">Marks</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 hidden lg:table-cell">Students</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800 hidden lg:table-cell">Result Date</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800">Status</th>
+                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left font-semibold border border-blue-800">Actions</th>
                       </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTests.map((test, index) => (
+                        <tr key={test.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition`}>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">{index + 1}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">{test.classes?.class_name || 'N/A'}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden sm:table-cell">
+                            {test.test_subjects?.map(ts => ts.subjects?.subject_name).join(', ') || 'N/A'}
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 font-medium">{test.test_name}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 whitespace-nowrap">
+                            {new Date(test.test_date).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden md:table-cell">{test.total_marks}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden lg:table-cell">0</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200 hidden lg:table-cell whitespace-nowrap">
+                            {test.result_date
+                              ? new Date(test.result_date).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })
+                              : 'N/A'
+                            }
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">
+                            <select
+                              value={test.status}
+                              onChange={(e) => handleStatusChange(test.id, e.target.value)}
+                              disabled={loading}
+                              className={`px-2 sm:px-3 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer ${
+                                test.status === 'opened' ? 'bg-green-100 text-green-800' :
+                                test.status === 'closed' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              <option value="opened">opened</option>
+                              <option value="closed">closed</option>
+                            </select>
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 border border-gray-200">
+                            <div className="flex gap-1 sm:gap-2">
+                              <button
+                                onClick={() => handleEditTest(test)}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setTestToDelete(test)
+                                  setShowDeleteModal(true)
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                }
+                cardView={
+                  <CardGrid>
+                    {filteredTests.map((test, index) => (
+                      <DataCard key={test.id}>
+                        <CardHeader
+                          srNumber={index + 1}
+                          name={test.test_name}
+                          subtitle={`${test.classes?.class_name || 'N/A'} • ${test.test_subjects?.map(ts => ts.subjects?.subject_name).join(', ') || 'N/A'}`}
+                          badge={
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              test.status === 'opened' ? 'bg-green-100 text-green-700' :
+                              test.status === 'closed' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {test.status}
+                            </span>
+                          }
+                        />
+                        <CardInfoGrid>
+                          <CardRow
+                            label="Date"
+                            value={new Date(test.test_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          />
+                          <CardRow label="Marks" value={test.total_marks} />
+                          <CardRow
+                            label="Result"
+                            value={test.result_date ? new Date(test.result_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'N/A'}
+                          />
+                        </CardInfoGrid>
+                        <CardActions>
+                          <button
+                            onClick={() => handleEditTest(test)}
+                            className="p-1 text-blue-600 rounded"
+                            title="Edit"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setTestToDelete(test)
+                              setShowDeleteModal(true)
+                            }}
+                            className="p-1 text-red-600 rounded"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </CardActions>
+                      </DataCard>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </CardGrid>
+                }
+                empty={filteredTests.length === 0}
+                emptyMessage="No tests found"
+              />
             </div>
 
             {filteredTests.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No tests found</p>
+              <div className="text-center py-8 sm:py-12 text-gray-500">
+                <AlertCircle className="w-10 sm:w-12 h-10 sm:h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-sm sm:text-base">No tests found</p>
               </div>
             )}
           </div>
         )}
 
         {activeTab === 'add' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Test Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
                   value={testDate}
                   onChange={(e) => setTestDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Class <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 >
                   <option value="">Select Class</option>
                   {classes.map(cls => (
@@ -674,21 +734,21 @@ function TestsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Result Date</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Result Date</label>
                 <input
                   type="date"
                   value={resultDate}
                   onChange={(e) => setResultDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Section</label>
                 <select
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   disabled={!selectedClass}
                 >
                   <option value="">All Section</option>
@@ -698,8 +758,8 @@ function TestsPage() {
                 </select>
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="sm:col-span-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Test Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -707,22 +767,22 @@ function TestsPage() {
                   value={testName}
                   onChange={(e) => setTestName(e.target.value)}
                   placeholder="Test Name"
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Select Subjects / Courses <span className="text-red-500">*</span>
               </label>
-              <div className="border border-gray-300 rounded p-4 max-h-96 overflow-y-auto">
+              <div className="border border-gray-300 rounded p-2 sm:p-4 max-h-60 sm:max-h-96 overflow-y-auto">
                 {subjects.length === 0 ? (
-                  <p className="text-gray-500 text-sm">Please select a class first</p>
+                  <p className="text-gray-500 text-xs sm:text-sm">Please select a class first</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {subjects.map(subject => (
-                      <div key={subject.id} className="flex items-center gap-3">
+                      <div key={subject.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                         <label className="flex items-center gap-2 cursor-pointer flex-1">
                           <input
                             type="checkbox"
@@ -730,11 +790,11 @@ function TestsPage() {
                             onChange={() => toggleSubjectSelection(subject.id)}
                             className="w-4 h-4 text-blue-600 rounded"
                           />
-                          <span className="text-sm font-medium">{subject.subject_name}</span>
+                          <span className="text-xs sm:text-sm font-medium">{subject.subject_name}</span>
                         </label>
                         {selectedSubjects.includes(subject.id) && (
-                          <div className="flex items-center gap-2">
-                            <label className="text-sm text-gray-600">Total Marks:</label>
+                          <div className="flex items-center gap-2 ml-6 sm:ml-0">
+                            <label className="text-xs sm:text-sm text-gray-600">Total Marks:</label>
                             <input
                               type="number"
                               value={subjectMarks[subject.id] || ''}
@@ -753,13 +813,13 @@ function TestsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Details</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Details</label>
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 placeholder="About test..."
                 rows={4}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               />
             </div>
 
@@ -767,7 +827,7 @@ function TestsPage() {
               <button
                 onClick={handleSaveTest}
                 disabled={loading}
-                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+                className="w-full sm:w-auto bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white px-4 sm:px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
               >
                 <CheckCircle className="w-4 h-4" />
                 Save
@@ -780,30 +840,30 @@ function TestsPage() {
       {showDeleteModal && (
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowDeleteModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4">
-                <h3 className="text-lg font-semibold">Delete Test</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-full sm:max-w-md overflow-hidden">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4">
+                <h3 className="text-base sm:text-lg font-semibold">Delete Test</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-600">
+              <div className="p-4 sm:p-6">
+                <p className="text-sm sm:text-base text-gray-600">
                   Are you sure you want to delete the test "{testToDelete?.test_name}"? This action cannot be undone.
                 </p>
               </div>
-              <div className="px-6 pb-6 flex gap-3 justify-end">
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
                 <button
                   onClick={() => {
                     setShowDeleteModal(false)
                     setTestToDelete(null)
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-sm"
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteTest}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                  className="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 bg-red-500 text-white rounded hover:bg-red-600 text-xs sm:text-sm"
                 >
                   Delete
                 </button>

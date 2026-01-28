@@ -9,6 +9,8 @@ import { getUserFromCookie } from '@/lib/clientAuth'
 import { supabase } from '@/lib/supabase'
 import { getPdfSettings, hexToRgb, getMarginValues, getLogoSize, getAutoTableStyles } from '@/lib/pdfSettings'
 import PermissionGuard from '@/components/PermissionGuard'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -50,6 +52,9 @@ function FeeReportsContent() {
   // Toast state
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
+  // User state to track when user is loaded
+  const [currentUser, setCurrentUser] = useState(null)
+
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type })
   }
@@ -58,20 +63,29 @@ function FeeReportsContent() {
     setToast({ show: false, message: '', type: '' })
   }
 
+  // Load user on mount
   useEffect(() => {
-    loadData()
+    const user = getUserFromCookie()
+    setCurrentUser(user)
   }, [])
 
+  // Fetch data when user is available
   useEffect(() => {
-    if (selectedSession) {
+    if (currentUser) {
+      loadData()
+    }
+  }, [currentUser])
+
+  useEffect(() => {
+    if (selectedSession && currentUser) {
       loadReports()
     }
-  }, [selectedSession, selectedClass, minDaysOverdue])
+  }, [selectedSession, selectedClass, minDaysOverdue, currentUser])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
 
       // Load sessions
       const { data: sessionsData, error: sessionsError } = await supabase
@@ -112,7 +126,7 @@ function FeeReportsContent() {
   const loadReports = async () => {
     setLoading(true)
     try {
-      const user = getUserFromCookie()
+      const user = currentUser
 
       // Load defaulters from view
       let defaultersQuery = supabase
@@ -181,7 +195,7 @@ function FeeReportsContent() {
         return
       }
 
-      const user = getUserFromCookie()
+      const user = currentUser
 
       // Get PDF settings
       const pdfSettings = getPdfSettings()
@@ -392,7 +406,7 @@ function FeeReportsContent() {
         return
       }
 
-      const user = getUserFromCookie()
+      const user = currentUser
 
       // Get PDF settings
       const pdfSettings = getPdfSettings()
@@ -610,21 +624,21 @@ function FeeReportsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 lg:p-6">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Fee Reports & Analytics</h1>
-        <p className="text-gray-600">View fee collection status, defaulters, and summaries</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Fee Reports & Analytics</h1>
+        <p className="text-sm sm:text-base text-gray-600">View fee collection status, defaulters, and summaries</p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           <div>
             <label className="block text-gray-700 font-semibold mb-2 text-xs uppercase tracking-wide">
               Session
@@ -687,167 +701,227 @@ function FeeReportsContent() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-        <div className="flex border-b">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row border-b">
           <button
             onClick={() => setActiveTab('defaulters')}
-            className={`flex-1 px-6 py-4 font-medium transition ${
+            className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 font-medium transition text-sm sm:text-base ${
               activeTab === 'defaulters'
                 ? 'text-red-600 border-b-2 border-red-600 bg-red-50'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <AlertTriangle size={20} />
-              Fee Defaulters ({defaulters.length})
+              <AlertTriangle size={18} className="sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Fee Defaulters</span>
+              <span className="sm:hidden">Defaulters</span>
+              <span>({defaulters.length})</span>
             </div>
           </button>
           <button
             onClick={() => setActiveTab('class-summary')}
-            className={`flex-1 px-6 py-4 font-medium transition ${
+            className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 font-medium transition text-sm sm:text-base ${
               activeTab === 'class-summary'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <TrendingUp size={20} />
-              Class-wise Summary
+              <TrendingUp size={18} className="sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Class-wise Summary</span>
+              <span className="sm:hidden">Summary</span>
             </div>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
           {activeTab === 'defaulters' && (
             <div>
               {/* Export Buttons */}
-              <div className="mb-4 flex justify-between items-center">
-                <div className="text-sm text-gray-600">
+              <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+                <div className="text-xs sm:text-sm text-gray-600">
                   Total Defaulters: <span className="font-bold text-red-600">{defaulters.length}</span>
                   {minDaysOverdue > 0 && ` (overdue by ${minDaysOverdue}+ days)`}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => exportToCSV(defaulters, `fee-defaulters-${new Date().toISOString().split('T')[0]}.csv`)}
-                    className="px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
                     disabled={defaulters.length === 0}
                   >
-                    <Download size={16} />
-                    Download CSV
+                    <Download size={14} className="sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Download</span> CSV
                   </button>
                   <button
                     onClick={exportDefaultersPDF}
-                    className="px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
                     disabled={defaulters.length === 0}
                   >
-                    <FileText size={16} />
-                    Download PDF
+                    <FileText size={14} className="sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Download</span> PDF
                   </button>
                 </div>
               </div>
 
               {/* Defaulters Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-red-900 text-white">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold border border-red-800">Adm. No</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-red-800">Student Name</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-red-800">Father Name</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-red-800">Class</th>
-                      <th className="px-4 py-3 text-left font-semibold border border-red-800">Contact</th>
-                      <th className="px-4 py-3 text-right font-semibold border border-red-800">Pending Periods</th>
-                      <th className="px-4 py-3 text-right font-semibold border border-red-800">Total Due</th>
-                      <th className="px-4 py-3 text-right font-semibold border border-red-800">Days Overdue</th>
-                      <th className="px-4 py-3 text-right font-semibold border border-red-800">Since</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {defaulters.map((defaulter, index) => (
-                      <tr key={defaulter.student_id} className={index % 2 === 0 ? 'bg-white' : 'bg-red-50'}>
-                        <td className="px-4 py-3 border border-gray-200">{defaulter.admission_number}</td>
-                        <td className="px-4 py-3 border border-gray-200 font-medium">{defaulter.student_name}</td>
-                        <td className="px-4 py-3 border border-gray-200">{defaulter.father_name}</td>
-                        <td className="px-4 py-3 border border-gray-200">
-                          {defaulter.class_name}
-                          {defaulter.section_name && ` - ${defaulter.section_name}`}
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200">
-                          {defaulter.contact_phone ? (
+              <ResponsiveTableWrapper
+                tableView={
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-red-900 text-white">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold border border-red-800">Adm. No</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-red-800">Student Name</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-red-800">Father Name</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-red-800">Class</th>
+                          <th className="px-4 py-3 text-left font-semibold border border-red-800">Contact</th>
+                          <th className="px-4 py-3 text-right font-semibold border border-red-800">Pending Periods</th>
+                          <th className="px-4 py-3 text-right font-semibold border border-red-800">Total Due</th>
+                          <th className="px-4 py-3 text-right font-semibold border border-red-800">Days Overdue</th>
+                          <th className="px-4 py-3 text-right font-semibold border border-red-800">Since</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {defaulters.map((defaulter, index) => (
+                          <tr key={defaulter.student_id} className={index % 2 === 0 ? 'bg-white' : 'bg-red-50'}>
+                            <td className="px-4 py-3 border border-gray-200">{defaulter.admission_number}</td>
+                            <td className="px-4 py-3 border border-gray-200 font-medium">{defaulter.student_name}</td>
+                            <td className="px-4 py-3 border border-gray-200">{defaulter.father_name}</td>
+                            <td className="px-4 py-3 border border-gray-200">
+                              {defaulter.class_name}
+                              {defaulter.section_name && ` - ${defaulter.section_name}`}
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200">
+                              {defaulter.contact_phone ? (
+                                <div className="flex items-center gap-1 text-blue-600">
+                                  <Phone size={14} />
+                                  <span className="text-xs">{defaulter.contact_phone}</span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs">No contact</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200 text-right">
+                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                                {defaulter.pending_periods}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200 text-right">
+                              <span className="font-bold text-red-600">Rs. {defaulter.total_due?.toLocaleString()}</span>
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200 text-right">
+                              <span className={`font-semibold ${
+                                defaulter.days_since_first_due > 60 ? 'text-red-600' :
+                                defaulter.days_since_first_due > 30 ? 'text-orange-600' :
+                                'text-yellow-600'
+                              }`}>
+                                {defaulter.days_since_first_due} days
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 border border-gray-200 text-right text-xs text-gray-600">
+                              {new Date(defaulter.oldest_due_date).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                }
+                cardView={defaulters.map((defaulter) => (
+                  <DataCard key={defaulter.student_id}>
+                    <CardHeader>
+                      <div className="font-bold text-gray-900">{defaulter.student_name}</div>
+                      <div className="text-xs text-gray-500">Adm. #{defaulter.admission_number}</div>
+                    </CardHeader>
+                    <CardInfoGrid>
+                      <CardRow label="Father Name" value={defaulter.father_name} />
+                      <CardRow label="Class" value={`${defaulter.class_name}${defaulter.section_name ? ` - ${defaulter.section_name}` : ''}`} />
+                      <CardRow
+                        label="Contact"
+                        value={
+                          defaulter.contact_phone ? (
                             <div className="flex items-center gap-1 text-blue-600">
                               <Phone size={14} />
                               <span className="text-xs">{defaulter.contact_phone}</span>
                             </div>
                           ) : (
                             <span className="text-gray-400 text-xs">No contact</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 text-right">
+                          )
+                        }
+                      />
+                      <CardRow
+                        label="Pending Periods"
+                        value={
                           <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
                             {defaulter.pending_periods}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 text-right">
-                          <span className="font-bold text-red-600">Rs. {defaulter.total_due?.toLocaleString()}</span>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 text-right">
-                          <span className={`font-semibold ${
-                            defaulter.days_since_first_due > 60 ? 'text-red-600' :
-                            defaulter.days_since_first_due > 30 ? 'text-orange-600' :
-                            'text-yellow-600'
-                          }`}>
-                            {defaulter.days_since_first_due} days
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 border border-gray-200 text-right text-xs text-gray-600">
-                          {new Date(defaulter.oldest_due_date).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {defaulters.length === 0 && (
+                        }
+                      />
+                      <CardRow
+                        label="Total Due"
+                        value={`Rs. ${defaulter.total_due?.toLocaleString()}`}
+                        valueClassName="font-bold text-red-600"
+                      />
+                      <CardRow
+                        label="Days Overdue"
+                        value={`${defaulter.days_since_first_due} days`}
+                        valueClassName={`font-semibold ${
+                          defaulter.days_since_first_due > 60 ? 'text-red-600' :
+                          defaulter.days_since_first_due > 30 ? 'text-orange-600' :
+                          'text-yellow-600'
+                        }`}
+                      />
+                      <CardRow
+                        label="Since"
+                        value={new Date(defaulter.oldest_due_date).toLocaleDateString()}
+                        valueClassName="text-xs text-gray-600"
+                      />
+                    </CardInfoGrid>
+                  </DataCard>
+                ))}
+                loading={loading && sessions.length > 0}
+                empty={defaulters.length === 0}
+                emptyMessage={
                   <div className="text-center py-12 text-gray-500">
                     <AlertTriangle size={48} className="mx-auto mb-3 opacity-30" />
                     <p>No fee defaulters found</p>
                     <p className="text-sm">All students are up to date with their fee payments</p>
                   </div>
-                )}
-              </div>
+                }
+              />
             </div>
           )}
 
           {activeTab === 'class-summary' && (
             <div>
               {/* Export Buttons */}
-              <div className="mb-4 flex justify-end gap-2">
+              <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2">
                 <button
                   onClick={() => exportToCSV(classSummary, `class-fee-summary-${new Date().toISOString().split('T')[0]}.csv`)}
-                  className="px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center gap-2"
+                  className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
                   disabled={classSummary.length === 0}
                 >
-                  <Download size={16} />
-                  Download CSV
+                  <Download size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Download</span> CSV
                 </button>
                 <button
                   onClick={exportClassSummaryPDF}
-                  className="px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center gap-2"
+                  className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
                   disabled={classSummary.length === 0}
                 >
-                  <FileText size={16} />
-                  Download PDF
+                  <FileText size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Download</span> PDF
                 </button>
               </div>
 
               {/* Summary Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
                 {classSummary.map(summary => {
                   const collectionPercentage = summary.collection_percentage || 0
 
                   return (
-                    <div key={`${summary.class_id}-${summary.period_name}`} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                    <div key={`${summary.class_id}-${summary.period_name}`} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition">
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="font-bold text-gray-900">{summary.class_name}</h3>

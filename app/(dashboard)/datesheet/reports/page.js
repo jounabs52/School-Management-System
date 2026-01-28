@@ -472,28 +472,28 @@ function DatesheetReportsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Roll No Slips</h1>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold">Roll No Slips</h1>
           <button
             onClick={() => router.push('/datesheet')}
-            className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
+            className="bg-gray-500 text-white px-4 sm:px-3 sm:px-2 sm:px-3 py-1.5 sm:py-2 rounded hover:bg-gray-600 text-sm sm:text-base"
           >
             Back to Datesheets
           </button>
         </div>
 
         {/* Search and Datesheet Selection */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="mb-4">
             <input
               type="text"
               placeholder="Write search text here..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full border border-gray-300 rounded px-4 py-2"
+              className="w-full border border-gray-300 rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm sm:text-base"
             />
           </div>
           <div className="mb-4">
@@ -501,7 +501,7 @@ function DatesheetReportsContent() {
             <select
               value={selectedDatesheet}
               onChange={(e) => setSelectedDatesheet(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-gray-300 rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm sm:text-base"
             >
               <option value="">Select a datesheet</option>
               {datesheets.map(ds => (
@@ -515,9 +515,9 @@ function DatesheetReportsContent() {
           <div className="flex justify-center">
             <button
               onClick={handleViewRollNoSlips}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-lg font-medium"
+              className="bg-blue-600 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm sm:text-lg font-medium w-full sm:w-auto justify-center"
             >
-              <Printer className="w-6 h-6" />
+              <Printer className="w-5 h-5 sm:w-6 sm:h-6" />
               Generate Slip
             </button>
           </div>
@@ -531,10 +531,10 @@ function DatesheetReportsContent() {
 
       {/* Roll No Slip Modal */}
       {showRollNoSlipModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Generate Roll No Slip</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+              <h2 className="text-lg sm:text-xl font-bold">Generate Roll No Slip</h2>
               <button onClick={() => {
                 setShowRollNoSlipModal(false)
                 setSelectedClassForSlip('')
@@ -545,13 +545,13 @@ function DatesheetReportsContent() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
                 <select
                   value={selectedClassForSlip}
                   onChange={(e) => handleClassChangeForSlip(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm sm:text-base"
                 >
                   <option value="">Select a class</option>
                   {classes.map(cls => (
@@ -566,7 +566,7 @@ function DatesheetReportsContent() {
                   <select
                     value={selectedStudentForSlip}
                     onChange={(e) => setSelectedStudentForSlip(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm sm:text-base"
                   >
                     <option value="">Select a student</option>
                     {filteredStudentsForSlip.map(student => (
@@ -582,7 +582,7 @@ function DatesheetReportsContent() {
               )}
             </div>
 
-            <div className="bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
+            <div className="bg-gray-50 border-t px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   setShowRollNoSlipModal(false)
@@ -590,13 +590,13 @@ function DatesheetReportsContent() {
                   setSelectedStudentForSlip('')
                   setFilteredStudentsForSlip([])
                 }}
-                className="px-6 py-2 text-gray-700 hover:text-gray-900"
+                className="px-3 sm:px-4 py-2 text-gray-700 hover:text-gray-900"
               >
                 Cancel
               </button>
               <button
                 onClick={handleGenerateRollNoSlip}
-                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+                className="bg-blue-600 text-white px-3 sm:px-2 sm:px-3 py-1.5 sm:py-2 rounded hover:bg-blue-700 flex items-center gap-2"
                 disabled={!selectedStudentForSlip}
               >
                 <Download className="w-5 h-5" />
