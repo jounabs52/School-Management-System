@@ -1,12 +1,40 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   AlertCircle, Save, Edit2, Trash2, Plus, Loader2, Check, X
 } from 'lucide-react'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { supabase } from '@/lib/supabase'
 import PermissionGuard from '@/components/PermissionGuard'
+
+// ModalOverlay Component
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -40,6 +68,8 @@ function LateFeeConfigContent() {
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
   const [editingConfig, setEditingConfig] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [configToDelete, setConfigToDelete] = useState(null)
 
   const [formData, setFormData] = useState({
     session_id: '',
@@ -176,20 +206,27 @@ function LateFeeConfigContent() {
     setShowForm(true)
   }
 
-  const handleDelete = async (configId) => {
-    if (!confirm('Are you sure you want to delete this configuration?')) return
+  const handleDelete = (config) => {
+    setConfigToDelete(config)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!configToDelete) return
 
     try {
       const user = currentUser
       const { error } = await supabase
         .from('late_fee_config')
         .delete()
-        .eq('id', configId)
+        .eq('id', configToDelete.id)
         .eq('user_id', user.id)
         .eq('school_id', user.school_id)
 
       if (error) throw error
       showToast('Configuration deleted successfully!')
+      setShowDeleteModal(false)
+      setConfigToDelete(null)
       await loadData()
     } catch (error) {
       console.error('Error deleting config:', error)
@@ -550,7 +587,7 @@ function LateFeeConfigContent() {
                     <Edit2 size={16} />
                   </button>
                   <button
-                    onClick={() => handleDelete(config.id)}
+                    onClick={() => handleDelete(config)}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                   >
                     <Trash2 size={16} />
@@ -569,6 +606,39 @@ function LateFeeConfigContent() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && configToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
+                  Are you sure you want to delete this late fee configuration? This action cannot be undone.
+                </p>
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
 
       {/* Toast */}
       {toast.show && (

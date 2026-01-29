@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import {
   X, Plus, Search, Users, Upload, Mail, Phone, Edit, Trash2, MessageCircle,
@@ -15,6 +16,33 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardInfoGrid, CardRow, CardActions, CardGrid } from '@/components/DataCard'
+
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 function ContactsContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -39,14 +67,8 @@ function ContactsContent() {
   const [showPdfPreview, setShowPdfPreview] = useState(false)
   const [pdfUrl, setPdfUrl] = useState(null)
   const [pdfFileName, setPdfFileName] = useState('')
-
-  // Confirmation Dialog State
-  const [confirmDialog, setConfirmDialog] = useState({
-    show: false,
-    title: '',
-    message: '',
-    onConfirm: null
-  })
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [contactToDelete, setContactToDelete] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -63,26 +85,6 @@ function ContactsContent() {
     description: ''
   })
 
-  const showConfirmDialog = (title, message, onConfirm) => {
-    setConfirmDialog({
-      show: true,
-      title,
-      message,
-      onConfirm
-    })
-  }
-
-  const handleConfirm = () => {
-    if (confirmDialog.onConfirm) {
-      confirmDialog.onConfirm()
-    }
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
-
-  const handleCancelConfirm = () => {
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
-
   const showToast = (message, type = 'info') => {
     const id = Date.now()
     setToasts(prev => [...prev, { id, message, type }])
@@ -97,7 +99,7 @@ function ContactsContent() {
 
   // Apply blur effect to sidebar when modals are open
   useEffect(() => {
-    if (showAddModal || showGroupModal || showImportModal || confirmDialog.show) {
+    if (showAddModal || showGroupModal || showImportModal || showDeleteModal) {
       document.body.style.overflow = 'hidden'
       const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
       if (sidebar) {
@@ -121,7 +123,7 @@ function ContactsContent() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showAddModal, showGroupModal, showImportModal, confirmDialog.show])
+  }, [showAddModal, showGroupModal, showImportModal, showDeleteModal])
 
   // Search options
   const searchOptions = [
@@ -362,28 +364,32 @@ function ContactsContent() {
     setShowAddModal(true)
   }
 
-  const handleDeleteContact = (id) => {
-    showConfirmDialog(
-      'Delete Contact',
-      'Are you sure you want to delete this contact? This action cannot be undone.',
-      async () => {
-        try {
-          const { error } = await supabase
-            .from('contacts')
-            .delete()
-            .eq('id', id)
-            .eq('user_id', currentUser.id)
-            .eq('school_id', currentUser.school_id)
+  const handleDeleteContact = (contact) => {
+    setContactToDelete(contact)
+    setShowDeleteModal(true)
+  }
 
-          if (error) throw error
-          showToast('Contact deleted successfully', 'success')
-          fetchContacts()
-        } catch (error) {
-          console.error('Error deleting contact:', error)
-          showToast('Failed to delete contact', 'error')
-        }
-      }
-    )
+  const confirmDelete = async () => {
+    if (!contactToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', contactToDelete.id)
+        .eq('user_id', currentUser.id)
+        .eq('school_id', currentUser.school_id)
+
+      if (error) throw error
+      showToast('Contact deleted successfully', 'success')
+      fetchContacts()
+    } catch (error) {
+      console.error('Error deleting contact:', error)
+      showToast('Failed to delete contact', 'error')
+    } finally {
+      setShowDeleteModal(false)
+      setContactToDelete(null)
+    }
   }
 
   const handleSelectAll = (e) => {
@@ -859,7 +865,7 @@ function ContactsContent() {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteContact(contact.id)}
+                        onClick={() => handleDeleteContact(contact)}
                         className="text-black hover:bg-gray-100 p-1 rounded"
                         title="Delete"
                       >
@@ -921,7 +927,7 @@ function ContactsContent() {
                     <Edit className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDeleteContact(contact.id)}
+                    onClick={() => handleDeleteContact(contact)}
                     className="text-red-600 hover:bg-red-50 p-1 rounded"
                     title="Delete"
                   >
@@ -1161,37 +1167,38 @@ function ContactsContent() {
         </>
       )}
 
-      {/* Confirmation Dialog */}
-      {confirmDialog.show && (
-        <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center p-4" onClick={handleCancelConfirm}>
-            <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-sm sm:max-w-md transform transition-all"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-blue-900 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg">
-                <h3 className="text-base sm:text-lg font-semibold">{confirmDialog.title}</h3>
-              </div>
-              <div className="p-4 sm:p-6">
-                <p className="text-gray-700 text-sm sm:text-base">{confirmDialog.message}</p>
-              </div>
-              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-                <button
-                  onClick={handleCancelConfirm}
-                  className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
-                >
-                  Confirm
-                </button>
-              </div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && contactToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] sm:w-full sm:max-w-md bg-white rounded-lg shadow-2xl z-[99999]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
+              <h3 className="text-sm sm:text-base font-semibold">Confirm Delete</h3>
+            </div>
+            <div className="p-3 sm:p-4">
+              <p className="text-gray-700 text-xs sm:text-sm">
+                Are you sure you want to delete the contact <strong>{contactToDelete.name}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-xs sm:text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* Toast Notifications */}

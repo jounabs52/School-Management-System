@@ -2718,30 +2718,30 @@ function PassengersContent() {
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm sm:max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
-              <h3 className="text-base sm:text-lg font-bold">Confirm Delete</h3>
-            </div>
-            <div className="p-4 sm:p-6">
-              <p className="text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">
-                Are you sure you want to delete this passenger? This action cannot be undone.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
-                >
-                  <Trash2 size={18} />
-                  Delete
-                </button>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-            </div>
+              <div className="p-4 sm:p-6">
+                <p className="text-gray-700 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base">
+                  Are you sure you want to delete this passenger? This action cannot be undone.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
+                  >
+                    <Trash2 size={18} />
+                    Delete
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </>

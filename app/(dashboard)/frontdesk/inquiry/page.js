@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import {
   X, Plus, Search, FileText, Edit, Trash2, Calendar, Phone, Mail, User,
@@ -10,6 +11,33 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
+
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 function AdmissionInquiryContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -26,14 +54,8 @@ function AdmissionInquiryContent() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingInquiry, setEditingInquiry] = useState(null)
   const [activeTab, setActiveTab] = useState('basic')
-
-  // Confirmation Dialog State
-  const [confirmDialog, setConfirmDialog] = useState({
-    show: false,
-    title: '',
-    message: '',
-    onConfirm: null
-  })
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [inquiryToDelete, setInquiryToDelete] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -67,26 +89,6 @@ function AdmissionInquiryContent() {
     reference: '',
     status: 'pending'
   })
-
-  const showConfirmDialog = (title, message, onConfirm) => {
-    setConfirmDialog({
-      show: true,
-      title,
-      message,
-      onConfirm
-    })
-  }
-
-  const handleConfirm = () => {
-    if (confirmDialog.onConfirm) {
-      confirmDialog.onConfirm()
-    }
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
-
-  const handleCancelConfirm = () => {
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
 
   const showToast = (message, type = 'info') => {
     const id = Date.now()
@@ -390,91 +392,89 @@ function AdmissionInquiryContent() {
     setShowAddModal(true)
   }
 
-  const handleDeleteInquiry = (id) => {
-    showConfirmDialog(
-      'Delete Inquiry',
-      'Are you sure you want to delete this inquiry? This action cannot be undone.',
-      async () => {
-        try {
-          const { error } = await supabase
-            .from('admission_inquiries')
-            .delete()
-            .eq('id', id)
-
-          if (error) throw error
-          showToast('Inquiry deleted successfully', 'success')
-          fetchInquiries()
-        } catch (error) {
-          console.error('Error deleting inquiry:', error)
-          showToast('Failed to delete inquiry', 'error')
-        }
-      }
-    )
+  const handleDeleteInquiry = (inquiry) => {
+    setInquiryToDelete(inquiry)
+    setShowDeleteModal(true)
   }
 
-  const handleConfirmAdmission = (inquiry) => {
-    showConfirmDialog(
-      'Confirm Admission',
-      `Are you sure you want to confirm admission for ${inquiry.name}? This will create a student record.`,
-      async () => {
-        try {
-          setSaving(true)
+  const confirmDelete = async () => {
+    if (!inquiryToDelete) return
 
-          // Create student record from inquiry data
-          const studentData = {
-            school_id: currentUser.school_id,
-            user_id: currentUser.id,
-            admission_no: `ADM-${Date.now()}`, // Generate admission number
-            name: inquiry.name,
-            gender: inquiry.gender,
-            date_of_birth: inquiry.date_of_birth,
-            blood_group: inquiry.blood_group,
-            phone: inquiry.phone,
-            email: inquiry.email,
-            address: inquiry.address,
-            current_address: inquiry.current_address,
-            class_id: inquiry.class_id,
-            session_id: inquiry.session_id,
-            father_name: inquiry.father_name,
-            father_mobile: inquiry.father_mobile,
-            father_cnic: inquiry.father_cnic,
-            father_qualification: inquiry.father_qualification,
-            father_profession: inquiry.father_profession,
-            mother_name: inquiry.mother_name,
-            mother_mobile: inquiry.mother_mobile,
-            mother_cnic: inquiry.mother_cnic,
-            mother_qualification: inquiry.mother_qualification,
-            mother_profession: inquiry.mother_profession,
-            previous_school: inquiry.previous_school,
-            admission_date: new Date().toISOString().split('T')[0],
-            status: 'active'
-          }
+    try {
+      const { error } = await supabase
+        .from('admission_inquiries')
+        .delete()
+        .eq('id', inquiryToDelete.id)
 
-          // Insert student record
-          const { error: studentError } = await supabase
-            .from('students')
-            .insert([studentData])
+      if (error) throw error
+      showToast('Inquiry deleted successfully', 'success')
+      fetchInquiries()
+    } catch (error) {
+      console.error('Error deleting inquiry:', error)
+      showToast('Failed to delete inquiry', 'error')
+    } finally {
+      setShowDeleteModal(false)
+      setInquiryToDelete(null)
+    }
+  }
 
-          if (studentError) throw studentError
+  const handleConfirmAdmission = async (inquiry) => {
+    try {
+      setSaving(true)
 
-          // Update inquiry status to admitted
-          const { error: updateError } = await supabase
-            .from('admission_inquiries')
-            .update({ status: 'admitted' })
-            .eq('id', inquiry.id)
-
-          if (updateError) throw updateError
-
-          showToast('Admission confirmed successfully! Student record created.', 'success')
-          fetchInquiries()
-        } catch (error) {
-          console.error('Error confirming admission:', error)
-          showToast('Failed to confirm admission: ' + error.message, 'error')
-        } finally {
-          setSaving(false)
-        }
+      // Create student record from inquiry data
+      const studentData = {
+        school_id: currentUser.school_id,
+        user_id: currentUser.id,
+        admission_no: `ADM-${Date.now()}`, // Generate admission number
+        name: inquiry.name,
+        gender: inquiry.gender,
+        date_of_birth: inquiry.date_of_birth,
+        blood_group: inquiry.blood_group,
+        phone: inquiry.phone,
+        email: inquiry.email,
+        address: inquiry.address,
+        current_address: inquiry.current_address,
+        class_id: inquiry.class_id,
+        session_id: inquiry.session_id,
+        father_name: inquiry.father_name,
+        father_mobile: inquiry.father_mobile,
+        father_cnic: inquiry.father_cnic,
+        father_qualification: inquiry.father_qualification,
+        father_profession: inquiry.father_profession,
+        mother_name: inquiry.mother_name,
+        mother_mobile: inquiry.mother_mobile,
+        mother_cnic: inquiry.mother_cnic,
+        mother_qualification: inquiry.mother_qualification,
+        mother_profession: inquiry.mother_profession,
+        previous_school: inquiry.previous_school,
+        admission_date: new Date().toISOString().split('T')[0],
+        status: 'active'
       }
-    )
+
+      // Insert student record
+      const { error: studentError } = await supabase
+        .from('students')
+        .insert([studentData])
+
+      if (studentError) throw studentError
+
+      // Update inquiry status to admitted
+      const { error: updateError } = await supabase
+        .from('admission_inquiries')
+        .update({ status: 'admitted' })
+        .eq('id', inquiry.id)
+
+      if (updateError) throw updateError
+
+      showToast('Admission confirmed successfully! Student record created.', 'success')
+      fetchInquiries()
+    } catch (error) {
+      console.error('Error confirming admission:', error)
+      showToast('Failed to confirm admission: ' + error.message, 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const getStatusColor = (status) => {
@@ -490,7 +490,7 @@ function AdmissionInquiryContent() {
 
   // Apply blur effect to sidebar when modals are open
   useEffect(() => {
-    if (showAddModal || confirmDialog.show) {
+    if (showAddModal || showDeleteModal) {
       document.body.style.overflow = 'hidden'
       const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
       if (sidebar) {
@@ -514,7 +514,7 @@ function AdmissionInquiryContent() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showAddModal, confirmDialog.show])
+  }, [showAddModal, showDeleteModal])
 
   return (
     <div className="p-1.5 sm:p-2 md:p-3 lg:p-4">
@@ -663,7 +663,7 @@ function AdmissionInquiryContent() {
                         <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                       <button
-                        onClick={() => handleDeleteInquiry(inquiry.id)}
+                        onClick={() => handleDeleteInquiry(inquiry)}
                         className="text-red-500 hover:text-red-600 p-1 sm:p-1.5"
                         title="Delete"
                       >
@@ -715,7 +715,7 @@ function AdmissionInquiryContent() {
                     <Edit className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDeleteInquiry(inquiry.id)}
+                    onClick={() => handleDeleteInquiry(inquiry)}
                     className="p-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition"
                     title="Delete"
                   >
@@ -1151,37 +1151,38 @@ function AdmissionInquiryContent() {
         </>
       )}
 
-      {/* Confirmation Dialog */}
-      {confirmDialog.show && (
-        <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center p-4" onClick={handleCancelConfirm}>
-            <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-sm sm:max-w-md transform transition-all"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 rounded-t-lg">
-                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
-              </div>
-              <div className="p-4 sm:p-5">
-                <p className="text-gray-700 text-xs sm:text-sm">{confirmDialog.message}</p>
-              </div>
-              <div className="px-4 sm:px-5 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2">
-                <button
-                  onClick={handleCancelConfirm}
-                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="w-full sm:w-auto px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-sm"
-                >
-                  Confirm
-                </button>
-              </div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && inquiryToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] sm:w-full sm:max-w-md bg-white rounded-lg shadow-2xl z-[99999]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
+              <h3 className="text-sm sm:text-base font-semibold">Confirm Delete</h3>
+            </div>
+            <div className="p-3 sm:p-4">
+              <p className="text-gray-700 text-xs sm:text-sm">
+                Are you sure you want to delete the inquiry for <strong>{inquiryToDelete.name}</strong> (Inquiry No: {inquiryToDelete.inquiry_no})? This action cannot be undone.
+              </p>
+            </div>
+            <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-xs sm:text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* Toast Notifications */}

@@ -1,12 +1,40 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { Search, Users, Phone, Mail, Building, MessageCircle, Filter, ChevronDown, Plus, X, Edit, Trash2 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
+
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 function DirectoryContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -34,12 +62,9 @@ function DirectoryContent() {
     company: '',
     group_id: ''
   })
-  const [confirmDialog, setConfirmDialog] = useState({
-    show: false,
-    title: '',
-    message: '',
-    onConfirm: null
-  })
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [personToDelete, setPersonToDelete] = useState(null)
+  const [deleteType, setDeleteType] = useState('') // 'contact' or 'group'
 
   const searchOptions = ['Via General Data', 'Via Name', 'Via Mobile', 'Via Company', 'Via Group']
 
@@ -183,17 +208,6 @@ function DirectoryContent() {
 
   const removeToast = (id) => setToasts(prev => prev.filter(toast => toast.id !== id))
 
-  const handleConfirm = () => {
-    if (confirmDialog.onConfirm) {
-      confirmDialog.onConfirm()
-    }
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
-
-  const handleCancel = () => {
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
-
   const handleSaveContact = async () => {
     if (!contactForm.name || !contactForm.mobile) {
       showToast('Please fill required fields (Name and Mobile)', 'error')
@@ -237,23 +251,35 @@ function DirectoryContent() {
     setShowAddModal(true)
   }
 
-  const handleDeleteContact = (id) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Delete Contact',
-      message: 'Are you sure you want to delete this contact? This action cannot be undone.',
-      onConfirm: async () => {
-        try {
-          const { error } = await supabase.from('contacts').delete().eq('id', id).eq('school_id', currentUser.school_id)
-          if (error) throw error
-          showToast('Contact deleted successfully', 'success')
-          fetchContacts()
-        } catch (error) {
-          console.error('Error deleting contact:', error)
-          showToast('Failed to delete contact: ' + error.message, 'error')
-        }
+  const handleDeleteContact = (contact) => {
+    setPersonToDelete(contact)
+    setDeleteType('contact')
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!personToDelete) return
+
+    try {
+      if (deleteType === 'contact') {
+        const { error } = await supabase.from('contacts').delete().eq('id', personToDelete.id).eq('school_id', currentUser.school_id)
+        if (error) throw error
+        showToast('Contact deleted successfully', 'success')
+        fetchContacts()
+      } else if (deleteType === 'group') {
+        const { error } = await supabase.from('contact_groups').delete().eq('id', personToDelete.id).eq('school_id', currentUser.school_id)
+        if (error) throw error
+        showToast('Group deleted successfully', 'success')
+        fetchGroups()
       }
-    })
+    } catch (error) {
+      console.error('Error deleting:', error)
+      showToast('Failed to delete: ' + error.message, 'error')
+    } finally {
+      setShowDeleteModal(false)
+      setPersonToDelete(null)
+      setDeleteType('')
+    }
   }
 
   const handleSaveGroup = async () => {
@@ -300,23 +326,10 @@ function DirectoryContent() {
     setShowGroupModal(true)
   }
 
-  const handleDeleteGroup = (id) => {
-    setConfirmDialog({
-      show: true,
-      title: 'Delete Group',
-      message: 'Are you sure you want to delete this group? Contacts in this group will not be deleted.',
-      onConfirm: async () => {
-        try {
-          const { error } = await supabase.from('contact_groups').delete().eq('id', id).eq('school_id', currentUser.school_id)
-          if (error) throw error
-          showToast('Group deleted successfully', 'success')
-          fetchGroups()
-        } catch (error) {
-          console.error('Error deleting group:', error)
-          showToast('Failed to delete group: ' + error.message, 'error')
-        }
-      }
-    })
+  const handleDeleteGroup = (group) => {
+    setPersonToDelete(group)
+    setDeleteType('group')
+    setShowDeleteModal(true)
   }
   const groupedContacts = filteredContacts.reduce((acc, contact) => {
     const firstLetter = contact.name?.charAt(0).toUpperCase() || '#'
@@ -534,7 +547,7 @@ function DirectoryContent() {
                           <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           <span className="text-[10px] sm:text-xs font-medium">Edit</span>
                         </button>
-                        <button onClick={() => handleDeleteContact(contact.id)} className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors">
+                        <button onClick={() => handleDeleteContact(contact)} className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors">
                           <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           <span className="text-[10px] sm:text-xs font-medium">Delete</span>
                         </button>
@@ -626,7 +639,7 @@ function DirectoryContent() {
                               <button onClick={() => handleEditGroup(group)} className="p-1.5 sm:p-2 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Edit group">
                                 <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                               </button>
-                              <button onClick={() => handleDeleteGroup(group.id)} className="p-1.5 sm:p-2 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Delete group">
+                              <button onClick={() => handleDeleteGroup(group)} className="p-1.5 sm:p-2 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Delete group">
                                 <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                               </button>
                             </div>
@@ -663,7 +676,7 @@ function DirectoryContent() {
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteGroup(group.id)}
+                          onClick={() => handleDeleteGroup(group)}
                           className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                           title="Delete"
                         >
@@ -818,36 +831,42 @@ function DirectoryContent() {
         </>
       )}
 
-      {confirmDialog.show && (
-        <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] flex items-center justify-center p-2 sm:p-4" onClick={handleCancel}>
-            <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg transform transition-all"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-red-600 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
-                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
-              </div>
-              <div className="p-3 sm:p-4">
-                <p className="text-gray-700 text-xs sm:text-sm">{confirmDialog.message}</p>
-              </div>
-              <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-                <button
-                  onClick={handleCancel}
-                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm w-full sm:w-auto"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition text-xs sm:text-sm"
-                >
-                  Confirm
-                </button>
-              </div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && personToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] sm:w-full sm:max-w-md bg-white rounded-lg shadow-2xl z-[99999]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
+              <h3 className="text-sm sm:text-base font-semibold">Confirm Delete</h3>
+            </div>
+            <div className="p-3 sm:p-4">
+              <p className="text-gray-700 text-xs sm:text-sm">
+                {deleteType === 'contact' ? (
+                  <>Are you sure you want to delete the contact <strong>{personToDelete.name}</strong>? This action cannot be undone.</>
+                ) : (
+                  <>Are you sure you want to delete the group <strong>{personToDelete.group_name}</strong>? Contacts in this group will not be deleted.</>
+                )}
+              </p>
+            </div>
+            <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-xs sm:text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
     </div>
   )

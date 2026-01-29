@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { Search, Printer, Info, Trash2, Filter } from 'lucide-react'
 import jsPDF from 'jspdf'
@@ -33,6 +34,32 @@ import { getUserFromCookie } from '@/lib/clientAuth'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardRow, CardActions, CardInfoGrid } from '@/components/DataCard'
 
+// ModalOverlay Component - Matches classes/list/page.js pattern
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 function SalarySlipsPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -1030,43 +1057,40 @@ function SalarySlipsPageContent() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && paymentToDelete && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={() => !deleting && setShowDeleteModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-2 sm:py-3 md:py-4 rounded-t-xl">
-                <h3 className="text-sm sm:text-base font-bold">Confirm Delete</h3>
+        <ModalOverlay onClose={() => !deleting && setShowDeleteModal(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
               <div className="p-3 sm:p-4 md:p-5 lg:p-6">
-                <p className="text-gray-700 mb-4 sm:mb-6 text-xs sm:text-sm">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
                   Are you sure you want to delete the salary payment for <span className="font-bold text-red-600">{paymentToDelete.staff?.first_name} {paymentToDelete.staff?.last_name}</span> ({getMonthName(paymentToDelete.payment_month)} {paymentToDelete.payment_year})? This action cannot be undone.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
                       setPaymentToDelete(null)
                     }}
                     disabled={deleting}
-                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-xs sm:text-sm"
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeletePayment}
                     disabled={deleting}
-                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-red-600 text-white font-semibold hover:bg-red-700 rounded-lg transition disabled:opacity-50 text-xs sm:text-sm"
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50"
                   >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     {deleting ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* PDF Preview Modal */}

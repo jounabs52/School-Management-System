@@ -1847,30 +1847,35 @@ function RecruitmentContent() {
       {/* Confirmation Dialog */}
       {confirmDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black/80 sm:bg-black/50 sm:backdrop-blur-sm z-[9998] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={handleCancel}>
-            <div
-              className="w-full sm:w-auto sm:max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg">
-                <h3 className="text-base sm:text-lg font-semibold">{confirmDialog.title}</h3>
+          <div
+            className="fixed inset-0 bg-black/50 z-[9999]"
+            onClick={handleCancel}
+            style={{ backdropFilter: 'blur(4px)' }}
+          />
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">{confirmDialog.title}</h3>
               </div>
-              <div className="p-3 sm:p-4">
-                <p className="text-sm sm:text-base text-gray-700">{confirmDialog.message}</p>
-              </div>
-              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-                <button
-                  onClick={handleCancel}
-                  className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition w-full sm:w-auto"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition w-full sm:w-auto"
-                >
-                  Confirm
-                </button>
+              <div className="p-4 sm:p-6">
+                <p className="text-gray-700 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base">
+                  {confirmDialog.message}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button
+                    onClick={handleCancel}
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirm}
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
+                  >
+                    <Trash2 size={18} />
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>

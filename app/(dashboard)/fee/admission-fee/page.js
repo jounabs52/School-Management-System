@@ -1,12 +1,40 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import { Users, FileText, TrendingUp, TrendingDown, Edit, Trash2, Plus, X, CheckCircle } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardRow, CardActions } from '@/components/DataCard'
+
+// ModalOverlay Component
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -1417,51 +1445,40 @@ function AdmissionFeePolicyContent() {
         </>
       )}
 
-      {/* Delete Confirmation Modal - Matching Design */}
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/60 z-[9999]"
-            style={{ backdropFilter: 'blur(4px)' }}
-            onClick={() => {
-              setShowDeleteModal(false)
-              setDeletingPolicyId(null)
-            }}
-          />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95%] sm:w-full max-w-md bg-white shadow-2xl z-[10000] rounded-lg overflow-hidden">
-            {/* Red Header */}
-            <div className="bg-[#DC2626] px-4 sm:px-6 py-3.5">
-              <h3 className="text-lg sm:text-xl font-bold text-white">Confirm Delete</h3>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 bg-white">
-              <p className="text-gray-700 text-sm leading-relaxed">
-                Are you sure you want to delete <span className="font-bold text-[#DC2626]">this fee policy</span>? This action cannot be undone.
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 bg-white flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false)
-                  setDeletingPolicyId(null)
-                }}
-                className="px-8 py-2.5 text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeletePolicy}
-                className="px-8 py-2.5 bg-[#DC2626] text-white font-medium hover:bg-[#B91C1C] rounded-lg transition flex items-center gap-2"
-              >
-                <Trash2 size={18} />
-                Delete
-              </button>
+        <ModalOverlay onClose={() => { setShowDeleteModal(false); setDeletingPolicyId(null); }}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
+                  Are you sure you want to delete <span className="font-bold text-red-600">this fee policy</span>? This action cannot be undone.
+                </p>
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false)
+                      setDeletingPolicyId(null)
+                    }}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeletePolicy}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Delete
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* No Class Selected Message */}

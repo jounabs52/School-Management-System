@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { X, Plus, Edit, Trash2, AlertCircle, CheckCircle, XCircle, FileText } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -16,6 +17,33 @@ const getLoggedInUser = () => {
   } catch {
     return { id: null, school_id: null }
   }
+}
+
+// ModalOverlay Component
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
 }
 
 function TestsPage() {
@@ -838,39 +866,40 @@ function TestsPage() {
       </div>
 
       {showDeleteModal && (
-        <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowDeleteModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-full sm:max-w-md overflow-hidden">
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4">
-                <h3 className="text-base sm:text-lg font-semibold">Delete Test</h3>
+        <ModalOverlay onClose={() => { setShowDeleteModal(false); setTestToDelete(null); }}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-4 sm:p-6">
-                <p className="text-sm sm:text-base text-gray-600">
-                  Are you sure you want to delete the test "{testToDelete?.test_name}"? This action cannot be undone.
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
+                  Are you sure you want to delete the test "<span className="font-bold text-red-600">{testToDelete?.test_name}</span>"? This action cannot be undone.
                 </p>
-              </div>
-              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    setShowDeleteModal(false)
-                    setTestToDelete(null)
-                  }}
-                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteTest}
-                  disabled={loading}
-                  className="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 bg-red-500 text-white rounded hover:bg-red-600 text-xs sm:text-sm"
-                >
-                  Delete
-                </button>
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false)
+                      setTestToDelete(null)
+                    }}
+                    disabled={loading}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteTest}
+                    disabled={loading}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    {loading ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
     </div>
   )

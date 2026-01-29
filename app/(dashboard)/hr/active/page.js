@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Plus, Upload, Search, Filter, Download, FileSpreadsheet,
   Edit, Trash2, ChevronDown, X, User, Upload as UploadIcon, CheckCircle, XCircle, AlertCircle
@@ -15,6 +16,33 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
+
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 function ActiveStaffContent() {
   const [searchType, setSearchType] = useState('Via General Data')
@@ -91,33 +119,9 @@ function ActiveStaffContent() {
   const [staffData, setStaffData] = useState([])
   const [filteredStaffData, setFilteredStaffData] = useState([])
 
-  // Confirmation Dialog State
-  const [confirmDialog, setConfirmDialog] = useState({
-    show: false,
-    title: '',
-    message: '',
-    onConfirm: null
-  })
-
-  const showConfirmDialog = (title, message, onConfirm) => {
-    setConfirmDialog({
-      show: true,
-      title,
-      message,
-      onConfirm
-    })
-  }
-
-  const handleConfirm = () => {
-    if (confirmDialog.onConfirm) {
-      confirmDialog.onConfirm()
-    }
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
-
-  const handleCancelConfirm = () => {
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
+  // Delete Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [staffToDelete, setStaffToDelete] = useState(null)
 
   // Toast notification function
   const showToast = (message, type = 'info') => {
@@ -356,30 +360,33 @@ function ActiveStaffContent() {
     }
   }
 
-  const handleDelete = (staffId) => {
-    showConfirmDialog(
-      'Delete Staff Member',
-      'Are you sure you want to delete this staff member? This action cannot be undone.',
-      async () => {
-        try {
-          const { error } = await supabase
-            .from('staff')
-            .delete()
-            .eq('id', staffId)
-            .eq('school_id', currentUser.school_id)
+  const handleDelete = (staff) => {
+    setStaffToDelete(staff)
+    setShowDeleteModal(true)
+  }
 
-          if (error) throw error
+  const confirmDelete = async () => {
+    if (!staffToDelete) return
 
-          const updatedData = staffData.filter(s => s.id !== staffId)
-          setStaffData(updatedData)
-          setFilteredStaffData(updatedData)
-          showToast('Staff member deleted successfully', 'success')
-        } catch (error) {
-          console.error('Error deleting staff:', error)
-          showToast('Error deleting staff: ' + error.message, 'error')
-        }
-      }
-    )
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .delete()
+        .eq('id', staffToDelete.id)
+        .eq('school_id', currentUser.school_id)
+
+      if (error) throw error
+
+      const updatedData = staffData.filter(s => s.id !== staffToDelete.id)
+      setStaffData(updatedData)
+      setFilteredStaffData(updatedData)
+      showToast('Staff member deleted successfully', 'success')
+      setShowDeleteModal(false)
+      setStaffToDelete(null)
+    } catch (error) {
+      console.error('Error deleting staff:', error)
+      showToast('Error deleting staff: ' + error.message, 'error')
+    }
   }
 
   // Search functionality
@@ -1116,7 +1123,7 @@ function ActiveStaffContent() {
                           <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                         <button
-                          onClick={() => handleDelete(staff.id)}
+                          onClick={() => handleDelete(staff)}
                           className="text-red-500 hover:text-red-600 p-1"
                           title="Delete"
                         >
@@ -1198,7 +1205,7 @@ function ActiveStaffContent() {
                       <Edit className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDelete(staff.id)}
+                      onClick={() => handleDelete(staff)}
                       className="p-1 text-red-500 rounded"
                       title="Delete"
                     >
@@ -1950,37 +1957,37 @@ function ActiveStaffContent() {
         </>
       )}
 
-      {/* Confirmation Dialog */}
-      {confirmDialog.show && (
-        <>
-          <div className="fixed inset-0 bg-black/80 sm:bg-black/50 sm:backdrop-blur-md z-[9998] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={handleCancelConfirm}>
-            <div
-              className="w-full sm:w-auto sm:max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-red-600 text-white px-3 sm:px-4 md:px-3 sm:px-4 py-2 sm:py-3 md:py-4 rounded-t-lg">
-                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && staffToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-3 sm:p-4 md:p-6">
-                <p className="text-xs sm:text-sm text-gray-700">{confirmDialog.message}</p>
-              </div>
-              <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-                <button
-                  onClick={handleCancelConfirm}
-                  className="px-4 sm:px-5 md:px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 text-gray-700 rounded font-medium hover:bg-gray-50 transition w-full sm:w-auto text-xs sm:text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="px-4 sm:px-5 md:px-3 sm:px-4 py-2 sm:py-2.5 bg-red-600 text-white rounded font-medium transition hover:bg-red-700 w-full sm:w-auto text-xs sm:text-sm"
-                >
-                  Confirm
-                </button>
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
+                  Are you sure you want to delete staff member <span className="font-bold text-red-600">{`${staffToDelete.first_name || ''} ${staffToDelete.last_name || ''}`.trim() || staffToDelete.employee_name || 'this staff member'}</span>? This action cannot be undone.
+                </p>
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* Toast Notifications */}

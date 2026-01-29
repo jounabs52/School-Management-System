@@ -1,11 +1,39 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { X, Plus, Search, Save, AlertCircle, CheckCircle, Edit, Trash2, FileText } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
+
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 // Helper to get logged-in user
 const getLoggedInUser = () => {
@@ -30,6 +58,8 @@ function ExamsPage() {
   const [toasts, setToasts] = useState([])
   const [activeTab, setActiveTab] = useState('list')
   const [showModal, setShowModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [examToDelete, setExamToDelete] = useState(null)
   const [editMode, setEditMode] = useState(false)
   const [currentExamId, setCurrentExamId] = useState(null)
 
@@ -87,7 +117,7 @@ function ExamsPage() {
 
   // Apply blur effect to sidebar and disable background scrolling when modal is open
   useEffect(() => {
-    const anyModalOpen = showModal || confirmDialog.show
+    const anyModalOpen = showModal || confirmDialog.show || showDeleteModal
 
     if (anyModalOpen) {
       document.body.style.overflow = 'hidden'
@@ -113,7 +143,7 @@ function ExamsPage() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showModal, confirmDialog.show])
+  }, [showModal, confirmDialog.show, showDeleteModal])
 
   useEffect(() => {
     const getCookie = (name) => {
@@ -690,48 +720,49 @@ function ExamsPage() {
     setShowModal(true)
   }
 
-  const handleDeleteExam = async (examId) => {
-    showConfirmDialog(
-      'Delete Exam',
-      'Are you sure you want to delete this exam? This will also delete all associated schedules and marks.',
-      async () => {
-        hideConfirmDialog()
-        setLoading(true)
-        try {
-          // Delete schedules first
-          await supabase
-            .from('exam_schedules')
-            .delete()
-            .eq('exam_id', examId)
-            .eq('school_id', currentUser.school_id)
+  const handleDeleteExam = (exam) => {
+    setExamToDelete(exam)
+    setShowDeleteModal(true)
+  }
 
-          // Delete marks
-          await supabase
-            .from('exam_marks')
-            .delete()
-            .eq('exam_id', examId)
-            .eq('school_id', currentUser.school_id)
+  const confirmDeleteExam = async () => {
+    if (!examToDelete) return
 
-          // Delete exam
-          const { error } = await supabase
-            .from('exams')
-            .delete()
-            .eq('id', examId)
-            .eq('school_id', currentUser.school_id)
+    setLoading(true)
+    try {
+      // Delete schedules first
+      await supabase
+        .from('exam_schedules')
+        .delete()
+        .eq('exam_id', examToDelete.id)
+        .eq('school_id', currentUser.school_id)
 
-          if (error) throw error
+      // Delete marks
+      await supabase
+        .from('exam_marks')
+        .delete()
+        .eq('exam_id', examToDelete.id)
+        .eq('school_id', currentUser.school_id)
 
-          showToast('Exam deleted successfully', 'success')
-          fetchExams()
-        } catch (error) {
-          console.error('Error deleting exam:', error)
-          showToast('Failed to delete exam', 'error')
-        } finally {
-          setLoading(false)
-        }
-      },
-      'red'
-    )
+      // Delete exam
+      const { error } = await supabase
+        .from('exams')
+        .delete()
+        .eq('id', examToDelete.id)
+        .eq('school_id', currentUser.school_id)
+
+      if (error) throw error
+
+      showToast('Exam deleted successfully', 'success')
+      setShowDeleteModal(false)
+      setExamToDelete(null)
+      fetchExams()
+    } catch (error) {
+      console.error('Error deleting exam:', error)
+      showToast('Failed to delete exam', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleStatusChange = async (examId, newStatus) => {
@@ -962,7 +993,7 @@ function ExamsPage() {
                                 <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                               </button>
                               <button
-                                onClick={() => handleDeleteExam(exam.id)}
+                                onClick={() => handleDeleteExam(exam)}
                                 className="text-red-600 hover:text-red-800"
                               >
                                 <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -1036,7 +1067,7 @@ function ExamsPage() {
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteExam(exam.id)}
+                          onClick={() => handleDeleteExam(exam)}
                           className="p-1 text-red-600 rounded"
                           title="Delete"
                         >
@@ -1252,7 +1283,7 @@ function ExamsPage() {
         </div>
       )}
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog - For non-delete operations */}
       {confirmDialog.show && (
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={hideConfirmDialog} />
@@ -1287,6 +1318,39 @@ function ExamsPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Delete Confirmation Modal - Matches classes module pattern */}
+      {showDeleteModal && examToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
+                  Are you sure you want to delete exam <span className="font-bold text-red-600">{examToDelete.exam_name}</span>? This will also delete all associated schedules and marks. This action cannot be undone.
+                </p>
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteExam}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalOverlay>
       )}
     </div>
   )

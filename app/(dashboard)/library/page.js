@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -11,6 +12,33 @@ import {
   Users, BookCopy, RotateCcw, AlertCircle, CheckCircle,
   Calendar, DollarSign, Filter, FileText, Eye, History
 } from 'lucide-react'
+
+// ModalOverlay Component
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 function LibraryPageContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -2058,46 +2086,42 @@ function LibraryPageContent() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && bookToDelete && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-[9999]"
-            onClick={() => setShowDeleteModal(false)}
-            style={{ backdropFilter: 'blur(4px)' }}
-          />
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 rounded-t-xl">
-                <h3 className="text-lg font-bold">Confirm Delete</h3>
+        <ModalOverlay onClose={() => !loading && setShowDeleteModal(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 mb-2">
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-2 sm:mb-3">
                   Are you sure you want to delete this book?
                 </p>
-                <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                  <p className="font-semibold text-gray-800">{bookToDelete.book_title}</p>
-                  <p className="text-sm text-gray-600">Book #: {bookToDelete.book_number}</p>
+                <div className="bg-gray-50 p-2 sm:p-3 rounded-lg mb-3 sm:mb-4">
+                  <p className="font-semibold text-gray-800 text-sm sm:text-base">{bookToDelete.book_title}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Book #: {bookToDelete.book_number}</p>
                 </div>
-                <p className="text-sm text-red-600">This action cannot be undone.</p>
-                <div className="flex gap-3 mt-6">
+                <p className="text-xs sm:text-sm text-red-600 mb-3 sm:mb-4">This action cannot be undone.</p>
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    disabled={loading}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDeleteBook}
                     disabled={loading}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     {loading ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* CSS Animation */}

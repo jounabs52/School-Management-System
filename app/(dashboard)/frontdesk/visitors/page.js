@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import {
   X, Plus, Search, Users, Mail, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle,
@@ -10,6 +11,33 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
 import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
 import DataCard, { CardHeader, CardRow, CardActions, CardGrid, CardInfoGrid } from '@/components/DataCard'
+
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
 
 function VisitorsContent() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -23,14 +51,8 @@ function VisitorsContent() {
   const [toasts, setToasts] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingVisitor, setEditingVisitor] = useState(null)
-
-  // Confirmation Dialog State
-  const [confirmDialog, setConfirmDialog] = useState({
-    show: false,
-    title: '',
-    message: '',
-    onConfirm: null
-  })
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [visitorToDelete, setVisitorToDelete] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -41,26 +63,6 @@ function VisitorsContent() {
     time_out: '',
     visit_details: ''
   })
-
-  const showConfirmDialog = (title, message, onConfirm) => {
-    setConfirmDialog({
-      show: true,
-      title,
-      message,
-      onConfirm
-    })
-  }
-
-  const handleConfirm = () => {
-    if (confirmDialog.onConfirm) {
-      confirmDialog.onConfirm()
-    }
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
-
-  const handleCancelConfirm = () => {
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
-  }
 
   const showToast = (message, type = 'info') => {
     const id = Date.now()
@@ -227,26 +229,30 @@ function VisitorsContent() {
     }
   }
 
-  const handleDeleteVisitor = (id) => {
-    showConfirmDialog(
-      'Delete Visitor Entry',
-      'Are you sure you want to delete this visitor entry? This action cannot be undone.',
-      async () => {
-        try {
-          const { error } = await supabase
-            .from('visitors')
-            .delete()
-            .eq('id', id)
+  const handleDeleteVisitor = (visitor) => {
+    setVisitorToDelete(visitor)
+    setShowDeleteModal(true)
+  }
 
-          if (error) throw error
-          showToast('Visitor deleted successfully', 'success')
-          fetchVisitors()
-        } catch (error) {
-          console.error('Error deleting visitor:', error)
-          showToast('Failed to delete visitor', 'error')
-        }
-      }
-    )
+  const confirmDelete = async () => {
+    if (!visitorToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('visitors')
+        .delete()
+        .eq('id', visitorToDelete.id)
+
+      if (error) throw error
+      showToast('Visitor deleted successfully', 'success')
+      fetchVisitors()
+    } catch (error) {
+      console.error('Error deleting visitor:', error)
+      showToast('Failed to delete visitor', 'error')
+    } finally {
+      setShowDeleteModal(false)
+      setVisitorToDelete(null)
+    }
   }
 
   const handleEditVisitor = (visitor) => {
@@ -283,7 +289,7 @@ function VisitorsContent() {
 
   // Apply blur effect to sidebar when modals are open
   useEffect(() => {
-    if (showAddModal || confirmDialog.show) {
+    if (showAddModal || showDeleteModal) {
       document.body.style.overflow = 'hidden'
       const sidebar = document.querySelector('aside') || document.querySelector('nav') || document.querySelector('[role="navigation"]')
       if (sidebar) {
@@ -307,7 +313,7 @@ function VisitorsContent() {
         sidebar.style.pointerEvents = ''
       }
     }
-  }, [showAddModal, confirmDialog.show])
+  }, [showAddModal, showDeleteModal])
 
   return (
     <div className="p-1.5 sm:p-2 md:p-3 lg:p-4">
@@ -449,7 +455,7 @@ function VisitorsContent() {
                         <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                       <button
-                        onClick={() => handleDeleteVisitor(visitor.id)}
+                        onClick={() => handleDeleteVisitor(visitor)}
                         className="text-red-500 hover:text-red-600 p-1 sm:p-1.5"
                         title="Delete"
                       >
@@ -503,7 +509,7 @@ function VisitorsContent() {
                     <Edit className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDeleteVisitor(visitor.id)}
+                    onClick={() => handleDeleteVisitor(visitor)}
                     className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
                     title="Delete"
                   >
@@ -641,37 +647,38 @@ function VisitorsContent() {
         </>
       )}
 
-      {/* Confirmation Dialog */}
-      {confirmDialog.show && (
-        <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] flex items-center justify-center p-2 sm:p-4" onClick={handleCancelConfirm}>
-            <div
-              className="bg-white rounded-lg shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg transform transition-all"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
-                <h3 className="text-sm sm:text-base font-semibold">{confirmDialog.title}</h3>
-              </div>
-              <div className="p-3 sm:p-4">
-                <p className="text-gray-700 text-xs sm:text-sm">{confirmDialog.message}</p>
-              </div>
-              <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-                <button
-                  onClick={handleCancelConfirm}
-                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm w-full sm:w-auto"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-xs sm:text-sm"
-                >
-                  Confirm
-                </button>
-              </div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && visitorToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] sm:w-full sm:max-w-md bg-white rounded-lg shadow-2xl z-[99999]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 py-3 sm:py-4 rounded-t-lg">
+              <h3 className="text-sm sm:text-base font-semibold">Confirm Delete</h3>
+            </div>
+            <div className="p-3 sm:p-4">
+              <p className="text-gray-700 text-xs sm:text-sm">
+                Are you sure you want to delete the visitor entry for <strong>{visitorToDelete.visitor_name}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="px-3 sm:px-4 lg:px-6 pb-4 sm:pb-5 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-xs sm:text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="w-full sm:w-auto py-1.5 sm:py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-xs sm:text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
             </div>
           </div>
-        </>
+        </ModalOverlay>
       )}
 
       {/* Toast Notifications */}

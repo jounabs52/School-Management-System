@@ -2058,55 +2058,37 @@ function StudentReportsContent() {
       {showDeleteModal && itemToDelete && (
         <>
           <div
-            className="fixed inset-0 bg-black/30 z-[99998]"
-            style={{
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)'
-            }}
+            className="fixed inset-0 bg-black/50 z-[9999]"
             onClick={() => setShowDeleteModal(false)}
+            style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4">
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg sm:rounded-t-xl">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Trash2 size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base sm:text-lg font-bold truncate">Confirm Deletion</h3>
-                    <p className="text-red-100 text-xs mt-0.5 truncate">This action cannot be undone</p>
-                  </div>
-                </div>
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
               <div className="p-4 sm:p-6">
-                <div className="mb-4 sm:mb-6">
-                  <p className="text-gray-700 text-center text-sm sm:text-base">
-                    Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'} for
-                  </p>
-                  <p className="text-center mt-2">
-                    <span className="font-bold text-gray-900 text-sm sm:text-base">
-                      {itemToDelete.student_first_name} {itemToDelete.student_last_name}
-                    </span>
-                  </p>
-                  <p className="text-xs sm:text-sm text-gray-500 text-center mt-1">
-                    Admission No: {itemToDelete.admission_number}
-                  </p>
-                </div>
-                <div className="flex gap-2 sm:gap-3">
+                <p className="text-gray-700 mb-2 text-xs sm:text-sm md:text-base">
+                  Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'} for <span className="font-bold text-red-600">{itemToDelete.student_first_name} {itemToDelete.student_last_name}</span>?
+                </p>
+                <p className="text-gray-600 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base">
+                  Admission No: {itemToDelete.admission_number}. This action cannot be undone.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
                       setItemToDelete(null)
                     }}
-                    className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-all border border-gray-300 text-sm"
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2 text-sm"
+                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={18} />
                     Delete
                   </button>
                 </div>
