@@ -60,7 +60,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
+    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-5 py-2 sm:py-2 md:py-2.5 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -1371,7 +1371,7 @@ function ActiveStudentsContent() {
   }
 
   return (
-    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-1.5 md:p-3 lg:p-3 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
@@ -1379,15 +1379,15 @@ function ActiveStudentsContent() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-2 sm:mb-3 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2">
+        <div className="mb-1.5 sm:mb-3 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2">
           <AlertCircle size={14} className="sm:w-4 sm:h-4 flex-shrink-0" />
           <span className="line-clamp-2">{error}</span>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-2 sm:p-3 md:p-4 lg:p-5">
-        <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-2 sm:mb-3 md:mb-4">Active Students</h2>
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-1.5 sm:p-3 md:p-3 lg:p-5">
+        <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-1.5 sm:mb-3 md:mb-4">Active Students</h2>
 
         {/* Search and Filter Section */}
         <div className="filter-row-mobile mb-3 sm:mb-4">
@@ -1417,14 +1417,14 @@ function ActiveStudentsContent() {
           </div>
         </div>
 
-        <div className="mb-2 sm:mb-3">
-          <p className="text-gray-600 text-xs sm:text-sm mb-2">
+        <div className="mb-1.5 sm:mb-3">
+          <p className="text-gray-600 text-xs sm:text-sm mb-1.5">
             There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> active students{selectedClass ? ' in this class' : ''}.
           </p>
           <div className="btn-row-mobile">
             <button
               onClick={exportToCSV}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-3 py-1.5 sm:py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Export to Excel</span>
@@ -1581,7 +1581,7 @@ function ActiveStudentsContent() {
             />
 
             {filteredStudents.length > 0 && (
-              <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 bg-gray-50 rounded-b-lg">
+              <div className="px-2 sm:px-3 md:px-3 py-2 sm:py-2 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 bg-gray-50 rounded-b-lg">
                 <div className="text-[10px] sm:text-xs text-gray-600 text-center sm:text-left">
                   Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
                 </div>
@@ -1649,7 +1649,7 @@ function ActiveStudentsContent() {
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
           <div className="fixed inset-0 sm:inset-auto sm:top-0 sm:right-0 h-full w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl bg-white shadow-2xl z-[99999] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300 flex flex-col">
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-t-lg sm:rounded-t-xl">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-2.5 sm:px-3 md:px-3 py-2 sm:py-2.5 md:py-4 rounded-t-lg sm:rounded-t-xl">
                 <div className="flex justify-between items-center">
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm sm:text-base md:text-lg font-bold truncate">Student Information</h3>
@@ -1658,25 +1658,25 @@ function ActiveStudentsContent() {
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                     <button
                       onClick={handlePrintStudent}
-                      className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 sm:p-1.5 rounded-full transition"
                       title="Print Student Information"
                     >
                       <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                     <button
                       onClick={() => setShowViewModal(false)}
-                      className="text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 sm:p-1.5 rounded-full transition"
                     >
                       <X className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6 bg-gray-50 custom-scrollbar" style={{
+              <div className="flex-1 overflow-y-auto p-1.5 sm:p-3 md:p-3 lg:p-3 bg-gray-50 custom-scrollbar" style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#cbd5e1 #f1f5f9'
               }}>
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-gray-200">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-2 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-gray-200">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center text-2xl sm:text-4xl overflow-hidden flex-shrink-0">
                     {selectedStudent.photo_url ? (
                       <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
@@ -1695,58 +1695,58 @@ function ActiveStudentsContent() {
 
                 {/* Basic Information */}
                 <div className="mb-4 sm:mb-6">
-                  <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Basic Information</h5>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
+                  <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-1.5 sm:mb-3 border-b pb-1.5 sm:pb-2">Basic Information</h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-2">
                     {selectedStudent.first_name && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">First Name</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.first_name}</p>
                       </div>
                     )}
                     {selectedStudent.last_name && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Last Name</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.last_name}</p>
                       </div>
                     )}
                     {selectedStudent.gender && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Gender</p>
                         <p className="font-semibold text-gray-800 capitalize text-xs sm:text-sm md:text-base">{selectedStudent.gender}</p>
                       </div>
                     )}
                     {selectedStudent.date_of_birth && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Date of Birth</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.date_of_birth}</p>
                       </div>
                     )}
                     {selectedStudent.student_cnic && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">CNIC/B-Form</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.student_cnic}</p>
                       </div>
                     )}
                     {selectedStudent.blood_group && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Blood Group</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.blood_group}</p>
                       </div>
                     )}
                     {selectedStudent.religion && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Religion</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.religion}</p>
                       </div>
                     )}
                     {selectedStudent.caste_race && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Caste/Race</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.caste_race}</p>
                       </div>
                     )}
                     {selectedStudent.nationality && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Nationality</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.nationality}</p>
                       </div>
@@ -1756,34 +1756,34 @@ function ActiveStudentsContent() {
 
                 {/* Academic Information */}
                 <div className="mb-4 sm:mb-6">
-                  <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Academic Information</h5>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
+                  <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-1.5 sm:mb-3 border-b pb-1.5 sm:pb-2">Academic Information</h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-2">
                     {selectedStudent.className && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Class</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.className}</p>
                       </div>
                     )}
                     {selectedStudent.sectionName && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Section</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.sectionName}</p>
                       </div>
                     )}
                     {selectedStudent.roll_number && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Roll Number</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.roll_number}</p>
                       </div>
                     )}
                     {selectedStudent.admission_date && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Admission Date</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.admission_date}</p>
                       </div>
                     )}
                     {selectedStudent.house && (
-                      <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                      <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">House</p>
                         <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.house}</p>
                       </div>
@@ -1794,46 +1794,46 @@ function ActiveStudentsContent() {
                 {/* Father Information */}
                 {selectedStudent.father_name && (
                   <div className="mb-4 sm:mb-6">
-                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Father Information</h5>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-1.5 sm:mb-3 border-b pb-1.5 sm:pb-2">Father Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-2">
                       {selectedStudent.father_name && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father Name</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_name}</p>
                         </div>
                       )}
                       {selectedStudent.father_cnic && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father CNIC</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_cnic}</p>
                         </div>
                       )}
                       {selectedStudent.father_mobile && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father Mobile</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.father_mobile}</p>
                         </div>
                       )}
                       {selectedStudent.father_email && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-1">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg col-span-2 md:col-span-1">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Father Email</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_email}</p>
                         </div>
                       )}
                       {selectedStudent.father_qualification && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Qualification</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_qualification}</p>
                         </div>
                       )}
                       {selectedStudent.father_occupation && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Occupation</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.father_occupation}</p>
                         </div>
                       )}
                       {selectedStudent.father_annual_income && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg col-span-2 md:col-span-3">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Annual Income</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.father_annual_income}</p>
                         </div>
@@ -1845,46 +1845,46 @@ function ActiveStudentsContent() {
                 {/* Mother Information */}
                 {selectedStudent.mother_name && (
                   <div className="mb-4 sm:mb-6">
-                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Mother Information</h5>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-1.5 sm:mb-3 border-b pb-1.5 sm:pb-2">Mother Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-2">
                       {selectedStudent.mother_name && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother Name</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_name}</p>
                         </div>
                       )}
                       {selectedStudent.mother_cnic && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother CNIC</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_cnic}</p>
                         </div>
                       )}
                       {selectedStudent.mother_mobile && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother Mobile</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.mother_mobile}</p>
                         </div>
                       )}
                       {selectedStudent.mother_email && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-1">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg col-span-2 md:col-span-1">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Mother Email</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_email}</p>
                         </div>
                       )}
                       {selectedStudent.mother_qualification && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Qualification</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_qualification}</p>
                         </div>
                       )}
                       {selectedStudent.mother_occupation && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Occupation</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base truncate">{selectedStudent.mother_occupation}</p>
                         </div>
                       )}
                       {selectedStudent.mother_annual_income && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg col-span-2 md:col-span-3">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Annual Income</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.mother_annual_income}</p>
                         </div>
@@ -1896,34 +1896,34 @@ function ActiveStudentsContent() {
                 {/* Contact Information */}
                 {(selectedStudent.whatsapp_number || selectedStudent.current_address || selectedStudent.city || selectedStudent.state || selectedStudent.postal_code) && (
                   <div className="mb-4 sm:mb-6">
-                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Contact Information</h5>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-1.5 sm:mb-3 border-b pb-1.5 sm:pb-2">Contact Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-2">
                       {selectedStudent.whatsapp_number && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">WhatsApp</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.whatsapp_number}</p>
                         </div>
                       )}
                       {selectedStudent.current_address && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg col-span-2 md:col-span-3">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Current Address</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.current_address}</p>
                         </div>
                       )}
                       {selectedStudent.city && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">City</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.city}</p>
                         </div>
                       )}
                       {selectedStudent.state && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">State/Province</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.state}</p>
                         </div>
                       )}
                       {selectedStudent.postal_code && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Postal Code</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.postal_code}</p>
                         </div>
@@ -1935,28 +1935,28 @@ function ActiveStudentsContent() {
                 {/* Fee Information */}
                 {(selectedStudent.base_fee || selectedStudent.discount_amount || selectedStudent.final_fee) && (
                   <div className="mb-4 sm:mb-6">
-                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">Fee Information</h5>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-4">
+                    <h5 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-1.5 sm:mb-3 border-b pb-1.5 sm:pb-2">Fee Information</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2 md:gap-2">
                       {selectedStudent.base_fee && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Base Fee</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.base_fee}</p>
                         </div>
                       )}
                       {selectedStudent.discount_amount && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Discount</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.discount_amount}</p>
                         </div>
                       )}
                       {selectedStudent.final_fee && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Final Fee</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.final_fee}</p>
                         </div>
                       )}
                       {selectedStudent.discount_note && (
-                        <div className="bg-gray-50 p-1.5 sm:p-2 md:p-3 rounded-lg col-span-2 md:col-span-3">
+                        <div className="bg-gray-50 p-1.5 sm:p-1.5 md:p-3 rounded-lg col-span-2 md:col-span-3">
                           <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Discount Note</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm md:text-base">{selectedStudent.discount_note}</p>
                         </div>
@@ -1965,10 +1965,10 @@ function ActiveStudentsContent() {
                   </div>
                 )}
 
-                <div className="mt-4 sm:mt-6 flex gap-2 sm:gap-3">
+                <div className="mt-4 sm:mt-6 flex gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setShowViewModal(false)}
-                    className="flex-1 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs sm:text-sm md:text-base"
+                    className="flex-1 px-2.5 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-xs sm:text-sm md:text-base"
                   >
                     Close
                   </button>
@@ -1981,27 +1981,27 @@ function ActiveStudentsContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedStudent && (
         <ModalOverlay onClose={() => !deleting && setShowDeleteModal(false)} disabled={deleting}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-1.5 sm:p-3 md:p-3">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-2.5 sm:px-3 md:px-5 lg:px-3 py-2 sm:py-4 rounded-t-xl">
                 <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+              <div className="p-2.5 sm:p-3.5 md:p-5 lg:p-3">
                 <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
                   Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.first_name} {selectedStudent.last_name || ''}</span>? This action cannot be undone.
                 </p>
-                <div className="flex gap-2 sm:gap-3">
+                <div className="flex gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     disabled={deleting}
-                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                    className="flex-1 py-2 sm:py-2 md:py-2.5 px-2.5 sm:px-3 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
                     disabled={deleting}
-                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50"
+                    className="flex-1 py-2 sm:py-2 md:py-2.5 px-2.5 sm:px-3 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50"
                   >
                     {deleting ? (
                       <>
@@ -2027,7 +2027,7 @@ function ActiveStudentsContent() {
       {showEditModal && (
         <ModalOverlay onClose={() => !saving && setShowEditModal(false)} disabled={saving}>
           <div className="fixed inset-0 sm:inset-auto sm:top-0 sm:right-0 h-full w-full sm:max-w-md md:max-w-lg lg:max-w-xl bg-white shadow-2xl z-[99999] flex flex-col overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-right duration-300" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-4 py-2.5 sm:py-3">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-2.5 sm:px-3 py-2 sm:py-2.5">
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-sm sm:text-base font-bold">Edit Student</h3>
@@ -2043,11 +2043,11 @@ function ActiveStudentsContent() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-1.5 sm:p-3 md:p-3 bg-gray-50">
               {/* Academic Data Section */}
               <div className="mb-3 sm:mb-4">
-                <h4 className="text-[10px] sm:text-xs font-bold text-green-600 mb-2 sm:mb-3">ACADEMIC DATA</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+                <h4 className="text-[10px] sm:text-xs font-bold text-green-600 mb-1.5 sm:mb-3">ACADEMIC DATA</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2">
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">
                       Admission/GR No <span className="text-red-500">*</span>
@@ -2092,7 +2092,7 @@ function ActiveStudentsContent() {
                     </select>
                   </div>
                 </div>
-                <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+                <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2">
                   <div>
                     <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Admission Date</label>
                     <input
@@ -2127,7 +2127,7 @@ function ActiveStudentsContent() {
                     </select>
                   </div>
                 </div>
-                <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+                <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2">
                   <div>
                     <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Base Fee</label>
                     <input
@@ -2163,8 +2163,8 @@ function ActiveStudentsContent() {
 
               {/* Student & Father Information */}
               <div className="mb-3 sm:mb-4">
-                <h4 className="text-[10px] sm:text-xs font-bold text-blue-600 mb-2 sm:mb-3">STUDENT & FATHER INFORMATION</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                <h4 className="text-[10px] sm:text-xs font-bold text-blue-600 mb-1.5 sm:mb-3">STUDENT & FATHER INFORMATION</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                   <div>
                     <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">
                       Student Name <span className="text-red-500">*</span>
@@ -2195,7 +2195,7 @@ function ActiveStudentsContent() {
                     <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Student Photo</label>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                       {imagePreview && (
-                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
+                        <div className="relative w-12 h-10 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
                           <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                           <button
                             type="button"
@@ -2210,7 +2210,7 @@ function ActiveStudentsContent() {
                         </div>
                       )}
                       {formData.photoUrl && !imagePreview && (
-                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
+                        <div className="relative w-12 h-10 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
                           <img src={formData.photoUrl} alt="Current" className="w-full h-full object-cover" />
                         </div>
                       )}
@@ -2305,9 +2305,9 @@ function ActiveStudentsContent() {
                 </button>
 
                 {showOtherDetails && (
-                  <div className="mt-2 sm:mt-3 bg-white p-2 sm:p-3 rounded-lg border border-gray-200">
-                    <h4 className="text-[10px] sm:text-xs font-bold text-purple-600 mb-2 sm:mb-3">MOTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
+                  <div className="mt-2 sm:mt-3 bg-white p-1.5 sm:p-3 rounded-lg border border-gray-200">
+                    <h4 className="text-[10px] sm:text-xs font-bold text-purple-600 mb-1.5 sm:mb-3">MOTHER INFORMATION</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 mb-1.5 sm:mb-3">
                       <div>
                         <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Mother Name</label>
                         <input
@@ -2330,8 +2330,8 @@ function ActiveStudentsContent() {
                       </div>
                     </div>
 
-                    <h4 className="text-[10px] sm:text-xs font-bold text-green-600 mb-2 sm:mb-3">OTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                    <h4 className="text-[10px] sm:text-xs font-bold text-green-600 mb-1.5 sm:mb-3">OTHER INFORMATION</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                       <div>
                         <label className="block text-gray-700 text-[10px] sm:text-xs mb-0.5 sm:mb-1">Religion</label>
                         <select
@@ -2361,19 +2361,19 @@ function ActiveStudentsContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-2 sm:px-3 md:px-4 py-2 sm:py-3 bg-white">
+            <div className="border-t border-gray-200 px-2 sm:px-3 md:px-3 py-2 sm:py-2 bg-white">
               <div className="flex gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
-                  className="flex-1 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-xs sm:text-sm"
+                  className="flex-1 px-2 sm:px-3 md:px-3 py-2 sm:py-2.5 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50 text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveStudent}
                   disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo}
-                  className="flex-1 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 text-xs sm:text-sm"
+                  className="flex-1 px-2 sm:px-3 md:px-3 py-2 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 text-xs sm:text-sm"
                 >
                   {saving ? (
                     <>
@@ -2410,7 +2410,7 @@ export default function ActiveStudentsPage() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

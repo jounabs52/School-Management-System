@@ -1542,7 +1542,7 @@ function StudentIDCardsContent() {
   }
 
   return (
-    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6">
+    <div className="p-1.5 sm:p-1.5 md:p-3 lg:p-3 xl:p-3">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -1552,16 +1552,16 @@ function StudentIDCardsContent() {
         }}
       />
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-4 md:mb-6">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="p-1.5 sm:p-2 md:p-3 bg-red-600 rounded-lg">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-4 md:mb-6">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="p-1.5 sm:p-1.5 md:p-3 bg-red-600 rounded-lg">
             <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
           </div>
           <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800">Identity Cards</h1>
         </div>
         <button
           onClick={() => setShowCardSettings(true)}
-          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm md:text-base"
+          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-3 py-1.5 sm:py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm md:text-base"
         >
           <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span className="hidden sm:inline">Card Settings</span>
@@ -1571,25 +1571,25 @@ function StudentIDCardsContent() {
 
       {/* Card Settings Modal */}
       {showCardSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2 md:p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-1.5 md:p-3">
           <div className="bg-white rounded-lg sm:rounded-xl shadow-xl w-[98%] sm:max-w-xl lg:max-w-2xl max-h-[98vh] sm:max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-2.5 sm:px-3 md:px-3 py-2 sm:py-2.5 md:py-4 flex items-center justify-between">
               <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-800">ID Card Settings</h2>
               <button
                 onClick={() => setShowCardSettings(false)}
-                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition"
+                className="p-1.5 sm:p-1.5 hover:bg-gray-100 rounded-lg transition"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <div className="p-2 sm:p-3 md:p-4 lg:p-6 space-y-3 sm:space-y-4 md:space-y-6">
+            <div className="p-1.5 sm:p-3 md:p-3 lg:p-3 space-y-3 sm:space-y-4 md:space-y-4">
               {/* Header & Branding */}
               <div>
-                <h3 className="text-sm font-semibold mb-2 sm:mb-3 text-gray-700">HEADER & BRANDING</h3>
+                <h3 className="text-sm font-semibold mb-1.5 sm:mb-3 text-gray-700">HEADER & BRANDING</h3>
                 <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Institute Name (Main Header)
                     </label>
                     <input
@@ -1601,7 +1601,7 @@ function StudentIDCardsContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Header Subtitle
                     </label>
                     <input
@@ -1612,8 +1612,8 @@ function StudentIDCardsContent() {
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                    <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <input
                         type="checkbox"
                         id="showSchoolLogo"
@@ -1626,7 +1626,7 @@ function StudentIDCardsContent() {
                       </label>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Shape</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Logo Shape</label>
                       <select
                         value={cardSettings.logoShape}
                         onChange={(e) => handleCardSettingChange('logoShape', e.target.value)}
@@ -1638,7 +1638,7 @@ function StudentIDCardsContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Size</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Logo Size</label>
                       <select
                         value={cardSettings.logoSize}
                         onChange={(e) => handleCardSettingChange('logoSize', e.target.value)}
@@ -1650,7 +1650,7 @@ function StudentIDCardsContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Position</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Logo Position</label>
                       <select
                         value={cardSettings.logoPosition}
                         onChange={(e) => handleCardSettingChange('logoPosition', e.target.value)}
@@ -1665,7 +1665,7 @@ function StudentIDCardsContent() {
 
                   {/* Signature Upload */}
                   <div className="mt-4">
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Signature Image (for ID cards)
                     </label>
                     <input
@@ -1685,7 +1685,7 @@ function StudentIDCardsContent() {
                     />
                     {cardSettings.signatureImage && (
                       <div className="mt-2">
-                        <img src={cardSettings.signatureImage} alt="Signature" className="h-12 border border-gray-300 rounded" />
+                        <img src={cardSettings.signatureImage} alt="Signature" className="h-10 border border-gray-300 rounded" />
                       </div>
                     )}
                   </div>
@@ -1695,9 +1695,9 @@ function StudentIDCardsContent() {
               {/* Color Settings */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">COLOR SETTINGS</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Card Background
                     </label>
                     <div className="flex gap-2">
@@ -1716,7 +1716,7 @@ function StudentIDCardsContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Header Background
                     </label>
                     <div className="flex gap-2">
@@ -1735,7 +1735,7 @@ function StudentIDCardsContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Header Text Color
                     </label>
                     <div className="flex gap-2">
@@ -1754,7 +1754,7 @@ function StudentIDCardsContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Accent Color
                     </label>
                     <div className="flex gap-2">
@@ -1773,7 +1773,7 @@ function StudentIDCardsContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Text Color
                     </label>
                     <div className="flex gap-2">
@@ -1792,7 +1792,7 @@ function StudentIDCardsContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Label Color
                     </label>
                     <div className="flex gap-2">
@@ -1816,9 +1816,9 @@ function StudentIDCardsContent() {
               {/* Photo Settings */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">STUDENT PHOTO</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Photo Shape
                     </label>
                     <select
@@ -1832,7 +1832,7 @@ function StudentIDCardsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Photo Size
                     </label>
                     <select
@@ -1846,7 +1846,7 @@ function StudentIDCardsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Photo Position
                     </label>
                     <select
@@ -1860,7 +1860,7 @@ function StudentIDCardsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Photo Border Color
                     </label>
                     <div className="flex gap-2">
@@ -1884,7 +1884,7 @@ function StudentIDCardsContent() {
               {/* Front Side Fields */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">FRONT SIDE FIELDS</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -1971,9 +1971,9 @@ function StudentIDCardsContent() {
               {/* Card Design */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">CARD DESIGN</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Card Orientation
                     </label>
                     <select
@@ -1991,9 +1991,9 @@ function StudentIDCardsContent() {
               {/* Font Settings */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">FONT SETTINGS</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Header Font
                     </label>
                     <select
@@ -2007,7 +2007,7 @@ function StudentIDCardsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Label Font (Name, Roll No, etc.)
                     </label>
                     <select
@@ -2021,7 +2021,7 @@ function StudentIDCardsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Value Font (Student Data)
                     </label>
                     <select
@@ -2035,7 +2035,7 @@ function StudentIDCardsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Terms & Conditions Font
                     </label>
                     <select
@@ -2056,7 +2056,7 @@ function StudentIDCardsContent() {
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">BACK SIDE SETTINGS</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Header Text
                     </label>
                     <input
@@ -2068,7 +2068,7 @@ function StudentIDCardsContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Department/Faculty Text
                     </label>
                     <input
@@ -2079,7 +2079,7 @@ function StudentIDCardsContent() {
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="showBackLogo"
@@ -2098,7 +2098,7 @@ function StudentIDCardsContent() {
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">QR CODE SETTINGS</h3>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="showQRCode"
@@ -2113,7 +2113,7 @@ function StudentIDCardsContent() {
                   {cardSettings.showQRCode && (
                     <>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
                           QR Code Data (Text to encode)
                         </label>
                         <textarea
@@ -2126,7 +2126,7 @@ function StudentIDCardsContent() {
                         <p className="text-xs text-gray-500 mt-1">This text will be encoded in the QR code</p>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
                           QR Code Size
                         </label>
                         <select
@@ -2176,7 +2176,7 @@ function StudentIDCardsContent() {
                       const newTerms = [...(cardSettings.termsAndConditions || []), '']
                       handleCardSettingChange('termsAndConditions', newTerms)
                     }}
-                    className="px-4 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition text-sm"
+                    className="px-3 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition text-sm"
                   >
                     + Add Term
                   </button>
@@ -2184,16 +2184,16 @@ function StudentIDCardsContent() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-3 py-2 flex justify-end gap-2">
               <button
                 onClick={() => setShowCardSettings(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition"
+                className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCardSettingSave}
-                className="px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition"
+                className="px-3 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition"
               >
                 Save Settings
               </button>
@@ -2203,12 +2203,12 @@ function StudentIDCardsContent() {
       )}
 
       {/* Main Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 sm:p-3.5 lg:p-3">
         {/* ID Card Configuration */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2 mb-4 sm:mb-6">
           {/* Class Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Class <span className="text-red-500">*</span>
             </label>
             <select
@@ -2218,7 +2218,7 @@ function StudentIDCardsContent() {
                 setSelectedSection('')
                 setSearchQuery('')
               }}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
             >
               <option value="">Select Class</option>
               {classes.map((cls) => (
@@ -2231,27 +2231,27 @@ function StudentIDCardsContent() {
 
           {/* Expiry Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Expiry Date
             </label>
             <input
               type="date"
               value={validityUpto}
               onChange={(e) => setValidityUpto(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
           </div>
         </div>
 
         {/* Section Selection - shown after class is selected */}
         {selectedClass && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-2 mb-4 sm:mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Section <span className="text-red-500">*</span>
               </label>
               {sections.length === 0 ? (
-                <div className="w-full px-4 py-3 border border-blue-300 rounded-lg bg-blue-50 text-blue-700 text-sm flex items-center gap-2">
+                <div className="w-full px-3 py-2 border border-blue-300 rounded-lg bg-blue-50 text-blue-700 text-sm flex items-center gap-2">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
@@ -2264,7 +2264,7 @@ function StudentIDCardsContent() {
                     setSelectedSection(e.target.value)
                     setSearchQuery('')
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                 >
                   <option value="">Select Section</option>
                   {sections.map((sec) => (
@@ -2278,13 +2278,13 @@ function StudentIDCardsContent() {
 
             {(selectedSection || sections.length === 0) && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Print For <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={printFor}
                   onChange={(e) => setPrintFor(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                 >
                   <option value="individual">Individual Student</option>
                   <option value="all">{sections.length === 0 ? 'All Class Students' : 'All Students'}</option>
@@ -2297,7 +2297,7 @@ function StudentIDCardsContent() {
         {/* Search Student - shown after section is selected */}
         {(selectedSection || (selectedClass && sections.length === 0)) && (
           <div className="mb-4 sm:mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Search Student (Optional)
             </label>
             <input
@@ -2305,7 +2305,7 @@ function StudentIDCardsContent() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by student name or admission number..."
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
           </div>
         )}
@@ -2323,7 +2323,7 @@ function StudentIDCardsContent() {
 
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-10 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
                 <p className="text-gray-500">Loading students...</p>
               </div>
             ) : filteredStudents.length === 0 ? (
@@ -2335,14 +2335,14 @@ function StudentIDCardsContent() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {filteredStudents.map((student) => (
                     <div
                       key={student.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition"
+                      className="border border-gray-200 rounded-lg p-3 hover:border-blue-500 hover:shadow-md transition"
                     >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-12 h-10 bg-blue-100 rounded-full flex items-center justify-center text-2xl">
                           {student.gender === 'female' ? '👧' : '👦'}
                         </div>
                         <div className="flex-1">
@@ -2373,7 +2373,7 @@ function StudentIDCardsContent() {
 
                 {/* Print All Button */}
                 {printFor === 'all' && (
-                  <div className="mt-6 flex justify-center gap-4">
+                  <div className="mt-6 flex justify-center gap-2">
                     <button
                       onClick={async () => {
                         setSaving(true)
@@ -2453,7 +2453,7 @@ function StudentIDCardsContent() {
                         }
                       }}
                       disabled={saving}
-                      className="text-white px-8 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="text-white px-8 py-2 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       style={{ backgroundColor: '#1E3A8A' }}
                       onMouseEnter={(e) => e.target.style.backgroundColor = '#1e40af'}
                       onMouseLeave={(e) => e.target.style.backgroundColor = '#1E3A8A'}
@@ -2493,7 +2493,7 @@ export default function StudentIDCardsPage() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

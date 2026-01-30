@@ -72,7 +72,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
+    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-5 py-2 sm:py-2 md:py-2.5 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -1278,7 +1278,7 @@ function InactiveStudentsContent() {
   }
 
   return (
-    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-1.5 md:p-3 lg:p-3 xl:p-3 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
@@ -1286,20 +1286,20 @@ function InactiveStudentsContent() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-2 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative">
+        <div className="mb-1.5 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 rounded text-xs sm:text-sm relative">
           {success}
         </div>
       )}
       {error && (
-        <div className="mb-2 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
+        <div className="mb-1.5 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
           <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           <span className="line-clamp-2">{error}</span>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
-        <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800 mb-2 sm:mb-3 md:mb-4 lg:mb-6">Inactive Students</h2>
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-1.5 sm:p-3 md:p-3 lg:p-5 xl:p-3">
+        <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800 mb-1.5 sm:mb-3 md:mb-4 lg:mb-6">Inactive Students</h2>
 
         {/* Search and Filter Section */}
         <div className="filter-row-mobile mb-3 sm:mb-4 lg:mb-6">
@@ -1308,7 +1308,7 @@ function InactiveStudentsContent() {
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-2 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               disabled={loadingClasses}
             >
               <option value="">All Classes</option>
@@ -1328,7 +1328,7 @@ function InactiveStudentsContent() {
               placeholder="Search by name, admission no..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-7 sm:pl-9 md:pl-10 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-7 sm:pl-9 md:pl-10 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2 md:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
@@ -1349,13 +1349,13 @@ function InactiveStudentsContent() {
         `}</style>
 
         {/* Student Count and Export Button */}
-        <div className="btn-row-mobile mb-2 sm:mb-3 md:mb-4">
+        <div className="btn-row-mobile mb-1.5 sm:mb-3 md:mb-4">
           <p className="text-gray-600 text-xs sm:text-sm md:text-base">
             There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> inactive students{selectedClass ? ' in this class' : ''}.
           </p>
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-3 py-1.5 sm:py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
           >
             <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
             <span className="hidden sm:inline">Export to Excel</span>
@@ -1397,19 +1397,19 @@ function InactiveStudentsContent() {
               <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
                 <thead>
                   <tr className="bg-blue-900 text-white">
-                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Sr.</th>
-                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Session</th>
-                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Class</th>
-                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800">Student Name</th>
-                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 hidden md:table-cell">Father Name</th>
-                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800 whitespace-nowrap">Adm.No</th>
-                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 text-left font-semibold border border-blue-800">Options</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Sr.</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap hidden sm:table-cell">Session</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Class</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 text-left font-semibold border border-blue-800">Student Name</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 text-left font-semibold border border-blue-800 hidden md:table-cell">Father Name</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 text-left font-semibold border border-blue-800 whitespace-nowrap">Adm.No</th>
+                    <th className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 text-left font-semibold border border-blue-800">Options</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-2 sm:px-3 md:px-4 py-6 sm:py-8 text-center text-gray-500 text-xs sm:text-sm">
+                      <td colSpan="7" className="px-2 sm:px-3 md:px-3 py-6 sm:py-8 text-center text-gray-500 text-xs sm:text-sm">
                         No inactive students found.
                       </td>
                     </tr>
@@ -1421,11 +1421,11 @@ function InactiveStudentsContent() {
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                         } hover:bg-blue-50 transition`}
                       >
-                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">{student.sr}</td>
-                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 hidden sm:table-cell">{student.session}</td>
-                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">{getClassName(student.class)}</td>
-                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">
-                          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 border border-gray-200">{student.sr}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 border border-gray-200 hidden sm:table-cell">{student.session}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 border border-gray-200">{getClassName(student.class)}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 border border-gray-200">
+                          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2">
                             {student.photo_url ? (
                               <img
                                 src={student.photo_url}
@@ -1442,27 +1442,27 @@ function InactiveStudentsContent() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200 hidden md:table-cell">{student.father}</td>
-                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">{student.admNo}</td>
-                        <td className="px-1 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-2.5 md:py-3 border border-gray-200">
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 border border-gray-200 hidden md:table-cell">{student.father}</td>
+                        <td className="px-1.5 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 border border-gray-200">{student.admNo}</td>
+                        <td className="px-1 sm:px-2 md:px-3 lg:px-3 py-2 sm:py-2 md:py-2.5 border border-gray-200">
                           <div className="flex items-center gap-0 sm:gap-0.5 md:gap-1">
                             <button
                               onClick={() => handleView(student)}
-                              className="p-1 sm:p-1.5 md:p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 md:p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
                               title="View"
                             >
                               <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
                             </button>
                             <button
                               onClick={() => handleToggleStatus(student)}
-                              className="p-1 sm:p-1.5 md:p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 md:p-1.5 text-gray-600 hover:bg-gray-50 rounded-lg transition"
                               title="Activate Student"
                             >
                               <ToggleLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
                             </button>
                             <button
                               onClick={() => handleDelete(student)}
-                              className="p-1 sm:p-1.5 md:p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              className="p-1 sm:p-1.5 md:p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                               title="Permanently Delete"
                             >
                               <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-[18px] md:h-[18px]" />
@@ -1528,7 +1528,7 @@ function InactiveStudentsContent() {
 
         {/* Pagination Controls */}
         {filteredStudents.length > 0 && (
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50">
+          <div className="px-3 sm:px-3 py-2 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 bg-gray-50">
             <div className="text-sm text-gray-600">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
             </div>
@@ -1536,7 +1536,7 @@ function InactiveStudentsContent() {
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 py-2 rounded-lg font-medium transition ${
                   currentPage === 1
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1577,7 +1577,7 @@ function InactiveStudentsContent() {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-3 py-2 rounded-lg font-medium transition ${
                   currentPage === totalPages
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-[#1E3A8A] text-white hover:bg-blue-900'
@@ -1593,29 +1593,29 @@ function InactiveStudentsContent() {
       {/* View Student Modal */}
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-4 animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-3 animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
             <div className="bg-white rounded-none sm:rounded-xl shadow-2xl max-w-full sm:max-w-2xl lg:max-w-4xl w-full h-full sm:h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl flex-shrink-0">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-3 py-2 sm:py-4 rounded-t-xl flex-shrink-0">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Student Information</h3>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handlePrintStudent}
-                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                       title="Print Student Information"
                     >
                       <Printer size={20} />
                     </button>
                     <button
                       onClick={() => setShowViewModal(false)}
-                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                     >
                       <X size={20} />
                     </button>
                   </div>
                 </div>
               </div>
-              <div className="p-3 sm:p-6 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
+              <div className="p-3 sm:p-3 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
                 <style jsx>{`
                   .custom-scrollbar::-webkit-scrollbar {
                     width: 8px;
@@ -1632,7 +1632,7 @@ function InactiveStudentsContent() {
                     background: #94a3b8;
                   }
                 `}</style>
-                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-gray-200">
+                <div className="flex items-center gap-2 sm:gap-2 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-gray-200">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center text-3xl sm:text-4xl overflow-hidden flex-shrink-0">
                     {selectedStudent.photo_url ? (
                       <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
@@ -1652,7 +1652,7 @@ function InactiveStudentsContent() {
                 {/* Basic Information */}
                 <div className="mb-6">
                   <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Basic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     {selectedStudent.first_name && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">First Name</p>
@@ -1713,7 +1713,7 @@ function InactiveStudentsContent() {
                 {/* Academic Information */}
                 <div className="mb-6">
                   <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Academic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     {selectedStudent.className && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Class</p>
@@ -1751,7 +1751,7 @@ function InactiveStudentsContent() {
                 {selectedStudent.father_name && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Father Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {selectedStudent.father_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father Name</p>
@@ -1802,7 +1802,7 @@ function InactiveStudentsContent() {
                 {selectedStudent.mother_name && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Mother Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {selectedStudent.mother_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother Name</p>
@@ -1853,7 +1853,7 @@ function InactiveStudentsContent() {
                 {(selectedStudent.whatsapp_number || selectedStudent.current_address || selectedStudent.city || selectedStudent.state || selectedStudent.postal_code) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Contact Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {selectedStudent.whatsapp_number && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">WhatsApp Number</p>
@@ -1892,7 +1892,7 @@ function InactiveStudentsContent() {
                 {(selectedStudent.base_fee || selectedStudent.discount_amount || selectedStudent.final_fee) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Fee Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {selectedStudent.base_fee && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Base Fee</p>
@@ -1921,10 +1921,10 @@ function InactiveStudentsContent() {
                   </div>
                 )}
 
-                <div className="mt-6 flex gap-3">
+                <div className="mt-6 flex gap-2">
                   <button
                     onClick={() => setShowViewModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-3 py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
                   >
                     Close
                   </button>
@@ -1938,27 +1938,27 @@ function InactiveStudentsContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedStudent && (
         <ModalOverlay onClose={() => !deleting && setShowDeleteModal(false)} disabled={deleting}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-1.5 sm:p-3">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-3 py-2 sm:py-4 rounded-t-xl">
                 <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-4 sm:p-6">
+              <div className="p-3 sm:p-3">
                 <p className="text-gray-700 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base">
                   Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.first_name} {selectedStudent.last_name || ''}</span>? This action cannot be undone.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     disabled={deleting}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base disabled:opacity-50 order-2 sm:order-1"
+                    className="flex-1 px-3 sm:px-3 py-2 sm:py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base disabled:opacity-50 order-2 sm:order-1"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
                     disabled={deleting}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-50 order-1 sm:order-2"
+                    className="flex-1 px-3 sm:px-3 py-2 sm:py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-50 order-1 sm:order-2"
                   >
                     {deleting ? (
                       <>
@@ -1983,7 +1983,7 @@ function InactiveStudentsContent() {
       {showEditSidebar && (
         <ModalOverlay onClose={() => !saving && setShowEditSidebar(false)} disabled={saving}>
           <div className="fixed top-0 right-0 h-full w-full sm:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200 animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-5">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 py-5">
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-xl font-bold">Edit Student</h3>
@@ -1992,36 +1992,36 @@ function InactiveStudentsContent() {
                 <button
                   onClick={() => !saving && setShowEditSidebar(false)}
                   disabled={saving}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition disabled:opacity-50"
+                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition disabled:opacity-50"
                 >
                   <X size={22} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-3 bg-gray-50">
               {/* Academic Data Section */}
               <div className="mb-6">
                 <h4 className="text-sm font-bold text-green-600 mb-4">ACADEMIC DATA</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Admission/GR No <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.admissionNo}
                       onChange={(e) => setFormData({ ...formData, admissionNo: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Class</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Class</label>
                     <select
                       value={formData.class}
                       onChange={(e) => handleClassChange(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select Class</option>
                       {classes.map((cls) => (
@@ -2032,44 +2032,44 @@ function InactiveStudentsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Admission Date</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Admission Date</label>
                     <input
                       type="date"
                       value={formData.admissionDate}
                       onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     />
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Base Fee</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Base Fee</label>
                     <input
                       type="number"
                       placeholder="0.00"
                       value={formData.baseFee}
                       readOnly
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Discount</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Discount</label>
                     <input
                       type="number"
                       placeholder="0.00"
                       value={formData.discount}
                       onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Discount Note</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Discount Note</label>
                     <input
                       type="text"
                       placeholder="Optional note"
                       value={formData.discountNote}
                       onChange={(e) => setFormData({ ...formData, discountNote: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
@@ -2078,9 +2078,9 @@ function InactiveStudentsContent() {
               {/* Student & Father Information */}
               <div className="mb-6">
                 <h4 className="text-sm font-bold text-blue-600 mb-4">STUDENT & FATHER INFORMATION</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Student Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2088,12 +2088,12 @@ function InactiveStudentsContent() {
                       placeholder="Enter Student Name"
                       value={formData.studentName}
                       onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Father Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2101,46 +2101,46 @@ function InactiveStudentsContent() {
                       placeholder="Enter Father Name"
                       value={formData.fatherName}
                       onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Mobile</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Mobile</label>
                     <input
                       type="text"
                       placeholder="Enter Father Mobile"
                       value={formData.fatherMobile}
                       onChange={(e) => setFormData({ ...formData, fatherMobile: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Email</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Email</label>
                     <input
                       type="email"
                       placeholder="Enter Father Email"
                       value={formData.fatherEmail}
                       onChange={(e) => setFormData({ ...formData, fatherEmail: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father CNIC</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father CNIC</label>
                     <input
                       type="text"
                       placeholder="xxxxx-xxxxxxx-x"
                       value={formData.fatherCnic}
                       onChange={(e) => setFormData({ ...formData, fatherCnic: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Occupation</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Occupation</label>
                     <select
                       value={formData.fatherOccupation}
                       onChange={(e) => setFormData({ ...formData, fatherOccupation: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select Occupation</option>
                       <option value="Business">Business</option>
@@ -2150,40 +2150,40 @@ function InactiveStudentsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Annual Income</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Annual Income</label>
                     <input
                       type="number"
                       placeholder="0.00"
                       value={formData.fatherAnnualIncome}
                       onChange={(e) => setFormData({ ...formData, fatherAnnualIncome: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">WhatsApp Number</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">WhatsApp Number</label>
                     <input
                       type="text"
                       placeholder="Enter WhatsApp Number"
                       value={formData.whatsappNumber}
                       onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Date Of Birth</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Date Of Birth</label>
                     <input
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Gender</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Gender</label>
                     <select
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -2191,31 +2191,31 @@ function InactiveStudentsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Student CNIC (if applicable)</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Student CNIC (if applicable)</label>
                     <input
                       type="text"
                       placeholder="xxxxx-xxxxxxx-x"
                       value={formData.studentCnic}
                       onChange={(e) => setFormData({ ...formData, studentCnic: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Student Mobile</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Student Mobile</label>
                     <input
                       type="text"
                       placeholder="Enter Student Mobile"
                       value={formData.studentMobile}
                       onChange={(e) => setFormData({ ...formData, studentMobile: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Blood Group</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Blood Group</label>
                     <select
                       value={formData.bloodGroup}
                       onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select Blood Group</option>
                       <option value="A+">A+</option>
@@ -2229,63 +2229,63 @@ function InactiveStudentsContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Caste/Race</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Caste/Race</label>
                     <input
                       type="text"
                       placeholder="Enter Caste/Race"
                       value={formData.casteRace}
                       onChange={(e) => setFormData({ ...formData, casteRace: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Birth Place</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Birth Place</label>
                     <input
                       type="text"
                       placeholder="Enter Birth Place"
                       value={formData.birthPlace}
                       onChange={(e) => setFormData({ ...formData, birthPlace: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-gray-700 text-sm mb-2">Current Address</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Current Address</label>
                     <input
                       type="text"
                       placeholder="Enter Current Address"
                       value={formData.currentAddress}
                       onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">City</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">City</label>
                     <input
                       type="text"
                       placeholder="Enter City"
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">State/Province</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">State/Province</label>
                     <input
                       type="text"
                       placeholder="Enter State/Province"
                       value={formData.state}
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Postal Code</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Postal Code</label>
                     <input
                       type="text"
                       placeholder="Enter Postal Code"
                       value={formData.postalCode}
                       onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
@@ -2295,194 +2295,194 @@ function InactiveStudentsContent() {
               <div className="mb-6">
                 <button
                   onClick={() => setShowOtherDetails(!showOtherDetails)}
-                  className="w-full bg-purple-600 text-white px-4 py-3 rounded-lg font-semibold flex justify-between items-center"
+                  className="w-full bg-purple-600 text-white px-3 py-2 rounded-lg font-semibold flex justify-between items-center"
                 >
                   <span>Student Other Details</span>
                   <span>{showOtherDetails ? '▲ Toggle Details' : '▼ Toggle Details'}</span>
                 </button>
 
                 {showOtherDetails && (
-                  <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
+                  <div className="mt-4 bg-white p-3 rounded-lg border border-gray-200">
                     <h4 className="text-sm font-bold text-purple-600 mb-4">MOTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Name</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Name</label>
                         <input
                           type="text"
                           placeholder="Mother Name"
                           value={formData.motherName}
                           onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother CNIC</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother CNIC</label>
                         <input
                           type="text"
                           placeholder="xxxxx-xxxxxxx-x"
                           value={formData.motherCnic}
                           onChange={(e) => setFormData({ ...formData, motherCnic: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Mobile</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Mobile</label>
                         <input
                           type="text"
                           placeholder="Enter Mother Mobile"
                           value={formData.motherMobile}
                           onChange={(e) => setFormData({ ...formData, motherMobile: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Email</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Email</label>
                         <input
                           type="email"
                           placeholder="Enter Mother Email"
                           value={formData.motherEmail}
                           onChange={(e) => setFormData({ ...formData, motherEmail: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Qualification</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Qualification</label>
                         <input
                           type="text"
                           placeholder="Enter Qualification"
                           value={formData.motherQualification}
                           onChange={(e) => setFormData({ ...formData, motherQualification: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Occupation</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Occupation</label>
                         <input
                           type="text"
                           placeholder="Enter Occupation"
                           value={formData.motherOccupation}
                           onChange={(e) => setFormData({ ...formData, motherOccupation: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Annual Income</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Annual Income</label>
                         <input
                           type="number"
                           placeholder="0.00"
                           value={formData.motherAnnualIncome}
                           onChange={(e) => setFormData({ ...formData, motherAnnualIncome: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
 
                     <h4 className="text-sm font-bold text-orange-600 mb-4">GUARDIAN INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Name</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Name</label>
                         <input
                           type="text"
                           placeholder="Enter Guardian Name"
                           value={formData.guardianName}
                           onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Relation</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Relation</label>
                         <input
                           type="text"
                           placeholder="e.g., Uncle, Aunt"
                           value={formData.guardianRelation}
                           onChange={(e) => setFormData({ ...formData, guardianRelation: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Mobile</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Mobile</label>
                         <input
                           type="text"
                           placeholder="Guardian Mobile"
                           value={formData.guardianMobile}
                           onChange={(e) => setFormData({ ...formData, guardianMobile: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Email</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Email</label>
                         <input
                           type="email"
                           placeholder="Enter Guardian Email"
                           value={formData.guardianEmail}
                           onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
 
                     <h4 className="text-sm font-bold text-red-600 mb-4">EMERGENCY CONTACT</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Contact Name</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Contact Name</label>
                         <input
                           type="text"
                           placeholder="Emergency Contact Name"
                           value={formData.emergencyContactName}
                           onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Relation</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Relation</label>
                         <input
                           type="text"
                           placeholder="Relation"
                           value={formData.emergencyRelation}
                           onChange={(e) => setFormData({ ...formData, emergencyRelation: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Phone</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Phone</label>
                         <input
                           type="text"
                           placeholder="Emergency Phone"
                           value={formData.emergencyPhone}
                           onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Mobile</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Mobile</label>
                         <input
                           type="text"
                           placeholder="Emergency Mobile"
                           value={formData.emergencyMobile}
                           onChange={(e) => setFormData({ ...formData, emergencyMobile: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Address</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Address</label>
                         <input
                           type="text"
                           placeholder="Emergency Address"
                           value={formData.emergencyAddress}
                           onChange={(e) => setFormData({ ...formData, emergencyAddress: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
 
                     <h4 className="text-sm font-bold text-green-600 mb-4">OTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Religion</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Religion</label>
                         <select
                           value={formData.religion}
                           onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                         >
                           <option value="">Select Religion</option>
                           <option value="Islam">Islam</option>
@@ -2492,51 +2492,51 @@ function InactiveStudentsContent() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Nationality</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Nationality</label>
                         <input
                           type="text"
                           value={formData.nationality}
                           onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Previous School</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Previous School</label>
                         <input
                           type="text"
                           placeholder="Enter Previous School"
                           value={formData.previousSchool}
                           onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Previous Class</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Previous Class</label>
                         <input
                           type="text"
                           placeholder="Enter Previous Class"
                           value={formData.previousClass}
                           onChange={(e) => setFormData({ ...formData, previousClass: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 text-sm mb-2">Permanent Address</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Permanent Address</label>
                         <input
                           type="text"
                           placeholder="Enter Permanent Address"
                           value={formData.permanentAddress}
                           onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 text-sm mb-2">Medical Problem / Special Needs</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Medical Problem / Special Needs</label>
                         <textarea
                           placeholder="Enter any medical problems or special needs"
                           value={formData.medicalProblem}
                           onChange={(e) => setFormData({ ...formData, medicalProblem: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                           rows="3"
                         />
                       </div>
@@ -2546,19 +2546,19 @@ function InactiveStudentsContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-3 py-5 bg-white">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setShowEditSidebar(false)}
                   disabled={saving}
-                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                  className="flex-1 px-3 py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveStudent}
                   disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50"
                 >
                   {saving ? (
                     <>
@@ -2591,7 +2591,7 @@ export default function InactiveStudentsPage() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

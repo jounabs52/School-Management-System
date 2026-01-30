@@ -1511,12 +1511,12 @@ function StudentReportsContent() {
 
 
   return (
-    <div className="p-4 lg:p-6 min-h-screen bg-gray-50">
+    <div className="p-3 lg:p-3 min-h-screen bg-gray-50">
       {/* Header */}
       <div className="mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#D12323] rounded-lg flex items-center justify-center">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-4 sm:mb-6">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-10 h-10 sm:w-12 sm:h-10 bg-[#D12323] rounded-lg flex items-center justify-center">
               <Award className="text-white" size={20} />
             </div>
             <div>
@@ -1528,7 +1528,7 @@ function StudentReportsContent() {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg shadow-md transition-all border border-gray-200 disabled:opacity-50 text-sm sm:text-base"
+            className="flex items-center gap-2 px-2.5 sm:px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg shadow-md transition-all border border-gray-200 disabled:opacity-50 text-sm sm:text-base"
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
             <span className="font-medium hidden sm:inline">Refresh</span>
@@ -1536,10 +1536,10 @@ function StudentReportsContent() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="bg-white rounded-lg p-3 shadow-md border border-gray-200">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-10 bg-red-100 rounded-lg flex items-center justify-center">
                 <FileText className="text-red-600" size={24} />
               </div>
               <div className="text-right">
@@ -1550,9 +1550,9 @@ function StudentReportsContent() {
             <p className="text-xs text-green-600 mt-1">📈 All time</p>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+          <div className="bg-white rounded-lg p-3 shadow-md border border-gray-200">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                 <CreditCard className="text-blue-600" size={24} />
               </div>
               <div className="text-right">
@@ -1563,9 +1563,9 @@ function StudentReportsContent() {
             <p className="text-xs text-green-600 mt-1">📈 All time</p>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+          <div className="bg-white rounded-lg p-3 shadow-md border border-gray-200">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                 <Award className="text-green-600" size={24} />
               </div>
               <div className="text-right">
@@ -1576,9 +1576,9 @@ function StudentReportsContent() {
             <p className="text-xs text-green-600 mt-1">✅ Currently valid</p>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-md border border-gray-200">
+          <div className="bg-white rounded-lg p-3 shadow-md border border-gray-200">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Calendar className="text-orange-600" size={24} />
               </div>
               <div className="text-right">
@@ -1595,14 +1595,14 @@ function StudentReportsContent() {
       <div className="bg-white rounded-xl shadow-lg">
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <div className="flex flex-wrap gap-2 p-3 sm:p-4">
+          <div className="flex flex-wrap gap-2 p-2.5 sm:p-3.5">
             {/* Character Certificate Button */}
             <button
               onClick={() => {
                 setActiveTab('certificates')
                 setCertificateType('character')
               }}
-              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'certificates' && certificateType === 'character'
                   ? 'bg-[#D12323] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1624,7 +1624,7 @@ function StudentReportsContent() {
                 setActiveTab('certificates')
                 setCertificateType('leaving')
               }}
-              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'certificates' && certificateType === 'leaving'
                   ? 'bg-[#D12323] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1646,7 +1646,7 @@ function StudentReportsContent() {
                 setActiveTab('cards')
                 setCertificateType('all')
               }}
-              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'cards'
                   ? 'bg-[#D12323] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1664,7 +1664,7 @@ function StudentReportsContent() {
         </div>
 
         {/* Filters Section */}
-        <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+        <div className="p-2.5 sm:p-3.5 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-lg flex items-center justify-center">
               <Search size={14} className="text-blue-600" />
@@ -1672,10 +1672,10 @@ function StudentReportsContent() {
             <h3 className="font-bold text-gray-800 text-sm sm:text-base">Search & Filter</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2">
             {/* Class Filter */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Filter by Class
               </label>
               <select
@@ -1694,7 +1694,7 @@ function StudentReportsContent() {
 
             {/* Name Search */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Search by Name
               </label>
               <div className="relative">
@@ -1711,7 +1711,7 @@ function StudentReportsContent() {
 
             {/* Admission Number Search */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Search by Admission No
               </label>
               <div className="relative">
@@ -1732,7 +1732,7 @@ function StudentReportsContent() {
             <div className="mt-4">
               <button
                 onClick={clearFilters}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-semibold transition-all text-sm"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-semibold transition-all text-sm"
               >
                 <X size={14} />
                 <span>Clear all filters</span>
@@ -1742,7 +1742,7 @@ function StudentReportsContent() {
         </div>
 
         {/* Results Section */}
-        <div className="p-3 sm:p-4">
+        <div className="p-2.5 sm:p-3.5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
             <div>
               <h3 className="text-base sm:text-lg font-bold text-gray-800">
@@ -1772,7 +1772,7 @@ function StudentReportsContent() {
                   <CreditCard size={48} className="text-gray-400" />
                 )}
               </div>
-              <p className="text-gray-600 text-xl font-semibold mb-2">
+              <p className="text-gray-600 text-xl font-semibold mb-1.5">
                 {(selectedClass || searchName || searchAdmissionNo)
                   ? 'No results found'
                   : `No ${activeTab} issued yet`}
@@ -1895,14 +1895,14 @@ function StudentReportsContent() {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handlePrint(item)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Print"
                           >
                             <Printer size={16} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Delete"
                           >
                             <Trash2 size={16} />
@@ -1973,7 +1973,7 @@ function StudentReportsContent() {
 
             {/* Pagination Controls */}
             {filteredData.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+              <div className="px-3 py-2 border-t border-gray-200 flex items-center justify-between bg-gray-50">
                 <div className="text-sm text-gray-600">
                   Showing {startIndex + 1} to {Math.min(endIndex, filteredData.length)} of {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'}
                 </div>
@@ -1981,7 +1981,7 @@ function StudentReportsContent() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded-lg font-medium transition text-sm ${
+                    className={`px-3 py-2 rounded-lg font-medium transition text-sm ${
                       currentPage === 1
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -2021,7 +2021,7 @@ function StudentReportsContent() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className={`px-4 py-2 rounded-lg font-medium transition text-sm ${
+                    className={`px-3 py-2 rounded-lg font-medium transition text-sm ${
                       currentPage === totalPages
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -2040,7 +2040,7 @@ function StudentReportsContent() {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-3 px-5 py-3 rounded-full shadow-lg transition-all duration-300 ${
+        <div className={`fixed top-4 right-4 z-[100000] flex items-center gap-2 px-5 py-2 rounded-full shadow-lg transition-all duration-300 ${
           toast.type === 'success' ? 'bg-green-500 text-white' :
           toast.type === 'error' ? 'bg-red-500 text-white' :
           'bg-blue-500 text-white'
@@ -2062,31 +2062,31 @@ function StudentReportsContent() {
             onClick={() => setShowDeleteModal(false)}
             style={{ backdropFilter: 'blur(4px)' }}
           />
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-1.5 sm:p-3">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-3 py-2 sm:py-4 rounded-t-xl">
                 <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-4 sm:p-6">
-                <p className="text-gray-700 mb-2 text-xs sm:text-sm md:text-base">
+              <div className="p-3 sm:p-3">
+                <p className="text-gray-700 mb-1.5 text-xs sm:text-sm md:text-base">
                   Are you sure you want to delete this {activeTab === 'certificates' ? 'certificate' : 'ID card'} for <span className="font-bold text-red-600">{itemToDelete.student_first_name} {itemToDelete.student_last_name}</span>?
                 </p>
                 <p className="text-gray-600 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base">
                   Admission No: {itemToDelete.admission_number}. This action cannot be undone.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2">
                   <button
                     onClick={() => {
                       setShowDeleteModal(false)
                       setItemToDelete(null)
                     }}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
+                    className="flex-1 px-3 sm:px-3 py-2 sm:py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base order-2 sm:order-1"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
+                    className="flex-1 px-3 sm:px-3 py-2 sm:py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
                   >
                     <Trash2 size={18} />
                     Delete
@@ -2114,7 +2114,7 @@ export default function StudentReportsPage() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
