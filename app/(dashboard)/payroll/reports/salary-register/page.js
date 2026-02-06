@@ -97,7 +97,7 @@ function SalaryRegisterReportContent() {
   }
 
   const loadSalaryStructures = async () => {
-    console.log('=== Loading Salary Structures ===')
+    console.log('=== Loading Salary Payments ===')
     console.log('Current User:', currentUser)
     console.log('School ID:', currentUser?.school_id)
     console.log('Selected Month:', selectedMonth)
@@ -111,10 +111,12 @@ function SalaryRegisterReportContent() {
     setLoading(true)
     try {
       console.log('Executing Supabase query...')
+      console.log('User ID:', currentUser.id)
+      console.log('School ID:', currentUser.school_id)
 
-      // Load all active salary structures for the school
-      const { data, error } = await supabase
-        .from('salary_structures')
+      // Load salary payments for the selected month and year
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('salary_payments')
         .select(`
           *,
           staff:staff_id (
@@ -123,25 +125,73 @@ function SalaryRegisterReportContent() {
             last_name,
             employee_number,
             designation,
-            department
+            department,
+            joining_date
           )
         `)
-        .eq('user_id', currentUser.id)
         .eq('school_id', currentUser.school_id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
+        .eq('payment_month', selectedMonth)
+        .eq('payment_year', selectedYear)
+        .order('payment_date', { ascending: false })
 
-      console.log('Query Result:', { data, error })
-      console.log('Number of structures found:', data?.length || 0)
+      console.log('Payments Query Result:', { dataLength: paymentsData?.length, error: paymentsError })
 
-      if (error) throw error
+      if (paymentsError) {
+        console.error('Supabase query error:', paymentsError)
+        throw paymentsError
+      }
 
-      setSalaryStructures(data || [])
-      console.log('Salary structures state updated')
+      // Get staff IDs to fetch their current salary structures for detailed breakdown
+      const staffIds = (paymentsData || []).map(p => p.staff_id)
+
+      let structuresMap = {}
+      if (staffIds.length > 0) {
+        const { data: structuresData, error: structuresError } = await supabase
+          .from('salary_structures')
+          .select('*')
+          .in('staff_id', staffIds)
+          .eq('status', 'active')
+
+        if (!structuresError && structuresData) {
+          structuresData.forEach(s => {
+            structuresMap[s.staff_id] = s
+          })
+        }
+      }
+
+      // Combine payment data with structure details for complete breakdown
+      const mappedData = (paymentsData || []).map(payment => {
+        const structure = structuresMap[payment.staff_id] || {}
+        return {
+          id: payment.id,
+          staff_id: payment.staff_id,
+          staff: payment.staff,
+          basic_salary: payment.basic_salary,
+          house_allowance: structure.house_allowance || 0,
+          medical_allowance: structure.medical_allowance || 0,
+          transport_allowance: structure.transport_allowance || 0,
+          other_allowances: structure.other_allowances || 0,
+          provident_fund: structure.provident_fund || 0,
+          tax_deduction: structure.tax_deduction || 0,
+          other_deductions: structure.other_deductions || 0,
+          gross_salary: payment.gross_salary,
+          net_salary: payment.net_salary,
+          payment_date: payment.payment_date,
+          payment_method: payment.payment_method,
+          status: payment.status
+        }
+      })
+
+      console.log('Salary payments for selected month:', mappedData?.length || 0)
+
+      setSalaryStructures(mappedData || [])
+      console.log('Salary payments state updated successfully')
     } catch (error) {
-      console.error('Error loading salary structures:', error)
+      console.error('Error loading salary payments:', error)
+      console.error('Error type:', typeof error)
       console.error('Error details:', error.message, error.code)
-      toast.error('Failed to load salary register')
+      console.error('Error stack:', error.stack)
+      toast.error(`Failed to load salary register: ${error.message || 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -566,8 +616,8 @@ function SalaryRegisterReportContent() {
                   <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2">{structure.staff?.designation || 'N/A'}</td>
                   <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">{structure.staff?.employee_number || 'N/A'}</td>
                   <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">
-                    {structure.staff?.date_of_joining
-                      ? new Date(structure.staff.date_of_joining).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    {structure.staff?.joining_date
+                      ? new Date(structure.staff.joining_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                       : 'N/A'}
                   </td>
                   <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-right">{parseFloat(structure.provident_fund || 0).toLocaleString()}</td>

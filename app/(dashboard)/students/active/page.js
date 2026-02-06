@@ -1390,11 +1390,11 @@ function ActiveStudentsContent() {
         <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-1.5 sm:mb-3 md:mb-4">Active Students</h2>
 
         {/* Search and Filter Section */}
-        <div className="filter-row-mobile mb-3 sm:mb-4">
+        <div className="mb-3 sm:mb-4">
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white mb-3"
             disabled={loadingClasses}
           >
             <option value="">All Classes</option>
@@ -1405,32 +1405,32 @@ function ActiveStudentsContent() {
             ))}
           </select>
 
-          <div className="relative">
-            <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-[18px] sm:h-[18px]" />
-            <input
-              type="text"
-              placeholder="Search by name, admission no..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-7 sm:pl-9 pr-2 sm:pr-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="mb-1.5 sm:mb-3">
-          <p className="text-gray-600 text-xs sm:text-sm mb-1.5">
-            There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> active students{selectedClass ? ' in this class' : ''}.
-          </p>
-          <div className="btn-row-mobile">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+              <input
+                type="text"
+                placeholder="Search by name, admission no..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-7 sm:pl-9 pr-2 sm:pr-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
             <button
               onClick={exportToCSV}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-3 py-1.5 sm:py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 md:px-4 py-2 sm:py-2.5 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Export to Excel</span>
               <span className="sm:hidden">Export</span>
             </button>
           </div>
+        </div>
+
+        <div className="mb-1.5 sm:mb-3">
+          <p className="text-gray-600 text-xs sm:text-sm">
+            There are <span className="text-red-600 font-bold">{filteredStudents.length}</span> active students{selectedClass ? ' in this class' : ''}.
+          </p>
         </div>
 
         {loading && (
