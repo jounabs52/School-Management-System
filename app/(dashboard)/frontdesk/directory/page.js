@@ -606,7 +606,7 @@ function DirectoryContent() {
             </div>
           ) : (
             <ResponsiveTableWrapper
-              tableContent={
+              tableView={
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[500px] border-collapse">
                     <thead>
@@ -636,10 +636,10 @@ function DirectoryContent() {
                           </td>
                           <td className="border border-gray-200 py-1.5 sm:py-2 px-3 whitespace-nowrap">
                             <div className="btn-row-mobile">
-                              <button onClick={() => handleEditGroup(group)} className="p-1.5 sm:p-2 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Edit group">
+                              <button onClick={() => handleEditGroup(group)} className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit group">
                                 <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                               </button>
-                              <button onClick={() => handleDeleteGroup(group)} className="p-1.5 sm:p-2 text-black hover:bg-gray-100 rounded-lg transition-colors" title="Delete group">
+                              <button onClick={() => handleDeleteGroup(group)} className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete group">
                                 <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                               </button>
                             </div>
@@ -650,7 +650,7 @@ function DirectoryContent() {
                   </table>
                 </div>
               }
-              cardContent={
+              cardView={
                 <CardGrid>
                   {groups.map((group, index) => (
                     <DataCard key={group.id}>

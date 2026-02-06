@@ -99,10 +99,6 @@ function SalaryPaidReportContent() {
     }
   }
 
-  useEffect(() => {
-    filterPayments()
-  }, [salaryPayments, selectedMonth, selectedYear, statusFilter])
-
   const loadSalaryPayments = async () => {
     if (!currentUser?.school_id) return
 
@@ -137,7 +133,8 @@ function SalaryPaidReportContent() {
     }
   }
 
-  const filterPayments = () => {
+  useEffect(() => {
+    // Filter payments whenever dependencies change
     let filtered = [...salaryPayments]
 
     // Filter by month and year
@@ -152,7 +149,7 @@ function SalaryPaidReportContent() {
     }
 
     setFilteredPayments(filtered)
-  }
+  }, [salaryPayments, selectedMonth, selectedYear, statusFilter])
 
   const getMonthName = (month) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -585,7 +582,6 @@ function SalaryPaidReportContent() {
                   {calculateGrandTotal().toLocaleString()}
                 </td>
                 <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center">---</td>
-                <td className="border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-center print:hidden">---</td>
               </tr>
             </tbody>
           </table>

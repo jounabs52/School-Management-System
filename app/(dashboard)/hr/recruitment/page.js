@@ -89,7 +89,9 @@ function RecruitmentContent() {
     show: false,
     title: '',
     message: '',
-    onConfirm: null
+    onConfirm: null,
+    buttonText: 'Confirm',
+    buttonIcon: null
   })
 
   // Check if any modal is open
@@ -127,12 +129,14 @@ function RecruitmentContent() {
     }
   }, [isAnyModalOpen])
 
-  const showConfirmDialog = (title, message, onConfirm) => {
+  const showConfirmDialog = (title, message, onConfirm, buttonText = 'Delete', buttonIcon = 'trash') => {
     setConfirmDialog({
       show: true,
       title,
       message,
-      onConfirm
+      onConfirm,
+      buttonText,
+      buttonIcon
     })
   }
 
@@ -140,11 +144,11 @@ function RecruitmentContent() {
     if (confirmDialog.onConfirm) {
       confirmDialog.onConfirm()
     }
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
+    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, buttonText: 'Confirm', buttonIcon: null })
   }
 
   const handleCancel = () => {
-    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null })
+    setConfirmDialog({ show: false, title: '', message: '', onConfirm: null, buttonText: 'Confirm', buttonIcon: null })
   }
 
   // Toast notification function
@@ -724,15 +728,6 @@ function RecruitmentContent() {
 
           if (updateInterviewError) throw updateInterviewError
 
-          // Update application status to 'hired'
-          const { error: updateAppError } = await supabase
-            .from('job_applications')
-            .update({ status: 'hired' })
-            .eq('id', application.id)
-            .eq('school_id', currentUser.school_id)
-
-          if (updateAppError) throw updateAppError
-
           showToast('Candidate hired and added to staff successfully!', 'success')
           fetchInterviews()
           fetchApplications()
@@ -740,7 +735,9 @@ function RecruitmentContent() {
           console.error('Error hiring candidate:', error)
           showToast('Error hiring candidate: ' + error.message, 'error')
         }
-      }
+      },
+      'Hire',
+      'check'
     )
   }
 
@@ -1872,8 +1869,12 @@ function RecruitmentContent() {
                     onClick={handleConfirm}
                     className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
                   >
-                    <Trash2 size={18} />
-                    Delete
+                    {confirmDialog.buttonIcon === 'check' ? (
+                      <CheckCircle size={18} />
+                    ) : (
+                      <Trash2 size={18} />
+                    )}
+                    {confirmDialog.buttonText}
                   </button>
                 </div>
               </div>

@@ -1003,8 +1003,36 @@ function FeeCollectContent() {
     chequeNumber: '',
     bankName: '',
     transactionId: '',
-    remarks: ''
+    remarks: '',
+    monthsPaid: []
   })
+
+  const monthsList = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+
+  const toggleMonth = (month) => {
+    setPaymentData(prev => ({
+      ...prev,
+      monthsPaid: prev.monthsPaid.includes(month)
+        ? prev.monthsPaid.filter(m => m !== month)
+        : [...prev.monthsPaid, month]
+    }))
+  }
+
+  const closePaymentModal = () => {
+    setShowPaymentModal(false)
+    setPaymentData({
+      paymentMethod: 'cash',
+      amountPaid: '',
+      chequeNumber: '',
+      bankName: '',
+      transactionId: '',
+      remarks: '',
+      monthsPaid: []
+    })
+  }
 
   // Lock/unlock body scroll when modal opens/closes
   useEffect(() => {
@@ -1245,7 +1273,8 @@ function FeeCollectContent() {
         bank_name: paymentData.bankName || null,
         received_by: user.id,
         receipt_number: receiptNumber,
-        remarks: paymentData.remarks || null
+        remarks: paymentData.remarks || null,
+        months_paid: paymentData.monthsPaid.length > 0 ? paymentData.monthsPaid : null
       }
       console.log('Payment Record:', paymentRecord)
 
@@ -1291,6 +1320,17 @@ function FeeCollectContent() {
 
       showToast(successMessage, 'success')
       setShowPaymentModal(false)
+
+      // Reset payment data
+      setPaymentData({
+        paymentMethod: 'cash',
+        amountPaid: '',
+        chequeNumber: '',
+        bankName: '',
+        transactionId: '',
+        remarks: '',
+        monthsPaid: []
+      })
 
       // Update the challan locally without reloading the entire page
       setChallans(prevChallans =>
@@ -1671,7 +1711,7 @@ function FeeCollectContent() {
         <>
           <div
             className="fixed inset-0 bg-black/50 z-[9999]"
-            onClick={() => setShowPaymentModal(false)}
+            onClick={closePaymentModal}
             style={{ backdropFilter: 'blur(4px)' }}
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-2xl bg-white shadow-2xl z-[10000] flex flex-col border-l border-gray-200">
@@ -1687,7 +1727,7 @@ function FeeCollectContent() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowPaymentModal(false)}
+                  onClick={closePaymentModal}
                   className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                 >
                   <X size={18} />
@@ -1821,6 +1861,33 @@ function FeeCollectContent() {
 
                 <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
                   <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
+                    Months Paid (Optional)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {monthsList.map((month) => (
+                      <button
+                        key={month}
+                        type="button"
+                        onClick={() => toggleMonth(month)}
+                        className={`px-3 py-2 text-xs font-medium rounded-lg border transition ${
+                          paymentData.monthsPaid.includes(month)
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {month.substring(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                  {paymentData.monthsPaid.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      Selected: {paymentData.monthsPaid.join(', ')}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                  <label className="block text-gray-800 font-semibold mb-2 text-xs uppercase tracking-wide">
                     Remarks
                   </label>
                   <textarea
@@ -1837,7 +1904,7 @@ function FeeCollectContent() {
             <div className="border-t border-gray-200 px-3 sm:px-4 py-2 sm:py-3 bg-white">
               <div className="flex flex-col sm:flex-row gap-2 justify-end">
                 <button
-                  onClick={() => setShowPaymentModal(false)}
+                  onClick={closePaymentModal}
                   className="px-4 py-1.5 text-gray-700 font-normal hover:bg-gray-100 rounded transition border border-gray-300 text-sm"
                 >
                   Cancel

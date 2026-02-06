@@ -22,16 +22,16 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 z-[10001] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 ${
+    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 left-2 sm:left-auto z-[10001] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg transition-all duration-300 ${
       type === 'success' ? 'bg-green-600 text-white' :
       type === 'error' ? 'bg-red-600 text-white' :
       'bg-blue-600 text-white'
     }`}>
-      {type === 'success' && <CheckCircle size={20} />}
-      {type === 'error' && <X size={20} />}
-      <span className="font-medium">{message}</span>
-      <button onClick={onClose} className="ml-2 hover:opacity-80">
-        <X size={18} />
+      {type === 'success' && <CheckCircle size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />}
+      {type === 'error' && <X size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />}
+      <span className="font-medium text-sm sm:text-base flex-1">{message}</span>
+      <button onClick={onClose} className="ml-1 sm:ml-2 hover:opacity-80 flex-shrink-0">
+        <X size={16} className="sm:w-[18px] sm:h-[18px]" />
       </button>
     </div>
   )
@@ -691,10 +691,10 @@ function FeeReportsContent() {
           <div className="flex items-end">
             <button
               onClick={loadReports}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center justify-center gap-2"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center justify-center gap-2 active:bg-blue-800"
             >
-              <Filter size={16} />
-              Apply Filters
+              <Filter size={16} className="flex-shrink-0" />
+              <span>Apply Filters</span>
             </button>
           </div>
         </div>
@@ -747,18 +747,18 @@ function FeeReportsContent() {
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => exportToCSV(defaulters, `fee-defaulters-${new Date().toISOString().split('T')[0]}.csv`)}
-                    className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 active:bg-red-800 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={defaulters.length === 0}
                   >
-                    <Download size={14} className="sm:w-4 sm:h-4" />
+                    <Download size={14} className="sm:w-4 sm:h-4 flex-shrink-0" />
                     <span className="hidden sm:inline">Download</span> CSV
                   </button>
                   <button
                     onClick={exportDefaultersPDF}
-                    className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 active:bg-red-800 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={defaulters.length === 0}
                   >
-                    <FileText size={14} className="sm:w-4 sm:h-4" />
+                    <FileText size={14} className="sm:w-4 sm:h-4 flex-shrink-0" />
                     <span className="hidden sm:inline">Download</span> PDF
                   </button>
                 </div>
@@ -831,11 +831,20 @@ function FeeReportsContent() {
                 cardView={defaulters.map((defaulter) => (
                   <DataCard key={defaulter.student_id}>
                     <CardHeader>
-                      <div className="font-bold text-gray-900">{defaulter.student_name}</div>
-                      <div className="text-xs text-gray-500">Adm. #{defaulter.admission_number}</div>
+                      <div>
+                        <div className="text-base sm:text-lg font-bold text-gray-900 mb-0.5">{defaulter.student_name}</div>
+                        <div className="text-xs sm:text-sm text-gray-500">Adm. #{defaulter.admission_number}</div>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
+                        defaulter.days_since_first_due > 60 ? 'bg-red-100 text-red-700' :
+                        defaulter.days_since_first_due > 30 ? 'bg-orange-100 text-orange-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {defaulter.days_since_first_due}d
+                      </span>
                     </CardHeader>
                     <CardInfoGrid>
-                      <CardRow label="Father Name" value={defaulter.father_name} />
+                      <CardRow label="Father" value={defaulter.father_name} />
                       <CardRow label="Class" value={`${defaulter.class_name}${defaulter.section_name ? ` - ${defaulter.section_name}` : ''}`} />
                       <CardRow
                         label="Contact"
@@ -846,35 +855,26 @@ function FeeReportsContent() {
                               <span className="text-xs">{defaulter.contact_phone}</span>
                             </div>
                           ) : (
-                            <span className="text-gray-400 text-xs">No contact</span>
+                            <span className="text-gray-400 text-xs">N/A</span>
                           )
                         }
                       />
                       <CardRow
-                        label="Pending Periods"
+                        label="Pending"
                         value={
-                          <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                            {defaulter.pending_periods}
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                            {defaulter.pending_periods} periods
                           </span>
                         }
                       />
                       <CardRow
                         label="Total Due"
                         value={`Rs. ${defaulter.total_due?.toLocaleString()}`}
-                        valueClassName="font-bold text-red-600"
-                      />
-                      <CardRow
-                        label="Days Overdue"
-                        value={`${defaulter.days_since_first_due} days`}
-                        valueClassName={`font-semibold ${
-                          defaulter.days_since_first_due > 60 ? 'text-red-600' :
-                          defaulter.days_since_first_due > 30 ? 'text-orange-600' :
-                          'text-yellow-600'
-                        }`}
+                        valueClassName="font-bold text-red-600 text-base"
                       />
                       <CardRow
                         label="Since"
-                        value={new Date(defaulter.oldest_due_date).toLocaleDateString()}
+                        value={new Date(defaulter.oldest_due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         valueClassName="text-xs text-gray-600"
                       />
                     </CardInfoGrid>
@@ -899,83 +899,83 @@ function FeeReportsContent() {
               <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2">
                 <button
                   onClick={() => exportToCSV(classSummary, `class-fee-summary-${new Date().toISOString().split('T')[0]}.csv`)}
-                  className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 active:bg-red-800 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={classSummary.length === 0}
                 >
-                  <Download size={14} className="sm:w-4 sm:h-4" />
+                  <Download size={14} className="sm:w-4 sm:h-4 flex-shrink-0" />
                   <span className="hidden sm:inline">Download</span> CSV
                 </button>
                 <button
                   onClick={exportClassSummaryPDF}
-                  className="px-3 sm:px-4 py-2 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#DC2626] text-white rounded-lg hover:bg-red-700 active:bg-red-800 transition text-xs sm:text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={classSummary.length === 0}
                 >
-                  <FileText size={14} className="sm:w-4 sm:h-4" />
+                  <FileText size={14} className="sm:w-4 sm:h-4 flex-shrink-0" />
                   <span className="hidden sm:inline">Download</span> PDF
                 </button>
               </div>
 
               {/* Summary Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 {classSummary.map(summary => {
                   const collectionPercentage = summary.collection_percentage || 0
 
                   return (
                     <div key={`${summary.class_id}-${summary.period_name}`} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-bold text-gray-900">{summary.class_name}</h3>
-                          <p className="text-xs text-gray-500">{summary.period_name}</p>
+                      <div className="flex items-start justify-between mb-3 gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{summary.class_name}</h3>
+                          <p className="text-xs sm:text-sm text-gray-500 truncate">{summary.period_name}</p>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        <span className={`px-2 py-1 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 ${
                           collectionPercentage >= 90 ? 'bg-green-100 text-green-700' :
                           collectionPercentage >= 70 ? 'bg-blue-100 text-blue-700' :
                           collectionPercentage >= 50 ? 'bg-yellow-100 text-yellow-700' :
                           'bg-red-100 text-red-700'
                         }`}>
-                          {collectionPercentage.toFixed(1)}%
+                          {collectionPercentage.toFixed(0)}%
                         </span>
                       </div>
 
-                      <div className="space-y-2 mb-3">
-                        <div className="flex justify-between text-sm">
+                      <div className="space-y-1.5 sm:space-y-2 mb-3">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
                           <span className="text-gray-600">Total Students:</span>
-                          <span className="font-semibold">{summary.total_students}</span>
+                          <span className="font-semibold text-gray-900">{summary.total_students}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
                           <span className="text-gray-600">Paid:</span>
                           <span className="font-semibold text-green-600">{summary.paid_students}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
                           <span className="text-gray-600">Pending:</span>
                           <span className="font-semibold text-yellow-600">{summary.pending_students}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
                           <span className="text-gray-600">Overdue:</span>
                           <span className="font-semibold text-red-600">{summary.overdue_students}</span>
                         </div>
                       </div>
 
-                      <div className="border-t pt-3 space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Total Amount:</span>
-                          <span className="font-bold">Rs. {summary.total_amount?.toLocaleString()}</span>
+                      <div className="border-t pt-2 sm:pt-3 space-y-1.5 sm:space-y-2">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-600">Total:</span>
+                          <span className="font-bold text-gray-900">Rs. {summary.total_amount?.toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
                           <span className="text-gray-600">Collected:</span>
                           <span className="font-bold text-green-600">Rs. {summary.collected_amount?.toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
                           <span className="text-gray-600">Remaining:</span>
                           <span className="font-bold text-red-600">Rs. {summary.remaining_amount?.toLocaleString()}</span>
                         </div>
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="mt-3">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="mt-2 sm:mt-3">
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
                           <div
-                            className={`h-2 rounded-full transition-all ${
+                            className={`h-1.5 sm:h-2 rounded-full transition-all ${
                               collectionPercentage >= 90 ? 'bg-green-600' :
                               collectionPercentage >= 70 ? 'bg-blue-600' :
                               collectionPercentage >= 50 ? 'bg-yellow-600' :

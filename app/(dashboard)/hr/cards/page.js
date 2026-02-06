@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard, ChevronDown, CheckCircle, XCircle, AlertCircle, X, Settings } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { CreditCard, ChevronDown, CheckCircle, XCircle, AlertCircle, X, Settings, Trash2, Printer, Plus, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import ResponsiveTableWrapper from '@/components/ResponsiveTableWrapper'
+import DataCard, { CardHeader, CardRow, CardActions, CardInfoGrid } from '@/components/DataCard'
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import { convertImageToBase64 } from '@/lib/pdfUtils'
@@ -11,7 +14,35 @@ import PDFPreviewModal from '@/components/PDFPreviewModal'
 import PermissionGuard from '@/components/PermissionGuard'
 import { getUserFromCookie } from '@/lib/clientAuth'
 
+// Modal Overlay Component - Uses Portal to render at document body level
+const ModalOverlay = ({ children, onClose }) => {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 bg-black/30 z-[99998]"
+        style={{
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+        onClick={onClose}
+      />
+      {children}
+    </>,
+    document.body
+  )
+}
+
 function StaffIDCardsContent() {
+  const [activeSection, setActiveSection] = useState('generate') // 'generate' or 'list'
   const [validityUpto, setValidityUpto] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStaffId, setSelectedStaffId] = useState('')
@@ -24,6 +55,12 @@ function StaffIDCardsContent() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toasts, setToasts] = useState([])
+
+  // Created ID cards list state
+  const [createdCards, setCreatedCards] = useState([])
+  const [loadingList, setLoadingList] = useState(false)
+  const [searchName, setSearchName] = useState('')
+  const [selectedDepartment, setSelectedDepartment] = useState('')
 
   // PDF Preview state
   const [showPdfPreview, setShowPdfPreview] = useState(false)
@@ -195,6 +232,13 @@ function StaffIDCardsContent() {
     }
   }, [searchQuery, allStaff])
 
+  // Fetch created cards when switching to list view
+  useEffect(() => {
+    if (currentUser?.school_id && activeSection === 'list') {
+      fetchCreatedCards()
+    }
+  }, [currentUser, activeSection])
+
   // Fetch school data
   const fetchSchoolData = async () => {
     try {
@@ -244,6 +288,36 @@ function StaffIDCardsContent() {
       showToast('Error loading staff data', 'error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Fetch created ID cards from database
+  const fetchCreatedCards = async () => {
+    if (!currentUser?.school_id) return
+    setLoadingList(true)
+    try {
+      const { data, error } = await supabase
+        .from('staff_id_cards')
+        .select(`
+          *,
+          staff (
+            first_name,
+            last_name,
+            designation,
+            department,
+            photo_url
+          )
+        `)
+        .eq('school_id', currentUser.school_id)
+        .order('issue_date', { ascending: false })
+
+      if (error) throw error
+      setCreatedCards(data || [])
+    } catch (error) {
+      console.error('Error fetching ID cards:', error)
+      showToast('Failed to load ID cards', 'error')
+    } finally {
+      setLoadingList(false)
     }
   }
 
@@ -800,8 +874,68 @@ function StaffIDCardsContent() {
         })
 
       if (error) throw error
+
+      // Refresh list if we're in list view
+      if (activeSection === 'list') {
+        fetchCreatedCards()
+      }
     } catch (error) {
       console.error('Error saving ID card record:', error)
+    }
+  }
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState(null)
+
+  // Handle delete ID card
+  const handleDeleteCard = async (cardId) => {
+    setItemToDelete(cardId)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('staff_id_cards')
+        .delete()
+        .eq('id', itemToDelete)
+
+      if (error) throw error
+
+      setCreatedCards(prev => prev.filter(card => card.id !== itemToDelete))
+      showToast('ID card deleted successfully', 'success')
+      setShowDeleteModal(false)
+      setItemToDelete(null)
+    } catch (error) {
+      console.error('Error deleting ID card:', error)
+      showToast('Failed to delete ID card', 'error')
+    }
+  }
+
+  // Handle print/regenerate ID card
+  const handlePrintCard = async (card) => {
+    try {
+      // Set the staff data from the saved card
+      const staff = card.staff
+      if (!staff) {
+        showToast('Staff data not found', 'error')
+        return
+      }
+
+      // Temporarily set state to regenerate the PDF
+      setStaffData(staff)
+      setValidityUpto(card.expiry_date)
+
+      // Wait a moment for state to update then generate
+      setTimeout(() => {
+        generateIDCardPDF()
+      }, 100)
+    } catch (error) {
+      console.error('Error printing ID card:', error)
+      showToast('Failed to print ID card', 'error')
     }
   }
 
@@ -830,8 +964,44 @@ function StaffIDCardsContent() {
         </div>
       </div>
 
+      {/* Section Buttons */}
+      <div className="bg-white rounded-xl shadow-lg mb-4 mx-2 sm:mx-4 mt-2 sm:mt-4">
+        <div className="border-b border-gray-200">
+          <div className="flex flex-wrap gap-2 p-2.5 sm:p-3.5">
+            <button
+              onClick={() => setActiveSection('generate')}
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                activeSection === 'generate'
+                  ? 'bg-[#D12323] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Plus size={16} />
+              <span>Generate Cards</span>
+            </button>
+            <button
+              onClick={() => setActiveSection('list')}
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                activeSection === 'list'
+                  ? 'bg-[#D12323] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <FileText size={16} />
+              <span>Created List</span>
+              <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-xs font-bold ${
+                activeSection === 'list' ? 'bg-white/20' : 'bg-gray-300'
+              }`}>
+                {createdCards.length}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="p-2 sm:p-4">
+        {activeSection === 'generate' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4">
 
           {/* Configuration Row */}
@@ -852,7 +1022,7 @@ function StaffIDCardsContent() {
                     setShowDropdown(true)
                   }}
                   onFocus={() => setShowDropdown(true)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
                 />
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
 
@@ -892,7 +1062,7 @@ function StaffIDCardsContent() {
                 type="date"
                 value={validityUpto}
                 onChange={(e) => setValidityUpto(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
               />
             </div>
           </div>
@@ -1116,9 +1286,9 @@ function StaffIDCardsContent() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-3 sm:px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 bg-gray-50">
-                  <button onClick={() => setShowSettingsModal(false)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-gray-300 text-sm w-full sm:w-auto">Cancel</button>
-                  <button onClick={() => setShowResetConfirm(true)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm w-full sm:w-auto">Reset</button>
-                  <button onClick={saveIdCardSettings} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm w-full sm:w-auto">Save Settings</button>
+                  <button onClick={() => setShowSettingsModal(false)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-gray-300 text-sm w-full sm:w-auto hover:bg-gray-100 transition">Cancel</button>
+                  <button onClick={() => setShowResetConfirm(true)} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-sm w-full sm:w-auto transition">Reset</button>
+                  <button onClick={saveIdCardSettings} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm w-full sm:w-auto transition">Save Settings</button>
                 </div>
               </div>
             </div>
@@ -1186,7 +1356,7 @@ function StaffIDCardsContent() {
                 <button
                   onClick={generateIDCardPDF}
                   disabled={saving}
-                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm w-full sm:w-auto text-sm sm:text-base"
+                  className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 sm:px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm w-full sm:w-auto text-sm sm:text-base"
                 >
                   <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                   {saving ? 'Generating...' : 'Generate ID Card PDF'}
@@ -1206,56 +1376,279 @@ function StaffIDCardsContent() {
 
           {loading && (
             <div className="text-center py-8 text-gray-500">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto mb-3"></div>
               <p className="text-sm">Loading staff data...</p>
             </div>
           )}
         </div>
+        )}
+
+        {/* Created ID Cards List */}
+        {activeSection === 'list' && (
+          <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 md:p-5">
+            {/* Filters */}
+            <div className="mb-4 flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+              />
+              <select
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+              >
+                <option value="">All Departments</option>
+                <option value="Teaching">Teaching</option>
+                <option value="Administration">Administration</option>
+                <option value="Support">Support</option>
+              </select>
+            </div>
+
+            {/* List */}
+            {loadingList ? (
+              <div className="text-center py-10">
+                <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="mt-3 text-gray-600">Loading ID cards...</p>
+              </div>
+            ) : createdCards.filter(card => {
+              const staff = card.staff
+              const matchesName = !searchName ||
+                `${staff?.first_name} ${staff?.last_name}`.toLowerCase().includes(searchName.toLowerCase())
+              const matchesDepartment = !selectedDepartment || staff?.department === selectedDepartment
+              return matchesName && matchesDepartment
+            }).length === 0 ? (
+              <div className="text-center py-10">
+                <CreditCard size={48} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-600">No ID cards found</p>
+              </div>
+            ) : (
+              <ResponsiveTableWrapper
+                tableView={
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-blue-900 text-white text-xs sm:text-sm">
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Sr.</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Staff Name</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Designation</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Department</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Card Number</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Issue Date</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Expiry Date</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-left font-medium whitespace-nowrap">Status</th>
+                          <th className="border border-blue-800 px-2 sm:px-3 py-1.5 sm:py-2 text-center font-medium whitespace-nowrap">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {createdCards
+                          .filter(card => {
+                            const staff = card.staff
+                            const matchesName = !searchName ||
+                              `${staff?.first_name} ${staff?.last_name}`.toLowerCase().includes(searchName.toLowerCase())
+                            const matchesDepartment = !selectedDepartment || staff?.department === selectedDepartment
+                            return matchesName && matchesDepartment
+                          })
+                          .map((card, index) => {
+                            const staff = card.staff
+                            const isExpired = new Date(card.expiry_date) < new Date()
+                            return (
+                              <tr key={card.id} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 border border-gray-200 text-sm">{index + 1}</td>
+                                <td className="px-3 py-2 border border-gray-200 text-sm font-medium">
+                                  {staff?.first_name} {staff?.last_name}
+                                </td>
+                                <td className="px-3 py-2 border border-gray-200 text-sm">{staff?.designation || 'N/A'}</td>
+                                <td className="px-3 py-2 border border-gray-200 text-sm">{staff?.department || 'N/A'}</td>
+                                <td className="px-3 py-2 border border-gray-200 text-sm font-mono">{card.card_number}</td>
+                                <td className="px-3 py-2 border border-gray-200 text-sm">
+                                  {new Date(card.issue_date).toLocaleDateString('en-GB')}
+                                </td>
+                                <td className="px-3 py-2 border border-gray-200 text-sm">
+                                  {new Date(card.expiry_date).toLocaleDateString('en-GB')}
+                                </td>
+                                <td className="px-3 py-2 border border-gray-200">
+                                  <span className={`inline-block px-2 py-1 rounded text-xs font-semibold capitalize ${
+                                    isExpired ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                                  }`}>
+                                    {isExpired ? 'Expired' : 'Active'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 border border-gray-200">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => handlePrintCard(card)}
+                                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"
+                                      title="Print"
+                                    >
+                                      <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteCard(card.id)}
+                                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                }
+                cardView={
+                  <div className="space-y-3">
+                    {createdCards
+                      .filter(card => {
+                        const staff = card.staff
+                        const matchesName = !searchName ||
+                          `${staff?.first_name} ${staff?.last_name}`.toLowerCase().includes(searchName.toLowerCase())
+                        const matchesDepartment = !selectedDepartment || staff?.department === selectedDepartment
+                        return matchesName && matchesDepartment
+                      })
+                      .map((card) => {
+                        const staff = card.staff
+                        const isExpired = new Date(card.expiry_date) < new Date()
+                        return (
+                          <DataCard key={card.id}>
+                            <CardHeader
+                              title={`${staff?.first_name} ${staff?.last_name}`}
+                              subtitle={staff?.designation || 'N/A'}
+                              badge={
+                                <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+                                  isExpired ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                                }`}>
+                                  {isExpired ? 'Expired' : 'Active'}
+                                </span>
+                              }
+                            />
+                            <CardInfoGrid>
+                              <CardRow label="Department" value={staff?.department || 'N/A'} />
+                              <CardRow label="Card No." value={card.card_number} />
+                              <CardRow label="Issue Date" value={new Date(card.issue_date).toLocaleDateString('en-GB')} />
+                              <CardRow label="Expiry" value={new Date(card.expiry_date).toLocaleDateString('en-GB')} />
+                            </CardInfoGrid>
+                            <CardActions>
+                              <button
+                                onClick={() => handlePrintCard(card)}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium transition"
+                              >
+                                <Printer size={14} />
+                                <span>Print</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCard(card.id)}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-sm font-medium transition"
+                              >
+                                <Trash2 size={14} />
+                                <span>Delete</span>
+                              </button>
+                            </CardActions>
+                          </DataCard>
+                        )
+                      })}
+                  </div>
+                }
+                loading={loadingList}
+                empty={createdCards.length === 0}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Reset Confirmation Modal (red) */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)}></div>
-          <div className="relative z-50 w-full max-w-sm bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
-            <div className="p-3 sm:p-4 flex items-start gap-3">
-              <div className="text-red-600 p-1 rounded bg-red-50">
-                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+        <ModalOverlay onClose={() => setShowResetConfirm(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Reset ID Card Settings</h3>
               </div>
-              <div>
-                <h4 className="font-semibold text-red-700 text-sm sm:text-base">Reset ID Card Settings</h4>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1">This will remove saved ID card settings and restore defaults. Uploaded logos remain in school settings. Continue?</p>
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
+                  This will remove saved ID card settings and restore defaults. Uploaded logos remain in school settings. Continue?
+                </p>
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={performResetIdcard}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Reset
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-50">
-              <button onClick={() => setShowResetConfirm(false)} className="px-3 py-2 rounded border border-gray-300 text-sm w-full sm:w-auto">Cancel</button>
-              <button onClick={performResetIdcard} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm w-full sm:w-auto">Reset</button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && itemToDelete && (
+        <ModalOverlay onClose={() => setShowDeleteModal(false)}>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-3 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 rounded-t-xl">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
+              </div>
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <p className="text-gray-700 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
+                  Are you sure you want to delete this ID card? This action cannot be undone.
+                </p>
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 py-2 sm:py-2.5 md:py-3 px-3 sm:px-4 md:px-5 bg-red-600 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1.5 sm:gap-2"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalOverlay>
       )}
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2 w-[calc(100%-2rem)] sm:w-auto">
+      <div className="fixed top-2 sm:top-4 right-2 sm:right-4 z-[9999] space-y-2 w-[calc(100%-1rem)] sm:w-auto max-w-[calc(100%-1rem)] sm:max-w-md">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[300px] max-w-full sm:max-w-md px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-green-600' :
+            className={`flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[280px] px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-lg text-white transform transition-all duration-300 ${
+              toast.type === 'success' ? 'bg-green-500' :
               toast.type === 'error' ? 'bg-red-600' :
-              toast.type === 'warning' ? 'bg-amber-600' :
-              'bg-blue-600'
+              toast.type === 'warning' ? 'bg-yellow-500' :
+              'bg-blue-500'
             }`}
           >
-            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
-            {toast.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-            <span className="flex-1 text-sm font-medium">{toast.message}</span>
+            {toast.type === 'success' && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
+            {toast.type === 'warning' && <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
+            <span className="flex-1 text-xs sm:text-sm font-medium">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
               className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         ))}
@@ -1285,7 +1678,7 @@ export default function StaffIDCardsPage() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

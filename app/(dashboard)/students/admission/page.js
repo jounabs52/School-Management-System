@@ -71,7 +71,7 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
+    <div className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100000] flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-5 py-2 sm:py-2 md:py-2.5 rounded-full shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
       type === 'success' ? 'bg-green-500 text-white' :
       type === 'error' ? 'bg-red-500 text-white' :
       'bg-blue-500 text-white'
@@ -2167,7 +2167,7 @@ function AdmissionRegisterContent() {
   }
 
   return (
-    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-1.5 md:p-3 lg:p-3 xl:p-3 bg-gray-50 min-h-screen">
       {/* Toast Notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
@@ -2175,22 +2175,22 @@ function AdmissionRegisterContent() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-2 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative">
+        <div className="mb-1.5 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 rounded text-xs sm:text-sm relative">
           {success}
         </div>
       )}
       {error && (
-        <div className="mb-2 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
+        <div className="mb-1.5 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
           <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           <span className="line-clamp-2">{error}</span>
         </div>
       )}
 
       {/* Top Tabs */}
-      <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 sm:mb-6">
         <button
           onClick={() => setActiveTab('register')}
-          className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg text-sm sm:text-base font-semibold transition-all ${
+          className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-3 py-2 sm:py-2 rounded-lg text-sm sm:text-base font-semibold transition-all ${
             activeTab === 'register'
               ? 'bg-red-600 text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -2203,7 +2203,7 @@ function AdmissionRegisterContent() {
 
         <button
           onClick={handleRegisterNewStudent}
-          className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg text-sm sm:text-base font-semibold transition-all bg-white text-gray-700 hover:bg-gray-100"
+          className="flex items-center gap-1 sm:gap-2 px-3 sm:px-3 py-2 sm:py-2 rounded-lg text-sm sm:text-base font-semibold transition-all bg-white text-gray-700 hover:bg-gray-100"
         >
           <UserPlus size={18} className="sm:w-5 sm:h-5" />
           <span className="hidden sm:inline">Register New Student</span>
@@ -2212,7 +2212,7 @@ function AdmissionRegisterContent() {
 
         <button
           onClick={() => setActiveTab('import')}
-          className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg text-sm sm:text-base font-semibold transition-all ${
+          className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-3 py-2 sm:py-2 rounded-lg text-sm sm:text-base font-semibold transition-all ${
             activeTab === 'import'
               ? 'bg-red-600 text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -2226,11 +2226,11 @@ function AdmissionRegisterContent() {
 
       {/* Main Content - Admission Register */}
       {activeTab === 'register' && (
-      <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4">
+      <div className="bg-white rounded-xl shadow-lg p-2.5 sm:p-3.5">
         <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Admission Register</h2>
 
         {/* Search and Filter Section */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 sm:gap-3 mb-3 sm:mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-1.5 sm:gap-2 mb-3 sm:mb-4">
           <div className="md:col-span-3">
             <select
               value={selectedOption}
@@ -2441,7 +2441,7 @@ function AdmissionRegisterContent() {
         <div className="mt-6">
           <div
             onClick={() => setImportExpanded(!importExpanded)}
-            className="text-white px-6 py-4 rounded-t-xl flex justify-between items-center cursor-pointer"
+            className="text-white px-3 py-2 rounded-t-xl flex justify-between items-center cursor-pointer"
             style={{ backgroundColor: '#1E3A8A' }}
           >
             <h3 className="font-semibold">Import Bulk Students</h3>
@@ -2449,11 +2449,11 @@ function AdmissionRegisterContent() {
           </div>
 
           {importExpanded && (
-            <div className="bg-white p-6 border-x border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-3 border-x border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {/* Class Selection with Search */}
                 <div className="relative">
-                  <label className="block text-gray-700 font-semibold text-sm mb-2">
+                  <label className="block text-gray-700 font-semibold text-sm mb-1.5">
                     Class <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -2463,7 +2463,7 @@ function AdmissionRegisterContent() {
                       value={classSearchTerm}
                       onChange={(e) => setClassSearchTerm(e.target.value)}
                       onFocus={() => setShowClassDropdown(true)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                     <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   </div>
@@ -2475,7 +2475,7 @@ function AdmissionRegisterContent() {
                       />
                       <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {loadingClasses ? (
-                          <div className="px-4 py-3 text-gray-500 text-center">
+                          <div className="px-3 py-2 text-gray-500 text-center">
                             <Loader2 size={20} className="animate-spin inline-block" />
                             <span className="ml-2">Loading classes...</span>
                           </div>
@@ -2488,7 +2488,7 @@ function AdmissionRegisterContent() {
                               <div
                                 key={cls.id}
                                 onClick={() => handleImportClassSelect(cls.id, cls.class_name)}
-                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                               >
                                 <div className="font-medium text-gray-800">{cls.class_name}</div>
                                 {cls.standard_fee && (
@@ -2497,7 +2497,7 @@ function AdmissionRegisterContent() {
                               </div>
                             ))
                         ) : (
-                          <div className="px-4 py-3 text-gray-500 text-center">
+                          <div className="px-3 py-2 text-gray-500 text-center">
                             No classes found
                           </div>
                         )}
@@ -2523,13 +2523,13 @@ function AdmissionRegisterContent() {
 
                 {/* Category Selection */}
                 <div>
-                  <label className="block text-gray-700 font-semibold text-sm mb-2">
+                  <label className="block text-gray-700 font-semibold text-sm mb-1.5">
                     Category <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={importData.category}
                     onChange={(e) => setImportData({ ...importData, category: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   >
                     <option value="Active Student">Active Student</option>
                     <option value="Old Student">Old Student</option>
@@ -2540,7 +2540,7 @@ function AdmissionRegisterContent() {
                 {/* Section Selection with Search - Only show if class is selected */}
                 {importData.classId && (
                   <div className="relative">
-                    <label className="block text-gray-700 font-semibold text-sm mb-2">
+                    <label className="block text-gray-700 font-semibold text-sm mb-1.5">
                       Section (Optional)
                     </label>
                     <div className="relative">
@@ -2550,7 +2550,7 @@ function AdmissionRegisterContent() {
                         value={sectionSearchTerm}
                         onChange={(e) => setSectionSearchTerm(e.target.value)}
                         onFocus={() => setShowSectionDropdown(true)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                       <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     </div>
@@ -2562,7 +2562,7 @@ function AdmissionRegisterContent() {
                         />
                         <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                           {loadingSections ? (
-                            <div className="px-4 py-3 text-gray-500 text-center">
+                            <div className="px-3 py-2 text-gray-500 text-center">
                               <Loader2 size={20} className="animate-spin inline-block" />
                               <span className="ml-2">Loading sections...</span>
                             </div>
@@ -2575,13 +2575,13 @@ function AdmissionRegisterContent() {
                                 <div
                                   key={sec.id}
                                   onClick={() => handleImportSectionSelect(sec.id, sec.section_name)}
-                                  className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                  className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                                 >
                                   <div className="font-medium text-gray-800">{sec.section_name}</div>
                                 </div>
                               ))
                           ) : (
-                            <div className="px-4 py-3 text-gray-500 text-center">
+                            <div className="px-3 py-2 text-gray-500 text-center">
                               No sections found for this class
                             </div>
                           )}
@@ -2606,8 +2606,8 @@ function AdmissionRegisterContent() {
                 )}
 
                 {/* File Upload */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-blue-500 transition">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 hover:border-blue-500 transition">
+                  <div className="flex items-center gap-2 mb-1.5">
                     <Upload size={20} className="text-blue-600" />
                     <span className="text-sm font-semibold text-gray-700">UPLOAD CSV/EXCEL FILE</span>
                   </div>
@@ -2616,7 +2616,7 @@ function AdmissionRegisterContent() {
                     type="file"
                     accept=".xlsx,.xls,.csv"
                     onChange={handleFileChange}
-                    className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    className="w-full text-sm file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
                   {selectedFile && (
                     <div className="mt-3 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
@@ -2627,19 +2627,19 @@ function AdmissionRegisterContent() {
               </div>
 
               {/* CSV Format Information */}
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+              <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-1.5 flex items-center gap-2">
                   <AlertCircle size={18} />
                   CSV File Format Requirements
                 </h4>
                 <div className="text-sm text-blue-800">
-                  <p className="mb-2"><strong>Mandatory columns (any format accepted):</strong></p>
+                  <p className="mb-1.5"><strong>Mandatory columns (any format accepted):</strong></p>
                   <ul className="list-disc list-inside mb-3 ml-2 text-xs">
                     <li><strong>Admission Number:</strong> "Admission/CNIC No", "Admission Number", "Admission No", "GR No", etc.</li>
                     <li><strong>Student Name:</strong> "Student Name", "Name", etc.</li>
                     <li><strong>Father Name:</strong> "Father Name", etc.</li>
                   </ul>
-                  <p className="mb-2"><strong>Optional columns:</strong></p>
+                  <p className="mb-1.5"><strong>Optional columns:</strong></p>
                   <ul className="list-disc list-inside ml-2 text-xs">
                     <li>Mother Name, Date of Birth (or DOB, Birth Date), Gender</li>
                     <li>Father Mobile (or Contact, Mobile), Mother Mobile, Blood Group</li>
@@ -2654,7 +2654,7 @@ function AdmissionRegisterContent() {
             </div>
           )}
 
-          <div className="bg-white p-4 rounded-b-xl border border-gray-200 flex justify-end gap-3">
+          <div className="bg-white p-3 rounded-b-xl border border-gray-200 flex justify-end gap-2">
             <button
               onClick={() => {
                 setImportData({
@@ -2670,14 +2670,14 @@ function AdmissionRegisterContent() {
                 const fileInput = document.querySelector('input[type="file"]')
                 if (fileInput) fileInput.value = null
               }}
-              className="px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+              className="px-3 py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
             >
               Clear All
             </button>
             <button
               onClick={handleBulkImport}
               disabled={importing || !importData.classId || !selectedFile}
-              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {importing ? (
                 <>
@@ -2699,7 +2699,7 @@ function AdmissionRegisterContent() {
       {showRegisterSidebar && (
         <ModalOverlay onClose={() => !saving && setShowRegisterSidebar(false)} disabled={saving}>
           <div className="fixed top-0 right-0 h-full w-full sm:max-w-xl lg:max-w-2xl bg-white shadow-2xl z-[99999] flex flex-col border-l border-gray-200">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4 sm:py-5">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 sm:px-3 py-2 sm:py-4">
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-xl font-bold">{isEditMode ? 'Edit Student' : 'Register New Student'}</h3>
@@ -2708,23 +2708,23 @@ function AdmissionRegisterContent() {
                 <button
                   onClick={() => !saving && setShowRegisterSidebar(false)}
                   disabled={saving}
-                  className="text-white hover:bg-white/10 p-2 rounded-full transition disabled:opacity-50"
+                  className="text-white hover:bg-white/10 p-1.5 rounded-full transition disabled:opacity-50"
                 >
                   <X size={22} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-3 bg-gray-50">
               {/* Academic Data Section */}
               <div className="mb-4 sm:mb-6">
                 <h4 className="text-sm font-bold text-green-600 mb-3 sm:mb-4 flex items-center gap-2">
                   <FileText size={16} />
                   ACADEMIC DATA
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Admission/GR No <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
@@ -2732,7 +2732,7 @@ function AdmissionRegisterContent() {
                         type="text"
                         value={formData.admissionNo}
                         onChange={(e) => setFormData({ ...formData, admissionNo: e.target.value })}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 outline-none bg-white ${
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 outline-none bg-white ${
                           admissionNoExists
                             ? 'border-red-500 focus:ring-red-500'
                             : 'border-gray-300 focus:ring-blue-500'
@@ -2750,13 +2750,13 @@ function AdmissionRegisterContent() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Class <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.class}
                       onChange={(e) => handleClassChange(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       disabled={loadingClasses}
                       required
                     >
@@ -2771,13 +2771,13 @@ function AdmissionRegisterContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Section <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.section}
                       onChange={(e) => handleSectionChange(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       disabled={loadingSections || !formData.class}
                       required
                     >
@@ -2795,19 +2795,19 @@ function AdmissionRegisterContent() {
                     </select>
                   </div>
                 </div>
-                <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Admission Date</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Admission Date</label>
                     <input
                       type="date"
                       value={formData.admissionDate}
                       onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
                       max={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Roll Number <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2815,12 +2815,12 @@ function AdmissionRegisterContent() {
                       placeholder="Enter Roll Number"
                       value={formData.rollNumber}
                       onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Father WhatsApp Number <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2828,14 +2828,14 @@ function AdmissionRegisterContent() {
                       placeholder="Enter WhatsApp Number"
                       value={formData.whatsappNumber}
                       onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
                 </div>
-                <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Base Fee <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2843,11 +2843,11 @@ function AdmissionRegisterContent() {
                       placeholder="0.00"
                       value={formData.baseFee}
                       readOnly
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Fee Plan (Mode) <span className="text-red-500">*</span> <span className="text-blue-600">(From Class)</span>
                     </label>
                     <input
@@ -2856,17 +2856,17 @@ function AdmissionRegisterContent() {
                       placeholder="Select a class first"
                       readOnly
                       required
-                      className="w-full px-4 py-3 border border-blue-200 bg-blue-50 rounded-lg font-semibold text-blue-800 capitalize outline-none"
+                      className="w-full px-3 py-2 border border-blue-200 bg-blue-50 rounded-lg font-semibold text-blue-800 capitalize outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Starting Month <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.startingMonth}
                       onChange={(e) => setFormData({ ...formData, startingMonth: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="1">January</option>
                       <option value="2">February</option>
@@ -2885,20 +2885,20 @@ function AdmissionRegisterContent() {
                 </div>
 
                 {/* Discount Section */}
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Discount Type</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Discount Type</label>
                     <select
                       value={formData.discountType}
                       onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="fixed">Fixed Amount (Rs.)</option>
                       <option value="percentage">Percentage (%)</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       {formData.discountType === 'percentage' ? 'Discount (%)' : 'Discount (Rs.)'}
                     </label>
                     <input
@@ -2906,17 +2906,17 @@ function AdmissionRegisterContent() {
                       placeholder={formData.discountType === 'percentage' ? 'e.g., 10' : '0.00'}
                       value={formData.discount}
                       onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Discount Note</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Discount Note</label>
                     <input
                       type="text"
                       placeholder="Optional note"
                       value={formData.discountNote}
                       onChange={(e) => setFormData({ ...formData, discountNote: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
@@ -2958,9 +2958,9 @@ function AdmissionRegisterContent() {
                   <UserPlus size={16} />
                   STUDENT & FATHER INFORMATION
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Student Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2968,12 +2968,12 @@ function AdmissionRegisterContent() {
                       placeholder="Enter Student Name"
                       value={formData.studentName}
                       onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Father Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2981,15 +2981,15 @@ function AdmissionRegisterContent() {
                       placeholder="Enter Father Name"
                       value={formData.fatherName}
                       onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       required
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-gray-700 text-sm mb-2">
+                    <label className="block text-gray-700 text-sm mb-1.5">
                       Student Photo
                     </label>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
                       {imagePreview && (
                         <div className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-300">
                           <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
@@ -3024,46 +3024,46 @@ function AdmissionRegisterContent() {
                             reader.readAsDataURL(file)
                           }
                         }}
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Mobile</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Mobile</label>
                     <input
                       type="text"
                       placeholder="Enter Father Mobile"
                       value={formData.fatherMobile}
                       onChange={(e) => setFormData({ ...formData, fatherMobile: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Email</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Email</label>
                     <input
                       type="email"
                       placeholder="Enter Father Email"
                       value={formData.fatherEmail}
                       onChange={(e) => setFormData({ ...formData, fatherEmail: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father CNIC</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father CNIC</label>
                     <input
                       type="text"
                       placeholder="xxxxx-xxxxxxx-x"
                       value={formData.fatherCnic}
                       onChange={(e) => setFormData({ ...formData, fatherCnic: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Occupation</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Occupation</label>
                     <select
                       value={formData.fatherOccupation}
                       onChange={(e) => setFormData({ ...formData, fatherOccupation: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select Occupation</option>
                       <option value="Business">Business</option>
@@ -3073,31 +3073,31 @@ function AdmissionRegisterContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Father Annual Income</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Father Annual Income</label>
                     <input
                       type="number"
                       placeholder="0.00"
                       value={formData.fatherAnnualIncome}
                       onChange={(e) => setFormData({ ...formData, fatherAnnualIncome: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Date Of Birth</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Date Of Birth</label>
                     <input
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                       max={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Gender</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Gender</label>
                     <select
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -3105,31 +3105,31 @@ function AdmissionRegisterContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Student CNIC (if applicable)</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Student CNIC (if applicable)</label>
                     <input
                       type="text"
                       placeholder="xxxxx-xxxxxxx-x"
                       value={formData.studentCnic}
                       onChange={(e) => setFormData({ ...formData, studentCnic: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Student Mobile</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Student Mobile</label>
                     <input
                       type="text"
                       placeholder="Enter Student Mobile"
                       value={formData.studentMobile}
                       onChange={(e) => setFormData({ ...formData, studentMobile: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Blood Group</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Blood Group</label>
                     <select
                       value={formData.bloodGroup}
                       onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     >
                       <option value="">Select Blood Group</option>
                       <option value="A+">A+</option>
@@ -3143,63 +3143,63 @@ function AdmissionRegisterContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Caste/Race</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Caste/Race</label>
                     <input
                       type="text"
                       placeholder="Enter Caste/Race"
                       value={formData.casteRace}
                       onChange={(e) => setFormData({ ...formData, casteRace: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Birth Place</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Birth Place</label>
                     <input
                       type="text"
                       placeholder="Enter Birth Place"
                       value={formData.birthPlace}
                       onChange={(e) => setFormData({ ...formData, birthPlace: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-gray-700 text-sm mb-2">Current Address</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Current Address</label>
                     <input
                       type="text"
                       placeholder="Enter Current Address"
                       value={formData.currentAddress}
                       onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">City</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">City</label>
                     <input
                       type="text"
                       placeholder="Enter City"
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">State/Province</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">State/Province</label>
                     <input
                       type="text"
                       placeholder="Enter State/Province"
                       value={formData.state}
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm mb-2">Postal Code</label>
+                    <label className="block text-gray-700 text-sm mb-1.5">Postal Code</label>
                     <input
                       type="text"
                       placeholder="Enter Postal Code"
                       value={formData.postalCode}
                       onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
@@ -3209,194 +3209,194 @@ function AdmissionRegisterContent() {
               <div className="mb-6">
                 <button
                   onClick={() => setShowOtherDetails(!showOtherDetails)}
-                  className="w-full bg-purple-600 text-white px-4 py-3 rounded-lg font-semibold flex justify-between items-center"
+                  className="w-full bg-purple-600 text-white px-3 py-2 rounded-lg font-semibold flex justify-between items-center"
                 >
                   <span>Student Other Details</span>
                   <span>{showOtherDetails ? '▲ Toggle Details' : '▼ Toggle Details'}</span>
                 </button>
 
                 {showOtherDetails && (
-                  <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
+                  <div className="mt-4 bg-white p-3 rounded-lg border border-gray-200">
                     <h4 className="text-sm font-bold text-purple-600 mb-4">MOTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Name</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Name</label>
                         <input
                           type="text"
                           placeholder="Mother Name"
                           value={formData.motherName}
                           onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother CNIC</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother CNIC</label>
                         <input
                           type="text"
                           placeholder="xxxxx-xxxxxxx-x"
                           value={formData.motherCnic}
                           onChange={(e) => setFormData({ ...formData, motherCnic: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Mobile</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Mobile</label>
                         <input
                           type="text"
                           placeholder="Enter Mother Mobile"
                           value={formData.motherMobile}
                           onChange={(e) => setFormData({ ...formData, motherMobile: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Email</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Email</label>
                         <input
                           type="email"
                           placeholder="Enter Mother Email"
                           value={formData.motherEmail}
                           onChange={(e) => setFormData({ ...formData, motherEmail: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Qualification</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Qualification</label>
                         <input
                           type="text"
                           placeholder="Enter Qualification"
                           value={formData.motherQualification}
                           onChange={(e) => setFormData({ ...formData, motherQualification: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Occupation</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Occupation</label>
                         <input
                           type="text"
                           placeholder="Enter Occupation"
                           value={formData.motherOccupation}
                           onChange={(e) => setFormData({ ...formData, motherOccupation: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Mother Annual Income</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Mother Annual Income</label>
                         <input
                           type="number"
                           placeholder="0.00"
                           value={formData.motherAnnualIncome}
                           onChange={(e) => setFormData({ ...formData, motherAnnualIncome: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
 
                     <h4 className="text-sm font-bold text-orange-600 mb-4">GUARDIAN INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Name</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Name</label>
                         <input
                           type="text"
                           placeholder="Enter Guardian Name"
                           value={formData.guardianName}
                           onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Relation</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Relation</label>
                         <input
                           type="text"
                           placeholder="e.g., Uncle, Aunt"
                           value={formData.guardianRelation}
                           onChange={(e) => setFormData({ ...formData, guardianRelation: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Mobile</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Mobile</label>
                         <input
                           type="text"
                           placeholder="Guardian Mobile"
                           value={formData.guardianMobile}
                           onChange={(e) => setFormData({ ...formData, guardianMobile: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Guardian Email</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Guardian Email</label>
                         <input
                           type="email"
                           placeholder="Enter Guardian Email"
                           value={formData.guardianEmail}
                           onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
 
                     <h4 className="text-sm font-bold text-red-600 mb-4">EMERGENCY CONTACT</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Contact Name</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Contact Name</label>
                         <input
                           type="text"
                           placeholder="Emergency Contact Name"
                           value={formData.emergencyContactName}
                           onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Relation</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Relation</label>
                         <input
                           type="text"
                           placeholder="Relation"
                           value={formData.emergencyRelation}
                           onChange={(e) => setFormData({ ...formData, emergencyRelation: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Phone</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Phone</label>
                         <input
                           type="text"
                           placeholder="Emergency Phone"
                           value={formData.emergencyPhone}
                           onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Mobile</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Mobile</label>
                         <input
                           type="text"
                           placeholder="Emergency Mobile"
                           value={formData.emergencyMobile}
                           onChange={(e) => setFormData({ ...formData, emergencyMobile: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 text-sm mb-2">Emergency Address</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Emergency Address</label>
                         <input
                           type="text"
                           placeholder="Emergency Address"
                           value={formData.emergencyAddress}
                           onChange={(e) => setFormData({ ...formData, emergencyAddress: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                     </div>
 
                     <h4 className="text-sm font-bold text-green-600 mb-4">OTHER INFORMATION</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Religion</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Religion</label>
                         <select
                           value={formData.religion}
                           onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                         >
                           <option value="">Select Religion</option>
                           <option value="Islam">Islam</option>
@@ -3406,51 +3406,51 @@ function AdmissionRegisterContent() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Nationality</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Nationality</label>
                         <input
                           type="text"
                           value={formData.nationality}
                           onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Previous School</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Previous School</label>
                         <input
                           type="text"
                           placeholder="Enter Previous School"
                           value={formData.previousSchool}
                           onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700 text-sm mb-2">Previous Class</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Previous Class</label>
                         <input
                           type="text"
                           placeholder="Enter Previous Class"
                           value={formData.previousClass}
                           onChange={(e) => setFormData({ ...formData, previousClass: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 text-sm mb-2">Permanent Address</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Permanent Address</label>
                         <input
                           type="text"
                           placeholder="Enter Permanent Address"
                           value={formData.permanentAddress}
                           onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 text-sm mb-2">Medical Problem / Special Needs</label>
+                        <label className="block text-gray-700 text-sm mb-1.5">Medical Problem / Special Needs</label>
                         <textarea
                           placeholder="Enter any medical problems or special needs"
                           value={formData.medicalProblem}
                           onChange={(e) => setFormData({ ...formData, medicalProblem: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                           rows="3"
                         />
                       </div>
@@ -3460,19 +3460,19 @@ function AdmissionRegisterContent() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 px-6 py-5 bg-white">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 px-3 py-5 bg-white">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setShowRegisterSidebar(false)}
                   disabled={saving}
-                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                  className="flex-1 px-3 py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveStudent}
                   disabled={saving || !formData.studentName || !formData.fatherName || !formData.admissionNo || admissionNoExists}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50"
                 >
                   {saving ? (
                     <>
@@ -3495,27 +3495,27 @@ function AdmissionRegisterContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedStudent && (
         <ModalOverlay onClose={() => !deleting && setShowDeleteModal(false)} disabled={deleting}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-1.5 sm:p-3">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95%] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 sm:px-3 py-2 sm:py-4 rounded-t-xl">
                 <h3 className="text-sm sm:text-base md:text-lg font-bold">Confirm Delete</h3>
               </div>
-              <div className="p-4 sm:p-6">
+              <div className="p-3 sm:p-3">
                 <p className="text-gray-700 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base">
                   Are you sure you want to delete student <span className="font-bold text-red-600">{selectedStudent.name}</span>? This action cannot be undone.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     disabled={deleting}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base disabled:opacity-50 order-2 sm:order-1"
+                    className="flex-1 px-3 sm:px-3 py-2 sm:py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300 text-sm sm:text-base disabled:opacity-50 order-2 sm:order-1"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
                     disabled={deleting}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-50 order-1 sm:order-2"
+                    className="flex-1 px-3 sm:px-3 py-2 sm:py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-50 order-1 sm:order-2"
                   >
                     {deleting ? (
                       <>
@@ -3539,29 +3539,29 @@ function AdmissionRegisterContent() {
       {/* View Student Modal */}
       {showViewModal && selectedStudent && (
         <ModalOverlay onClose={() => setShowViewModal(false)}>
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3">
             <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl flex-shrink-0">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 py-2 rounded-t-xl flex-shrink-0">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Student Information</h3>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handlePrintStudent}
-                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                       title="Print Student Information"
                     >
                       <Printer size={20} />
                     </button>
                     <button
                       onClick={() => setShowViewModal(false)}
-                      className="text-white hover:bg-white/10 p-2 rounded-full transition"
+                      className="text-white hover:bg-white/10 p-1.5 rounded-full transition"
                     >
                       <X size={20} />
                     </button>
                   </div>
                 </div>
               </div>
-              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
+              <div className="p-3 overflow-y-auto flex-1 custom-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
                 <style jsx>{`
                   .custom-scrollbar::-webkit-scrollbar {
                     width: 8px;
@@ -3578,7 +3578,7 @@ function AdmissionRegisterContent() {
                     background: #94a3b8;
                   }
                 `}</style>
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
+                <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-200">
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl overflow-hidden">
                     {selectedStudent.photo_url ? (
                       <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
@@ -3598,7 +3598,7 @@ function AdmissionRegisterContent() {
                 {/* Basic Information */}
                 <div className="mb-6">
                   <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Basic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {selectedStudent.first_name && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">First Name</p>
@@ -3641,7 +3641,7 @@ function AdmissionRegisterContent() {
                 {/* Academic Information */}
                 <div className="mb-6">
                   <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Academic Information</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {selectedStudent.className && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">Class</p>
@@ -3685,7 +3685,7 @@ function AdmissionRegisterContent() {
                 {(selectedStudent.father_name || selectedStudent.father_cnic || selectedStudent.father_mobile || selectedStudent.father_email || selectedStudent.father_qualification || selectedStudent.father_occupation || selectedStudent.father_annual_income) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Father Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedStudent.father_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Father Name</p>
@@ -3736,7 +3736,7 @@ function AdmissionRegisterContent() {
                 {(selectedStudent.mother_name || selectedStudent.mother_cnic || selectedStudent.mother_mobile || selectedStudent.mother_email || selectedStudent.mother_qualification || selectedStudent.mother_occupation || selectedStudent.mother_annual_income) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Mother Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedStudent.mother_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Mother Name</p>
@@ -3787,7 +3787,7 @@ function AdmissionRegisterContent() {
                 {(selectedStudent.whatsapp_number || selectedStudent.guardian_mobile || selectedStudent.current_address || selectedStudent.city || selectedStudent.state || selectedStudent.postal_code) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Contact Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedStudent.whatsapp_number && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">WhatsApp Number</p>
@@ -3832,7 +3832,7 @@ function AdmissionRegisterContent() {
                 {(selectedStudent.guardian_name || selectedStudent.guardian_email || selectedStudent.guardian_relation) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Guardian Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedStudent.guardian_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Guardian Name</p>
@@ -3859,7 +3859,7 @@ function AdmissionRegisterContent() {
                 {(selectedStudent.emergency_contact_name || selectedStudent.emergency_contact_number || selectedStudent.emergency_relation) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Emergency Contact</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedStudent.emergency_contact_name && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Contact Name</p>
@@ -3886,7 +3886,7 @@ function AdmissionRegisterContent() {
                 {(selectedStudent.base_fee || selectedStudent.discount_amount || selectedStudent.final_fee || selectedStudent.fee_plan || selectedStudent.discount_note) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Fee Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedStudent.base_fee && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Base Fee</p>
@@ -3930,7 +3930,7 @@ function AdmissionRegisterContent() {
                 {(selectedStudent.family_number || selectedStudent.select_family) && (
                   <div className="mb-6">
                     <h5 className="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Family Information</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedStudent.family_number && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Family Number</p>
@@ -3947,10 +3947,10 @@ function AdmissionRegisterContent() {
                   </div>
                 )}
 
-                <div className="mt-6 flex gap-3">
+                <div className="mt-6 flex gap-2">
                   <button
                     onClick={() => setShowViewModal(false)}
-                    className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
+                    className="flex-1 px-3 py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition border border-gray-300"
                   >
                     Close
                   </button>
@@ -3968,7 +3968,7 @@ function AdmissionRegisterContent() {
                         avatar: selectedStudent.avatar
                       })
                     }}
-                    className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                    className="flex-1 px-3 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
                   >
                     <Edit2 size={18} />
                     Edit
@@ -3996,7 +3996,7 @@ export default function AdmissionRegisterPage() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }

@@ -12,7 +12,18 @@
       "Bash(awk:*)",
       "Bash(head:*)",
       "Bash(grep:*)",
-      "Bash(xargs:*)"
+
+      "Bash(xargs:*)",
+
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(for file in \"app/\\(dashboard\\)/students/active/page.js\" \"app/\\(dashboard\\)/students/admission/page.js\" \"app/\\(dashboard\\)/students/old/page.js\" \"app/\\(dashboard\\)/students/reports/page.js\" \"app/\\(dashboard\\)/students/cards/page.js\" \"app/\\(dashboard\\)/students/certificates/page.js\")",
+      "Bash(do echo \"File: $file\")",
+      "Bash(done)",
+      "Bash(echo:*)",
+      "Bash(for file in \"app/\\(dashboard\\)/students/active/page.js\" \"app/\\(dashboard\\)/students/reports/page.js\" \"app/\\(dashboard\\)/students/cards/page.js\" \"app/\\(dashboard\\)/students/certificates/page.js\")",
+      "Bash(do sed -i 's/p-1\\\\.5\\\\.5/p-2.5/g' \"$file\")"
     ]
   }
 }

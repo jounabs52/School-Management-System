@@ -1437,7 +1437,7 @@ function StudentCertificatesContent() {
   }
 
   return (
-    <div className="p-1.5 sm:p-2 md:p-3 lg:p-4 xl:p-6 bg-gray-50 min-h-screen">
+    <div className="p-1.5 sm:p-1.5 md:p-3 lg:p-3 xl:p-3 bg-gray-50 min-h-screen">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -1447,16 +1447,16 @@ function StudentCertificatesContent() {
         }}
       />
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-4 md:mb-6">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-red-600 rounded-lg flex items-center justify-center">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-4 md:mb-6">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-10 bg-red-600 rounded-lg flex items-center justify-center">
             <FileText className="text-white w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800">Certificates</h1>
         </div>
         <button
           onClick={() => setShowCertificateSettings(true)}
-          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm md:text-base"
+          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-3 py-1.5 sm:py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition text-xs sm:text-sm md:text-base"
         >
           <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span className="hidden sm:inline">Certificate Settings</span>
@@ -1466,31 +1466,31 @@ function StudentCertificatesContent() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-2 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
+        <div className="mb-1.5 sm:mb-3 md:mb-4 bg-green-100 border border-green-400 text-green-700 px-2 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
           <Check className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           <span className="line-clamp-2">{success}</span>
         </div>
       )}
       {error && (
-        <div className="mb-2 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
+        <div className="mb-1.5 sm:mb-3 md:mb-4 bg-red-100 border border-red-400 text-red-700 px-2 sm:px-3 md:px-3 py-2 sm:py-2 md:py-2.5 rounded text-xs sm:text-sm relative flex items-center gap-1.5 sm:gap-2">
           <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           <span className="line-clamp-2">{error}</span>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-1.5 sm:p-3 md:p-3 lg:p-5 xl:p-3">
         {/* Selection Fields */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4 lg:gap-6 mb-3 sm:mb-4 md:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 md:gap-2 lg:gap-2 mb-3 sm:mb-4 md:mb-6">
           {/* Certificate Type Selection */}
           <div>
-            <label className="block text-gray-700 font-semibold text-sm mb-2">
+            <label className="block text-gray-700 font-semibold text-sm mb-1.5">
               Certificate Type <span className="text-red-500">*</span>
             </label>
             <select
               value={certificateType}
               onChange={(e) => setCertificateType(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="character">Character Certificate</option>
               <option value="leaving">Leaving Certificate</option>
@@ -1499,7 +1499,7 @@ function StudentCertificatesContent() {
 
           {/* Class Selection */}
           <div>
-            <label className="block text-gray-700 font-semibold text-sm mb-2">
+            <label className="block text-gray-700 font-semibold text-sm mb-1.5">
               Select Class <span className="text-red-500">*</span>
             </label>
             <select
@@ -1509,7 +1509,7 @@ function StudentCertificatesContent() {
                 setSelectedSection('')
                 setSelectedStudent(null)
               }}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="">Select Class</option>
               {classes.map((cls) => (
@@ -1523,11 +1523,11 @@ function StudentCertificatesContent() {
           {/* Section Selection */}
           {selectedClass && (
             <div>
-              <label className="block text-gray-700 font-semibold text-sm mb-2">
+              <label className="block text-gray-700 font-semibold text-sm mb-1.5">
                 Select Section <span className="text-red-500">*</span>
               </label>
               {sections.length === 0 ? (
-                <div className="w-full px-4 py-3 border border-blue-300 rounded-lg bg-blue-50 text-blue-700 text-sm">
+                <div className="w-full px-3 py-2 border border-blue-300 rounded-lg bg-blue-50 text-blue-700 text-sm">
                   <AlertCircle size={16} className="inline mr-2" />
                   No sections found. Showing all students from this class.
                 </div>
@@ -1538,7 +1538,7 @@ function StudentCertificatesContent() {
                     setSelectedSection(e.target.value)
                     setSelectedStudent(null)
                   }}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 >
                   <option value="">Select Section</option>
                   {sections.map((sec) => (
@@ -1554,7 +1554,7 @@ function StudentCertificatesContent() {
           {/* Certificate For */}
           {(selectedSection || (selectedClass && sections.length === 0)) && (
             <div>
-              <label className="block text-gray-700 font-semibold text-sm mb-2">
+              <label className="block text-gray-700 font-semibold text-sm mb-1.5">
                 Certificate For <span className="text-red-500">*</span>
               </label>
               <select
@@ -1563,7 +1563,7 @@ function StudentCertificatesContent() {
                   setCertificateFor(e.target.value)
                   setSelectedStudent(null)
                 }}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               >
                 <option value="individual">Individual Student</option>
                 <option value="section">{sections.length === 0 ? 'Full Class' : 'Full Section'}</option>
@@ -1590,14 +1590,14 @@ function StudentCertificatesContent() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {students.map((student) => (
                     <div
                       key={student.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition"
+                      className="border border-gray-200 rounded-lg p-3 hover:border-blue-500 hover:shadow-md transition"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">
+                      <div className="flex items-center gap-2">
+                        <div className="w-12 h-10 bg-blue-100 rounded-full flex items-center justify-center text-2xl">
                           {student.gender === 'female' ? '👧' : '👦'}
                         </div>
                         <div className="flex-1">
@@ -1727,7 +1727,7 @@ function StudentCertificatesContent() {
                         }
                       }}
                       disabled={saving}
-                      className="px-8 py-3 bg-[#D12323] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-8 py-2 bg-[#D12323] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {saving ? (
                         <>
@@ -1752,7 +1752,7 @@ function StudentCertificatesContent() {
         {!selectedClass && (
           <div className="text-center py-16">
             <FileText size={64} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500 text-lg mb-2">Select a class to generate certificate</p>
+            <p className="text-gray-500 text-lg mb-1.5">Select a class to generate certificate</p>
             <p className="text-gray-400 text-sm">Total Students: {students.length}</p>
           </div>
         )}
@@ -1766,26 +1766,26 @@ function StudentCertificatesContent() {
             style={{ position: 'fixed', margin: 0 }}
             onClick={() => !saving && setShowPreview(false)}
           />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-1.5 sm:p-3">
             <div className="bg-white rounded-xl shadow-2xl max-w-full sm:max-w-xl lg:max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-xl">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-3 py-2 rounded-t-xl">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Certificate Details</h3>
                   <button
                     onClick={() => !saving && setShowPreview(false)}
                     disabled={saving}
-                    className="text-white hover:bg-white/10 p-2 rounded-full transition disabled:opacity-50"
+                    className="text-white hover:bg-white/10 p-1.5 rounded-full transition disabled:opacity-50"
                   >
                     <X size={20} />
                   </button>
                 </div>
               </div>
 
-              <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-180px)]">
+              <div className="p-3 sm:p-3 overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-180px)]">
                 {/* Student Info */}
-                <div className="p-3 sm:p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-semibold text-blue-900 mb-2">Student Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
+                <div className="p-2.5 sm:p-3.5 bg-blue-50 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-1.5">Student Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2 text-sm">
                     <div>
                       <span className="text-gray-600">Name:</span>
                       <span className="ml-2 font-semibold">{selectedStudent.first_name} {selectedStudent.last_name}</span>
@@ -1807,18 +1807,18 @@ function StudentCertificatesContent() {
               </div>
 
               {/* Action Buttons */}
-              <div className="border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4 bg-gray-50 flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="border-t border-gray-200 px-3 sm:px-3 py-2 sm:py-4 bg-gray-50 flex flex-col sm:flex-row gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setShowPreview(false)}
                   disabled={saving}
-                  className="flex-1 px-6 py-3 text-gray-700 font-semibold hover:bg-gray-200 rounded-lg transition border border-gray-300 disabled:opacity-50"
+                  className="flex-1 px-3 py-2 text-gray-700 font-semibold hover:bg-gray-200 rounded-lg transition border border-gray-300 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveCertificate}
                   disabled={saving}
-                  className="flex-1 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {saving ? (
                     <>
@@ -1834,7 +1834,7 @@ function StudentCertificatesContent() {
                 </button>
                 <button
                   onClick={() => handleGenerateCertificatePDF(selectedStudent, certificateType)}
-                  className="flex-1 px-6 py-3 bg-[#D12323] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                  className="flex-1 px-3 py-2 bg-[#D12323] text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
                 >
                   <Download size={18} />
                   Generate PDF
@@ -1847,25 +1847,25 @@ function StudentCertificatesContent() {
 
       {/* Certificate Settings Modal */}
       {showCertificateSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-1.5 sm:p-3">
           <div className="bg-white rounded-lg shadow-xl max-w-full sm:max-w-xl lg:max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">Certificate Settings</h2>
               <button
                 onClick={() => setShowCertificateSettings(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <div className="p-3 sm:p-3 space-y-4 sm:space-y-4">
               {/* Header & Branding */}
               <div>
-                <h3 className="text-sm font-semibold mb-2 sm:mb-3 text-gray-700">HEADER & BRANDING</h3>
+                <h3 className="text-sm font-semibold mb-1.5 sm:mb-3 text-gray-700">HEADER & BRANDING</h3>
                 <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Institute Name
                     </label>
                     <input
@@ -1877,7 +1877,7 @@ function StudentCertificatesContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Institute Location
                     </label>
                     <input
@@ -1889,7 +1889,7 @@ function StudentCertificatesContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Certificate Title
                     </label>
                     <input
@@ -1900,8 +1900,8 @@ function StudentCertificatesContent() {
                       className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         id="showSchoolLogo"
@@ -1914,7 +1914,7 @@ function StudentCertificatesContent() {
                       </label>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">Logo Size</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Logo Size</label>
                       <select
                         value={certificateSettings.logoSize}
                         onChange={(e) => handleCertificateSettingChange('logoSize', e.target.value)}
@@ -1932,9 +1932,9 @@ function StudentCertificatesContent() {
               {/* Color Settings */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">COLOR SETTINGS</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Border Color
                     </label>
                     <div className="flex gap-2">
@@ -1953,7 +1953,7 @@ function StudentCertificatesContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Header Text Color
                     </label>
                     <div className="flex gap-2">
@@ -1972,7 +1972,7 @@ function StudentCertificatesContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Text Color
                     </label>
                     <div className="flex gap-2">
@@ -1991,7 +1991,7 @@ function StudentCertificatesContent() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Accent Color
                     </label>
                     <div className="flex gap-2">
@@ -2015,9 +2015,9 @@ function StudentCertificatesContent() {
               {/* Spacing & Layout Settings */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">SPACING & LAYOUT</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Page Orientation
                       <span className="block text-gray-500 font-normal text-xs mt-1">Select portrait or landscape</span>
                     </label>
@@ -2031,9 +2031,9 @@ function StudentCertificatesContent() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Header Spacing (mm)
                       <span className="block text-gray-500 font-normal text-xs mt-1">Space between logo, school name, address, title</span>
                     </label>
@@ -2047,7 +2047,7 @@ function StudentCertificatesContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Field Spacing (mm)
                       <span className="block text-gray-500 font-normal text-xs mt-1">Space between student detail rows</span>
                     </label>
@@ -2061,7 +2061,7 @@ function StudentCertificatesContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Section Spacing (mm)
                       <span className="block text-gray-500 font-normal text-xs mt-1">Space before certificate text</span>
                     </label>
@@ -2082,7 +2082,7 @@ function StudentCertificatesContent() {
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">CERTIFICATE CONTENT</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Certificate Text Template
                       <span className="text-gray-500 font-normal ml-2">(Use {`{studentName}`}, {`{fatherName}`}, {`{collegeName}`}, {`{marksObtained}`}, {`{totalMarks}`}, {`{grade}`}, {`{className}`}, {`{rollNumber}`}, {`{session}`}, {`{year}`})</span>
                     </label>
@@ -2100,7 +2100,7 @@ function StudentCertificatesContent() {
               {/* Field Visibility */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">FIELD VISIBILITY</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -2209,7 +2209,7 @@ function StudentCertificatesContent() {
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">SIGNATURE SETTINGS</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Principal Signature Image
                     </label>
                     <input
@@ -2229,12 +2229,12 @@ function StudentCertificatesContent() {
                     />
                     {certificateSettings.principalSignature && (
                       <div className="mt-2">
-                        <img src={certificateSettings.principalSignature} alt="Principal Signature" className="h-12 border border-gray-300 rounded" />
+                        <img src={certificateSettings.principalSignature} alt="Principal Signature" className="h-10 border border-gray-300 rounded" />
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Principal Title/Label
                     </label>
                     <input
@@ -2246,7 +2246,7 @@ function StudentCertificatesContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       School Name in Signature
                     </label>
                     <input
@@ -2263,8 +2263,8 @@ function StudentCertificatesContent() {
               {/* Border & Design */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">BORDER & DESIGN</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="showBorder"
@@ -2277,7 +2277,7 @@ function StudentCertificatesContent() {
                     </label>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">Border Style</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Border Style</label>
                     <select
                       value={certificateSettings.borderStyle}
                       onChange={(e) => handleCertificateSettingChange('borderStyle', e.target.value)}
@@ -2294,8 +2294,8 @@ function StudentCertificatesContent() {
               {/* Footer Settings */}
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-semibold mb-3 text-gray-700">FOOTER SETTINGS</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="showDate"
@@ -2307,7 +2307,7 @@ function StudentCertificatesContent() {
                       Show Issue Date
                     </label>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="showSerialNumber"
@@ -2324,16 +2324,16 @@ function StudentCertificatesContent() {
             </div>
 
             {/* Footer with Save Button */}
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-3 py-2 flex justify-end gap-2">
               <button
                 onClick={() => setShowCertificateSettings(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={saveCertificateSettings}
-                className="px-4 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                className="px-3 py-2 bg-[#D12323] text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
                 Save Settings
@@ -2359,7 +2359,7 @@ export default function StudentCertificatesPage() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
